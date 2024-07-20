@@ -1,3 +1,3 @@
 # andromeda
 
-The simplest JavaScript engine for running JavaScript code and TypeScript code with no transpilation bullshit.
+The simplest JavaScript engine for running JavaScript code and TypeScript code with no transpilation BS.
