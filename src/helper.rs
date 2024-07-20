@@ -69,8 +69,9 @@ pub fn initialize_global_object(agent: &mut Agent, global: Object) {
         Behaviour::Regular(_internal_write_text_file),
         BuiltinFunctionArgs::new(2, "_internal_write_text_file", agent.current_realm_id()),
     );
-    let _internal_write_text_file_key_ = PropertyKey::from_static_str(agent, "_internal_write_text_file");
-    
+    let _internal_write_text_file_key_ =
+        PropertyKey::from_static_str(agent, "_internal_write_text_file");
+
     global
         .internal_define_own_property(
             agent,
@@ -100,7 +101,8 @@ pub fn initialize_global_object(agent: &mut Agent, global: Object) {
                 value: Some(_internal_write_text_file.into_value()),
                 ..Default::default()
             },
-        ).unwrap();
+        )
+        .unwrap();
 }
 
 /// Exit the program with parse errors.
