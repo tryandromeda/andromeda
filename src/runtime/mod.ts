@@ -60,9 +60,9 @@ function assertThrows(fn: () => void, message: string) {
 }
 
 /**
- * Marc namespace for the Andromeda runtime.
+ * Andromeda namespace for the Andromeda runtime.
  */
-const Marc = {
+const Andromeda = {
     /**
      * the `_internal_read_file` function reads a file from the filesystem.
      */
