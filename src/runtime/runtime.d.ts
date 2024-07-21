@@ -43,9 +43,9 @@ declare function _internal_write_file(path: string, data: string): void;
 declare function _internal_write_text_file(path: string, data: string): void;
 
 /**
- * The Marc namespace for the Andromeda runtime.
+ * The Andromeda namespace for the Andromeda runtime.
  */
-declare namespace Marc {
+declare namespace Andromeda {
     /**
      * readFileSync reads a file from the file system.
      */
