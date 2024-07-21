@@ -81,10 +81,6 @@ const Andromeda = {
      * The `exit` function exits the program with an optional exit code.
      */
     exit(code?: number): void {
-        if (code) {
-            _internal_exit(code);
-        } else {
-            _internal_exit(0);
-        }
+        _internal_exit(code || 0);
     },
 };
