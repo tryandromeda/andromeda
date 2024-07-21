@@ -75,5 +75,16 @@ const Andromeda = {
      */
     writeTextFileSync(path: string, data: string): void {
         _internal_write_text_file(path, data);
-    }
+    },
+
+    /**
+     * The `exit` function exits the program with an optional exit code.
+     */
+    exit(code?: number): void {
+        if (code) {
+            _internal_exit(code);
+        } else {
+            _internal_exit(0);
+        }
+    },
 };

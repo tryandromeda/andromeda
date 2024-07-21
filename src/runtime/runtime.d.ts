@@ -43,6 +43,11 @@ declare function _internal_write_file(path: string, data: string): void;
 declare function _internal_write_text_file(path: string, data: string): void;
 
 /**
+ * The `_internal_exit` function exits the program with an optional exit code.
+ */
+declare function _internal_exit(code: number): void;
+
+/**
  * The Andromeda namespace for the Andromeda runtime.
  */
 declare namespace Andromeda {
@@ -55,4 +60,10 @@ declare namespace Andromeda {
      * writeFileSync writes a file to the file system.
      */
     function writeTextFileSync(path: string, data: string): void;
+
+    /**
+     * exit exits the program with an optional exit code. 
+     */
+    function exit(code?: number): void;
 }
+

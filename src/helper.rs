@@ -50,6 +50,11 @@ pub fn initialize_global_object(agent: &mut Agent, global: Object) {
             )),
         }
     }
+
+    fn _internal_exit(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
+        std::process::exit(args[0].to_int32(agent)?);
+    }
+
     let function = create_builtin_function(
         agent,
         Behaviour::Regular(debug),
@@ -71,6 +76,13 @@ pub fn initialize_global_object(agent: &mut Agent, global: Object) {
     );
     let _internal_write_text_file_key_ =
         PropertyKey::from_static_str(agent, "_internal_write_text_file");
+
+    let _internal_exit = create_builtin_function(
+        agent,
+        Behaviour::Regular(_internal_exit),
+        BuiltinFunctionArgs::new(1, "_internal_exit", agent.current_realm_id()),
+    );
+    let _internal_exit_key = PropertyKey::from_static_str(agent, "_internal_exit");
 
     global
         .internal_define_own_property(
@@ -99,6 +111,17 @@ pub fn initialize_global_object(agent: &mut Agent, global: Object) {
             _internal_write_text_file_key_,
             PropertyDescriptor {
                 value: Some(_internal_write_text_file.into_value()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+    global
+        .internal_define_own_property(
+            agent,
+            _internal_exit_key,
+            PropertyDescriptor {
+                value: Some(_internal_exit.into_value()),
                 ..Default::default()
             },
         )
