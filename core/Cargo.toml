@@ -1,0 +1,9 @@
+[package]
+name = "andromeda-core"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+nova_vm = { workspace = true }
+

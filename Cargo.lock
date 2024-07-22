@@ -27,6 +27,7 @@ checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
 name = "andromeda"
 version = "0.1.0"
 dependencies = [
+ "andromeda-core",
  "clap",
  "cliclack",
  "console",
@@ -38,6 +39,13 @@ dependencies = [
  "oxc_parser",
  "oxc_semantic",
  "oxc_span",
+]
+
+[[package]]
+name = "andromeda-core"
+version = "0.1.0"
+dependencies = [
+ "nova_vm",
 ]
 
 [[package]]
@@ -472,7 +480,7 @@ dependencies = [
 [[package]]
 name = "nova_vm"
 version = "0.1.0"
-source = "git+https://github.com/trynova/nova#1c3173e391429467209d4d63c77040ab0bd7b99e"
+source = "git+https://github.com/trynova/nova#14f4291c982c7563a7b9d82a9aafeb2e638688f6"
 dependencies = [
  "fast-float",
  "num-bigint",
@@ -481,6 +489,7 @@ dependencies = [
  "oxc_ast",
  "oxc_diagnostics",
  "oxc_parser",
+ "oxc_semantic",
  "oxc_span",
  "oxc_syntax",
  "rand",
@@ -868,7 +877,7 @@ checksum = "38b58827f4464d87d377d175e90bf58eb00fd8716ff0a62f80356b5e61555d0d"
 [[package]]
 name = "small_string"
 version = "0.1.0"
-source = "git+https://github.com/trynova/nova#1c3173e391429467209d4d63c77040ab0bd7b99e"
+source = "git+https://github.com/trynova/nova#14f4291c982c7563a7b9d82a9aafeb2e638688f6"
 
 [[package]]
 name = "smallvec"
@@ -917,9 +926,9 @@ checksum = "b7401a30af6cb5818bb64852270bb722533397edcfc7344954a38f420819ece2"
 
 [[package]]
 name = "syn"
-version = "2.0.71"
+version = "2.0.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b146dcf730474b4bcd16c311627b31ede9ab149045db4d6088b3becaea046462"
+checksum = "dc4b9b9bf2add8093d3f2c0204471e951b2285580335de42f9d2534f3ae7a8af"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -107,7 +107,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let realm = agent.current_realm_id();
 
             assert!(!paths.is_empty());
-            let runtime_path = include_str!("./runtime/mod.ts");
+            let runtime_path = include_str!("../../runtime/mod.ts");
             let script =
                 match parse_script(&allocator, runtime_path.into(), realm, !no_strict, None) {
                     Ok(script) => script,

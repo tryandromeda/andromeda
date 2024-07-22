@@ -1,0 +1,20 @@
+[package]
+name = "andromeda"
+version = "0.1.0"
+edition = "2021"
+default-run = "andromeda"
+
+
+[dependencies]
+clap = { workspace = true }
+cliclack = { workspace = true }
+console = { workspace = true }
+miette = { workspace = true }
+nova_vm = { workspace = true }
+andromeda-core = { path = "../core", workspace = true }
+oxc_ast = { workspace = true }
+oxc_parser = { workspace = true }
+oxc_span = { workspace = true }
+oxc_diagnostics = { workspace = true }
+oxc_allocator = { workspace = true }
+oxc_semantic = { workspace = true }
