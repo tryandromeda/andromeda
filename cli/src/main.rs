@@ -107,13 +107,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let realm = agent.current_realm_id();
 
             assert!(!paths.is_empty());
-            let runtime_path = include_str!("../../runtime/mod.ts");
+            let console_path = include_str!("../../runtime/console.ts");
+            let runtime_path =  include_str!("../../runtime/mod.ts");
             let script =
                 match parse_script(&allocator, runtime_path.into(), realm, !no_strict, None) {
                     Ok(script) => script,
                     Err((file, errors)) => exit_with_parse_errors(errors, "<runtime>", &file),
                 };
+            let console_script = match parse_script(&allocator, console_path.into(), realm, !no_strict, None) {
+                Ok(script) => script,
+                Err((file, errors)) => exit_with_parse_errors(errors, "<runtime>", &file),
+            };
+
             let mut final_result = script_evaluation(&mut agent, script);
+            
+            if final_result.is_err() {
+                println!("Error in runtime");
+            }
+            final_result = script_evaluation(&mut agent, console_script);
+
             if final_result.is_err() {
                 println!("Error in runtime");
             }
