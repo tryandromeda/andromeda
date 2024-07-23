@@ -27,3 +27,8 @@ declare function internal_write(message: string): void;
  * The `internal_write_line` function writes a string to standard output followed by a newline.
  */
 declare function internal_write_line(message: string): void;
+
+/**
+ * The `internal_file_open` opens a File and returns a Rid.
+ */
+declare function internal_file_open(path: string): void;

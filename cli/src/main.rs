@@ -5,9 +5,11 @@ mod helper;
 mod runtime;
 mod theme;
 
+use andromeda_core::initialize_recommended_extensions;
+use anymap::AnyMap;
 use clap::{Parser as ClapParser, Subcommand};
 use cliclack::{input, intro, set_theme};
-use helper::{exit_with_parse_errors, initialize_global_object};
+use helper::exit_with_parse_errors;
 use nova_vm::ecmascript::{
     execution::{
         agent::{HostHooks, Job, Options},
@@ -17,7 +19,7 @@ use nova_vm::ecmascript::{
     types::{Object, Value},
 };
 use runtime::attach_builtins;
-use std::{cell::RefCell, collections::VecDeque, fmt::Debug};
+use std::{any::Any, cell::RefCell, collections::VecDeque, fmt::Debug};
 use theme::DefaultTheme;
 
 /// A JavaScript runtime
@@ -51,9 +53,18 @@ enum Command {
     Repl {},
 }
 
-#[derive(Default)]
 struct CliHostHooks {
     promise_job_queue: RefCell<VecDeque<Job>>,
+    storage: RefCell<AnyMap>,
+}
+
+impl Default for CliHostHooks {
+    fn default() -> Self {
+        Self {
+            promise_job_queue: RefCell::default(),
+            storage: RefCell::new(AnyMap::new()),
+        }
+    }
 }
 
 // RefCell doesn't implement Debug
@@ -74,6 +85,10 @@ impl CliHostHooks {
 impl HostHooks for CliHostHooks {
     fn enqueue_promise_job(&self, job: Job) {
         self.promise_job_queue.borrow_mut().push_back(job);
+    }
+
+    fn get_host_data(&self) -> &dyn Any {
+        &self.storage
     }
 }
 
@@ -103,7 +118,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &mut agent,
                     create_global_object,
                     create_global_this_value,
-                    Some(initialize_global_object),
+                    Some(initialize_recommended_extensions),
                 );
             }
             let realm = agent.current_realm_id();
@@ -166,7 +181,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &mut agent,
                     create_global_object,
                     create_global_this_value,
-                    Some(initialize_global_object),
+                    Some(initialize_recommended_extensions),
                 );
             }
             let realm = agent.current_realm_id();
