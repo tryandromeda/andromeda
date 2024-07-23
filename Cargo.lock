@@ -28,6 +28,7 @@ name = "andromeda"
 version = "0.1.0"
 dependencies = [
  "andromeda-core",
+ "anymap",
  "clap",
  "cliclack",
  "console",
@@ -45,7 +46,9 @@ dependencies = [
 name = "andromeda-core"
 version = "0.1.0"
 dependencies = [
+ "anymap",
  "nova_vm",
+ "oxc_allocator",
 ]
 
 [[package]]
@@ -96,6 +99,12 @@ dependencies = [
  "anstyle",
  "windows-sys 0.52.0",
 ]
+
+[[package]]
+name = "anymap"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33954243bd79057c2de7338850b85983a44588021f8a5fee574a8888c6de4344"
 
 [[package]]
 name = "assert-unchecked"
@@ -480,7 +489,7 @@ dependencies = [
 [[package]]
 name = "nova_vm"
 version = "0.1.0"
-source = "git+https://github.com/trynova/nova#14f4291c982c7563a7b9d82a9aafeb2e638688f6"
+source = "git+https://github.com/marc2332/nova?rev=bad614bf107881e788bc5c8e367ceb304125d1de#bad614bf107881e788bc5c8e367ceb304125d1de"
 dependencies = [
  "fast-float",
  "num-bigint",
@@ -877,7 +886,7 @@ checksum = "38b58827f4464d87d377d175e90bf58eb00fd8716ff0a62f80356b5e61555d0d"
 [[package]]
 name = "small_string"
 version = "0.1.0"
-source = "git+https://github.com/trynova/nova#14f4291c982c7563a7b9d82a9aafeb2e638688f6"
+source = "git+https://github.com/marc2332/nova?rev=bad614bf107881e788bc5c8e367ceb304125d1de#bad614bf107881e788bc5c8e367ceb304125d1de"
 
 [[package]]
 name = "smallvec"
@@ -926,9 +935,9 @@ checksum = "b7401a30af6cb5818bb64852270bb722533397edcfc7344954a38f420819ece2"
 
 [[package]]
 name = "syn"
-version = "2.0.72"
+version = "2.0.71"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc4b9b9bf2add8093d3f2c0204471e951b2285580335de42f9d2534f3ae7a8af"
+checksum = "b146dcf730474b4bcd16c311627b31ede9ab149045db4d6088b3becaea046462"
 dependencies = [
  "proc-macro2",
  "quote",

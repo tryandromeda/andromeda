@@ -8,7 +8,7 @@ clap = { version = "4.5.9", features = ["derive"] }
 cliclack = "0.3.2"
 console = "0.15.8"
 miette = { version = "7.2.0", features = ["fancy"] }
-nova_vm = { git = "https://github.com/trynova/nova", features = ["typescript"] }
+nova_vm = { git = "https://github.com/marc2332/nova", rev = "bad614bf107881e788bc5c8e367ceb304125d1de", features = ["typescript"] }
 oxc_ast = "0.20.0"
 oxc_parser = "0.20.0"
 oxc_span = "0.20.0"
@@ -16,3 +16,4 @@ oxc_diagnostics = "0.20.0"
 oxc_allocator = "0.20.0"
 oxc_semantic = "0.20.0"
 andromeda-core = { path = "core" }
+anymap = "0.12.1"
