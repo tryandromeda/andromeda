@@ -31,4 +31,4 @@ declare function internal_write_line(message: string): void;
 /**
  * The `internal_file_open` opens a File and returns a Rid.
  */
-declare function internal_file_open(path: string): void;
+declare function internal_open_file(path: string): void;
