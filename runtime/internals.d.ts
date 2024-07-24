@@ -29,6 +29,11 @@ declare function internal_write(message: string): void;
 declare function internal_write_line(message: string): void;
 
 /**
- * The `internal_file_open` opens a File and returns a Rid.
+ * The `internal_file_open` function opens a File and returns a Rid.
  */
 declare function internal_open_file(path: string): void;
+
+/**
+ * The `internal_sleep` function returns a Promise to be resolved after the specified time un milliseconds.
+ */
+declare function internal_sleep(duration: number): Promise<void>;
