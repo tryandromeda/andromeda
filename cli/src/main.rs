@@ -19,7 +19,7 @@ use nova_vm::ecmascript::{
     types::{Object, Value},
 };
 use runtime::attach_builtins;
-use std::{any::Any, cell::RefCell, collections::VecDeque, fmt::Debug};
+use std::{any::Any, cell::RefCell, collections::VecDeque, fmt::Debug, sync::atomic::Ordering};
 use theme::DefaultTheme;
 
 /// A JavaScript runtime
@@ -79,8 +79,8 @@ impl CliHostHooks {
         self.promise_job_queue.borrow_mut().pop_front()
     }
 
-    fn any_pending_promise_jobs(&self) -> bool {
-        !self.promise_job_queue.borrow().is_empty()
+    fn any_pending_macro_tasks(&self) -> bool {
+        self.host_data.macro_task_count.load(Ordering::Relaxed) > 0
     }
 }
 
@@ -161,9 +161,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
 
+                        // If both the microtasks and macrotasks queues are empty we can end the event loop
+                        if !host_hooks.any_pending_macro_tasks() {
+                            break;
+                        }
+
                         #[allow(clippy::single_match)]
-                        match macro_task_rx.try_recv().ok() {
-                            Some(MacroTask::ResolvePromise(root_value)) => {
+                        match macro_task_rx.recv() {
+                            Ok(MacroTask::ResolvePromise(root_value)) => {
                                 let value = root_value.take(&mut agent);
                                 if let Value::Promise(promise) = value {
                                     let promise_capability =
@@ -174,11 +179,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 }
                             }
                             _ => {}
-                        }
-
-                        // TODO: Also check if there are pending macrotasks so we can safely exit the loop
-                        if host_hooks.any_pending_promise_jobs() {
-                            // break;
                         }
                     }
                 }

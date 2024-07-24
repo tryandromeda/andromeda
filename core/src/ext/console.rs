@@ -94,7 +94,7 @@ impl ConsolExt {
         let host_data: &HostData = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
 
-        tokio::spawn(async move {
+        host_data.spawn_macro_task(async move {
             tokio::time::sleep(duration).await;
             macro_task_tx.send(MacroTask::ResolvePromise(root_value))
         });

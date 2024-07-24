@@ -46,6 +46,13 @@ declare namespace Andromeda {
    */
   function exit(code?: number): void;
 
+
+  /**
+   * Returns a Promise to be resolved after the specified time un milliseconds.
+   */
+  function sleep(duration: number): Promise<void>;
+
+
   namespace stdin {
     /**
      * readLine reads a line from standard input.
