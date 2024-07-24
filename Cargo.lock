@@ -491,6 +491,7 @@ dependencies = [
 [[package]]
 name = "nova_vm"
 version = "0.1.0"
+source = "git+https://github.com/marc2332/nova?branch=feat/hold-global-values-across-gc-calls#531a26363531daed7e9a3aa1a1bf7045e879d8e3"
 dependencies = [
  "fast-float",
  "num-bigint",
@@ -893,6 +894,7 @@ checksum = "38b58827f4464d87d377d175e90bf58eb00fd8716ff0a62f80356b5e61555d0d"
 [[package]]
 name = "small_string"
 version = "0.1.0"
+source = "git+https://github.com/marc2332/nova?branch=feat/hold-global-values-across-gc-calls#531a26363531daed7e9a3aa1a1bf7045e879d8e3"
 
 [[package]]
 name = "smallvec"
