@@ -9,3 +9,5 @@ nova_vm = { workspace = true }
 oxc_allocator = { workspace = true }
 anymap = { workspace = true }
 tokio = { workspace = true }
+miette = { workspace = true }
+oxc_diagnostics = { workspace = true }
