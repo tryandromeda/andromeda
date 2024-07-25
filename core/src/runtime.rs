@@ -148,22 +148,26 @@ impl Runtime {
                 break;
             }
 
-            // Listen for pending macro tasks and resolve one by one
-            #[allow(clippy::single_match)]
-            match self.macro_task_rx.recv() {
-                Ok(MacroTask::ResolvePromise(root_value)) => {
-                    let value = root_value.take(&mut self.agent);
-                    if let Value::Promise(promise) = value {
-                        let promise_capability = PromiseCapability::from_promise(promise, false);
-                        promise_capability.resolve(&mut self.agent, Value::Undefined);
-                    } else {
-                        panic!("Attempted to resolve a non-promise value");
-                    }
-                }
-                _ => {}
-            }
+            self.handle_macro_task();
         }
 
         Ok(final_result)
+    }
+
+    // Listen for pending macro tasks and resolve one by one
+    pub fn handle_macro_task(&mut self) {
+        #[allow(clippy::single_match)]
+        match self.macro_task_rx.recv() {
+            Ok(MacroTask::ResolvePromise(root_value)) => {
+                let value = root_value.take(&mut self.agent);
+                if let Value::Promise(promise) = value {
+                    let promise_capability = PromiseCapability::from_promise(promise, false);
+                    promise_capability.resolve(&mut self.agent, Value::Undefined);
+                } else {
+                    panic!("Attempted to resolve a non-promise value");
+                }
+            }
+            _ => {}
+        }
     }
 }

@@ -1,13 +1,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-mod repl;
-mod repl_theme;
-
 use andromeda_core::{Runtime, RuntimeConfig};
 use clap::{Parser as ClapParser, Subcommand};
-use repl::repl;
-
 /// A JavaScript runtime
 #[derive(Debug, ClapParser)]
 #[command(name = "andromeda")]
@@ -33,12 +28,6 @@ enum Command {
         /// The files to run
         #[arg(required = true)]
         paths: Vec<String>,
-    },
-
-    /// Runs the REPL
-    Repl {
-        #[arg(short, long)]
-        verbose: bool,
     },
 }
 
@@ -81,9 +70,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     std::process::exit(1);
                 }
             }
-        }
-        Command::Repl { verbose } => {
-            repl(verbose);
         }
     });
 
