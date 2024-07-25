@@ -15,14 +15,14 @@ impl Ext for ConsoleExt {
         loader.load_op("internal_read_line", Self::internal_read_line, 1);
         loader.load_op("internal_write", Self::internal_write, 1);
         loader.load_op("internal_write_line", Self::internal_write_line, 1);
-        loader.load_op("debug", Self::debug, 1);
+        loader.load_op("internal_log", Self::internal_log, 1);
         loader.load_op("internal_exit", Self::internal_exit, 1);
     }
 }
 
 impl ConsoleExt {
-    /// Debug function that prints the first argument to the console.
-    fn debug(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
+    /// Log function that prints the first argument to the console.
+    fn internal_log(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
         if args.len() == 0 {
             println!();
         } else {

@@ -37,3 +37,8 @@ declare function internal_open_file(path: string): void;
  * The `internal_sleep` function returns a Promise to be resolved after the specified time un milliseconds.
  */
 declare function internal_sleep(duration: number): Promise<void>;
+
+/**
+ *  function to log messages to the console.
+ */
+declare function internal_log(message: string): void;
