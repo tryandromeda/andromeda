@@ -32,11 +32,9 @@ dependencies = [
  "clap",
  "cliclack",
  "console",
- "miette",
  "nova_vm",
  "oxc_allocator",
  "oxc_ast",
- "oxc_diagnostics",
  "oxc_parser",
  "oxc_semantic",
  "oxc_span",
@@ -48,8 +46,10 @@ name = "andromeda-core"
 version = "0.1.0"
 dependencies = [
  "anymap",
+ "miette",
  "nova_vm",
  "oxc_allocator",
+ "oxc_diagnostics",
  "tokio",
 ]
 
