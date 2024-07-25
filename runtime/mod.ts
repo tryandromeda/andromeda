@@ -109,6 +109,6 @@ const Andromeda = {
  * The prompt function prompts the user for input.
  */
 function prompt(message: string): string {
-  console.log(message);
+  internal_print(message+ ": ");
   return Andromeda.stdin.readLine();
 }

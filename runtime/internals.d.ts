@@ -41,4 +41,4 @@ declare function internal_sleep(duration: number): Promise<void>;
 /**
  *  function to log messages to the console.
  */
-declare function internal_log(message: string): void;
+declare function internal_print(message: string): void;

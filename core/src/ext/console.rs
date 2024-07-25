@@ -1,3 +1,5 @@
+use std::io::{stdout, Write};
+
 use nova_vm::ecmascript::{
     builtins::ArgumentsList,
     execution::{Agent, JsResult},
@@ -15,19 +17,16 @@ impl Ext for ConsoleExt {
         loader.load_op("internal_read_line", Self::internal_read_line, 1);
         loader.load_op("internal_write", Self::internal_write, 1);
         loader.load_op("internal_write_line", Self::internal_write_line, 1);
-        loader.load_op("internal_log", Self::internal_log, 1);
+        loader.load_op("internal_print", Self::internal_print, 1);
         loader.load_op("internal_exit", Self::internal_exit, 1);
     }
 }
 
 impl ConsoleExt {
-    /// Log function that prints the first argument to the console.
-    fn internal_log(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
-        if args.len() == 0 {
-            println!();
-        } else {
-            println!("{}", args[0].to_string(agent)?.as_str(agent));
-        }
+    /// Print function that prints the first argument to the console.
+    fn internal_print(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
+        stdout().write_all(args[0].to_string(agent)?.as_str(agent).as_bytes()).unwrap();
+        stdout().flush().unwrap();
         Ok(Value::Undefined)
     }
 

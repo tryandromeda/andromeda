@@ -8,27 +8,27 @@ const console = {
      *  log function logs a message to the console.
      */
     log(message: string) {
-        internal_log(message);
+        internal_print(message+"\n");
     },
 
     /**
      * debug function logs a debug message to the console.
      */
     debug(message: string) {
-        internal_log("[debug]: " + message);
+        internal_print("[debug]: " + message+"\n");
     },
 
     /**
      * warn function logs a warning message to the console.
      */
     warn(message: string) {
-        internal_log("[warn]: " + message);
+        internal_print("[warn]: " + message+"\n");
     },
 
     /**
      *  error function logs a warning message to the console.
      */
     error(message: string) {
-        internal_log("[error]: " + message);
+        internal_print("[error]: " + message+"\n");
     },
 };
