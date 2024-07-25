@@ -7,19 +7,20 @@ use nova_vm::ecmascript::{
 use crate::ext_interface::{Ext, ExtLoader};
 
 #[derive(Default)]
-pub struct ConsolExt;
+pub struct ConsoleExt;
 
-impl Ext for ConsolExt {
+impl Ext for ConsoleExt {
     fn load(&self, mut loader: ExtLoader) {
         loader.load_op("internal_read", Self::internal_read, 1);
         loader.load_op("internal_read_line", Self::internal_read_line, 1);
         loader.load_op("internal_write", Self::internal_write, 1);
         loader.load_op("internal_write_line", Self::internal_write_line, 1);
         loader.load_op("debug", Self::debug, 1);
+        loader.load_op("internal_exit", Self::internal_exit, 1);
     }
 }
 
-impl ConsolExt {
+impl ConsoleExt {
     /// Debug function that prints the first argument to the console.
     fn debug(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
         if args.len() == 0 {

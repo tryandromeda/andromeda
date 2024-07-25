@@ -1,11 +1,10 @@
-use std::cell::RefCell;
-
-use anymap::AnyMap;
 use nova_vm::ecmascript::{
     builtins::{create_builtin_function, Behaviour, BuiltinFunctionArgs, RegularFn},
     execution::Agent,
     types::{InternalMethods, IntoValue, Object, PropertyDescriptor, PropertyKey},
 };
+
+use crate::HostData;
 
 pub struct ExtLoader<'a> {
     pub agent: &'a mut Agent,
@@ -14,8 +13,9 @@ pub struct ExtLoader<'a> {
 
 impl ExtLoader<'_> {
     pub fn init_storage<T: 'static>(&mut self, value: T) {
-        let host_data: &RefCell<AnyMap> = self.agent.get_host_data().downcast_ref().unwrap();
-        let mut storage = host_data.borrow_mut();
+        let host_data = self.agent.get_host_data();
+        let host_data: &HostData = host_data.downcast_ref().unwrap();
+        let mut storage = host_data.storage.borrow_mut();
         storage.insert(value);
     }
 

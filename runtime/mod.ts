@@ -67,6 +67,13 @@ const Andromeda = {
   },
 
   /**
+   * The `sleep` function returns a Promise to be resolved after the specified time un milliseconds.
+   */
+  sleep(duration: number): Promise<void> {
+    return internal_sleep(duration)
+  },
+
+  /**
    * stdin namespace for reading from standard input.
    */
   stdin: {

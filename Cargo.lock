@@ -40,6 +40,7 @@ dependencies = [
  "oxc_parser",
  "oxc_semantic",
  "oxc_span",
+ "tokio",
 ]
 
 [[package]]
@@ -49,6 +50,7 @@ dependencies = [
  "anymap",
  "nova_vm",
  "oxc_allocator",
+ "tokio",
 ]
 
 [[package]]
@@ -489,7 +491,7 @@ dependencies = [
 [[package]]
 name = "nova_vm"
 version = "0.1.0"
-source = "git+https://github.com/marc2332/nova?rev=bad614bf107881e788bc5c8e367ceb304125d1de#bad614bf107881e788bc5c8e367ceb304125d1de"
+source = "git+https://github.com/marc2332/nova?branch=feat/hold-global-values-across-gc-calls#531a26363531daed7e9a3aa1a1bf7045e879d8e3"
 dependencies = [
  "fast-float",
  "num-bigint",
@@ -754,6 +756,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "pin-project-lite"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bda66fc9667c18cb2758a2ac84d1167245054bcf85d5d1aaa6923f45801bdd02"
+
+[[package]]
 name = "portable-atomic"
 version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -886,7 +894,7 @@ checksum = "38b58827f4464d87d377d175e90bf58eb00fd8716ff0a62f80356b5e61555d0d"
 [[package]]
 name = "small_string"
 version = "0.1.0"
-source = "git+https://github.com/marc2332/nova?rev=bad614bf107881e788bc5c8e367ceb304125d1de#bad614bf107881e788bc5c8e367ceb304125d1de"
+source = "git+https://github.com/marc2332/nova?branch=feat/hold-global-values-across-gc-calls#531a26363531daed7e9a3aa1a1bf7045e879d8e3"
 
 [[package]]
 name = "smallvec"
@@ -983,6 +991,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "tokio"
+version = "1.39.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c3318c4fc7126c339a40fbc025927d0328ca32259f68bfe4321660644c1f626"
+dependencies = [
+ "backtrace",
+ "pin-project-lite",
 ]
 
 [[package]]

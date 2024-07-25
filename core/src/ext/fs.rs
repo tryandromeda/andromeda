@@ -1,6 +1,5 @@
-use std::{borrow::BorrowMut, cell::RefCell, fs::File};
+use std::{borrow::BorrowMut, fs::File};
 
-use anymap::AnyMap;
 use nova_vm::{
     ecmascript::{
         builtins::ArgumentsList,
@@ -13,6 +12,7 @@ use nova_vm::{
 use crate::{
     ext_interface::{Ext, ExtLoader},
     resource_table::ResourceTable,
+    HostData,
 };
 
 struct FsExtResources {
@@ -87,8 +87,8 @@ impl FsExt {
         let file = File::open(path).unwrap(); // TODO: Handle errors
 
         let host_data = agent.get_host_data();
-        let storage: &RefCell<AnyMap> = host_data.downcast_ref().unwrap();
-        let storage = storage.borrow();
+        let host_data: &HostData = host_data.downcast_ref().unwrap();
+        let storage = host_data.storage.borrow();
         let resources: &FsExtResources = storage.get().unwrap();
         let rid = resources.files.push(file);
 
