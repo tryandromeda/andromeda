@@ -1,10 +1,5 @@
 /**
- * Debug function to log messages to the console.
- */
-declare function debug(message: string): void;
-
-/**
- * The `console` module provides a simple debugging console that is similar to the JavaScript console mechanism provided by web browsers.
+ * The `assert` function tests if a condition is true.
  */
 declare function assert(condition: boolean, message: string): void;
 
