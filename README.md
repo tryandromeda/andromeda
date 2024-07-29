@@ -2,7 +2,7 @@
 <a href="https://freyaui.dev/"><img align="right" src="./assets/andromeda.svg" alt="Freya logo" width="150"/></a>
 
 
-[![Discord Server](https://img.shields.io/discord/1015005816094478347.svg?logo=discord&style=flat-square)](https://discord.gg/sYejxCdewG)
+[![Discord Server](https://img.shields.io/discord/1264947585882259599.svg?logo=discord&style=flat-square)](https://discord.gg/tgjAnX2Ny3)
 
 The simplest JavaScript and TypeScript runtime, fully written in [Rust 🦀](https://www.rust-lang.org/) and powered [Nova](https://trynova.dev/).
 
