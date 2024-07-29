@@ -1,5 +1,5 @@
 # Andromeda 🌌
-<a href="https://freyaui.dev/"><img align="right" src="./assets/andromeda.svg" alt="Freya logo" width="150"/></a>
+<a href="https://github.com/load1n9/andromeda"><img align="right" src="./assets/andromeda.svg" alt="Andromeda" width="150"/></a>
 
 
 [![Discord Server](https://img.shields.io/discord/1264947585882259599.svg?logo=discord&style=flat-square)](https://discord.gg/tgjAnX2Ny3)
