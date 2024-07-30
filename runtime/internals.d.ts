@@ -39,6 +39,7 @@ declare function internal_open_file(path: string): void;
 declare function internal_sleep(duration: number): Promise<void>;
 
 /**
- *  function to log messages to the console.
+ *  The `internal_print` function to log messages to the console.
  */
 declare function internal_print(message: string): void;
+
