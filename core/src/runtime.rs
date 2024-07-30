@@ -9,12 +9,11 @@ use nova_vm::ecmascript::{
     builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
     execution::{
         agent::{HostHooks, Job, Options},
-        initialize_host_defined_realm, Agent, JsResult, Realm,
+        initialize_host_defined_realm, Agent, JsResult,
     },
     scripts_and_modules::script::{parse_script, script_evaluation},
-    types::{Object, Value},
+    types::{self, Object, Value},
 };
-use oxc_allocator::Allocator;
 
 use crate::{
     exit_with_parse_errors, initialize_recommended_builtins, initialize_recommended_extensions,
@@ -68,7 +67,6 @@ pub struct RuntimeConfig {
 pub struct Runtime {
     pub config: RuntimeConfig,
     pub agent: Agent,
-    pub allocator: Allocator,
     pub host_hooks: &'static RuntimeHostHooks,
     pub macro_task_rx: Receiver<MacroTask>,
 }
@@ -88,8 +86,8 @@ impl Runtime {
             host_hooks,
         );
         {
-            let create_global_object: Option<fn(&mut Realm) -> Object> = None;
-            let create_global_this_value: Option<fn(&mut Realm) -> Object> = None;
+            let create_global_object: Option<fn(&mut Agent) -> Object> = None;
+            let create_global_this_value: Option<fn(&mut Agent) -> Object> = None;
             initialize_host_defined_realm(
                 &mut agent,
                 create_global_object,
@@ -97,11 +95,9 @@ impl Runtime {
                 Some(initialize_recommended_extensions),
             );
         }
-        let allocator = Allocator::default();
 
         Self {
             config,
-            allocator,
             agent,
             host_hooks,
             macro_task_rx,
@@ -113,22 +109,25 @@ impl Runtime {
         let realm = self.agent.current_realm_id();
 
         // LOad the builtins js sources
-        initialize_recommended_builtins(&self.allocator, &mut self.agent, self.config.no_strict);
+        initialize_recommended_builtins(&mut self.agent, self.config.no_strict);
 
         let mut final_result = Value::Null;
 
         // Fetch the runtime mod.ts file using a macro and add it to the paths
         for path in &self.config.paths {
             let file = std::fs::read_to_string(path).unwrap();
+            let source_text = types::String::from_string(&mut self.agent, file);
             let script = match parse_script(
-                &self.allocator,
-                file.into(),
+                &mut self.agent,
+                source_text.clone(),
                 realm,
                 !self.config.no_strict,
                 None,
             ) {
                 Ok(script) => script,
-                Err((file, errors)) => exit_with_parse_errors(errors, path, &file),
+                Err(errors) => {
+                    exit_with_parse_errors(errors, path, source_text.as_str(&mut self.agent))
+                }
             };
             final_result = match script_evaluation(&mut self.agent, script) {
                 Ok(v) => v,

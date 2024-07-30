@@ -6,7 +6,7 @@ use nova_vm::ecmascript::{
         ArgumentsList,
     },
     execution::{Agent, JsResult},
-    types::{GlobalValue, Value},
+    types::{Global, IntoValue, Value},
 };
 
 use crate::{
@@ -29,7 +29,7 @@ impl TimeExt {
         let time_ms = args[0].to_uint32(agent).unwrap();
         let duration = Duration::from_millis(time_ms as u64);
 
-        let root_value = GlobalValue::new(agent, promise_capability.promise());
+        let root_value = Global::new(agent, promise_capability.promise().into_value());
         let host_data = agent.get_host_data();
         let host_data: &HostData = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();

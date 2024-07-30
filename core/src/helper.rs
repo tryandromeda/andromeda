@@ -1,9 +1,8 @@
 use nova_vm::ecmascript::{
     execution::Agent,
     scripts_and_modules::script::{parse_script, script_evaluation},
-    types::Object,
+    types::{self, Object},
 };
-use oxc_allocator::Allocator;
 use oxc_diagnostics::OxcDiagnostic;
 
 use crate::{ext_loader::AgentExtLoader, ConsoleExt, FsExt, TimeExt};
@@ -14,16 +13,17 @@ pub fn initialize_recommended_extensions(agent: &mut Agent, global_object: Objec
     agent.load_ext(global_object, TimeExt);
 }
 
-pub fn initialize_recommended_builtins(allocator: &Allocator, agent: &mut Agent, no_strict: bool) {
+pub fn initialize_recommended_builtins(agent: &mut Agent, no_strict: bool) {
     let realm = agent.current_realm_id();
     let builtins = vec![
         include_str!("../../runtime/console.ts"),
         include_str!("../../runtime/mod.ts"),
     ];
     for builtin in builtins {
-        let script = match parse_script(allocator, builtin.into(), realm, !no_strict, None) {
+        let source_text = types::String::from_str(agent, &builtin);
+        let script = match parse_script(agent, source_text, realm, !no_strict, None) {
             Ok(script) => script,
-            Err((file, errors)) => exit_with_parse_errors(errors, "<runtime>", &file),
+            Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", builtin),
         };
         match script_evaluation(agent, script) {
             Ok(_) => (),

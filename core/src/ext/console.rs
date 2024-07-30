@@ -25,7 +25,9 @@ impl Ext for ConsoleExt {
 impl ConsoleExt {
     /// Print function that prints the first argument to the console.
     fn internal_print(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
-        stdout().write_all(args[0].to_string(agent)?.as_str(agent).as_bytes()).unwrap();
+        stdout()
+            .write_all(args[0].to_string(agent)?.as_str(agent).as_bytes())
+            .unwrap();
         stdout().flush().unwrap();
         Ok(Value::Undefined)
     }
