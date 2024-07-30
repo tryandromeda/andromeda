@@ -20,7 +20,7 @@ pub fn initialize_recommended_builtins(agent: &mut Agent, no_strict: bool) {
         include_str!("../../runtime/mod.ts"),
     ];
     for builtin in builtins {
-        let source_text = types::String::from_str(agent, &builtin);
+        let source_text = types::String::from_str(agent, builtin);
         let script = match parse_script(agent, source_text, realm, !no_strict, None) {
             Ok(script) => script,
             Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", builtin),
