@@ -18,17 +18,11 @@ impl Ext for ConsoleExt {
         loader.load_op("internal_write", Self::internal_write, 1);
         loader.load_op("internal_write_line", Self::internal_write_line, 1);
         loader.load_op("internal_print", Self::internal_print, 1);
-        loader.load_op("internal_clear", Self::internal_clear, 0);
         loader.load_op("internal_exit", Self::internal_exit, 1);
     }
 }
 
 impl ConsoleExt {
-    /// Clear the console.
-    fn internal_clear(_agent: &mut Agent, _this: Value, _args: ArgumentsList) -> JsResult<Value> {
-        stdout().write_all("\x1B[2J\x1B[1;1H".as_bytes()).unwrap();
-        Ok(Value::Undefined)
-    }
     /// Print function that prints the first argument to the console.
     fn internal_print(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
         stdout().write_all(args[0].to_string(agent)?.as_str(agent).as_bytes()).unwrap();

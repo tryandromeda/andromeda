@@ -43,8 +43,3 @@ declare function internal_sleep(duration: number): Promise<void>;
  */
 declare function internal_print(message: string): void;
 
-
-/**
- * The `internal_clear` function clears the console.
- */
-declare function internal_clear(): void;

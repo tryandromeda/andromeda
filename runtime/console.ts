@@ -86,6 +86,6 @@ const console = {
      * ```
      */
     clear() {
-        internal_clear();
+        internal_print("\x1Bc");
     },
 };
