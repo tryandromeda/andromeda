@@ -6,7 +6,7 @@ use nova_vm::ecmascript::{
     types::{Function, Global, InternalMethods, Value},
 };
 
-use crate::{HostData, MacroTask, TaskId};
+use crate::{HostData, TaskId};
 
 /// An Id representing an [Interval].
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy)]
@@ -19,12 +19,6 @@ impl IntervalId {
 
     pub fn from_index(index: u32) -> Self {
         Self(index)
-    }
-
-    /// Request to clear the interval to the event loop.
-    pub fn request_clear(self, host_data: &HostData) {
-        let macro_task_tx = host_data.macro_task_tx();
-        macro_task_tx.send(MacroTask::ClearInterval(self)).unwrap();
     }
 
     /// Remove and abort the interval.

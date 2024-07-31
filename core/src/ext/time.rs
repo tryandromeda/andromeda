@@ -82,7 +82,10 @@ impl TimeExt {
         let host_data = agent.get_host_data();
         let host_data: &HostData = host_data.downcast_ref().unwrap();
 
-        interval_id.request_clear(host_data);
+        host_data
+            .macro_task_tx
+            .send(MacroTask::ClearInterval(interval_id))
+            .unwrap();
 
         Ok(Value::Undefined)
     }
@@ -119,7 +122,10 @@ impl TimeExt {
         let host_data = agent.get_host_data();
         let host_data: &HostData = host_data.downcast_ref().unwrap();
 
-        timeout_id.request_clear(host_data);
+        host_data
+            .macro_task_tx
+            .send(MacroTask::ClearTimeout(timeout_id))
+            .unwrap();
 
         Ok(Value::Undefined)
     }
