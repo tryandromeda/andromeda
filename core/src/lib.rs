@@ -8,6 +8,7 @@ mod interval;
 mod resource_table;
 mod runtime;
 mod task;
+mod timeout;
 
 pub use event_loop::*;
 pub use ext::*;
@@ -16,3 +17,4 @@ pub use host_data::*;
 pub use interval::*;
 pub use runtime::*;
 pub use task::*;
+pub use timeout::*;

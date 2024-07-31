@@ -27,10 +27,11 @@ impl IntervalId {
         macro_task_tx.send(MacroTask::ClearInterval(self)).unwrap();
     }
 
-    /// Remove the interval.
-    pub fn clear(self, host_data: &HostData) {
+    /// Remove and abort the interval.
+    pub fn clear_and_abort(self, host_data: &HostData) {
         let interval = host_data.intervals.borrow_mut().remove(&self).unwrap();
         host_data.abort_macro_task(interval.task_id);
+        host_data.clear_macro_task(interval.task_id);
     }
 
     /// Execute the Interval callback.

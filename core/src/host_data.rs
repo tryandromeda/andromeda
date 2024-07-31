@@ -12,7 +12,7 @@ use std::{
 use anymap::AnyMap;
 use tokio::task::JoinHandle;
 
-use crate::{Interval, IntervalId, MacroTask, TaskId};
+use crate::{Interval, IntervalId, MacroTask, TaskId, Timeout, TimeoutId};
 
 /// Data created and used by the Runtime.
 pub struct HostData {
@@ -30,6 +30,10 @@ pub struct HostData {
     pub tasks: RefCell<HashMap<TaskId, JoinHandle<()>>>,
     /// Counter of accumulative created async tasks.  Used for ID generation.
     pub task_count: Arc<AtomicU32>,
+    /// Registry of active running timeouts.
+    pub timeouts: RefCell<HashMap<TimeoutId, Timeout>>,
+    /// Counter of accumulative timeouts. Used for ID generation.
+    pub timeout_count: Arc<AtomicU32>,
 }
 
 impl HostData {
@@ -44,6 +48,8 @@ impl HostData {
                 intervals: RefCell::default(),
                 tasks: RefCell::default(),
                 task_count: Arc::default(),
+                timeouts: RefCell::default(),
+                timeout_count: Arc::default(),
             },
             rx,
         )
@@ -77,8 +83,16 @@ impl HostData {
 
     /// Abort a MacroTask execution given it's [TaskId].
     pub fn abort_macro_task(&self, task_id: TaskId) {
-        let task = self.tasks.borrow_mut().remove(&task_id).unwrap();
+        let tasks = self.tasks.borrow();
+        let task = tasks.get(&task_id).unwrap();
         task.abort();
+
+        // Manualy decrease the macro tasks counter as the task was aborted.
         self.macro_task_count.fetch_sub(1, Ordering::Relaxed);
+    }
+
+    /// Clear a MacroTask given it's [TaskId].
+    pub fn clear_macro_task(&self, task_id: TaskId) {
+        self.tasks.borrow_mut().remove(&task_id).unwrap();
     }
 }

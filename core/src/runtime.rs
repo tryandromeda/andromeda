@@ -170,7 +170,15 @@ impl Runtime {
                 &self.realm_root,
             ),
             Ok(MacroTask::ClearInterval(interval_id)) => {
-                interval_id.clear(&self.host_hooks.host_data);
+                interval_id.clear_and_abort(&self.host_hooks.host_data);
+            }
+            Ok(MacroTask::RunAndClearTimeout(timeout_id)) => timeout_id.run_and_clear(
+                &mut self.agent,
+                &self.host_hooks.host_data,
+                &self.realm_root,
+            ),
+            Ok(MacroTask::ClearTimeout(timeout_id)) => {
+                timeout_id.clear_and_abort(&self.host_hooks.host_data);
             }
             _ => {}
         }
