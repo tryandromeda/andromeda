@@ -21,8 +21,8 @@ use crate::{
 };
 
 pub struct RuntimeHostHooks {
-    promise_job_queue: RefCell<VecDeque<Job>>,
-    host_data: HostData,
+    pub(crate) promise_job_queue: RefCell<VecDeque<Job>>,
+    pub(crate) host_data: HostData,
 }
 
 impl std::fmt::Debug for RuntimeHostHooks {
@@ -163,6 +163,14 @@ impl Runtime {
                         panic!("Attempted to resolve a non-promise value");
                     }
                 });
+            }
+            Ok(MacroTask::RunInterval(interval_id)) => interval_id.run(
+                &mut self.agent,
+                &self.host_hooks.host_data,
+                &self.realm_root,
+            ),
+            Ok(MacroTask::ClearInterval(interval_id)) => {
+                interval_id.clear(&self.host_hooks.host_data);
             }
             _ => {}
         }
