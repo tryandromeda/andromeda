@@ -112,7 +112,7 @@ impl Runtime {
     pub fn run(&mut self) -> JsResult<Value> {
         let realm = self.agent.current_realm_id();
 
-        // LOad the builtins js sources
+        // Load the builtins js sources
         initialize_recommended_builtins(&self.allocator, &mut self.agent, self.config.no_strict);
 
         let mut final_result = Value::Null;

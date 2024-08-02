@@ -18,6 +18,7 @@ pub fn initialize_recommended_builtins(allocator: &Allocator, agent: &mut Agent,
     let realm = agent.current_realm_id();
     let builtins = vec![
         include_str!("../../runtime/console.ts"),
+        include_str!("../../runtime/localstorage.ts"),
         include_str!("../../runtime/mod.ts"),
     ];
     for builtin in builtins {

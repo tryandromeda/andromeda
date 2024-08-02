@@ -119,6 +119,52 @@ declare namespace Andromeda {
 }
 
 /**
+ * The `Storage` class provides a way to store key/value pairs.
+ */
+declare interface Storage {
+  /**
+   * The number of items in storage.
+   */
+  readonly length: number;
+  
+  /**
+   * `getItem `retrieves a value from storage.
+   *
+   * @example
+   * ```ts
+   * const value = storage.getItem("name");
+   * console.log(value);
+   * ```
+   */
+  getItem(key: string): string | null;
+
+  /**
+   * `setItem` stores a value in storage.
+   *
+   * @example
+   * ```ts
+   * storage.setItem("name", "Alice");
+   * ```
+   */
+  setItem(key: string, value: string): void;
+
+  /**
+   * `removeItem` removes a value from storage.
+   *
+   * @example
+   * ```ts
+   * storage.removeItem("name");
+   * ```
+   */
+  removeItem(key: string): void;
+
+  /**
+   * `key` retrieves a key from storage by index.
+   */
+  key(index: number): string | null;
+}
+
+/**
  * The `prompt` function prompts the user for input.
  *
  * @example
