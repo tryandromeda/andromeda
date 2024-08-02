@@ -101,8 +101,8 @@ impl Interval {
         interval_id: &IntervalId,
         run: impl FnOnce(&Self),
     ) {
-        let mut host_data_storage = host_data.storage.borrow_mut();
-        let intervals_storage: &mut IntervalsStorage = host_data_storage.get_mut().unwrap();
+        let host_data_storage = host_data.storage.borrow();
+        let intervals_storage: &IntervalsStorage = host_data_storage.get().unwrap();
         let interval = intervals_storage.intervals.get(interval_id).unwrap();
         run(interval);
     }
