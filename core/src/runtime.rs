@@ -55,18 +55,26 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
     }
 }
 
+pub type EventLoopHandler<UserMacroTask> = fn(
+    macro_task: UserMacroTask,
+    agent: &mut GcAgent,
+    realm_root: &RealmRoot,
+    host_data: &HostData<UserMacroTask>,
+);
+
 pub struct RuntimeConfig<UserMacroTask: 'static> {
+    /// Disable or not strict mode.
     pub no_strict: bool,
+    /// List of js files to load.
     pub paths: Vec<String>,
+    /// Enable or not verbose outputs.
     pub verbose: bool,
+    /// Collection of Rust Extensions
     pub extensions: Vec<Extension>,
+    /// Collection of builtin js sources
     pub builtins: Vec<&'static str>,
-    pub eventloop_handler: fn(
-        macro_task: UserMacroTask,
-        agent: &mut GcAgent,
-        realm_root: &RealmRoot,
-        host_data: &HostData<UserMacroTask>,
-    ),
+    /// User event loop handler.
+    pub eventloop_handler: EventLoopHandler<UserMacroTask>,
 }
 
 pub struct Runtime<UserMacroTask: 'static> {

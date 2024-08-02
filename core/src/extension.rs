@@ -6,7 +6,7 @@ use nova_vm::ecmascript::{
 
 use crate::{HostData, OpsStorage};
 
-pub type ExtensionStorage = Box<dyn FnOnce(&mut OpsStorage)>;
+pub type ExtensionStorageInit = Box<dyn FnOnce(&mut OpsStorage)>;
 
 /// Global function part of a larger [Extension].
 pub struct ExtensionOp {
@@ -31,9 +31,9 @@ pub struct Extension {
     pub name: &'static str,
     /// List of [ExtensionOp] pertaining to this [Extension].
     pub ops: Vec<ExtensionOp>,
-    /// Storage hook for this extension.
-    /// Use it to share values between the different [ExtensionOp] and multiple calls.
-    pub storage: Option<ExtensionStorage>,
+    /// Storage initializer for this extension.
+    /// Used to share values between the different [ExtensionOp] and multiple calls.
+    pub storage: Option<ExtensionStorageInit>,
 }
 
 impl Extension {
