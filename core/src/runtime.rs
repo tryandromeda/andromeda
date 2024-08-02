@@ -8,13 +8,12 @@ use std::{
 use nova_vm::ecmascript::{
     builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
     execution::{
-        agent::{HostHooks, Job, Options},
-        initialize_host_defined_realm, Agent, JsResult, Realm,
+        agent::{GcAgent, HostHooks, Job, Options, RealmRoot},
+        Agent, JsResult,
     },
     scripts_and_modules::script::{parse_script, script_evaluation},
-    types::{Object, Value},
+    types::{self, Object, Value},
 };
-use oxc_allocator::Allocator;
 
 use crate::{
     exit_with_parse_errors, initialize_recommended_builtins, initialize_recommended_extensions,
@@ -67,8 +66,8 @@ pub struct RuntimeConfig {
 
 pub struct Runtime {
     pub config: RuntimeConfig,
-    pub agent: Agent,
-    pub allocator: Allocator,
+    pub agent: GcAgent,
+    pub realm_root: RealmRoot,
     pub host_hooks: &'static RuntimeHostHooks,
     pub macro_task_rx: Receiver<MacroTask>,
 }
@@ -80,29 +79,25 @@ impl Runtime {
         let host_hooks = RuntimeHostHooks::new(host_data);
 
         let host_hooks: &RuntimeHostHooks = &*Box::leak(Box::new(host_hooks));
-        let mut agent = Agent::new(
+        let mut agent = GcAgent::new(
             Options {
                 disable_gc: false,
                 print_internals: config.verbose,
             },
             host_hooks,
         );
-        {
-            let create_global_object: Option<fn(&mut Realm) -> Object> = None;
-            let create_global_this_value: Option<fn(&mut Realm) -> Object> = None;
-            initialize_host_defined_realm(
-                &mut agent,
-                create_global_object,
-                create_global_this_value,
-                Some(initialize_recommended_extensions),
-            );
-        }
-        let allocator = Allocator::default();
+        let create_global_object: Option<fn(&mut Agent) -> Object> = None;
+        let create_global_this_value: Option<fn(&mut Agent) -> Object> = None;
+        let realm_root = agent.create_realm(
+            create_global_object,
+            create_global_this_value,
+            Some(initialize_recommended_extensions),
+        );
 
         Self {
             config,
-            allocator,
             agent,
+            realm_root,
             host_hooks,
             macro_task_rx,
         }
@@ -110,37 +105,37 @@ impl Runtime {
 
     /// Run the Runtime with the specified configuration.
     pub fn run(&mut self) -> JsResult<Value> {
-        let realm = self.agent.current_realm_id();
-
-        // LOad the builtins js sources
-        initialize_recommended_builtins(&self.allocator, &mut self.agent, self.config.no_strict);
+        // Load the builtins js sources
+        self.agent.run_in_realm(&self.realm_root, |agent| {
+            initialize_recommended_builtins(agent, self.config.no_strict);
+        });
 
         let mut final_result = Value::Null;
 
         // Fetch the runtime mod.ts file using a macro and add it to the paths
         for path in &self.config.paths {
             let file = std::fs::read_to_string(path).unwrap();
-            let script = match parse_script(
-                &self.allocator,
-                file.into(),
-                realm,
-                !self.config.no_strict,
-                None,
-            ) {
-                Ok(script) => script,
-                Err((file, errors)) => exit_with_parse_errors(errors, path, &file),
-            };
-            final_result = match script_evaluation(&mut self.agent, script) {
-                Ok(v) => v,
-                err @ _ => return err,
-            }
+
+            final_result = self.agent.run_in_realm(&self.realm_root, |agent| {
+                let source_text = types::String::from_string(agent, file);
+                let realm = agent.current_realm_id();
+
+                let script =
+                    match parse_script(agent, source_text, realm, !self.config.no_strict, None) {
+                        Ok(script) => script,
+                        Err(errors) => {
+                            exit_with_parse_errors(errors, path, source_text.as_str(agent))
+                        }
+                    };
+
+                script_evaluation(agent, script)
+            })?;
         }
 
         loop {
             while let Some(job) = self.host_hooks.pop_promise_job() {
-                if let Err(err) = job.run(&mut self.agent) {
-                    return Err(err);
-                }
+                self.agent
+                    .run_in_realm(&self.realm_root, |agent| job.run(agent))?;
             }
 
             // If both the microtasks and macrotasks queues are empty we can end the event loop
@@ -159,13 +154,15 @@ impl Runtime {
         #[allow(clippy::single_match)]
         match self.macro_task_rx.recv() {
             Ok(MacroTask::ResolvePromise(root_value)) => {
-                let value = root_value.take(&mut self.agent);
-                if let Value::Promise(promise) = value {
-                    let promise_capability = PromiseCapability::from_promise(promise, false);
-                    promise_capability.resolve(&mut self.agent, Value::Undefined);
-                } else {
-                    panic!("Attempted to resolve a non-promise value");
-                }
+                self.agent.run_in_realm(&self.realm_root, |agent| {
+                    let value = root_value.take(agent);
+                    if let Value::Promise(promise) = value {
+                        let promise_capability = PromiseCapability::from_promise(promise, false);
+                        promise_capability.resolve(agent, Value::Undefined);
+                    } else {
+                        panic!("Attempted to resolve a non-promise value");
+                    }
+                });
             }
             _ => {}
         }
