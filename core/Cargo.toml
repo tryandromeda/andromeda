@@ -5,9 +5,13 @@ edition = "2021"
 license = "MIT"
 readme = "../README.md"
 
+[features]
+default = []
+unsafe-sqlite = ["dep:sqlite"]
+
 [dependencies]
 nova_vm = { workspace = true }
-sqlite = { workspace = true }
+sqlite = { workspace = true, optional = true }
 oxc_allocator = { workspace = true }
 anymap = { workspace = true }
 tokio = { workspace = true }

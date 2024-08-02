@@ -6,6 +6,9 @@ default-run = "andromeda"
 license = "MIT"
 readme = "../README.md"
 
+[features]
+default = []
+
 [dependencies]
 clap = { workspace = true }
 cliclack = { workspace = true }
@@ -19,3 +22,5 @@ oxc_allocator = { workspace = true }
 oxc_semantic = { workspace = true }
 anymap = { workspace = true }
 tokio = { workspace = true }
+
+[dev-dependencies]
