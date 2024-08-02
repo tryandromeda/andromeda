@@ -1,9 +1,8 @@
 use std::{sync::atomic::Ordering, time::Duration};
 
 use nova_vm::ecmascript::{
-    builtins::ArgumentsList,
     execution::agent::{GcAgent, RealmRoot},
-    types::{Function, Global, InternalMethods, Value},
+    types::{Function, Global, Value},
 };
 
 use crate::{HostData, TaskId};
@@ -42,7 +41,7 @@ impl TimeoutId {
                 let callback = global_callback.get(agent);
                 let callback_function: Function = callback.try_into().unwrap();
                 callback_function
-                    .internal_call(agent, Value::Undefined, ArgumentsList(&[]))
+                    .call(agent, Value::Undefined, &[])
                     .unwrap();
             });
         });
