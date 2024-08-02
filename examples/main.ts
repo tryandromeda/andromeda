@@ -6,4 +6,3 @@ Andromeda.sleep(1000)
         console.log(`Hello, ${name}`);
     });
 
-console.log(localStorage.clear);

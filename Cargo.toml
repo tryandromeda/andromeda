@@ -15,6 +15,7 @@ oxc_span = "0.20.0"
 oxc_diagnostics = "0.20.0"
 oxc_allocator = "0.20.0"
 oxc_semantic = "0.20.0"
+sqlite = "0.36.0"
 andromeda-core = { path = "core" }
 anymap = "0.12.1"
 tokio = { version = "1.39.0", features = ["rt", "sync", "time"]}

@@ -48,6 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } => {
             let mut runtime = Runtime::new(RuntimeConfig {
                 no_strict,
+                db_path: ":memory:".to_string(),
                 paths,
                 verbose,
             });
