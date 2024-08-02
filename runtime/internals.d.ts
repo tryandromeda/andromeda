@@ -43,3 +43,7 @@ declare function internal_sleep(duration: number): Promise<void>;
  */
 declare function internal_print(message: string): void;
 
+/**
+ * The `internal_sqlite_execute` function executes a SQL statement on the internal SQLite database.
+ */
+declare function internal_sqlite_execute(statement: string): void;

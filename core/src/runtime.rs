@@ -70,7 +70,6 @@ pub struct Runtime {
     pub config: RuntimeConfig,
     pub agent: Agent,
     pub allocator: Allocator,
-    pub connection: sqlite::Connection,
     pub host_hooks: &'static RuntimeHostHooks,
     pub macro_task_rx: Receiver<MacroTask>,
 }
@@ -80,7 +79,6 @@ impl Runtime {
     pub fn new(config: RuntimeConfig) -> Self {
         let (host_data, macro_task_rx) = HostData::new();
         let host_hooks = RuntimeHostHooks::new(host_data);
-        let connection = sqlite::open(config.db_path.clone()).unwrap();
 
         let host_hooks: &RuntimeHostHooks = &*Box::leak(Box::new(host_hooks));
         let mut agent = Agent::new(
@@ -104,7 +102,6 @@ impl Runtime {
 
         Self {
             config,
-            connection,
             allocator,
             agent,
             host_hooks,
