@@ -18,7 +18,6 @@ use crate::RuntimeMacroTask;
 #[derive(Default)]
 pub struct TimeoutsStorage {
     timeouts: HashMap<TimeoutId, Timeout>,
-
     count: Arc<AtomicU32>,
 }
 

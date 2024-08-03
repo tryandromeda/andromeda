@@ -18,7 +18,6 @@ use crate::RuntimeMacroTask;
 #[derive(Default)]
 pub struct IntervalsStorage {
     intervals: HashMap<IntervalId, Interval>,
-
     count: Arc<AtomicU32>,
 }
 

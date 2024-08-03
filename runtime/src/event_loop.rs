@@ -1,4 +1,4 @@
-use crate::{interval::IntervalId, timeout::TimeoutId};
+use crate::ext::{interval::IntervalId, timeout::TimeoutId};
 
 pub enum RuntimeMacroTask {
     /// Run an interval.

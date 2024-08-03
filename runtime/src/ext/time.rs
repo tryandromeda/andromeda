@@ -1,3 +1,6 @@
+pub mod interval;
+pub mod timeout;
+
 use std::time::Duration;
 
 use nova_vm::ecmascript::{
@@ -12,11 +15,9 @@ use tokio::time::interval;
 
 use andromeda_core::{Extension, ExtensionOp, HostData, MacroTask, OpsStorage};
 
-use crate::{
-    interval::{Interval, IntervalId, IntervalsStorage},
-    timeout::{Timeout, TimeoutId, TimeoutsStorage},
-    RuntimeMacroTask,
-};
+use crate::RuntimeMacroTask;
+use interval::{Interval, IntervalId, IntervalsStorage};
+use timeout::{Timeout, TimeoutId, TimeoutsStorage};
 
 #[derive(Default)]
 pub struct TimeExt;
