@@ -1,0 +1,14 @@
+[package]
+name = "andromeda-runtime"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+readme = "../README.md"
+
+[dependencies]
+andromeda-core = { workspace = true }
+nova_vm = { workspace = true }
+anymap = { workspace = true }
+tokio = { workspace = true }
+miette = { workspace = true }
+oxc_diagnostics = { workspace = true }
