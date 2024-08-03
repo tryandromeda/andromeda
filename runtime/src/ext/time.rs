@@ -29,9 +29,9 @@ impl TimeExt {
             ops: vec![
                 ExtensionOp::new("internal_sleep", Self::internal_sleep, 1),
                 ExtensionOp::new("setInterval", Self::set_interval, 2),
-                ExtensionOp::new("clear_interval", Self::clear_interval, 1),
-                ExtensionOp::new("set_timeout", Self::set_timeout, 2),
-                ExtensionOp::new("clear_timeout", Self::clear_timeout, 1),
+                ExtensionOp::new("clearInterval", Self::clear_interval, 1),
+                ExtensionOp::new("setTimeout", Self::set_timeout, 2),
+                ExtensionOp::new("clearTimeout", Self::clear_timeout, 1),
             ],
             storage: Some(Box::new(|storage: &mut OpsStorage| {
                 storage.insert(IntervalsStorage::default());
