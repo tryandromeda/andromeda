@@ -1,13 +1,15 @@
 use andromeda_core::{Extension, HostData};
 use nova_vm::ecmascript::execution::agent::{GcAgent, RealmRoot};
 
-use crate::{ConsoleExt, FsExt, RuntimeMacroTask, TimeExt};
+use crate::{ConsoleExt, FsExt, RuntimeMacroTask, TimeExt, CLIExt};
 
 pub fn recommended_extensions() -> Vec<Extension> {
     vec![
-        FsExt::new_extension(),
+        CLIExt::new_extension(),
         ConsoleExt::new_extension(),
+        FsExt::new_extension(),
         TimeExt::new_extension(),
+
     ]
 }
 

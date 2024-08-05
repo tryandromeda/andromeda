@@ -28,9 +28,9 @@ enum Command {
         #[arg(short, long)]
         no_strict: bool,
 
-        /// The files to run
+        /// The file to run
         #[arg(required = true)]
-        paths: Vec<String>,
+        path: String,
     },
 }
 
@@ -47,11 +47,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Command::Run {
             verbose,
             no_strict,
-            paths,
+            path,
         } => {
             let mut runtime = Runtime::new(RuntimeConfig {
                 no_strict,
-                paths,
+                paths: vec![path],
                 verbose,
                 extensions: recommended_extensions(),
                 builtins: recommended_builtins(),

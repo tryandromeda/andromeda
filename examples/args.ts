@@ -1,0 +1,1 @@
+console.log(internal_get_cli_args());
