@@ -12,51 +12,43 @@ use std::{
 use anymap::AnyMap;
 use tokio::task::JoinHandle;
 
-use crate::{Interval, IntervalId, MacroTask, TaskId, Timeout, TimeoutId};
+use crate::{MacroTask, TaskId};
+
+pub type OpsStorage = AnyMap;
+
+pub type LocalOpsStorage = RefCell<OpsStorage>;
 
 /// Data created and used by the Runtime.
-pub struct HostData {
+pub struct HostData<UserMacroTask> {
     /// Storage used by the built-in functions.
-    pub storage: RefCell<AnyMap>,
+    pub storage: LocalOpsStorage,
     /// Send macro tasks to the event loop.
-    pub macro_task_tx: Sender<MacroTask>,
+    pub macro_task_tx: Sender<MacroTask<UserMacroTask>>,
     /// Counter of active macro tasks.
     pub macro_task_count: Arc<AtomicU32>,
-    /// Registry of active running intervals.
-    pub intervals: RefCell<HashMap<IntervalId, Interval>>,
-    /// Counter of accumulative intervals. Used for ID generation.
-    pub interval_count: Arc<AtomicU32>,
     /// Registry of async tasks.
     pub tasks: RefCell<HashMap<TaskId, JoinHandle<()>>>,
-    /// Counter of accumulative created async tasks.  Used for ID generation.
+    /// Counter of accumulative created async tasks. Used for ID generation.
     pub task_count: Arc<AtomicU32>,
-    /// Registry of active running timeouts.
-    pub timeouts: RefCell<HashMap<TimeoutId, Timeout>>,
-    /// Counter of accumulative timeouts. Used for ID generation.
-    pub timeout_count: Arc<AtomicU32>,
 }
 
-impl HostData {
-    pub fn new() -> (Self, Receiver<MacroTask>) {
+impl<UserMacroTask> HostData<UserMacroTask> {
+    pub fn new() -> (Self, Receiver<MacroTask<UserMacroTask>>) {
         let (macro_task_tx, rx) = std::sync::mpsc::channel();
         (
             Self {
                 storage: RefCell::new(AnyMap::new()),
                 macro_task_tx,
                 macro_task_count: Arc::new(AtomicU32::new(0)),
-                interval_count: Arc::default(),
-                intervals: RefCell::default(),
                 tasks: RefCell::default(),
                 task_count: Arc::default(),
-                timeouts: RefCell::default(),
-                timeout_count: Arc::default(),
             },
             rx,
         )
     }
 
     /// Get an owned senderto the macro tasks event loop.
-    pub fn macro_task_tx(&self) -> Sender<MacroTask> {
+    pub fn macro_task_tx(&self) -> Sender<MacroTask<UserMacroTask>> {
         self.macro_task_tx.clone()
     }
 

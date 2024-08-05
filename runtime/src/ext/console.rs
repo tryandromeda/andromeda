@@ -1,28 +1,31 @@
 use std::io::{stdout, Write};
 
+use andromeda_core::{Extension, ExtensionOp};
 use nova_vm::ecmascript::{
     builtins::ArgumentsList,
     execution::{Agent, JsResult},
     types::Value,
 };
 
-use crate::ext_interface::{Ext, ExtLoader};
-
 #[derive(Default)]
 pub struct ConsoleExt;
 
-impl Ext for ConsoleExt {
-    fn load(&self, mut loader: ExtLoader) {
-        loader.load_op("internal_read", Self::internal_read, 1);
-        loader.load_op("internal_read_line", Self::internal_read_line, 1);
-        loader.load_op("internal_write", Self::internal_write, 1);
-        loader.load_op("internal_write_line", Self::internal_write_line, 1);
-        loader.load_op("internal_print", Self::internal_print, 1);
-        loader.load_op("internal_exit", Self::internal_exit, 1);
-    }
-}
-
 impl ConsoleExt {
+    pub fn new_extension() -> Extension {
+        Extension {
+            name: "console",
+            ops: vec![
+                ExtensionOp::new("internal_read", Self::internal_read, 1),
+                ExtensionOp::new("internal_read_line", Self::internal_read_line, 1),
+                ExtensionOp::new("internal_write", Self::internal_write, 1),
+                ExtensionOp::new("internal_write_line", Self::internal_write_line, 1),
+                ExtensionOp::new("internal_print", Self::internal_print, 1),
+                ExtensionOp::new("internal_exit", Self::internal_exit, 1),
+            ],
+            storage: None,
+        }
+    }
+
     /// Print function that prints the first argument to the console.
     fn internal_print(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
         stdout()

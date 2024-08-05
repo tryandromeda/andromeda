@@ -1,3 +1,6 @@
+pub mod interval;
+pub mod timeout;
+
 use std::time::Duration;
 
 use nova_vm::ecmascript::{
@@ -10,25 +13,33 @@ use nova_vm::ecmascript::{
 };
 use tokio::time::interval;
 
-use crate::{
-    ext_interface::{Ext, ExtLoader},
-    HostData, Interval, IntervalId, MacroTask, Timeout, TimeoutId,
-};
+use andromeda_core::{Extension, ExtensionOp, HostData, MacroTask, OpsStorage};
+
+use crate::RuntimeMacroTask;
+use interval::{Interval, IntervalId, IntervalsStorage};
+use timeout::{Timeout, TimeoutId, TimeoutsStorage};
 
 #[derive(Default)]
 pub struct TimeExt;
 
-impl Ext for TimeExt {
-    fn load(&self, mut loader: ExtLoader) {
-        loader.load_op("internal_sleep", Self::internal_sleep, 1);
-        loader.load_op("setInterval", Self::set_interval, 2);
-        loader.load_op("clearInterval", Self::clear_interval, 1);
-        loader.load_op("setTimeout", Self::set_timeout, 2);
-        loader.load_op("clearTimeout", Self::clear_timeout, 1);
-    }
-}
-
 impl TimeExt {
+    pub fn new_extension() -> Extension {
+        Extension {
+            name: "time",
+            ops: vec![
+                ExtensionOp::new("internal_sleep", Self::internal_sleep, 1),
+                ExtensionOp::new("setInterval", Self::set_interval, 2),
+                ExtensionOp::new("clearInterval", Self::clear_interval, 1),
+                ExtensionOp::new("setTimeout", Self::set_timeout, 2),
+                ExtensionOp::new("clearTimeout", Self::clear_timeout, 1),
+            ],
+            storage: Some(Box::new(|storage: &mut OpsStorage| {
+                storage.insert(IntervalsStorage::default());
+                storage.insert(TimeoutsStorage::default());
+            })),
+        }
+    }
+
     pub fn internal_sleep(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
         let promise_capability = PromiseCapability::new(agent);
         let time_ms = args[0].to_uint32(agent).unwrap();
@@ -36,7 +47,7 @@ impl TimeExt {
 
         let root_value = Global::new(agent, promise_capability.promise().into_value());
         let host_data = agent.get_host_data();
-        let host_data: &HostData = host_data.downcast_ref().unwrap();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
 
         host_data.spawn_macro_task(async move {
@@ -54,7 +65,7 @@ impl TimeExt {
 
         let root_callback = Global::new(agent, callback);
         let host_data = agent.get_host_data();
-        let host_data: &HostData = host_data.downcast_ref().unwrap();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
 
         let interval_id = Interval::create(host_data, period, root_callback, |interval_id| {
@@ -63,7 +74,7 @@ impl TimeExt {
                 loop {
                     interval.tick().await;
                     macro_task_tx
-                        .send(MacroTask::RunInterval(interval_id))
+                        .send(MacroTask::User(RuntimeMacroTask::RunInterval(interval_id)))
                         .unwrap();
                 }
             })
@@ -80,11 +91,13 @@ impl TimeExt {
         let interval_id = IntervalId::from_index(interval_id_u32);
 
         let host_data = agent.get_host_data();
-        let host_data: &HostData = host_data.downcast_ref().unwrap();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
 
         host_data
             .macro_task_tx
-            .send(MacroTask::ClearInterval(interval_id))
+            .send(MacroTask::User(RuntimeMacroTask::ClearInterval(
+                interval_id,
+            )))
             .unwrap();
 
         Ok(Value::Undefined)
@@ -97,14 +110,16 @@ impl TimeExt {
 
         let root_callback = Global::new(agent, callback);
         let host_data = agent.get_host_data();
-        let host_data: &HostData = host_data.downcast_ref().unwrap();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
 
         let timeout_id = Timeout::create(host_data, duration, root_callback, |timeout_id| {
             host_data.spawn_macro_task(async move {
                 tokio::time::sleep(duration).await;
                 macro_task_tx
-                    .send(MacroTask::RunAndClearTimeout(timeout_id))
+                    .send(MacroTask::User(RuntimeMacroTask::RunAndClearTimeout(
+                        timeout_id,
+                    )))
                     .unwrap();
             })
         });
@@ -120,11 +135,11 @@ impl TimeExt {
         let timeout_id = TimeoutId::from_index(timeout_id_u32);
 
         let host_data = agent.get_host_data();
-        let host_data: &HostData = host_data.downcast_ref().unwrap();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
 
         host_data
             .macro_task_tx
-            .send(MacroTask::ClearTimeout(timeout_id))
+            .send(MacroTask::User(RuntimeMacroTask::ClearTimeout(timeout_id)))
             .unwrap();
 
         Ok(Value::Undefined)

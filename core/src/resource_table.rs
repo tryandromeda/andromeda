@@ -14,6 +14,12 @@ pub struct ResourceTable<T> {
     next_rid: RefCell<Rid>,
 }
 
+impl<T> Default for ResourceTable<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> ResourceTable<T> {
     pub fn new() -> Self {
         Self {

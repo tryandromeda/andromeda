@@ -2,6 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 use andromeda_core::{Runtime, RuntimeConfig};
+use andromeda_runtime::{
+    recommended_builtins, recommended_eventloop_handler, recommended_extensions,
+};
 use clap::{Parser as ClapParser, Subcommand};
 /// A JavaScript runtime
 #[derive(Debug, ClapParser)]
@@ -50,6 +53,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 no_strict,
                 paths,
                 verbose,
+                extensions: recommended_extensions(),
+                builtins: recommended_builtins(),
+                eventloop_handler: recommended_eventloop_handler,
             });
             let runtime_result = runtime.run();
 

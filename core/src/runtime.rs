@@ -15,24 +15,21 @@ use nova_vm::ecmascript::{
     types::{self, Object, Value},
 };
 
-use crate::{
-    exit_with_parse_errors, initialize_recommended_builtins, initialize_recommended_extensions,
-    HostData, MacroTask,
-};
+use crate::{exit_with_parse_errors, Extension, HostData, MacroTask};
 
-pub struct RuntimeHostHooks {
+pub struct RuntimeHostHooks<UserMacroTask> {
     pub(crate) promise_job_queue: RefCell<VecDeque<Job>>,
-    pub(crate) host_data: HostData,
+    pub(crate) host_data: HostData<UserMacroTask>,
 }
 
-impl std::fmt::Debug for RuntimeHostHooks {
+impl<UserMacroTask> std::fmt::Debug for RuntimeHostHooks<UserMacroTask> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Runtime").finish()
     }
 }
 
-impl RuntimeHostHooks {
-    pub fn new(host_data: HostData) -> Self {
+impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
+    pub fn new(host_data: HostData<UserMacroTask>) -> Self {
         Self {
             promise_job_queue: RefCell::default(),
             host_data,
@@ -48,7 +45,7 @@ impl RuntimeHostHooks {
     }
 }
 
-impl HostHooks for RuntimeHostHooks {
+impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
     fn enqueue_promise_job(&self, job: Job) {
         self.promise_job_queue.borrow_mut().push_back(job);
     }
@@ -58,27 +55,43 @@ impl HostHooks for RuntimeHostHooks {
     }
 }
 
-pub struct RuntimeConfig {
+pub type EventLoopHandler<UserMacroTask> = fn(
+    macro_task: UserMacroTask,
+    agent: &mut GcAgent,
+    realm_root: &RealmRoot,
+    host_data: &HostData<UserMacroTask>,
+);
+
+pub struct RuntimeConfig<UserMacroTask: 'static> {
+    /// Disable or not strict mode.
     pub no_strict: bool,
+    /// List of js files to load.
     pub paths: Vec<String>,
+    /// Enable or not verbose outputs.
     pub verbose: bool,
+    /// Collection of Rust Extensions
+    pub extensions: Vec<Extension>,
+    /// Collection of builtin js sources
+    pub builtins: Vec<&'static str>,
+    /// User event loop handler.
+    pub eventloop_handler: EventLoopHandler<UserMacroTask>,
 }
 
-pub struct Runtime {
-    pub config: RuntimeConfig,
+pub struct Runtime<UserMacroTask: 'static> {
+    pub config: RuntimeConfig<UserMacroTask>,
     pub agent: GcAgent,
     pub realm_root: RealmRoot,
-    pub host_hooks: &'static RuntimeHostHooks,
-    pub macro_task_rx: Receiver<MacroTask>,
+    pub host_hooks: &'static RuntimeHostHooks<UserMacroTask>,
+    pub macro_task_rx: Receiver<MacroTask<UserMacroTask>>,
 }
 
-impl Runtime {
+impl<UserMacroTask> Runtime<UserMacroTask> {
     /// Create a new [Runtime] given a [RuntimeConfig]. Use [Runtime::run] to run it.
-    pub fn new(config: RuntimeConfig) -> Self {
+    pub fn new(mut config: RuntimeConfig<UserMacroTask>) -> Self {
         let (host_data, macro_task_rx) = HostData::new();
         let host_hooks = RuntimeHostHooks::new(host_data);
 
-        let host_hooks: &RuntimeHostHooks = &*Box::leak(Box::new(host_hooks));
+        let host_hooks: &RuntimeHostHooks<UserMacroTask> = &*Box::leak(Box::new(host_hooks));
         let mut agent = GcAgent::new(
             Options {
                 disable_gc: false,
@@ -91,7 +104,11 @@ impl Runtime {
         let realm_root = agent.create_realm(
             create_global_object,
             create_global_this_value,
-            Some(initialize_recommended_extensions),
+            Some(|agent: &mut Agent, global_object: Object| {
+                for extension in &mut config.extensions {
+                    extension.load::<UserMacroTask>(agent, global_object)
+                }
+            }),
         );
 
         Self {
@@ -107,7 +124,21 @@ impl Runtime {
     pub fn run(&mut self) -> JsResult<Value> {
         // Load the builtins js sources
         self.agent.run_in_realm(&self.realm_root, |agent| {
-            initialize_recommended_builtins(agent, self.config.no_strict);
+            let realm = agent.current_realm_id();
+            for builtin in &self.config.builtins {
+                let source_text = types::String::from_str(agent, builtin);
+                let script =
+                    match parse_script(agent, source_text, realm, !self.config.no_strict, None) {
+                        Ok(script) => script,
+                        Err(diagnostics) => {
+                            exit_with_parse_errors(diagnostics, "<runtime>", builtin)
+                        }
+                    };
+                match script_evaluation(agent, script) {
+                    Ok(_) => (),
+                    Err(_) => println!("Error in runtime"),
+                }
+            }
         });
 
         let mut final_result = Value::Null;
@@ -151,7 +182,6 @@ impl Runtime {
 
     // Listen for pending macro tasks and resolve one by one
     pub fn handle_macro_task(&mut self) {
-        #[allow(clippy::single_match)]
         match self.macro_task_rx.recv() {
             Ok(MacroTask::ResolvePromise(root_value)) => {
                 self.agent.run_in_realm(&self.realm_root, |agent| {
@@ -164,21 +194,14 @@ impl Runtime {
                     }
                 });
             }
-            Ok(MacroTask::RunInterval(interval_id)) => interval_id.run(
-                &mut self.agent,
-                &self.host_hooks.host_data,
-                &self.realm_root,
-            ),
-            Ok(MacroTask::ClearInterval(interval_id)) => {
-                interval_id.clear_and_abort(&self.host_hooks.host_data);
-            }
-            Ok(MacroTask::RunAndClearTimeout(timeout_id)) => timeout_id.run_and_clear(
-                &mut self.agent,
-                &self.host_hooks.host_data,
-                &self.realm_root,
-            ),
-            Ok(MacroTask::ClearTimeout(timeout_id)) => {
-                timeout_id.clear_and_abort(&self.host_hooks.host_data);
+            // Let the user runtime handle its macro tasks
+            Ok(MacroTask::User(e)) => {
+                (self.config.eventloop_handler)(
+                    e,
+                    &mut self.agent,
+                    &self.realm_root,
+                    &self.host_hooks.host_data,
+                );
             }
             _ => {}
         }

@@ -12,6 +12,7 @@ cliclack = { workspace = true }
 console = { workspace = true }
 nova_vm = { workspace = true }
 andromeda-core = { workspace = true }
+andromeda-runtime = { workspace = true }
 oxc_ast = { workspace = true }
 oxc_parser = { workspace = true }
 oxc_span = { workspace = true }

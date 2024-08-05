@@ -1,20 +1,15 @@
 mod event_loop;
-mod ext;
-mod ext_interface;
-mod ext_loader;
+mod extension;
 mod helper;
 mod host_data;
-mod interval;
 mod resource_table;
 mod runtime;
 mod task;
-mod timeout;
 
 pub use event_loop::*;
-pub use ext::*;
+pub use extension::*;
 pub use helper::*;
 pub use host_data::*;
-pub use interval::*;
+pub use resource_table::*;
 pub use runtime::*;
 pub use task::*;
-pub use timeout::*;
