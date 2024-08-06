@@ -5,18 +5,9 @@ use andromeda_core::{Runtime, RuntimeConfig};
 use andromeda_runtime::{
     recommended_builtins, recommended_eventloop_handler, recommended_extensions,
 };
-
-use nova_vm::ecmascript::{
-    builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
-    execution::{
-        agent::{GcAgent, HostHooks, Job, Options, RealmRoot},
-        Agent, JsResult,
-    },
-    scripts_and_modules::script::{parse_script, script_evaluation},
-    types::{self, Object, Value},
-};
-
 use clap::{Parser as ClapParser, Subcommand};
+
+mod serve;
 /// A JavaScript runtime
 #[derive(Debug, ClapParser)]
 #[command(name = "andromeda")]
@@ -46,8 +37,8 @@ enum Command {
     /// Serves a file as a web server
     Serve {
         /// The file to serve
-        path: String
-    }
+        path: String,
+    },
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -90,44 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }),
             }
         }
-        Command::Serve {
-            path
-        } => {
-            let mut runtime = Runtime::new(RuntimeConfig {
-                no_strict: false,
-                paths: vec![path],
-                verbose: false,
-                extensions: recommended_extensions(),
-                builtins: recommended_builtins(),
-                eventloop_handler: recommended_eventloop_handler,
-            });
-            _ = runtime.run();
-
-            loop {
-                runtime.agent.run_in_realm(&runtime.realm_root, |agent| {
-                    let source_text = types::String::from_string(agent, String::from("serve()"));
-                    let realm = agent.current_realm_id();
-
-                    let script =
-                        match parse_script(agent, source_text, realm, !runtime.config.no_strict, None) {
-                            Ok(script) => script,
-                            Err(errors) => {
-                                panic!("error");
-                            }
-                        };
-
-                    match script_evaluation(agent, script) {
-                        Ok(value) => {
-                            match value.to_string(agent) {
-                                Ok(str) => println!("{}", str.as_str(agent)),
-                                _ => panic!("error")
-                            }
-                        }
-                        _ => panic!("error")
-                    }
-                });
-            }
-        }
+        Command::Serve { path } => serve::serve(path),
     });
 
     rt.block_on(nova_thread)

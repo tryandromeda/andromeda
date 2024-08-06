@@ -1,3 +1,4 @@
+let counter = 1;
 function serve() {
-  return "returned hi";
+  return "request count: " + counter++;
 }
