@@ -24,7 +24,7 @@ const console = {
      * console.debug("Hello, World!");
      */
     debug(message: string) {
-        internal_print("[debug]: " + message + "\n");
+        internal_print("\x1b[36m" + message + "\x1b[0m\n");
     },
 
     /**
@@ -36,7 +36,7 @@ const console = {
      * ```
      */
     warn(message: string) {
-        internal_print("[warn]: " + message + "\n");
+        internal_print("\x1b[33m" + message + "\x1b[0m\n");
     },
 
     /**
@@ -48,7 +48,7 @@ const console = {
      * ```
      */
     error(message: string) {
-        internal_print("[error]: " + message + "\n");
+        internal_print("\x1b[31m" + message + "\x1b[0m\n");
     },
 
     /**
@@ -60,7 +60,7 @@ const console = {
      * ```
      */
     info(message: string) {
-        internal_print("[info]: " + message + "\n");
+        internal_print("\x1b[30m" + message + "\x1b[0m\n");
     },
 
     /**
