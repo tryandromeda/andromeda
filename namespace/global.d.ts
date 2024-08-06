@@ -47,6 +47,11 @@ declare function assertThrows(fn: () => void, message: string): void;
  * The Andromeda namespace for the Andromeda runtime.
  */
 declare namespace Andromeda {
+
+  /**
+   * args
+   */
+  const args: string[];
   /**
    * readFileSync reads a file from the file system.
    *

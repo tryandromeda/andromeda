@@ -1,4 +1,4 @@
-/// <reference path="../runtime/global.d.ts" />
+/// <reference path="../namespace/global.d.ts" />
 
 let i = 0;
 

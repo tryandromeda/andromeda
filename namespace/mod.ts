@@ -66,6 +66,8 @@ function assertThrows(fn: () => void, message: string) {
  * Andromeda namespace for the Andromeda runtime.
  */
 const Andromeda = {
+
+  args: internal_get_cli_args(),
   /**
    * the readFileSync function reads a file from the filesystem.
    * 

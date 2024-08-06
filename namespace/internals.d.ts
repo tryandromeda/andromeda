@@ -43,3 +43,8 @@ declare function internal_sleep(duration: number): Promise<void>;
  */
 declare function internal_print(message: string): void;
 
+
+/**
+ * The `internal_get_cli_args` function returns the command line arguments.
+ */
+declare function internal_get_cli_args(): string[];

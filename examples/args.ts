@@ -1,1 +1,3 @@
-console.log(internal_get_cli_args());
+/// <reference path="../namespace/global.d.ts" />
+
+console.log(Andromeda.args);
