@@ -1,4 +1,8 @@
 let counter = 0;
-function serve() {
-  return "request count: " + counter++;
+function serve(path: string) {
+  console.log(path)
+  return {
+    status: 200,
+    body: `request from "${path}". request count: ` + counter++
+  };
 }
