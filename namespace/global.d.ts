@@ -1,6 +1,6 @@
 /**
  * The `assert` function tests if a condition is true.
- * 
+ *
  * @example
  * ```ts
  * assert(1 === 1, "The condition is true!");
@@ -10,7 +10,7 @@ declare function assert(condition: boolean, message: string): void;
 
 /**
  * The `assertEquals` function tests if two values are equal.
- * 
+ *
  * @example
  * ```ts
  * assertEquals(1, 1, "The values are equal!");
@@ -20,7 +20,7 @@ declare function assertEquals<T>(value1: T, value2: T, message: string): void;
 
 /**
  * The `assertNotEquals` function tests if two values are not equal.
- * 
+ *
  * @example
  * ```ts
  * assertNotEquals(1, 2, "The values are not equal!");
@@ -128,3 +128,8 @@ declare namespace Andromeda {
  * ```
  */
 declare function prompt(message: string): string;
+
+/**
+ * The `confirm` function prompts the user for confirmation.
+ */
+declare function confirm(message: string): boolean;

@@ -55,7 +55,7 @@ impl ConsoleExt {
     ) -> JsResult<Value> {
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
-        Ok(Value::from_string(agent, input))
+        Ok(Value::from_string(agent, input.trim_end().to_string()))
     }
 
     /// Internal write for writing to the console.
