@@ -37,6 +37,7 @@ impl TimeExt {
                 storage.insert(IntervalsStorage::default());
                 storage.insert(TimeoutsStorage::default());
             })),
+            files: vec![],
         }
     }
 

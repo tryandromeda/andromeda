@@ -125,6 +125,24 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
         // Load the builtins js sources
         self.agent.run_in_realm(&self.realm_root, |agent| {
             let realm = agent.current_realm_id();
+            for builtin in &self.config.extensions {
+                for file in &builtin.files {
+                    let source_text = types::String::from_str(agent, &file);
+                    let script =
+                        match parse_script(agent, source_text, realm, !self.config.no_strict, None)
+                        {
+                            Ok(script) => script,
+                            Err(diagnostics) => {
+                                exit_with_parse_errors(diagnostics, "<runtime>", &file)
+                            }
+                        };
+                    match script_evaluation(agent, script) {
+                        Ok(_) => (),
+                        Err(_) => println!("Error in runtime"),
+                    }
+                }
+            }
+
             for builtin in &self.config.builtins {
                 let source_text = types::String::from_str(agent, builtin);
                 let script =

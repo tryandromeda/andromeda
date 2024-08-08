@@ -34,6 +34,9 @@ pub struct Extension {
     /// Storage initializer for this extension.
     /// Used to share values between the different [ExtensionOp] and multiple calls.
     pub storage: Option<ExtensionStorageInit>,
+
+    // JavaScript or Typescript files that are loaded by this extension.
+    pub files: Vec<String>,
 }
 
 impl Extension {
