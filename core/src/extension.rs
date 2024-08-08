@@ -1,10 +1,11 @@
 use nova_vm::ecmascript::{
     builtins::{create_builtin_function, Behaviour, BuiltinFunctionArgs, RegularFn},
     execution::Agent,
+    scripts_and_modules::script::{parse_script, script_evaluation},
     types::{InternalMethods, IntoValue, Object, PropertyDescriptor, PropertyKey},
 };
 
-use crate::{HostData, OpsStorage};
+use crate::{exit_with_parse_errors, HostData, OpsStorage};
 
 pub type ExtensionStorageInit = Box<dyn FnOnce(&mut OpsStorage)>;
 
@@ -36,7 +37,7 @@ pub struct Extension {
     pub storage: Option<ExtensionStorageInit>,
 
     // JavaScript or Typescript files that are loaded by this extension.
-    pub files: Vec<String>,
+    pub files: Vec<&'static str>,
 }
 
 impl Extension {
@@ -45,6 +46,18 @@ impl Extension {
         agent: &mut Agent,
         global_object: Object,
     ) {
+        for file in &self.files {
+            let source_text = nova_vm::ecmascript::types::String::from_str(agent, &file);
+            let script =
+                match parse_script(agent, source_text, agent.current_realm_id(), true, None) {
+                    Ok(script) => script,
+                    Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", &file),
+                };
+            match script_evaluation(agent, script) {
+                Ok(_) => (),
+                Err(_) => println!("Error in runtime"),
+            }
+        }
         for op in &self.ops {
             let function = create_builtin_function(
                 agent,

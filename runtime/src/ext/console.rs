@@ -23,7 +23,7 @@ impl ConsoleExt {
                 ExtensionOp::new("internal_exit", Self::internal_exit, 1),
             ],
             storage: None,
-            files: vec![include_str!("./console/mod.ts").to_string()],
+            files: vec![include_str!("./console/mod.ts")],
         }
     }
 
