@@ -17,4 +17,7 @@ oxc_semantic = "0.20.0"
 andromeda-core = { path = "core" }
 andromeda-runtime = { path = "runtime" }
 anymap = "0.12.1"
-tokio = { version = "1.39.0", features = ["rt", "sync", "time"]}
+tokio = { version = "1.39.0", features = ["full"]}
+hyper = { version = "1", features = ["full"] }
+http-body-util = "0.1"
+hyper-util = { version = "0.1", features = ["full"] }

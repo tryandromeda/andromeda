@@ -6,6 +6,8 @@ use andromeda_runtime::{
     recommended_builtins, recommended_eventloop_handler, recommended_extensions,
 };
 use clap::{Parser as ClapParser, Subcommand};
+
+mod serve;
 /// A JavaScript runtime
 #[derive(Debug, ClapParser)]
 #[command(name = "andromeda")]
@@ -31,6 +33,11 @@ enum Command {
         /// The files to run
         #[arg(required = true)]
         paths: Vec<String>,
+    },
+    /// Serves a file as a web server
+    Serve {
+        /// The file to serve
+        path: String,
     },
 }
 
@@ -74,6 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }),
             }
         }
+        Command::Serve { path } => serve::serve(path),
     });
 
     rt.block_on(nova_thread)
