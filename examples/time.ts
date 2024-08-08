@@ -1,19 +1,19 @@
-/// <reference path="../runtime/global.d.ts" />
+/// <reference path="../types/global.d.ts" />
 
 let i = 0;
 
 setTimeout(() => {
-    console.log(`[timeout]: 700ms`)
-}, 700)
+    console.log(`[timeout]: 700ms`);
+}, 700);
 
 clearTimeout(setTimeout(() => {
-    console.log("I'll never run :)")
-}, 1000))
+    console.log("I'll never run :)");
+}, 1000));
 
 let id = setInterval(() => {
-    console.log(`[interval]: ${i}s`)
+    console.log(`[interval]: ${i}s`);
     i += 1;
     if (i == 5) {
         clearInterval(id);
     }
-}, 1000)
+}, 1000);

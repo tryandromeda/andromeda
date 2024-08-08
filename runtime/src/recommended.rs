@@ -13,7 +13,6 @@ pub fn recommended_extensions() -> Vec<Extension> {
 
 pub fn recommended_builtins() -> Vec<&'static str> {
     vec![
-        include_str!("../../namespace/console.ts"),
         include_str!("../../namespace/mod.ts"),
     ]
 }

@@ -38,6 +38,7 @@ impl FsExt {
                     files: ResourceTable::<File>::new(),
                 });
             })),
+            files: vec![],
         }
     }
 
