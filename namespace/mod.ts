@@ -65,6 +65,11 @@ function assertThrows(fn: () => void, message: string) {
  * Andromeda namespace for the Andromeda runtime.
  */
 const Andromeda = {
+
+  /**
+   * The `args` property contains the command-line arguments passed to the program.
+   */
+  args: internal_get_cli_args(),
   /**
    * the readFileSync function reads a file from the filesystem.
    *
