@@ -48,6 +48,10 @@ declare function assertThrows(fn: () => void, message: string): void;
  */
 declare namespace Andromeda {
   /**
+   * The `args` property contains the command-line arguments.
+   */
+  const args: string[];
+  /**
    * readFileSync reads a file from the file system.
    *
    * @example
