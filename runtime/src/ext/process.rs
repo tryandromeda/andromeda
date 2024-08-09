@@ -6,7 +6,7 @@ use nova_vm::ecmascript::{
 };
 use std::env;
 
-/// Process extension for Nova
+/// Process extension for Andromeda.
 /// This extension provides access to internal functions relating to the process.
 #[derive(Default)]
 pub struct ProcessExt;
@@ -32,7 +32,6 @@ impl ProcessExt {
             .iter()
             .map(|s| nova_vm::ecmascript::types::String::from_string(agent, s.to_string()))
             .collect::<Vec<_>>();
-        // TODO: This should be an array
 
         Ok(Array::from_slice(agent, &args).into())
     }
