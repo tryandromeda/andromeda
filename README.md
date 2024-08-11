@@ -4,9 +4,11 @@
 
 [![Discord Server](https://img.shields.io/discord/1264947585882259599.svg?logo=discord&style=flat-square)](https://discord.gg/tgjAnX2Ny3)
 
-The simplest JavaScript and TypeScript runtime, fully written in [Rust 🦀](https://www.rust-lang.org/) and powered [Nova](https://trynova.dev/).
+The simplest JavaScript and TypeScript runtime, fully written in
+[Rust 🦀](https://www.rust-lang.org/) and powered [Nova](https://trynova.dev/).
 
-> Note: ⚠️ This project is still in early stages and is not suitable for serious use.
+> Note: ⚠️ This project is still in early stages and is not suitable for serious
+> use.
 
 ## Getting Started
 
@@ -37,10 +39,10 @@ andromeda run <file>
 
 ## Crates
 
-| Crate | Description |
-|-----------|-------------|
-| [andromeda](/cli)| Contains the Executable Command Line Interface (CLI) code |
-| [andromeda-core](/core)| Contains the core runtime code |
-| [andromeda-runtime](/runtime)| Contains the runtime code |
+| Crate                         | Description                                               |
+| ----------------------------- | --------------------------------------------------------- |
+| [andromeda](/cli)             | Contains the Executable Command Line Interface (CLI) code |
+| [andromeda-core](/core)       | Contains the core runtime code                            |
+| [andromeda-runtime](/runtime) | Contains the runtime code                                 |
 
 [Mozilla Public License Version 2.0](./LICENSE.md)

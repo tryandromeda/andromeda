@@ -41,9 +41,10 @@ impl ProcessExt {
     fn internal_get_env(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
         let key = args.get(0);
         let key = key.to_string(agent)?;
-
-        let value = env::var(key.as_str(agent)).unwrap_or_default();
-        Ok(nova_vm::ecmascript::types::String::from_string(agent, value).into())
+        match env::var(key.as_str(agent)) {
+            Ok(value) => Ok(nova_vm::ecmascript::types::String::from_string(agent, value).into()),
+            _ => Ok(Value::Undefined),
+        }
     }
 
     fn internal_set_env(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {

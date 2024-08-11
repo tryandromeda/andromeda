@@ -1,4 +1,4 @@
-console.log(internal_set_env("HI", "Hello, World!"));
-console.log(internal_set_env("HI2", "Hello, World Again!"));
-console.log(internal_delete_env("HI"));
-console.log(internal_get_env("HI"));
+console.log(Andromeda.env.set("HI", "Hello, World!"));
+console.log(Andromeda.env.get("HI"));
+console.log(Andromeda.env.remove("HI"));
+console.log(Andromeda.env.get("HI"));

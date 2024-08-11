@@ -10,7 +10,7 @@ console.log(`Hello, ${name}`);
 const thoughts = confirm("Do you agree to share your data?");
 
 if (thoughts) {
-    alert("Thank you for sharing your data.");
+  alert("Thank you for sharing your data.");
 } else {
-    alert("Thank you for not sharing your data.");
+  alert("Thank you for not sharing your data.");
 }

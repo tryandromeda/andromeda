@@ -1,1 +1,1 @@
-console.log(Andromeda.args)
+console.log(Andromeda.args);
