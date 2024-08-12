@@ -47,3 +47,23 @@ declare function internal_print(message: string): void;
  * The `internal_get_cli_args` function to get the command line arguments.
  */
 declare function internal_get_cli_args(): string[];
+
+/**
+ * The `internal_get_env` function to get the environment variable.
+ */
+declare function internal_get_env(key: string): string;
+
+/**
+ * The `internal_set_env` function to set the environment variable.
+ */
+declare function internal_set_env(key: string, value: string): void;
+
+/**
+ * The `internal_delete_env` function to delete the environment variable.
+ */
+declare function internal_delete_env(key: string): void;
+
+/**
+ * The `internal_get_env_keys` function to get the environment variable keys.
+ */
+declare function internal_get_env_keys(): string[];

@@ -65,7 +65,6 @@ function assertThrows(fn: () => void, message: string) {
  * Andromeda namespace for the Andromeda runtime.
  */
 const Andromeda = {
-
   /**
    * The `args` property contains the command-line arguments passed to the program.
    */
@@ -167,6 +166,61 @@ const Andromeda = {
       internal_write_line(message + "\n");
     },
   },
+
+  /**
+   * env namespace for environment variables.
+   */
+  env: {
+    /**
+     * The `get` function gets the environment variable.
+     *
+     * @example
+     * ```ts
+     * const value = Andromeda.env.get("PATH");
+     * console.log(value);
+     * ```
+     */
+    get(key: string): string {
+      return internal_get_env(key);
+    },
+
+    /**
+     * The `set` function sets the environment variable.
+     *
+     * @example
+     * ```ts
+     * Andromeda.env.set("HI", "Hello, World!");
+     * ```
+     */
+    set(key: string, value: string): void {
+      internal_set_env(key, value);
+    },
+
+    /**
+     * The `remove` function deletes the environment variable.
+     *
+     * @example
+     * ```ts
+     * Andromeda.env.delete("HI");
+     * ```
+     */
+    remove(key: string): void {
+      internal_delete_env(key);
+    },
+
+    /**
+     * The `keys` function gets the environment variable keys.
+     *
+     * @example
+     * ```ts
+     * const keys = Andromeda.env.keys();
+     * console.log(keys);
+     * ```
+     */
+    keys(): string[] {
+      return internal_get_env_keys();
+    },
+  },
 };
 
 /**
@@ -203,6 +257,6 @@ function confirm(message: string): boolean {
  * The `alert` function displays a message to the user and waits for the user to hit enter.
  */
 function alert(message: string) {
-  internal_print(message+ " [Enter]");
+  internal_print(message + " [Enter]");
   Andromeda.stdin.readLine();
 }

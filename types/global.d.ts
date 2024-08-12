@@ -120,8 +120,54 @@ declare namespace Andromeda {
      */
     function write(message: string): void;
   }
-}
 
+  /**
+   * env namespace for environment variables.
+   */
+  namespace env {
+    /**
+     * get returns the value of an environment variable.
+     *
+     * @example
+     * ```ts
+     * const value = Andromeda.env.get("HOME");
+     * console.log(value);
+     * ```
+     */
+    function get(key: string): string;
+
+    /**
+     * set sets the value of an environment variable.
+     *
+     * @example
+     * ```ts
+     * Andromeda.env.set("HOME", "/home/user");
+     * ```
+     */
+    function set(key: string, value: string): void;
+
+    /**
+     * remove deletes an environment variable.
+     *
+     * @example
+     * ```ts
+     * Andromeda.env.remove("HOME");
+     * ```
+     */
+    function remove(key: string): void;
+
+    /**
+     * keys returns the keys of all environment variables.
+     *
+     * @example
+     * ```ts
+     * const keys = Andromeda.env.keys();
+     * console.log(keys);
+     * ```
+     */
+    function keys(): string[];
+  }
+}
 /**
  * The `prompt` function prompts the user for input.
  *
