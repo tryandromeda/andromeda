@@ -4,16 +4,16 @@ members = ["cli", "core", "runtime"]
 
 
 [workspace.dependencies]
-clap = { version = "4.5.9", features = ["derive"] }
-cliclack = "0.3.2"
+clap = { version = "4.5.16", features = ["derive"] }
+cliclack = "0.3.3"
 console = "0.15.8"
 miette = { version = "7.2.0", features = ["fancy"] }
-nova_vm = { git = "https://github.com/load1n9/nova", branch = "array-from-slice", features = ["typescript"] }
-oxc_ast = "0.20.0"
-oxc_parser = "0.20.0"
-oxc_span = "0.20.0"
-oxc_diagnostics = "0.20.0"
-oxc_semantic = "0.20.0"
+nova_vm = { git = "https://github.com/trynova/nova", branch = "main", features = ["typescript"] }
+oxc_ast = "0.24.3"
+oxc_parser = "0.24.3"
+oxc_span = "0.24.3"
+oxc_diagnostics = "0.24.3"
+oxc_semantic = "0.24.3"
 andromeda-core = { path = "core" }
 andromeda-runtime = { path = "runtime" }
 anymap = "0.12.1"

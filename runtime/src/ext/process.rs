@@ -32,10 +32,12 @@ impl ProcessExt {
         let args = args.iter().map(|s| s.as_str()).collect::<Vec<&str>>();
         let args = args
             .iter()
-            .map(|s| nova_vm::ecmascript::types::String::from_string(agent, s.to_string()))
+            .map(|s| {
+                nova_vm::ecmascript::types::String::from_string(agent, s.to_string()).into_value()
+            })
             .collect::<Vec<_>>();
 
-        Ok(Array::from_slice(agent, &args).into())
+        Ok(Array::from_slice(agent, args.as_slice()).into())
     }
 
     fn internal_get_env(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
@@ -75,9 +77,9 @@ impl ProcessExt {
     fn internal_get_env_keys(agent: &mut Agent, _this: Value, _: ArgumentsList) -> JsResult<Value> {
         let keys = env::vars()
             .map(|(k, _)| k)
-            .map(|s| nova_vm::ecmascript::types::String::from_string(agent, s))
+            .map(|s| nova_vm::ecmascript::types::String::from_string(agent, s).into_value())
             .collect::<Vec<_>>();
 
-        Ok(Array::from_slice(agent, &keys).into())
+        Ok(Array::from_slice(agent, keys.as_slice()).into())
     }
 }
