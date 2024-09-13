@@ -1,4 +1,33 @@
 // deno-lint-ignore-file no-unused-vars
+const COLORS = {
+  reset: "\x1b[0m",
+  bright: "\x1b[1m",
+  dim: "\x1b[2m",
+  underscore: "\x1b[4m",
+  blink: "\x1b[5m",
+  reverse: "\x1b[7m",
+  hidden: "\x1b[8m",
+  fg: {
+    black: "\x1b[30m",
+    red: "\x1b[31m",
+    green: "\x1b[32m",
+    yellow: "\x1b[33m",
+    blue: "\x1b[34m",
+    magenta: "\x1b[35m",
+    cyan: "\x1b[36m",
+    white: "\x1b[37m",
+  },
+  bg: {
+    black: "\x1b[40m",
+    red: "\x1b[41m",
+    green: "\x1b[42m",
+    yellow: "\x1b[43m",
+    blue: "\x1b[44m",
+    magenta: "\x1b[45m",
+    cyan: "\x1b[46m",
+    white: "\x1b[47m",
+  },
+};
 
 /**
  * The `console` module provides a simple debugging console that is similar to the JavaScript console mechanism provided by web browsers.
@@ -12,8 +41,8 @@ const console = {
    * console.log("Hello, World!");
    * ```
    */
-  log(message: string) {
-    internal_print(message + "\n");
+  log(...messages: string[]) {
+    internal_print(messages.join("") + "\n");
   },
 
   /**
@@ -23,8 +52,8 @@ const console = {
    * ```ts
    * console.debug("Hello, World!");
    */
-  debug(message: string) {
-    internal_print("\x1b[36m" + message + "\x1b[0m\n");
+  debug(...messages: string[]) {
+    internal_print(COLORS.fg.cyan + messages.join("") + COLORS.reset + "\n");
   },
 
   /**
@@ -35,8 +64,8 @@ const console = {
    * console.warn("Hello, World!");
    * ```
    */
-  warn(message: string) {
-    internal_print("\x1b[33m" + message + "\x1b[0m\n");
+  warn(...messages: string[]) {
+    internal_print(COLORS.fg.yellow + messages.join("") + COLORS.reset + "\n");
   },
 
   /**
@@ -47,8 +76,8 @@ const console = {
    * console.error("Hello, World!");
    * ```
    */
-  error(message: string) {
-    internal_print("\x1b[31m" + message + "\x1b[0m\n");
+  error(...messages: string[]) {
+    internal_print(COLORS.fg.red + messages.join("") + COLORS.reset + "\n");
   },
 
   /**
@@ -59,8 +88,8 @@ const console = {
    * console.info("Hello, World!");
    * ```
    */
-  info(message: string) {
-    internal_print("\x1b[30m" + message + "\x1b[0m\n");
+  info(...messages: string[]) {
+    internal_print("\x1b[30m" + messages.join("") + COLORS.reset + "\n");
   },
 
   /**
@@ -71,9 +100,9 @@ const console = {
    * console.assert(1 === 1, "The condition is true!");
    * ```
    */
-  assert(condition: boolean, message: string) {
+  assert(condition: boolean, ...messages: string[]) {
     if (!condition) {
-      internal_print("[assert]: " + message + "\n");
+      internal_print("Assertion Failed: " + messages.join("") + "\n");
     }
   },
 
