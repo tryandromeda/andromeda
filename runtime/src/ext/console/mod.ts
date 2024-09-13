@@ -42,7 +42,7 @@ const console = {
    * ```
    */
   log(...messages: string[]) {
-    internal_print(messages.join("") + "\n");
+    internal_print(messages.join(" ") + "\n");
   },
 
   /**
@@ -53,7 +53,7 @@ const console = {
    * console.debug("Hello, World!");
    */
   debug(...messages: string[]) {
-    internal_print(COLORS.fg.cyan + messages.join("") + COLORS.reset + "\n");
+    internal_print(COLORS.fg.cyan + messages.join(" ") + COLORS.reset + "\n");
   },
 
   /**
@@ -65,7 +65,7 @@ const console = {
    * ```
    */
   warn(...messages: string[]) {
-    internal_print(COLORS.fg.yellow + messages.join("") + COLORS.reset + "\n");
+    internal_print(COLORS.fg.yellow + messages.join(" ") + COLORS.reset + "\n");
   },
 
   /**
@@ -77,7 +77,7 @@ const console = {
    * ```
    */
   error(...messages: string[]) {
-    internal_print(COLORS.fg.red + messages.join("") + COLORS.reset + "\n");
+    internal_print(COLORS.fg.red + messages.join(" ") + COLORS.reset + "\n");
   },
 
   /**
@@ -89,7 +89,7 @@ const console = {
    * ```
    */
   info(...messages: string[]) {
-    internal_print("\x1b[30m" + messages.join("") + COLORS.reset + "\n");
+    internal_print("\x1b[30m" + messages.join(" ") + COLORS.reset + "\n");
   },
 
   /**
@@ -102,7 +102,7 @@ const console = {
    */
   assert(condition: boolean, ...messages: string[]) {
     if (!condition) {
-      internal_print("Assertion Failed: " + messages.join("") + "\n");
+      internal_print("Assertion Failed: " + messages.join(" ") + "\n");
     }
   },
 
