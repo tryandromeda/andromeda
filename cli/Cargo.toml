@@ -1,9 +1,11 @@
 [package]
 name = "andromeda"
-version = "0.1.0"
-edition = "2021"
 default-run = "andromeda"
-license = "MIT"
+description = "JS/TS Runtime in rust powered by Nova with no transpilation BS"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 readme = "../README.md"
 
 [dependencies]
