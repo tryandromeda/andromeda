@@ -11,7 +11,7 @@ use clap::{Parser as ClapParser, Subcommand};
 #[command(name = "andromeda")]
 #[command(
     about = "The coolest JavaScript Runtime",
-    long_about = "The only javascript runtime that actually runs typescript"
+    long_about = "JS/TS Runtime in rust powered by Nova with no transpilation BS"
 )]
 struct Cli {
     #[command(subcommand)]
