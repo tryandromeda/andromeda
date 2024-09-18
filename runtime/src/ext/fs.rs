@@ -31,6 +31,9 @@ impl FsExt {
                     Self::internal_write_text_file,
                     2,
                 ),
+                ExtensionOp::new("internal_create_file", Self::internal_create_file, 1),
+                ExtensionOp::new("internal_copy_file", Self::internal_copy_file, 2),
+                ExtensionOp::new("internal_mk_dir", Self::internal_mk_dir, 1),
                 ExtensionOp::new("internal_open_file", Self::internal_open_file, 1),
             ],
             storage: Some(Box::new(|storage: &mut OpsStorage| {
@@ -68,6 +71,54 @@ impl FsExt {
         let binding = args.get(0).to_string(agent)?;
         let content = args.get(1).to_string(agent.borrow_mut())?;
         match std::fs::write(binding.as_str(agent), content.as_str(agent)) {
+            Ok(_) => Ok(Value::from_string(agent, "Success".to_string())),
+            Err(e) => Ok(Value::from_string(agent, format!("Error: {}", e))),
+        }
+    }
+
+    /// Create a file and return a Rid.
+    pub fn internal_create_file(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+    ) -> JsResult<Value> {
+        let binding = args.get(0).to_string(agent)?;
+        let path = binding.as_str(agent);
+        let file = File::create(path).unwrap(); // TODO: Handle errors
+
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let storage = host_data.storage.borrow();
+        let resources: &FsExtResources = storage.get().unwrap();
+        let rid = resources.files.push(file);
+
+        Ok(Value::Integer(SmallInteger::from(rid.index())))
+    }
+
+    /// Copy a file from the first argument to the second argument.
+    pub fn internal_copy_file(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+    ) -> JsResult<Value> {
+        let from = args.get(0).to_string(agent)?;
+        let to = args.get(1).to_string(agent)?;
+
+        match std::fs::copy(from.as_str(agent), to.as_str(agent)) {
+            Ok(_) => Ok(Value::from_string(agent, "Success".to_string())),
+            Err(e) => Ok(Value::from_string(agent, format!("Error: {}", e))),
+        }
+    }
+
+    /// Create a directory.
+    pub fn internal_mk_dir(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+    ) -> JsResult<Value> {
+        let binding = args.get(0).to_string(agent)?;
+        let path = binding.as_str(agent);
+        match std::fs::create_dir(path) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string())),
             Err(e) => Ok(Value::from_string(agent, format!("Error: {}", e))),
         }
