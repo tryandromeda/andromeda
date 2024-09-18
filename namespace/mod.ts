@@ -95,6 +95,42 @@ const Andromeda = {
   },
 
   /**
+   * The `createFileSync` function creates a file in the file system.
+   *
+   * @example
+   * ```ts
+   * Andromeda.createFileSync("hello.txt");
+   * ```
+   */
+  createFileSync(path: string): void {
+    internal_create_file(path);
+  },
+
+  /**
+   * The `copyFileSync` function copies a file in the file system.
+   *
+   * @example
+   * ```ts
+   * Andromeda.copyFileSync("hello.txt", "world.txt");
+   * ```
+   */
+  copyFileSync(source: string, destination: string): void {
+    internal_copy_file(source, destination);
+  },
+
+  /**
+   * The `mkdirSync` function creates a directory in the file system.
+   *
+   * @example
+   * ```ts
+   * Andromeda.mkdirSync("hello");
+   * ```
+   */
+  mkdirSync(path: string): void {
+    internal_mk_dir(path);
+  },
+
+  /**
    * The `exit` function exits the program with an optional exit code.
    *
    * @example

@@ -9,6 +9,22 @@ declare function internal_read_text_file(path: string): string;
 declare function internal_write_text_file(path: string, data: string): void;
 
 /**
+ * The `internal_create_file` function creates a file in the file system.
+ */
+declare function internal_create_file(path: string): void;
+
+/**
+ * The `internal_copy_file` function copies a file in the file system.
+ */
+declare function internal_copy_file(source: string, destination: string): void;
+
+
+/**
+ * The `internal_mk_dir` function creates a directory in the file system.
+ */
+declare function internal_mk_dir(path: string): void;
+
+/**
  * The `internal_exit` function exits the program with an optional exit code.
  */
 declare function internal_exit(code: number): void;
