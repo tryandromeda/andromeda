@@ -1,7 +1,7 @@
 use andromeda_core::{Extension, HostData};
 use nova_vm::ecmascript::execution::agent::{GcAgent, RealmRoot};
 
-use crate::{ConsoleExt, FsExt, ProcessExt, RuntimeMacroTask, TimeExt};
+use crate::{ConsoleExt, FsExt, ProcessExt, RuntimeMacroTask, TimeExt, URLExt};
 
 pub fn recommended_extensions() -> Vec<Extension> {
     vec![
@@ -9,6 +9,7 @@ pub fn recommended_extensions() -> Vec<Extension> {
         ConsoleExt::new_extension(),
         TimeExt::new_extension(),
         ProcessExt::new_extension(),
+        URLExt::new_extension(),
     ]
 }
 

@@ -47,11 +47,11 @@ impl Extension {
         global_object: Object,
     ) {
         for file in &self.files {
-            let source_text = nova_vm::ecmascript::types::String::from_str(agent, &file);
+            let source_text = nova_vm::ecmascript::types::String::from_str(agent, file);
             let script =
                 match parse_script(agent, source_text, agent.current_realm_id(), true, None) {
                     Ok(script) => script,
-                    Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", &file),
+                    Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", file),
                 };
             match script_evaluation(agent, script) {
                 Ok(_) => (),
