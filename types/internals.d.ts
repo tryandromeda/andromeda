@@ -18,7 +18,6 @@ declare function internal_create_file(path: string): void;
  */
 declare function internal_copy_file(source: string, destination: string): void;
 
-
 /**
  * The `internal_mk_dir` function creates a directory in the file system.
  */
@@ -83,3 +82,13 @@ declare function internal_delete_env(key: string): void;
  * The `internal_get_env_keys` function to get the environment variable keys.
  */
 declare function internal_get_env_keys(): string[];
+
+/**
+ * The `internal_url_parse` function to parse a URL string.
+ */
+declare function internal_url_parse(url: string, base: string): string;
+
+/**
+ * The `internal_url_parse_no_base` function to parse a URL string without a base URL.
+ */
+declare function internal_url_parse_no_base(url: string): string;

@@ -7,9 +7,12 @@ repository.workspace = true
 readme = "../README.md"
 
 [dependencies]
-andromeda-core = { workspace = true }
-nova_vm = { workspace = true }
-anymap = { workspace = true }
-tokio = { workspace = true }
-miette = { workspace = true }
-oxc_diagnostics = { workspace = true }
+andromeda-core.workspace = true
+anyhow.workspace = true
+nova_vm.workspace = true
+anymap.workspace = true
+tokio.workspace = true
+miette.workspace = true
+oxc_diagnostics.workspace = true
+serde.workspace = true
+url.workspace = true

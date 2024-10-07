@@ -12,7 +12,9 @@ The simplest JavaScript and TypeScript runtime, fully written in
 
 ## Installation
 
-The easiest way to install Andromeda is to have [Cargo](https://doc.rust-lang.org/cargo/) installed and run the following command:
+The easiest way to install Andromeda is to have
+[Cargo](https://doc.rust-lang.org/cargo/) installed and run the following
+command:
 
 ```bash
 cargo install --git https://github.com/tryandromeda/andromeda
