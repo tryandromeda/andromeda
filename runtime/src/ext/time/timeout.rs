@@ -8,10 +8,10 @@ use std::{
 };
 
 use andromeda_core::{HostData, TaskId};
-use nova_vm::ecmascript::{
+use nova_vm::{ecmascript::{
     execution::agent::{GcAgent, RealmRoot},
-    types::{Function, Global, Value},
-};
+    types::{Function, Value},
+}, engine::Global};
 
 use crate::RuntimeMacroTask;
 
@@ -60,11 +60,11 @@ impl TimeoutId {
     ) {
         Timeout::with(host_data, &self, |timeout| {
             let global_callback = &timeout.callback;
-            agent.run_in_realm(realm_root, |agent| {
+            agent.run_in_realm(realm_root, |agent, gc| {
                 let callback = global_callback.get(agent);
                 let callback_function: Function = callback.try_into().unwrap();
                 callback_function
-                    .call(agent, Value::Undefined, &[])
+                    .call(agent, gc, Value::Undefined, &[])
                     .unwrap();
             });
         });

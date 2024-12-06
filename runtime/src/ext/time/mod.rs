@@ -3,13 +3,16 @@ pub mod timeout;
 
 use std::time::Duration;
 
-use nova_vm::ecmascript::{
-    builtins::{
-        promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
-        ArgumentsList,
+use nova_vm::{
+    ecmascript::{
+        builtins::{
+            promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
+            ArgumentsList,
+        },
+        execution::{Agent, JsResult},
+        types::{IntoValue, Value},
     },
-    execution::{Agent, JsResult},
-    types::{Global, IntoValue, Value},
+    engine::{context::GcScope, Global},
 };
 use tokio::time::interval;
 
@@ -41,9 +44,14 @@ impl TimeExt {
         }
     }
 
-    pub fn internal_sleep(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
+    pub fn internal_sleep(
+        agent: &mut Agent,
+        mut gc: GcScope<'_, '_>,
+        _this: Value,
+        args: ArgumentsList,
+    ) -> JsResult<Value> {
         let promise_capability = PromiseCapability::new(agent);
-        let time_ms = args[0].to_uint32(agent).unwrap();
+        let time_ms = args[0].to_uint32(agent, gc.reborrow()).unwrap();
         let duration = Duration::from_millis(time_ms as u64);
 
         let root_value = Global::new(agent, promise_capability.promise().into_value());
@@ -59,9 +67,14 @@ impl TimeExt {
         Ok(Value::Promise(promise_capability.promise()))
     }
 
-    pub fn set_interval(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
+    pub fn set_interval(
+        agent: &mut Agent,
+        mut gc: GcScope<'_, '_>,
+        _this: Value,
+        args: ArgumentsList,
+    ) -> JsResult<Value> {
         let callback = args[0];
-        let time_ms = args[1].to_uint32(agent).unwrap();
+        let time_ms = args[1].to_uint32(agent, gc.reborrow()).unwrap();
         let period = Duration::from_millis(time_ms as u64);
 
         let root_callback = Global::new(agent, callback);
@@ -81,14 +94,19 @@ impl TimeExt {
             })
         });
 
-        let interval_id_value = Value::from_f64(agent, interval_id.index() as f64);
+        let interval_id_value = Value::from_f64(agent, gc.nogc(), interval_id.index() as f64);
 
         Ok(interval_id_value)
     }
 
-    pub fn clear_interval(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
+    pub fn clear_interval(
+        agent: &mut Agent,
+        mut gc: GcScope<'_, '_>,
+        _this: Value,
+        args: ArgumentsList,
+    ) -> JsResult<Value> {
         let interval_id_value = args[0];
-        let interval_id_u32 = interval_id_value.to_uint32(agent).unwrap();
+        let interval_id_u32 = interval_id_value.to_uint32(agent, gc.reborrow()).unwrap();
         let interval_id = IntervalId::from_index(interval_id_u32);
 
         let host_data = agent.get_host_data();
@@ -104,9 +122,14 @@ impl TimeExt {
         Ok(Value::Undefined)
     }
 
-    pub fn set_timeout(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
+    pub fn set_timeout(
+        agent: &mut Agent,
+        mut gc: GcScope<'_, '_>,
+        _this: Value,
+        args: ArgumentsList,
+    ) -> JsResult<Value> {
         let callback = args[0];
-        let time_ms = args[1].to_uint32(agent).unwrap();
+        let time_ms = args[1].to_uint32(agent, gc.reborrow()).unwrap();
         let duration = Duration::from_millis(time_ms as u64);
 
         let root_callback = Global::new(agent, callback);
@@ -125,14 +148,19 @@ impl TimeExt {
             })
         });
 
-        let timeout_id_value = Value::from_f64(agent, timeout_id.index() as f64);
+        let timeout_id_value = Value::from_f64(agent, gc.nogc(), timeout_id.index() as f64);
 
         Ok(timeout_id_value)
     }
 
-    pub fn clear_timeout(agent: &mut Agent, _this: Value, args: ArgumentsList) -> JsResult<Value> {
+    pub fn clear_timeout(
+        agent: &mut Agent,
+        mut gc: GcScope<'_, '_>,
+        _this: Value,
+        args: ArgumentsList,
+    ) -> JsResult<Value> {
         let timeout_id_value = args[0];
-        let timeout_id_u32 = timeout_id_value.to_uint32(agent).unwrap();
+        let timeout_id_u32 = timeout_id_value.to_uint32(agent, gc.reborrow()).unwrap();
         let timeout_id = TimeoutId::from_index(timeout_id_u32);
 
         let host_data = agent.get_host_data();

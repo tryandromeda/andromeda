@@ -1,8 +1,11 @@
-use nova_vm::ecmascript::{
-    builtins::{create_builtin_function, Behaviour, BuiltinFunctionArgs, RegularFn},
-    execution::Agent,
-    scripts_and_modules::script::{parse_script, script_evaluation},
-    types::{InternalMethods, IntoValue, Object, PropertyDescriptor, PropertyKey},
+use nova_vm::{
+    ecmascript::{
+        builtins::{create_builtin_function, Behaviour, BuiltinFunctionArgs, RegularFn},
+        execution::Agent,
+        scripts_and_modules::script::{parse_script, script_evaluation},
+        types::{InternalMethods, IntoValue, Object, PropertyDescriptor, PropertyKey},
+    },
+    engine::context::GcScope,
 };
 
 use crate::{exit_with_parse_errors, HostData, OpsStorage};
@@ -44,16 +47,23 @@ impl Extension {
     pub(crate) fn load<UserMacroTask: 'static>(
         &mut self,
         agent: &mut Agent,
+        gc: &mut GcScope<'_, '_>,
         global_object: Object,
     ) {
         for file in &self.files {
-            let source_text = nova_vm::ecmascript::types::String::from_str(agent, file);
-            let script =
-                match parse_script(agent, source_text, agent.current_realm_id(), true, None) {
-                    Ok(script) => script,
-                    Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", file),
-                };
-            match script_evaluation(agent, script) {
+            let source_text = nova_vm::ecmascript::types::String::from_str(agent, gc.nogc(), file);
+            let script = match parse_script(
+                agent,
+                gc.nogc(),
+                source_text,
+                agent.current_realm_id(),
+                true,
+                None,
+            ) {
+                Ok(script) => script,
+                Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", file),
+            };
+            match script_evaluation(agent, gc.reborrow(), script) {
                 Ok(_) => (),
                 Err(_) => println!("Error in runtime"),
             }
@@ -61,13 +71,15 @@ impl Extension {
         for op in &self.ops {
             let function = create_builtin_function(
                 agent,
+                gc.nogc(),
                 Behaviour::Regular(op.function),
                 BuiltinFunctionArgs::new(op.args, op.name, agent.current_realm_id()),
             );
-            let property_key = PropertyKey::from_static_str(agent, op.name);
+            let property_key = PropertyKey::from_static_str(agent, gc.nogc(), op.name);
             global_object
                 .internal_define_own_property(
                     agent,
+                    gc.reborrow(),
                     property_key,
                     PropertyDescriptor {
                         value: Some(function.into_value()),

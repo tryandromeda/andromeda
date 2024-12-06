@@ -1,4 +1,4 @@
-use nova_vm::ecmascript::types::{Global, Value};
+use nova_vm::{ecmascript::types::Value, engine::Global};
 
 /// Collection of tasks dispatched and handled by the Runtime.
 #[derive(Debug)]

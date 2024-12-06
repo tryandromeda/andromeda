@@ -8,9 +8,12 @@ use std::{
 };
 
 use andromeda_core::{HostData, TaskId};
-use nova_vm::ecmascript::{
-    execution::agent::{GcAgent, RealmRoot},
-    types::{Function, Global, Value},
+use nova_vm::{
+    ecmascript::{
+        execution::agent::{GcAgent, RealmRoot},
+        types::{Function, Value},
+    },
+    engine::Global,
 };
 
 use crate::RuntimeMacroTask;
@@ -52,11 +55,11 @@ impl IntervalId {
     ) {
         Interval::with(host_data, &self, |interval| {
             let global_callback = &interval.callback;
-            agent.run_in_realm(realm_root, |agent| {
-                let callback = global_callback.get(agent);
+            agent.run_in_realm(realm_root, |agent, mut gc| {
+                let callback = global_callback.get(agent, gc.reborrow());
                 let callback_function: Function = callback.try_into().unwrap();
                 callback_function
-                    .call(agent, Value::Undefined, &[])
+                    .call(agent, gc.reborrow(), Value::Undefined, &[])
                     .unwrap();
             });
         });
