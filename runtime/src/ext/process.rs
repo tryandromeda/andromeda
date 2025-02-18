@@ -21,7 +21,7 @@ impl ProcessExt {
             ops: vec![
                 ExtensionOp::new("internal_get_cli_args", Self::internal_get_cli_args, 0),
                 ExtensionOp::new("internal_get_env", Self::internal_get_env, 1),
-                ExtensionOp::new("internal_set_env", Self::internal_set_env, 2),
+                // ExtensionOp::new("internal_set_env", Self::internal_set_env, 2),
                 ExtensionOp::new("internal_delete_env", Self::internal_delete_env, 1),
                 ExtensionOp::new("internal_get_env_keys", Self::internal_get_env_keys, 0),
             ],
@@ -32,7 +32,7 @@ impl ProcessExt {
 
     fn internal_get_cli_args(
         agent: &mut Agent,
-        gc: GcScope<'_, '_>,
+        gc: &mut GcScope<'_, '_>,
         _this: Value,
         _: ArgumentsList,
     ) -> JsResult<Value> {
@@ -51,7 +51,7 @@ impl ProcessExt {
 
     fn internal_get_env(
         agent: &mut Agent,
-        mut gc: GcScope<'_, '_>,
+        gc: &mut GcScope<'_, '_>,
         _this: Value,
         args: ArgumentsList,
     ) -> JsResult<Value> {
@@ -65,31 +65,31 @@ impl ProcessExt {
         }
     }
 
-    fn internal_set_env(
+    // fn internal_set_env(
+    //     agent: &mut Agent,
+    //     gc: &mut GcScope<'_, '_>,
+    //     _this: Value,
+    //     args: ArgumentsList,
+    // ) -> JsResult<Value> {
+    //     let key = args.get(0);
+    //     let key = key.to_string(agent, gc.reborrow())?;
+
+    //     let value = args.get(1);
+    //     let value = value.to_string(agent, gc.reborrow())?;
+
+    //     env::set_var(key.as_str(agent), value.as_str(agent));
+
+    //     Ok(Value::Undefined)
+    // }
+
+    fn internal_delete_env(
         agent: &mut Agent,
-        mut gc: GcScope<'_, '_>,
+        gc: &mut GcScope<'_, '_>,
         _this: Value,
         args: ArgumentsList,
     ) -> JsResult<Value> {
         let key = args.get(0);
         let key = key.to_string(agent, gc.reborrow())?;
-
-        let value = args.get(1);
-        let value = value.to_string(agent, gc.reborrow())?;
-
-        env::set_var(key.as_str(agent), value.as_str(agent));
-
-        Ok(Value::Undefined)
-    }
-
-    fn internal_delete_env(
-        agent: &mut Agent,
-        gc: GcScope<'_, '_>,
-        _this: Value,
-        args: ArgumentsList,
-    ) -> JsResult<Value> {
-        let key = args.get(0);
-        let key = key.to_string(agent, gc)?;
 
         env::remove_var(key.as_str(agent));
 
@@ -98,7 +98,7 @@ impl ProcessExt {
 
     fn internal_get_env_keys(
         agent: &mut Agent,
-        gc: GcScope<'_, '_>,
+        gc: &mut GcScope<'_, '_>,
         _this: Value,
         _: ArgumentsList,
     ) -> JsResult<Value> {

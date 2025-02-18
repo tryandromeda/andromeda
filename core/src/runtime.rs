@@ -109,9 +109,9 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             create_global_object,
             create_global_this_value,
             Some(
-                |agent: &mut Agent, mut gc: GcScope<'_, '_>, global_object: Object| {
+                |agent: &mut Agent, gc: &mut GcScope<'_, '_>, global_object: Object| {
                     for extension in &mut config.extensions {
-                        extension.load::<UserMacroTask>(agent, gc.borrow_mut(), global_object)
+                        extension.load::<UserMacroTask>(agent, global_object, gc.borrow_mut())
                     }
                 },
             ),
@@ -132,19 +132,19 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
         self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {
             let realm = agent.current_realm_id();
             for builtin in &self.config.builtins {
-                let source_text = types::String::from_str(agent, gc.nogc(), builtin);
+                let source_text = types::String::from_str(agent, builtin, gc.nogc());
                 let script = match parse_script(
                     agent,
-                    gc.nogc(),
                     source_text,
                     realm,
                     !self.config.no_strict,
                     None,
+                    gc.nogc(),
                 ) {
                     Ok(script) => script,
                     Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", builtin),
                 };
-                match script_evaluation(agent, gc.reborrow(), script) {
+                match script_evaluation(agent, script, gc.reborrow()) {
                     Ok(_) => (),
                     Err(_) => println!("Error in runtime"),
                 }
@@ -158,22 +158,22 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             let file = std::fs::read_to_string(path).unwrap();
 
             final_result = self.agent.run_in_realm(&self.realm_root, |agent, gc| {
-                let source_text = types::String::from_string(agent, gc.nogc(), file);
+                let source_text = types::String::from_string(agent, file, gc.nogc());
                 let realm = agent.current_realm_id();
 
                 let script = match parse_script(
                     agent,
-                    gc.nogc(),
                     source_text,
                     realm,
                     !self.config.no_strict,
                     None,
+                    gc.nogc(),
                 ) {
                     Ok(script) => script,
                     Err(errors) => exit_with_parse_errors(errors, path, source_text.as_str(agent)),
                 };
 
-                script_evaluation(agent, gc, script)
+                script_evaluation(agent, script, gc)
             })?;
         }
 
@@ -202,7 +202,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                     let value = root_value.take(agent);
                     if let Value::Promise(promise) = value {
                         let promise_capability = PromiseCapability::from_promise(promise, false);
-                        promise_capability.resolve(agent, gc, Value::Undefined);
+                        promise_capability.resolve(agent, Value::Undefined, gc);
                     } else {
                         panic!("Attempted to resolve a non-promise value");
                     }

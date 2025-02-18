@@ -20,7 +20,7 @@ pub struct ExtensionOp {
 }
 
 impl ExtensionOp {
-    pub fn new(name: &'static str, function: RegularFn, args: u32) -> Self {
+    pub fn new(name: &'static str, function: RegularFn, args: u32,) -> Self {
         Self {
             name,
             args,
@@ -47,23 +47,23 @@ impl Extension {
     pub(crate) fn load<UserMacroTask: 'static>(
         &mut self,
         agent: &mut Agent,
-        gc: &mut GcScope<'_, '_>,
         global_object: Object,
+        gc: &mut GcScope<'_, '_>,
     ) {
         for file in &self.files {
-            let source_text = nova_vm::ecmascript::types::String::from_str(agent, gc.nogc(), file);
+            let source_text = nova_vm::ecmascript::types::String::from_str(agent, file, gc.nogc());
             let script = match parse_script(
                 agent,
-                gc.nogc(),
                 source_text,
                 agent.current_realm_id(),
                 true,
                 None,
+                gc.nogc(),
             ) {
                 Ok(script) => script,
                 Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", file),
             };
-            match script_evaluation(agent, gc.reborrow(), script) {
+            match script_evaluation(agent, script, gc.reborrow()) {
                 Ok(_) => (),
                 Err(_) => println!("Error in runtime"),
             }
@@ -71,20 +71,20 @@ impl Extension {
         for op in &self.ops {
             let function = create_builtin_function(
                 agent,
-                gc.nogc(),
                 Behaviour::Regular(op.function),
                 BuiltinFunctionArgs::new(op.args, op.name, agent.current_realm_id()),
+                gc.nogc(),
             );
-            let property_key = PropertyKey::from_static_str(agent, gc.nogc(), op.name);
+            let property_key = PropertyKey::from_static_str(agent, op.name, gc.nogc());
             global_object
                 .internal_define_own_property(
                     agent,
-                    gc.reborrow(),
                     property_key,
                     PropertyDescriptor {
                         value: Some(function.into_value()),
                         ..Default::default()
                     },
+                    gc.reborrow(),
                 )
                 .unwrap();
         }

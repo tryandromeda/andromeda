@@ -6,9 +6,9 @@ class URL {
         // @ts-ignore - this is a hack to make the Base URL object work
         this.base = base;
         // @ts-ignore - this is a hack to make the URL object work
-        this.serialized = base
+        this.serialized = /*base
             ? internal_url_parse(url, base)
-            : internal_url_parse_no_base(url);
+            : */internal_url_parse_no_base(url);
     }
 
     toString() {

@@ -46,9 +46,9 @@ impl TimeExt {
 
     pub fn internal_sleep(
         agent: &mut Agent,
-        mut gc: GcScope<'_, '_>,
         _this: Value,
         args: ArgumentsList,
+        gc: &mut GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let promise_capability = PromiseCapability::new(agent);
         let time_ms = args[0].to_uint32(agent, gc.reborrow()).unwrap();
@@ -69,9 +69,9 @@ impl TimeExt {
 
     pub fn set_interval(
         agent: &mut Agent,
-        mut gc: GcScope<'_, '_>,
         _this: Value,
         args: ArgumentsList,
+        gc: &mut GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let callback = args[0];
         let time_ms = args[1].to_uint32(agent, gc.reborrow()).unwrap();
@@ -94,16 +94,16 @@ impl TimeExt {
             })
         });
 
-        let interval_id_value = Value::from_f64(agent, gc.nogc(), interval_id.index() as f64);
+        let interval_id_value = Value::from_f64(agent, interval_id.index() as f64, gc.nogc());
 
         Ok(interval_id_value)
     }
 
     pub fn clear_interval(
         agent: &mut Agent,
-        mut gc: GcScope<'_, '_>,
         _this: Value,
         args: ArgumentsList,
+        gc: &mut GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let interval_id_value = args[0];
         let interval_id_u32 = interval_id_value.to_uint32(agent, gc.reborrow()).unwrap();
@@ -124,9 +124,9 @@ impl TimeExt {
 
     pub fn set_timeout(
         agent: &mut Agent,
-        mut gc: GcScope<'_, '_>,
         _this: Value,
         args: ArgumentsList,
+        gc: &mut GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let callback = args[0];
         let time_ms = args[1].to_uint32(agent, gc.reborrow()).unwrap();
@@ -148,16 +148,16 @@ impl TimeExt {
             })
         });
 
-        let timeout_id_value = Value::from_f64(agent, gc.nogc(), timeout_id.index() as f64);
+        let timeout_id_value = Value::from_f64(agent, timeout_id.index() as f64, gc.nogc());
 
         Ok(timeout_id_value)
     }
 
     pub fn clear_timeout(
         agent: &mut Agent,
-        mut gc: GcScope<'_, '_>,
         _this: Value,
         args: ArgumentsList,
+        gc: &mut GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let timeout_id_value = args[0];
         let timeout_id_u32 = timeout_id_value.to_uint32(agent, gc.reborrow()).unwrap();
