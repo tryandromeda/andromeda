@@ -31,39 +31,39 @@ impl URLExt {
         }
     }
 
-    // fn internal_parse(
-    //     agent: &mut Agent,
-    //     _this: Value,
-    //     args: ArgumentsList,
-    //     gc: &mut GcScope<'_, '_>,
-    // ) -> JsResult<Value> {
-    //     let url = args.get(0).to_string(agent, gc.reborrow())?;
-    //     let base_href = args.get(1).to_string(agent, gc.reborrow())?;
+    fn internal_parse(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        gc: &mut GcScope<'_, '_>,
+    ) -> JsResult<Value> {
+        let url = args.get(0).to_string(agent, gc.reborrow())?;
+        let base_href = args.get(1).to_string(agent, gc.reborrow())?;
 
-    //     let base_url = match Url::parse(base_href.as_str(agent)) {
-    //         Ok(url) => url,
-    //         Err(e) => {
-    //             return Ok(Value::from_string(
-    //                 agent,
-    //                 gc.nogc(),
-    //                 format!("Error: {}", e),
-    //             ));
-    //         }
-    //     };
+        let base_url = match Url::parse(base_href.as_str(agent)) {
+            Ok(url) => url,
+            Err(e) => {
+                return Ok(Value::from_string(
+                    agent,
+                    format!("Error: {}", e),
+                    gc.nogc(),
+                ));
+            }
+        };
 
-    //     let url = match base_url.join(url.as_str(agent)) {
-    //         Ok(url) => url,
-    //         Err(e) => {
-    //             return Ok(Value::from_string(
-    //                 agent,
-    //                 gc.nogc(),
-    //                 format!("Error: {}", e),
-    //             ));
-    //         }
-    //     };
+        let url = match base_url.join(url.as_str(agent)) {
+            Ok(url) => url,
+            Err(e) => {
+                return Ok(Value::from_string(
+                    agent,
+                    format!("Error: {}", e),
+                    gc.nogc(),
+                ));
+            }
+        };
 
-    //     Ok(Value::from_string(agent, gc.nogc(), url.to_string()))
-    // }
+        Ok(Value::from_string(agent, url.to_string(), gc.nogc()))
+    }
 
     fn internal_parse_no_base(
         agent: &mut Agent,

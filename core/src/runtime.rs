@@ -103,13 +103,17 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             },
             host_hooks,
         );
-        let create_global_object: Option<fn(&mut Agent, GcScope<'_, '_>) -> Object> = None;
-        let create_global_this_value: Option<fn(&mut Agent, GcScope<'_, '_>) -> Object> = None;
+        let create_global_object: Option<
+            for<'a> fn(&mut Agent, GcScope<'a, '_>) -> Object<'a>,  
+        > = None;
+        let create_global_this_value: Option<
+        for<'a> fn(&mut Agent, GcScope<'a, '_>) -> Object<'a>,  
+    > = None;
         let realm_root = agent.create_realm(
             create_global_object,
             create_global_this_value,
             Some(
-                |agent: &mut Agent, gc: &mut GcScope<'_, '_>, global_object: Object| {
+                |agent: &mut Agent, global_object: Object<'_>, mut gc: GcScope<'_, '_>| {
                     for extension in &mut config.extensions {
                         extension.load::<UserMacroTask>(agent, global_object, gc.borrow_mut())
                     }

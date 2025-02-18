@@ -75,7 +75,9 @@ impl Extension {
                 BuiltinFunctionArgs::new(op.args, op.name, agent.current_realm_id()),
                 gc.nogc(),
             );
+            function.unbind();
             let property_key = PropertyKey::from_static_str(agent, op.name, gc.nogc());
+            property_key.unbind();
             global_object
                 .internal_define_own_property(
                     agent,
@@ -87,6 +89,7 @@ impl Extension {
                     gc.reborrow(),
                 )
                 .unwrap();
+            
         }
 
         if let Some(storage_hook) = self.storage.take() {
