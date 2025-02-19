@@ -35,9 +35,9 @@ impl URLExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
-        let url = args.get(0).to_string(agent, gc.reborrow())?;
+        let url = args.get(0).to_string(agent, gc.reborrow())?.unbind();
 
         let base_href = args.get(1).to_string(agent, gc.reborrow())?;
 
@@ -70,7 +70,7 @@ impl URLExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let url = args.get(0).to_string(agent, gc.reborrow())?;
 

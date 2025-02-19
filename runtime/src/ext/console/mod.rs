@@ -35,7 +35,7 @@ impl ConsoleExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         stdout()
             .write_all(
@@ -54,7 +54,7 @@ impl ConsoleExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         std::process::exit(args[0].to_int32(agent, gc.reborrow())?);
     }
@@ -64,7 +64,7 @@ impl ConsoleExt {
         agent: &mut Agent,
         _this: Value,
         _args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
@@ -80,7 +80,7 @@ impl ConsoleExt {
         agent: &mut Agent,
         _this: Value,
         _args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
@@ -96,7 +96,7 @@ impl ConsoleExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         for arg in args.iter() {
             print!("{}", arg.to_string(agent, gc.reborrow())?.as_str(agent));
@@ -109,7 +109,7 @@ impl ConsoleExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         for arg in args.iter() {
             print!("{}", arg.to_string(agent, gc.reborrow())?.as_str(agent));

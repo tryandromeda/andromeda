@@ -48,7 +48,7 @@ impl TimeExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let promise_capability = PromiseCapability::new(agent);
         let time_ms = args[0].to_uint32(agent, gc.reborrow()).unwrap();
@@ -71,7 +71,7 @@ impl TimeExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let callback = args[0];
         let time_ms = args[1].to_uint32(agent, gc.reborrow()).unwrap();
@@ -103,7 +103,7 @@ impl TimeExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let interval_id_value = args[0];
         let interval_id_u32 = interval_id_value.to_uint32(agent, gc.reborrow()).unwrap();
@@ -126,7 +126,7 @@ impl TimeExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let callback = args[0];
         let time_ms = args[1].to_uint32(agent, gc.reborrow()).unwrap();
@@ -157,7 +157,7 @@ impl TimeExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let timeout_id_value = args[0];
         let timeout_id_u32 = timeout_id_value.to_uint32(agent, gc.reborrow()).unwrap();

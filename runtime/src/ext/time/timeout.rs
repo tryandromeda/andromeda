@@ -61,10 +61,10 @@ impl TimeoutId {
         Timeout::with(host_data, &self, |timeout| {
             let global_callback = &timeout.callback;
             agent.run_in_realm(realm_root, |agent, gc| {
-                let callback = global_callback.get(agent, gc);
+                let callback = global_callback.get(agent, gc.nogc());
                 let callback_function: Function = callback.try_into().unwrap();
                 callback_function
-                    .call(agent, gc, Value::Undefined, &[])
+                    .call(agent, Value::Undefined, &[], gc)
                     .unwrap();
             });
         });

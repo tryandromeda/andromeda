@@ -27,13 +27,13 @@ impl FsExt {
             name: "fs",
             ops: vec![
                 ExtensionOp::new("internal_read_text_file", Self::internal_read_text_file, 1),
-                // ExtensionOp::new(
-                //     "internal_write_text_file",
-                //     Self::internal_write_text_file,
-                //     2,
-                // ),
+                ExtensionOp::new(
+                    "internal_write_text_file",
+                    Self::internal_write_text_file,
+                    2,
+                ),
                 ExtensionOp::new("internal_create_file", Self::internal_create_file, 1),
-                // ExtensionOp::new("internal_copy_file", Self::internal_copy_file, 2),
+                ExtensionOp::new("internal_copy_file", Self::internal_copy_file, 2),
                 ExtensionOp::new("internal_mk_dir", Self::internal_mk_dir, 1),
                 ExtensionOp::new("internal_open_file", Self::internal_open_file, 1),
             ],
@@ -51,7 +51,7 @@ impl FsExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let binding = args.get(0).to_string(agent, gc.reborrow())?;
         let path = binding.as_str(agent);
@@ -73,9 +73,9 @@ impl FsExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc:  GcScope<'_, '_>,
     ) -> JsResult<Value> {
-        let binding = args.get(0).to_string(agent, gc.borrow_mut().reborrow())?;
+        let binding = args.get(0).to_string(agent, gc.borrow_mut().reborrow())?.unbind();
         let content = args.get(1).to_string(agent.borrow_mut(), gc.reborrow())?;
         match std::fs::write(binding.as_str(agent), content.as_str(agent)) {
             Ok(_) => Ok(Value::from_string(agent,  "Success".to_string(), gc.nogc(),)),
@@ -92,7 +92,7 @@ impl FsExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let binding = args.get(0).to_string(agent, gc.reborrow())?;
         let path = binding.as_str(agent);
@@ -112,9 +112,9 @@ impl FsExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
-        let from = args.get(0).to_string(agent, gc.reborrow())?;
+        let from = args.get(0).to_string(agent, gc.reborrow())?.unbind();
         let to = args.get(1).to_string(agent, gc.borrow_mut().reborrow())?;
 
         match std::fs::copy(from.as_str(agent), to.as_str(agent)) {
@@ -132,7 +132,7 @@ impl FsExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let binding = args.get(0).to_string(agent, gc.reborrow())?;
         let path = binding.as_str(agent);
@@ -151,7 +151,7 @@ impl FsExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let binding = args.get(0).to_string(agent, gc.reborrow())?;
         let path = binding.as_str(agent);
