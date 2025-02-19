@@ -15,8 +15,8 @@ pub type ExtensionStorageInit = Box<dyn FnOnce(&mut OpsStorage)>;
 /// Global function part of a larger [Extension].
 pub struct ExtensionOp {
     pub name: &'static str,
-    pub args: u32,
     pub function: RegularFn,
+    pub args: u32,
 }
 
 impl ExtensionOp {
@@ -77,11 +77,10 @@ impl Extension {
             );
             function.unbind();
             let property_key = PropertyKey::from_static_str(agent, op.name, gc.nogc());
-            property_key.unbind();
             global_object
                 .internal_define_own_property(
                     agent,
-                    property_key,
+                    property_key.unbind(),
                     PropertyDescriptor {
                         value: Some(function.into_value()),
                         ..Default::default()

@@ -19,7 +19,7 @@ impl URLExt {
         Extension {
             name: "url",
             ops: vec![
-                // ExtensionOp::new("internal_url_parse", Self::internal_parse, 2),
+                ExtensionOp::new("internal_url_parse", Self::internal_parse, 2),
                 ExtensionOp::new(
                     "internal_url_parse_no_base",
                     Self::internal_parse_no_base,
@@ -38,6 +38,7 @@ impl URLExt {
         gc: &mut GcScope<'_, '_>,
     ) -> JsResult<Value> {
         let url = args.get(0).to_string(agent, gc.reborrow())?;
+
         let base_href = args.get(1).to_string(agent, gc.reborrow())?;
 
         let base_url = match Url::parse(base_href.as_str(agent)) {

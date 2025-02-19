@@ -35,7 +35,7 @@ impl ConsoleExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        gc: &mut GcScope<'_, '_>,
+        gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
         stdout()
             .write_all(
