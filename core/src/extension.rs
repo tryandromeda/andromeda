@@ -20,7 +20,7 @@ pub struct ExtensionOp {
 }
 
 impl ExtensionOp {
-    pub fn new(name: &'static str, function: RegularFn, args: u32,) -> Self {
+    pub fn new(name: &'static str, function: RegularFn, args: u32) -> Self {
         Self {
             name,
             args,
@@ -88,7 +88,6 @@ impl Extension {
                     gc.reborrow(),
                 )
                 .unwrap();
-            
         }
 
         if let Some(storage_hook) = self.storage.take() {

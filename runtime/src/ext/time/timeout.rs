@@ -8,10 +8,13 @@ use std::{
 };
 
 use andromeda_core::{HostData, TaskId};
-use nova_vm::{ecmascript::{
-    execution::agent::{GcAgent, RealmRoot},
-    types::{Function, Value},
-}, engine::Global};
+use nova_vm::{
+    ecmascript::{
+        execution::agent::{GcAgent, RealmRoot},
+        types::{Function, Value},
+    },
+    engine::Global,
+};
 
 use crate::RuntimeMacroTask;
 

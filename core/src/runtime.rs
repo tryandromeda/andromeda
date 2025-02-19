@@ -103,12 +103,11 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             },
             host_hooks,
         );
-        let create_global_object: Option<
-            for<'a> fn(&mut Agent, GcScope<'a, '_>) -> Object<'a>,  
-        > = None;
+        let create_global_object: Option<for<'a> fn(&mut Agent, GcScope<'a, '_>) -> Object<'a>> =
+            None;
         let create_global_this_value: Option<
-        for<'a> fn(&mut Agent, GcScope<'a, '_>) -> Object<'a>,  
-    > = None;
+            for<'a> fn(&mut Agent, GcScope<'a, '_>) -> Object<'a>,
+        > = None;
         let realm_root = agent.create_realm(
             create_global_object,
             create_global_this_value,

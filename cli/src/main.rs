@@ -65,13 +65,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         println!("{:?}", result);
                     }
                 }
-                Err(error) => runtime.agent.run_in_realm(&runtime.realm_root, |agent, gc| {
-                    eprintln!(
-                        "Uncaught exception: {}",
-                        error.value().string_repr(agent, gc).as_str(agent)
-                    );
-                    std::process::exit(1);
-                }),
+                Err(error) => runtime
+                    .agent
+                    .run_in_realm(&runtime.realm_root, |agent, gc| {
+                        eprintln!(
+                            "Uncaught exception: {}",
+                            error.value().string_repr(agent, gc).as_str(agent)
+                        );
+                        std::process::exit(1);
+                    }),
             }
         }
     });

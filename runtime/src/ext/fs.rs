@@ -73,12 +73,15 @@ impl FsExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc:  GcScope<'_, '_>,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
-        let binding = args.get(0).to_string(agent, gc.borrow_mut().reborrow())?.unbind();
+        let binding = args
+            .get(0)
+            .to_string(agent, gc.borrow_mut().reborrow())?
+            .unbind();
         let content = args.get(1).to_string(agent.borrow_mut(), gc.reborrow())?;
         match std::fs::write(binding.as_str(agent), content.as_str(agent)) {
-            Ok(_) => Ok(Value::from_string(agent,  "Success".to_string(), gc.nogc(),)),
+            Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc())),
             Err(e) => Ok(Value::from_string(
                 agent,
                 format!("Error: {}", e),
@@ -118,7 +121,7 @@ impl FsExt {
         let to = args.get(1).to_string(agent, gc.borrow_mut().reborrow())?;
 
         match std::fs::copy(from.as_str(agent), to.as_str(agent)) {
-            Ok(_) => Ok(Value::from_string(agent,  "Success".to_string(), gc.nogc(),)),
+            Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc())),
             Err(e) => Ok(Value::from_string(
                 agent,
                 format!("Error: {}", e),
