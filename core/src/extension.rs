@@ -1,8 +1,11 @@
-use nova_vm::ecmascript::{
-    builtins::{create_builtin_function, Behaviour, BuiltinFunctionArgs, RegularFn},
-    execution::Agent,
-    scripts_and_modules::script::{parse_script, script_evaluation},
-    types::{InternalMethods, IntoValue, Object, PropertyDescriptor, PropertyKey},
+use nova_vm::{
+    ecmascript::{
+        builtins::{create_builtin_function, Behaviour, BuiltinFunctionArgs, RegularFn},
+        execution::Agent,
+        scripts_and_modules::script::{parse_script, script_evaluation},
+        types::{InternalMethods, IntoValue, Object, PropertyDescriptor, PropertyKey},
+    },
+    engine::context::GcScope,
 };
 
 use crate::{exit_with_parse_errors, HostData, OpsStorage};
@@ -12,12 +15,12 @@ pub type ExtensionStorageInit = Box<dyn FnOnce(&mut OpsStorage)>;
 /// Global function part of a larger [Extension].
 pub struct ExtensionOp {
     pub name: &'static str,
-    pub args: u32,
     pub function: RegularFn,
+    pub args: u32,
 }
 
 impl ExtensionOp {
-    pub fn new(name: &'static str, function: RegularFn, args: u32) -> Self {
+    pub fn new(name: &'static str, function: RegularFn, args: u32,) -> Self {
         Self {
             name,
             args,
@@ -45,15 +48,22 @@ impl Extension {
         &mut self,
         agent: &mut Agent,
         global_object: Object,
+        gc: &mut GcScope<'_, '_>,
     ) {
         for file in &self.files {
-            let source_text = nova_vm::ecmascript::types::String::from_str(agent, file);
-            let script =
-                match parse_script(agent, source_text, agent.current_realm_id(), true, None) {
-                    Ok(script) => script,
-                    Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", file),
-                };
-            match script_evaluation(agent, script) {
+            let source_text = nova_vm::ecmascript::types::String::from_str(agent, file, gc.nogc());
+            let script = match parse_script(
+                agent,
+                source_text,
+                agent.current_realm_id(),
+                true,
+                None,
+                gc.nogc(),
+            ) {
+                Ok(script) => script,
+                Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", file),
+            };
+            match script_evaluation(agent, script, gc.reborrow()) {
                 Ok(_) => (),
                 Err(_) => println!("Error in runtime"),
             }
@@ -63,18 +73,22 @@ impl Extension {
                 agent,
                 Behaviour::Regular(op.function),
                 BuiltinFunctionArgs::new(op.args, op.name, agent.current_realm_id()),
+                gc.nogc(),
             );
-            let property_key = PropertyKey::from_static_str(agent, op.name);
+            function.unbind();
+            let property_key = PropertyKey::from_static_str(agent, op.name, gc.nogc());
             global_object
                 .internal_define_own_property(
                     agent,
-                    property_key,
+                    property_key.unbind(),
                     PropertyDescriptor {
                         value: Some(function.into_value()),
                         ..Default::default()
                     },
+                    gc.reborrow(),
                 )
                 .unwrap();
+            
         }
 
         if let Some(storage_hook) = self.storage.take() {

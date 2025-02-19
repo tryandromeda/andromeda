@@ -1,18 +1,22 @@
 use std::{
     any::Any,
+    borrow::BorrowMut,
     cell::RefCell,
     collections::VecDeque,
     sync::{atomic::Ordering, mpsc::Receiver},
 };
 
-use nova_vm::ecmascript::{
-    builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
-    execution::{
-        agent::{GcAgent, HostHooks, Job, Options, RealmRoot},
-        Agent, JsResult,
+use nova_vm::{
+    ecmascript::{
+        builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
+        execution::{
+            agent::{GcAgent, HostHooks, Job, Options, RealmRoot},
+            Agent, JsResult,
+        },
+        scripts_and_modules::script::{parse_script, script_evaluation},
+        types::{self, Object, Value},
     },
-    scripts_and_modules::script::{parse_script, script_evaluation},
-    types::{self, Object, Value},
+    engine::context::GcScope,
 };
 
 use crate::{exit_with_parse_errors, Extension, HostData, MacroTask};
@@ -99,16 +103,22 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             },
             host_hooks,
         );
-        let create_global_object: Option<fn(&mut Agent) -> Object> = None;
-        let create_global_this_value: Option<fn(&mut Agent) -> Object> = None;
+        let create_global_object: Option<
+            for<'a> fn(&mut Agent, GcScope<'a, '_>) -> Object<'a>,  
+        > = None;
+        let create_global_this_value: Option<
+        for<'a> fn(&mut Agent, GcScope<'a, '_>) -> Object<'a>,  
+    > = None;
         let realm_root = agent.create_realm(
             create_global_object,
             create_global_this_value,
-            Some(|agent: &mut Agent, global_object: Object| {
-                for extension in &mut config.extensions {
-                    extension.load::<UserMacroTask>(agent, global_object)
-                }
-            }),
+            Some(
+                |agent: &mut Agent, global_object: Object<'_>, mut gc: GcScope<'_, '_>| {
+                    for extension in &mut config.extensions {
+                        extension.load::<UserMacroTask>(agent, global_object, gc.borrow_mut())
+                    }
+                },
+            ),
         );
 
         Self {
@@ -123,19 +133,22 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
     /// Run the Runtime with the specified configuration.
     pub fn run(&mut self) -> JsResult<Value> {
         // Load the builtins js sources
-        self.agent.run_in_realm(&self.realm_root, |agent| {
+        self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {
             let realm = agent.current_realm_id();
-
             for builtin in &self.config.builtins {
-                let source_text = types::String::from_str(agent, builtin);
-                let script =
-                    match parse_script(agent, source_text, realm, !self.config.no_strict, None) {
-                        Ok(script) => script,
-                        Err(diagnostics) => {
-                            exit_with_parse_errors(diagnostics, "<runtime>", builtin)
-                        }
-                    };
-                match script_evaluation(agent, script) {
+                let source_text = types::String::from_str(agent, builtin, gc.nogc());
+                let script = match parse_script(
+                    agent,
+                    source_text,
+                    realm,
+                    !self.config.no_strict,
+                    None,
+                    gc.nogc(),
+                ) {
+                    Ok(script) => script,
+                    Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", builtin),
+                };
+                match script_evaluation(agent, script, gc.reborrow()) {
                     Ok(_) => (),
                     Err(_) => println!("Error in runtime"),
                 }
@@ -148,26 +161,30 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
         for path in &self.config.paths {
             let file = std::fs::read_to_string(path).unwrap();
 
-            final_result = self.agent.run_in_realm(&self.realm_root, |agent| {
-                let source_text = types::String::from_string(agent, file);
+            final_result = self.agent.run_in_realm(&self.realm_root, |agent, gc| {
+                let source_text = types::String::from_string(agent, file, gc.nogc());
                 let realm = agent.current_realm_id();
 
-                let script =
-                    match parse_script(agent, source_text, realm, !self.config.no_strict, None) {
-                        Ok(script) => script,
-                        Err(errors) => {
-                            exit_with_parse_errors(errors, path, source_text.as_str(agent))
-                        }
-                    };
+                let script = match parse_script(
+                    agent,
+                    source_text,
+                    realm,
+                    !self.config.no_strict,
+                    None,
+                    gc.nogc(),
+                ) {
+                    Ok(script) => script,
+                    Err(errors) => exit_with_parse_errors(errors, path, source_text.as_str(agent)),
+                };
 
-                script_evaluation(agent, script)
+                script_evaluation(agent, script, gc)
             })?;
         }
 
         loop {
             while let Some(job) = self.host_hooks.pop_promise_job() {
                 self.agent
-                    .run_in_realm(&self.realm_root, |agent| job.run(agent))?;
+                    .run_in_realm(&self.realm_root, |agent, gc| job.run(agent, gc))?;
             }
 
             // If both the microtasks and macrotasks queues are empty we can end the event loop
@@ -185,11 +202,11 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
     pub fn handle_macro_task(&mut self) {
         match self.macro_task_rx.recv() {
             Ok(MacroTask::ResolvePromise(root_value)) => {
-                self.agent.run_in_realm(&self.realm_root, |agent| {
+                self.agent.run_in_realm(&self.realm_root, |agent, gc| {
                     let value = root_value.take(agent);
                     if let Value::Promise(promise) = value {
                         let promise_capability = PromiseCapability::from_promise(promise, false);
-                        promise_capability.resolve(agent, Value::Undefined);
+                        promise_capability.resolve(agent, Value::Undefined, gc);
                     } else {
                         panic!("Attempted to resolve a non-promise value");
                     }

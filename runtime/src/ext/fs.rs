@@ -6,6 +6,7 @@ use nova_vm::{
         execution::{Agent, JsResult},
         types::Value,
     },
+    engine::context::GcScope,
     SmallInteger,
 };
 
@@ -50,29 +51,39 @@ impl FsExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
-        let binding = args.get(0).to_string(agent)?;
+        let binding = args.get(0).to_string(agent, gc.reborrow())?;
         let path = binding.as_str(agent);
         let content = match std::fs::read_to_string(path) {
             Ok(content) => content,
             Err(e) => {
-                return Ok(Value::from_string(agent, format!("Error: {}", e)));
+                return Ok(Value::from_string(
+                    agent,
+                    format!("Error: {}", e),
+                    gc.nogc(),
+                ));
             }
         };
-        Ok(Value::from_string(agent, content))
+        Ok(Value::from_string(agent, content, gc.nogc()))
     }
 
-    /// Write a text file with the content of the second argument.
+    // /// Write a text file with the content of the second argument.
     pub fn internal_write_text_file(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
+        mut gc:  GcScope<'_, '_>,
     ) -> JsResult<Value> {
-        let binding = args.get(0).to_string(agent)?;
-        let content = args.get(1).to_string(agent.borrow_mut())?;
+        let binding = args.get(0).to_string(agent, gc.borrow_mut().reborrow())?.unbind();
+        let content = args.get(1).to_string(agent.borrow_mut(), gc.reborrow())?;
         match std::fs::write(binding.as_str(agent), content.as_str(agent)) {
-            Ok(_) => Ok(Value::from_string(agent, "Success".to_string())),
-            Err(e) => Ok(Value::from_string(agent, format!("Error: {}", e))),
+            Ok(_) => Ok(Value::from_string(agent,  "Success".to_string(), gc.nogc(),)),
+            Err(e) => Ok(Value::from_string(
+                agent,
+                format!("Error: {}", e),
+                gc.nogc(),
+            )),
         }
     }
 
@@ -81,8 +92,9 @@ impl FsExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
-        let binding = args.get(0).to_string(agent)?;
+        let binding = args.get(0).to_string(agent, gc.reborrow())?;
         let path = binding.as_str(agent);
         let file = File::create(path).unwrap(); // TODO: Handle errors
 
@@ -100,13 +112,18 @@ impl FsExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
-        let from = args.get(0).to_string(agent)?;
-        let to = args.get(1).to_string(agent)?;
+        let from = args.get(0).to_string(agent, gc.reborrow())?.unbind();
+        let to = args.get(1).to_string(agent, gc.borrow_mut().reborrow())?;
 
         match std::fs::copy(from.as_str(agent), to.as_str(agent)) {
-            Ok(_) => Ok(Value::from_string(agent, "Success".to_string())),
-            Err(e) => Ok(Value::from_string(agent, format!("Error: {}", e))),
+            Ok(_) => Ok(Value::from_string(agent,  "Success".to_string(), gc.nogc(),)),
+            Err(e) => Ok(Value::from_string(
+                agent,
+                format!("Error: {}", e),
+                gc.nogc(),
+            )),
         }
     }
 
@@ -115,12 +132,17 @@ impl FsExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
-        let binding = args.get(0).to_string(agent)?;
+        let binding = args.get(0).to_string(agent, gc.reborrow())?;
         let path = binding.as_str(agent);
         match std::fs::create_dir(path) {
-            Ok(_) => Ok(Value::from_string(agent, "Success".to_string())),
-            Err(e) => Ok(Value::from_string(agent, format!("Error: {}", e))),
+            Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc())),
+            Err(e) => Ok(Value::from_string(
+                agent,
+                format!("Error: {}", e),
+                gc.nogc(),
+            )),
         }
     }
 
@@ -129,8 +151,9 @@ impl FsExt {
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
+        mut gc: GcScope<'_, '_>,
     ) -> JsResult<Value> {
-        let binding = args.get(0).to_string(agent)?;
+        let binding = args.get(0).to_string(agent, gc.reborrow())?;
         let path = binding.as_str(agent);
         let file = File::open(path).unwrap(); // TODO: Handle errors
 
