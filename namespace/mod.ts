@@ -296,3 +296,12 @@ function alert(message: string) {
   internal_print(message + " [Enter]");
   Andromeda.stdin.readLine();
 }
+
+/**
+ * Takes the input data, in the form of a Unicode string containing only characters in the range U+0000 to U+00FF, 
+ * each representing a binary byte with values 0x00 to 0xFF respectively, and converts it to its base64 representation, 
+ * which it returns.
+ */
+function btoa(input: string): string {
+  return internal_btoa(input);
+}

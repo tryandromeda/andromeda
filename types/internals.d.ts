@@ -92,3 +92,8 @@ declare function internal_url_parse(url: string, base: string): string;
  * The `internal_url_parse_no_base` function to parse a URL string without a base URL.
  */
 declare function internal_url_parse_no_base(url: string): string;
+
+/**
+ * The `internal_btoa` function encodes a string in base64.
+ */
+declare function internal_btoa(url: string): string;
