@@ -305,3 +305,13 @@ function alert(message: string) {
 function btoa(input: string): string {
   return internal_btoa(input);
 }
+
+/**
+ * Takes the input data, in the form of a Unicode string containing base64-encoded binary data, 
+ * decodes it, and returns a string consisting of characters in the range U+0000 to U+00FF, 
+ * each representing a binary byte with values 0x00 to 0xFF respectively, 
+ * corresponding to that binary data.
+ */
+function atob(input: string): string {
+  return internal_atob(input);
+}
