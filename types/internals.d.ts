@@ -101,4 +101,4 @@ declare function internal_btoa(input: string): string;
  * 
  * The `internal_atob` function decodes a string in base64.
  */
-declare function internal_btoa(input: string): string;
+declare function internal_atob(input: string): string;
