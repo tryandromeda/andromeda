@@ -98,7 +98,7 @@ impl WebExt {
         };
         Ok(Value::from_string(
             agent,
-            String::from_utf8_lossy(&decoded_bytes).to_string(),
+            String::from_utf8_lossy(decoded_bytes).to_string(),
             gc,
         ))
     }
