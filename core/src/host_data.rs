@@ -3,9 +3,9 @@ use std::{
     collections::HashMap,
     future::Future,
     sync::{
+        Arc,
         atomic::{AtomicU32, Ordering},
         mpsc::{Receiver, Sender},
-        Arc,
     },
 };
 

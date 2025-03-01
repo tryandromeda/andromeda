@@ -6,13 +6,13 @@ use std::time::Duration;
 use nova_vm::{
     ecmascript::{
         builtins::{
-            promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
             ArgumentsList,
+            promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
         },
         execution::{Agent, JsResult},
         types::{IntoValue, Value},
     },
-    engine::{context::GcScope, Global},
+    engine::{Global, context::GcScope},
 };
 use tokio::time::interval;
 

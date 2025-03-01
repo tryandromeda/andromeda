@@ -1,13 +1,13 @@
 use std::{borrow::BorrowMut, fs::File};
 
 use nova_vm::{
+    SmallInteger,
     ecmascript::{
         builtins::ArgumentsList,
         execution::{Agent, JsResult},
         types::Value,
     },
     engine::context::GcScope,
-    SmallInteger,
 };
 
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable};

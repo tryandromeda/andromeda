@@ -1,4 +1,4 @@
-use std::io::{stdout, Write};
+use std::io::{Write, stdout};
 
 use andromeda_core::{Extension, ExtensionOp};
 use nova_vm::{

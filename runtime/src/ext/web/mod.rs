@@ -2,7 +2,7 @@ use andromeda_core::{Extension, ExtensionOp};
 use nova_vm::{
     ecmascript::{
         builtins::ArgumentsList,
-        execution::{agent::ExceptionType, Agent, JsResult},
+        execution::{Agent, JsResult, agent::ExceptionType},
         types::Value,
     },
     engine::context::{GcScope, NoGcScope},

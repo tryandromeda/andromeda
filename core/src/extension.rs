@@ -1,6 +1,6 @@
 use nova_vm::{
     ecmascript::{
-        builtins::{create_builtin_function, Behaviour, BuiltinFunctionArgs, RegularFn},
+        builtins::{Behaviour, BuiltinFunctionArgs, RegularFn, create_builtin_function},
         execution::Agent,
         scripts_and_modules::script::{parse_script, script_evaluation},
         types::{InternalMethods, IntoValue, Object, PropertyDescriptor, PropertyKey},
@@ -8,7 +8,7 @@ use nova_vm::{
     engine::context::GcScope,
 };
 
-use crate::{exit_with_parse_errors, HostData, OpsStorage};
+use crate::{HostData, OpsStorage, exit_with_parse_errors};
 
 pub type ExtensionStorageInit = Box<dyn FnOnce(&mut OpsStorage)>;
 
