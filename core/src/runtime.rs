@@ -10,8 +10,8 @@ use nova_vm::{
     ecmascript::{
         builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
         execution::{
-            agent::{GcAgent, HostHooks, Job, Options, RealmRoot},
             Agent, JsResult,
+            agent::{GcAgent, HostHooks, Job, Options, RealmRoot},
         },
         scripts_and_modules::script::{parse_script, script_evaluation},
         types::{self, Object, Value},
@@ -19,7 +19,7 @@ use nova_vm::{
     engine::context::GcScope,
 };
 
-use crate::{exit_with_parse_errors, Extension, HostData, MacroTask};
+use crate::{Extension, HostData, MacroTask, exit_with_parse_errors};
 
 pub struct RuntimeHostHooks<UserMacroTask> {
     pub(crate) promise_job_queue: RefCell<VecDeque<Job>>,

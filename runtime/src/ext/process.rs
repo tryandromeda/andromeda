@@ -77,7 +77,9 @@ impl ProcessExt {
         let value = args.get(1);
         let value = value.to_string(agent, gc.reborrow())?;
 
-        env::set_var(key.as_str(agent), value.as_str(agent));
+        unsafe {
+            env::set_var(key.as_str(agent), value.as_str(agent));
+        }
 
         Ok(Value::Undefined)
     }
@@ -91,7 +93,9 @@ impl ProcessExt {
         let key = args.get(0);
         let key = key.to_string(agent, gc.reborrow())?;
 
-        env::remove_var(key.as_str(agent));
+        unsafe {
+            env::remove_var(key.as_str(agent));
+        }
 
         Ok(Value::Undefined)
     }

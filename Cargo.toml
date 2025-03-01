@@ -4,7 +4,7 @@ members = ["cli", "core", "runtime"]
 
 [workspace.package]
 authors = ["the Andromeda team"]
-edition = "2021"
+edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
 version = "0.1.0"
