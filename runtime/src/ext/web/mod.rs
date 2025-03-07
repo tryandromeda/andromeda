@@ -20,7 +20,7 @@ impl WebExt {
                 ExtensionOp::new("internal_atob", Self::internal_atob, 1),
             ],
             storage: None,
-            files: vec![],
+            files: vec![include_str!("./event.ts")],
         }
     }
 
