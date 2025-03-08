@@ -298,8 +298,8 @@ function alert(message: string) {
 }
 
 /**
- * Takes the input data, in the form of a Unicode string containing only characters in the range U+0000 to U+00FF, 
- * each representing a binary byte with values 0x00 to 0xFF respectively, and converts it to its base64 representation, 
+ * Takes the input data, in the form of a Unicode string containing only characters in the range U+0000 to U+00FF,
+ * each representing a binary byte with values 0x00 to 0xFF respectively, and converts it to its base64 representation,
  * which it returns.
  */
 function btoa(input: string): string {
@@ -307,9 +307,9 @@ function btoa(input: string): string {
 }
 
 /**
- * Takes the input data, in the form of a Unicode string containing base64-encoded binary data, 
- * decodes it, and returns a string consisting of characters in the range U+0000 to U+00FF, 
- * each representing a binary byte with values 0x00 to 0xFF respectively, 
+ * Takes the input data, in the form of a Unicode string containing base64-encoded binary data,
+ * decodes it, and returns a string consisting of characters in the range U+0000 to U+00FF,
+ * each representing a binary byte with values 0x00 to 0xFF respectively,
  * corresponding to that binary data.
  */
 function atob(input: string): string {
