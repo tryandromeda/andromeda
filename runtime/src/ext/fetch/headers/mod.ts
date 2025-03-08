@@ -1,21 +1,18 @@
 class Headers {
-  #guard;
   // TODO: this is HeaderList type
-  #headerList;
-
   // https://fetch.spec.whatwg.org/#headers-class
   constructor(init = undefined) {
     // @ts-ignore
-    this.#guard = "none";
+    this.guard = "none";
     // @ts-ignore
-    this.#headerList = [];
+    this.headerList = [];
     fillHeaders(this, init);
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-get
   get(name: string) {
     // @ts-ignore
-    return getHeader(this.#headerList, name);
+    return getHeader(this.headerList, name);
   }
 }
 
