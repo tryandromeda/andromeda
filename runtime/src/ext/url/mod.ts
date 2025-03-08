@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-unused-vars
 class URL {
+    // TODO: Need to return a URL object. 
     constructor(url: string, base?: string) {
         // @ts-ignore - this is a hack to make the URL object work
         this.url = url;
@@ -14,5 +15,9 @@ class URL {
     toString() {
         // @ts-ignore - this is a hack to make the URL object work
         return this.serialized;
+    }
+
+    static parse(url: string, base?: string) {
+        return new this(url, base)
     }
 }
