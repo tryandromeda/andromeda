@@ -1,21 +1,25 @@
 class Headers {
+  #guard;
+  // TODO: this is HeaderList type
+  #headerList;
+
+  // https://fetch.spec.whatwg.org/#headers-class
   constructor(init = undefined) {
-    // TODO: webidl
-    // this.brand = brand;
-    // @ts-ignore - this is a hack to make the URL object work
-    this.guard = "none";
-    // @ts-ignore - this is a hack to make the URL object work
-    this.headerList = [];
+    // @ts-ignore
+    this.#guard = "none";
+    // @ts-ignore
+    this.#headerList = [];
     fillHeaders(this, init);
   }
 
-  get(name) {
-    // @ts-ignore - this is a hack to make the URL object work
-    return getHeader(this.headerList, name);
+  // https://fetch.spec.whatwg.org/#dom-headers-get
+  get(name: string) {
+    // @ts-ignore
+    return getHeader(this.#headerList, name);
   }
 }
 
-function fillHeaders(headers, object) {
+function fillHeaders(headers: Headers, object) {
   if (Array.isArray(object)) {
     for (let i = 0; i < object.length; ++i) {
       const header = object[i];
@@ -36,10 +40,6 @@ function fillHeaders(headers, object) {
   }
 }
 
-/**
- * @param {string} s
- * @returns {string}
- */
 function byteLowerCase(s) {
   // NOTE: correct since all callers convert to ByteString first
   // TODO(@AaronO): maybe prefer a ByteString_Lower webidl converter
@@ -51,7 +51,7 @@ function appendHeader(headers, name, value) {
   // 1.
   value = normalizeHeaderValue(value);
 
-  // 2.
+  // 2. TODO
   // if (!checkHeaderNameForHttpTokenCodePoint(name)) {
   //   throw new TypeError(`Invalid header name: "${name}"`);
   // }
@@ -76,10 +76,6 @@ function appendHeader(headers, name, value) {
   list.push([name, value]);
 }
 
-/**
- * @param {string} potentialValue
- * @returns {string}
- */
 function normalizeHeaderValue(potentialValue) {
   return httpTrim(potentialValue);
 }
