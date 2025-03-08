@@ -1,4 +1,8 @@
 class Headers {
+  // TODO: Private properties
+  // #guard
+  // #headerList
+
   // TODO: this is HeaderList type
   // https://fetch.spec.whatwg.org/#headers-class
   constructor(init = undefined) {
