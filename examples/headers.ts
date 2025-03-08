@@ -1,6 +1,11 @@
-const myHeaders = new Headers({
-    accept: "application/json",
-});
+const httpHeaders = {
+  "Content-Type": "image/jpeg",
+  "X-My-Custom-Header": "Zeke are cool",
+};
+const myHeaders = new Headers(httpHeaders);
+
+console.log("myHeaders", myHeaders.get("Content-Type")); // image/jpeg
+console.log("myHeaders", myHeaders.get("X-My-Custom-Header")); // Zeke are cool
 
 // // Append a header to the headers object.
 // myHeaders.append("user-agent", "Deno Deploy");
@@ -15,4 +20,3 @@ const myHeaders = new Headers({
 //     method: "POST",
 //     headers: myHeaders,
 // });
-

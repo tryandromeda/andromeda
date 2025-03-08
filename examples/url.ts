@@ -3,15 +3,15 @@
 const baseUrl = "https://developer.mozilla.org";
 
 const A = new URL("/", baseUrl); // 'https://developer.mozilla.org/'
-console.log(A)
+console.log(A);
 
 const B = new URL(baseUrl); // 'https://developer.mozilla.org/'
-console.log(B)
+console.log(B);
 
 console.log(new URL("en-US/docs", B)); // 'https://developer.mozilla.org/en-US/docs'
 
 const D = new URL("/en-US/docs", B); // 'https://developer.mozilla.org/en-US/docs'
-console.log(D)
+console.log(D);
 
 console.log(new URL("/en-US/docs", D)); // 'https://developer.mozilla.org/en-US/docs'
 
