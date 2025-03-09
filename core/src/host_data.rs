@@ -79,7 +79,7 @@ impl<UserMacroTask> HostData<UserMacroTask> {
         let task = tasks.get(&task_id).unwrap();
         task.abort();
 
-        // Manualy decrease the macro tasks counter as the task was aborted.
+        // Manually decrease the macro tasks counter as the task was aborted.
         self.macro_task_count.fetch_sub(1, Ordering::Relaxed);
     }
 
