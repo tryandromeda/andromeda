@@ -27,14 +27,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
       - name: Set up Rust toolchain version
-        run: echo "TOOLCHAIN_VERSION=$(cat rust-toolchain | tr -d '\n' | tr -d ' ')" >> $GITHUB_ENV
+        run: |
+          if [ ! -f rust-toolchain.toml ]; then
+            echo "Error: rust-toolchain.toml file not found!" >&2
+            exit 1
+          fi
+          TOOLCHAIN_VERSION=$(grep 'channel' rust-toolchain.toml | cut -d '"' -f2)
+          echo "TOOLCHAIN_VERSION=${TOOLCHAIN_VERSION}" >> $GITHUB_ENV
       - name: Install Rust toolchain
         run: |
           rustup set profile minimal
           rustup install "$TOOLCHAIN_VERSION"
           rustup default "$TOOLCHAIN_VERSION"
           rustup component add rustfmt clippy llvm-tools-preview rustc-dev
-          rustup show    
+          rustup show
       - name: Test
         run: cargo test
         timeout-minutes: 20
