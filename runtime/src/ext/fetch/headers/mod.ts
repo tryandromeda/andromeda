@@ -15,8 +15,12 @@ class Headers {
 
   // https://fetch.spec.whatwg.org/#dom-headers-get
   get(name: string) {
-    // @ts-ignore
     return getHeader(this.headerList, name);
+  }
+
+  // https://fetch.spec.whatwg.org/#dom-headers-append
+  append(name, value) {
+    return appendHeader(this, name, value);
   }
 }
 

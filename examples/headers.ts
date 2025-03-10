@@ -13,3 +13,7 @@ const headers2 = [
 const myHeaders2 = new Headers(headers2);
 console.log("myHeaders2", myHeaders2); // TODO Headers { 'Set-Cookie': 'greeting=hello, name=world' } but [object Object]
 console.log("myHeaders", myHeaders2.get("Set-Cookie")); // greeting=hellogreeting=hello,name=worldname=world
+
+const myAppendHeader = new Headers();
+myAppendHeader.append("Content-Type", "image/jpeg");
+console.log("myAppendHeader", myAppendHeader.get("Content-Type")); // 'image/jpeg'
