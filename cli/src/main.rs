@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     // Run Nova in a secondary blocking thread so tokio tasks can still run
-    let nova_thread = rt.spawn_blocking(|| match args.command {
+    let nova_thread = rt.spawn_blocking(move || match args.command {
         Command::Run {
             verbose,
             no_strict,
