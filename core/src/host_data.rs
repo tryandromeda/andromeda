@@ -5,7 +5,7 @@ use std::{
     sync::{
         Arc,
         atomic::{AtomicU32, Ordering},
-        mpsc::{Receiver, Sender},
+        mpsc::Sender,
     },
 };
 
@@ -33,18 +33,14 @@ pub struct HostData<UserMacroTask> {
 }
 
 impl<UserMacroTask> HostData<UserMacroTask> {
-    pub fn new() -> (Self, Receiver<MacroTask<UserMacroTask>>) {
-        let (macro_task_tx, rx) = std::sync::mpsc::channel();
-        (
-            Self {
-                storage: RefCell::new(AnyMap::new()),
-                macro_task_tx,
-                macro_task_count: Arc::new(AtomicU32::new(0)),
-                tasks: RefCell::default(),
-                task_count: Arc::default(),
-            },
-            rx,
-        )
+    pub fn new(macro_task_tx: Sender<MacroTask<UserMacroTask>>) -> Self {
+        Self {
+            storage: RefCell::new(AnyMap::new()),
+            macro_task_tx,
+            macro_task_count: Arc::new(AtomicU32::new(0)),
+            tasks: RefCell::default(),
+            task_count: Arc::default(),
+        }
     }
 
     /// Get an owned senderto the macro tasks event loop.

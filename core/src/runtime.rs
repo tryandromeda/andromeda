@@ -3,7 +3,10 @@ use std::{
     borrow::BorrowMut,
     cell::RefCell,
     collections::VecDeque,
-    sync::{atomic::Ordering, mpsc::Receiver},
+    sync::{
+        atomic::Ordering,
+        mpsc::{Receiver, Sender},
+    },
 };
 
 use nova_vm::{
@@ -79,6 +82,17 @@ pub struct RuntimeConfig<UserMacroTask: 'static> {
     pub builtins: Vec<&'static str>,
     /// User event loop handler.
     pub eventloop_handler: EventLoopHandler<UserMacroTask>,
+    /// Macro tasks sender.
+    pub macro_task_tx: Sender<MacroTask<UserMacroTask>>,
+    /// Macro tasks receiver.
+    pub macro_task_rx: Receiver<MacroTask<UserMacroTask>>,
+}
+
+pub struct RuntimeData<UserMacroTask: 'static> {
+    /// Macro tasks sender.
+    pub macro_task_tx: Sender<MacroTask<UserMacroTask>>,
+    /// Macro tasks receiver.
+    pub macro_task_rx: Receiver<MacroTask<UserMacroTask>>,
 }
 
 pub struct Runtime<UserMacroTask: 'static> {
@@ -91,8 +105,8 @@ pub struct Runtime<UserMacroTask: 'static> {
 
 impl<UserMacroTask> Runtime<UserMacroTask> {
     /// Create a new [Runtime] given a [RuntimeConfig]. Use [Runtime::run] to run it.
-    pub fn new(mut config: RuntimeConfig<UserMacroTask>) -> Self {
-        let (host_data, macro_task_rx) = HostData::new();
+    pub fn new(mut config: RuntimeConfig<UserMacroTask>, data: RuntimeData<UserMacroTask>) -> Self {
+        let host_data = HostData::new(data.macro_task_tx);
         let host_hooks = RuntimeHostHooks::new(host_data);
 
         let host_hooks: &RuntimeHostHooks<UserMacroTask> = &*Box::leak(Box::new(host_hooks));
@@ -125,7 +139,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             agent,
             realm_root,
             host_hooks,
-            macro_task_rx,
+            macro_task_rx: data.macro_task_rx,
         }
     }
 
