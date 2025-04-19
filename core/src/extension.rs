@@ -5,7 +5,7 @@ use nova_vm::{
         scripts_and_modules::script::{parse_script, script_evaluation},
         types::{InternalMethods, IntoValue, Object, PropertyDescriptor, PropertyKey},
     },
-    engine::context::GcScope,
+    engine::context::{Bindable, GcScope},
 };
 
 use crate::{HostData, OpsStorage, exit_with_parse_errors};
@@ -55,7 +55,7 @@ impl Extension {
             let script = match parse_script(
                 agent,
                 source_text,
-                agent.current_realm_id(),
+                agent.current_realm(gc.nogc()),
                 true,
                 None,
                 gc.nogc(),
@@ -63,7 +63,7 @@ impl Extension {
                 Ok(script) => script,
                 Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", file),
             };
-            match script_evaluation(agent, script, gc.reborrow()) {
+            match script_evaluation(agent, script.unbind(), gc.reborrow()) {
                 Ok(_) => (),
                 Err(_) => println!("Error in runtime"),
             }
@@ -72,7 +72,7 @@ impl Extension {
             let function = create_builtin_function(
                 agent,
                 Behaviour::Regular(op.function),
-                BuiltinFunctionArgs::new(op.args, op.name, agent.current_realm_id()),
+                BuiltinFunctionArgs::new(op.args, op.name),
                 gc.nogc(),
             );
             function.unbind();
@@ -82,7 +82,7 @@ impl Extension {
                     agent,
                     property_key.unbind(),
                     PropertyDescriptor {
-                        value: Some(function.into_value()),
+                        value: Some(function.into_value().unbind()),
                         ..Default::default()
                     },
                     gc.reborrow(),

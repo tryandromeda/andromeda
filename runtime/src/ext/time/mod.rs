@@ -12,7 +12,10 @@ use nova_vm::{
         execution::{Agent, JsResult},
         types::{IntoValue, Value},
     },
-    engine::{Global, context::GcScope},
+    engine::{
+        Global,
+        context::{Bindable, GcScope},
+    },
 };
 use tokio::time::interval;
 
@@ -44,17 +47,17 @@ impl TimeExt {
         }
     }
 
-    pub fn internal_sleep(
+    pub fn internal_sleep<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
-        let promise_capability = PromiseCapability::new(agent);
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         let time_ms = args[0].to_uint32(agent, gc.reborrow()).unwrap();
         let duration = Duration::from_millis(time_ms as u64);
 
-        let root_value = Global::new(agent, promise_capability.promise().into_value());
+        let promise_capability = PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
@@ -64,20 +67,20 @@ impl TimeExt {
             macro_task_tx.send(MacroTask::ResolvePromise(root_value))
         });
 
-        Ok(Value::Promise(promise_capability.promise()))
+        Ok(Value::Promise(promise_capability.promise()).unbind())
     }
 
-    pub fn set_interval(
+    pub fn set_interval<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         let callback = args[0];
         let time_ms = args[1].to_uint32(agent, gc.reborrow()).unwrap();
         let period = Duration::from_millis(time_ms as u64);
 
-        let root_callback = Global::new(agent, callback);
+        let root_callback = Global::new(agent, callback.unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
@@ -94,17 +97,18 @@ impl TimeExt {
             })
         });
 
-        let interval_id_value = Value::from_f64(agent, interval_id.index() as f64, gc.nogc());
+        let interval_id_value =
+            Value::from_f64(agent, interval_id.index() as f64, gc.nogc()).unbind();
 
         Ok(interval_id_value)
     }
 
-    pub fn clear_interval(
+    pub fn clear_interval<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         let interval_id_value = args[0];
         let interval_id_u32 = interval_id_value.to_uint32(agent, gc.reborrow()).unwrap();
         let interval_id = IntervalId::from_index(interval_id_u32);
@@ -122,17 +126,17 @@ impl TimeExt {
         Ok(Value::Undefined)
     }
 
-    pub fn set_timeout(
+    pub fn set_timeout<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         let callback = args[0];
         let time_ms = args[1].to_uint32(agent, gc.reborrow()).unwrap();
         let duration = Duration::from_millis(time_ms as u64);
 
-        let root_callback = Global::new(agent, callback);
+        let root_callback = Global::new(agent, callback.unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
@@ -148,17 +152,18 @@ impl TimeExt {
             })
         });
 
-        let timeout_id_value = Value::from_f64(agent, timeout_id.index() as f64, gc.nogc());
+        let timeout_id_value =
+            Value::from_f64(agent, timeout_id.index() as f64, gc.nogc()).unbind();
 
         Ok(timeout_id_value)
     }
 
-    pub fn clear_timeout(
+    pub fn clear_timeout<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         let timeout_id_value = args[0];
         let timeout_id_u32 = timeout_id_value.to_uint32(agent, gc.reborrow()).unwrap();
         let timeout_id = TimeoutId::from_index(timeout_id_u32);

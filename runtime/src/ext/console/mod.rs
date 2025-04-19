@@ -7,7 +7,7 @@ use nova_vm::{
         execution::{Agent, JsResult},
         types::Value,
     },
-    engine::context::GcScope,
+    engine::context::{Bindable, GcScope},
 };
 
 #[derive(Default)]
@@ -31,16 +31,17 @@ impl ConsoleExt {
     }
 
     /// Print function that prints the first argument to the console.
-    fn internal_print(
+    fn internal_print<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         stdout()
             .write_all(
                 args[0]
-                    .to_string(agent, gc.reborrow())?
+                    .to_string(agent, gc.reborrow())
+                    .unbind()?
                     .as_str(agent)
                     .as_bytes(),
             )
@@ -50,69 +51,67 @@ impl ConsoleExt {
     }
 
     /// Exit the process with the given exit code.
-    pub fn internal_exit(
+    pub fn internal_exit<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
-        std::process::exit(args[0].to_int32(agent, gc.reborrow())?);
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        std::process::exit(args[0].to_int32(agent, gc.reborrow()).unbind()?);
     }
 
     /// Internal read for reading from the console.
-    pub fn internal_read(
+    pub fn internal_read<'gc>(
         agent: &mut Agent,
         _this: Value,
         _args: ArgumentsList,
-        gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
-        Ok(Value::from_string(
-            agent,
-            input.trim_end().to_string(),
-            gc.nogc(),
-        ))
+        Ok(Value::from_string(agent, input.trim_end().to_string(), gc.nogc()).unbind())
     }
 
     /// Internal read line for reading from the console with a newline.
-    pub fn internal_read_line(
+    pub fn internal_read_line<'gc>(
         agent: &mut Agent,
         _this: Value,
         _args: ArgumentsList,
-        gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
-        Ok(Value::from_string(
-            agent,
-            input.trim_end().to_string(),
-            gc.nogc(),
-        ))
+        Ok(Value::from_string(agent, input.trim_end().to_string(), gc.nogc()).unbind())
     }
 
     /// Internal write for writing to the console.
-    pub fn internal_write(
+    pub fn internal_write<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         for arg in args.iter() {
-            print!("{}", arg.to_string(agent, gc.reborrow())?.as_str(agent));
+            print!(
+                "{}",
+                arg.to_string(agent, gc.reborrow()).unbind()?.as_str(agent)
+            );
         }
         Ok(Value::Undefined)
     }
 
     /// Internal write line for writing to the console with a newline.
-    pub fn internal_write_line(
+    pub fn internal_write_line<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         for arg in args.iter() {
-            print!("{}", arg.to_string(agent, gc.reborrow())?.as_str(agent));
+            print!(
+                "{}",
+                arg.to_string(agent, gc.reborrow()).unbind()?.as_str(agent)
+            );
         }
         println!();
         Ok(Value::Undefined)

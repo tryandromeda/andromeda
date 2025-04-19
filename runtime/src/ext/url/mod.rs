@@ -1,4 +1,5 @@
 use andromeda_core::{Extension, ExtensionOp};
+use nova_vm::engine::context::Bindable;
 
 use nova_vm::{
     ecmascript::{
@@ -31,60 +32,48 @@ impl URLExt {
         }
     }
 
-    fn internal_parse(
+    fn internal_parse<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
-        let url = args.get(0).to_string(agent, gc.reborrow())?.unbind();
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let url = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
 
-        let base_href = args.get(1).to_string(agent, gc.reborrow())?;
+        let base_href = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
 
         let base_url = match Url::parse(base_href.as_str(agent)) {
             Ok(url) => url,
             Err(e) => {
-                return Ok(Value::from_string(
-                    agent,
-                    format!("Error: {}", e),
-                    gc.nogc(),
-                ));
+                return Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind());
             }
         };
 
         let url = match base_url.join(url.as_str(agent)) {
             Ok(url) => url,
             Err(e) => {
-                return Ok(Value::from_string(
-                    agent,
-                    format!("Error: {}", e),
-                    gc.nogc(),
-                ));
+                return Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind());
             }
         };
 
-        Ok(Value::from_string(agent, url.to_string(), gc.nogc()))
+        Ok(Value::from_string(agent, url.to_string(), gc.nogc()).unbind())
     }
 
-    fn internal_parse_no_base(
+    fn internal_parse_no_base<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
-        let url = args.get(0).to_string(agent, gc.reborrow())?;
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let url = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
 
         let url = match Url::parse(url.as_str(agent)) {
             Ok(url) => url,
             Err(e) => {
-                return Ok(Value::from_string(
-                    agent,
-                    format!("Error: {}", e),
-                    gc.nogc(),
-                ));
+                return Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind());
             }
         };
 
-        Ok(Value::from_string(agent, url.to_string(), gc.nogc()))
+        Ok(Value::from_string(agent, url.to_string(), gc.nogc()).unbind())
     }
 }

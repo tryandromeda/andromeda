@@ -3,9 +3,9 @@ use nova_vm::{
     ecmascript::{
         builtins::{ArgumentsList, Array},
         execution::{Agent, JsResult},
-        types::Value,
+        types::{IntoValue, Value},
     },
-    engine::context::GcScope,
+    engine::context::{Bindable, GcScope},
 };
 use std::env;
 
@@ -30,12 +30,12 @@ impl ProcessExt {
         }
     }
 
-    fn internal_get_cli_args(
+    fn internal_get_cli_args<'gc>(
         agent: &mut Agent,
         _this: Value,
         _: ArgumentsList,
-        gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         let args = env::args().skip(1).collect::<Vec<String>>();
         let args = args.iter().map(|s| s.as_str()).collect::<Vec<&str>>();
         let args = args
@@ -46,36 +46,42 @@ impl ProcessExt {
             })
             .collect::<Vec<_>>();
 
-        Ok(Array::from_slice(agent, args.as_slice(), gc.nogc()).into())
+        Ok(Array::from_slice(agent, args.as_slice(), gc.nogc())
+            .unbind()
+            .into())
     }
 
-    fn internal_get_env(
+    fn internal_get_env<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         let key = args.get(0);
-        let key = key.to_string(agent, gc.reborrow())?;
+        let key = key.to_string(agent, gc.reborrow()).unbind()?;
         match env::var(key.as_str(agent)) {
             Ok(value) => {
-                Ok(nova_vm::ecmascript::types::String::from_string(agent, value, gc.nogc()).into())
+                Ok(
+                    nova_vm::ecmascript::types::String::from_string(agent, value, gc.nogc())
+                        .unbind()
+                        .into(),
+                )
             }
             _ => Ok(Value::Undefined),
         }
     }
 
-    fn internal_set_env(
+    fn internal_set_env<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         let key = args.get(0);
-        let key = key.to_string(agent, gc.reborrow())?.unbind();
+        let key = key.to_string(agent, gc.reborrow()).unbind()?;
 
         let value = args.get(1);
-        let value = value.to_string(agent, gc.reborrow())?;
+        let value = value.to_string(agent, gc.reborrow()).unbind().unbind()?;
 
         unsafe {
             env::set_var(key.as_str(agent), value.as_str(agent));
@@ -84,14 +90,14 @@ impl ProcessExt {
         Ok(Value::Undefined)
     }
 
-    fn internal_delete_env(
+    fn internal_delete_env<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         let key = args.get(0);
-        let key = key.to_string(agent, gc.reborrow())?;
+        let key = key.to_string(agent, gc.reborrow()).unbind()?;
 
         unsafe {
             env::remove_var(key.as_str(agent));
@@ -100,12 +106,12 @@ impl ProcessExt {
         Ok(Value::Undefined)
     }
 
-    fn internal_get_env_keys(
+    fn internal_get_env_keys<'gc>(
         agent: &mut Agent,
         _this: Value,
         _: ArgumentsList,
-        gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         let keys = env::vars()
             .map(|(k, _)| k)
             .map(|s| {
@@ -113,6 +119,8 @@ impl ProcessExt {
             })
             .collect::<Vec<_>>();
 
-        Ok(Array::from_slice(agent, keys.as_slice(), gc.nogc()).into())
+        Ok(Array::from_slice(agent, keys.as_slice(), gc.nogc())
+            .unbind()
+            .into())
     }
 }
