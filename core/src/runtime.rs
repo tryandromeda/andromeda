@@ -82,10 +82,6 @@ pub struct RuntimeConfig<UserMacroTask: 'static> {
     pub builtins: Vec<&'static str>,
     /// User event loop handler.
     pub eventloop_handler: EventLoopHandler<UserMacroTask>,
-    /// Macro tasks sender.
-    pub macro_task_tx: Sender<MacroTask<UserMacroTask>>,
-    /// Macro tasks receiver.
-    pub macro_task_rx: Receiver<MacroTask<UserMacroTask>>,
 }
 
 pub struct RuntimeData<UserMacroTask: 'static> {
