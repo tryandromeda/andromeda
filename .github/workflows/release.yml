@@ -24,7 +24,7 @@ jobs:
             asset-name: andromeda-macos-amd64
           
           # macOS (Apple Silicon/ARM)
-          - os: macos-latest-xlarge
+          - os: macos-latest
             rust-target: aarch64-apple-darwin
             asset-name: andromeda-macos-arm64
           
