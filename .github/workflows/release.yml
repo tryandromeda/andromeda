@@ -1,0 +1,80 @@
+name: Build and Release Andromeda
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          # Linux (x86_64)
+          - os: ubuntu-latest
+            rust-target: x86_64-unknown-linux-gnu
+            asset-name: andromeda-linux-amd64
+          
+          # macOS (Intel)
+          - os: macos-latest
+            rust-target: x86_64-apple-darwin
+            asset-name: andromeda-macos-amd64
+          
+          # macOS (Apple Silicon/ARM)
+          - os: macos-latest-xlarge
+            rust-target: aarch64-apple-darwin
+            asset-name: andromeda-macos-arm64
+          
+          # Windows
+          - os: windows-latest
+            rust-target: x86_64-pc-windows-msvc
+            asset-name: andromeda-windows-amd64.exe
+            
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          target: ${{ matrix.rust-target }}
+      
+      - uses: Swatinem/rust-cache@v2
+      
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
+          
+      - name: Prepare binary
+        shell: bash
+        run: |
+          cd target/${{ matrix.rust-target }}/release/
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            mv andromeda.exe ${{ matrix.asset-name }}
+          else
+            mv andromeda ${{ matrix.asset-name }}
+          fi
+          
+      - name: Upload Binary to Release (Tag Only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/${{ matrix.rust-target }}/release/${{ matrix.asset-name }}
+          asset_name: ${{ matrix.asset-name }}
+          tag: ${{ github.ref }}
+          overwrite: true
+          
+      - name: Upload Binary as Artifact (Main Branch)
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.asset-name }}
+          path: target/${{ matrix.rust-target }}/release/${{ matrix.asset-name }}
