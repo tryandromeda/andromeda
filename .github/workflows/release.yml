@@ -1,6 +1,7 @@
 name: Build and Release Andromeda
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
     tags:
