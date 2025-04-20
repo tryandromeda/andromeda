@@ -67,7 +67,7 @@ impl TimeoutId {
                 let callback = global_callback.get(agent, gc.nogc());
                 let callback_function: Function = callback.try_into().unwrap();
                 callback_function
-                    .call(agent, Value::Undefined, &[], gc)
+                    .call(agent, Value::Undefined, &mut [], gc)
                     .unwrap();
             });
         });
@@ -78,7 +78,7 @@ impl TimeoutId {
 #[derive(Debug, PartialEq)]
 pub struct Timeout {
     pub(crate) period: Duration,
-    pub(crate) callback: Global<Value>,
+    pub(crate) callback: Global<Value<'static>>,
     pub(crate) task_id: TaskId,
 }
 

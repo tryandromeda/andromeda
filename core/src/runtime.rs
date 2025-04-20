@@ -16,7 +16,7 @@ use nova_vm::{
         scripts_and_modules::script::{parse_script, script_evaluation},
         types::{self, Object, Value},
     },
-    engine::context::GcScope,
+    engine::context::{Bindable, GcScope},
 };
 
 use crate::{Extension, HostData, MacroTask, exit_with_parse_errors};
@@ -130,11 +130,11 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
     }
 
     /// Run the Runtime with the specified configuration.
-    pub fn run(&mut self) -> JsResult<Value> {
+    pub fn run(mut self) -> RuntimeOutput {
         // Load the builtins js sources
         self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {
-            let realm = agent.current_realm_id();
             for builtin in &self.config.builtins {
+                let realm = agent.current_realm(gc.nogc());
                 let source_text = types::String::from_str(agent, builtin, gc.nogc());
                 let script = match parse_script(
                     agent,
@@ -147,22 +147,22 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                     Ok(script) => script,
                     Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", builtin),
                 };
-                match script_evaluation(agent, script, gc.reborrow()) {
+                match script_evaluation(agent, script.unbind(), gc.reborrow()) {
                     Ok(_) => (),
                     Err(_) => println!("Error in runtime"),
                 }
             }
         });
 
-        let mut final_result = Value::Null;
+        let mut result = JsResult::Ok(Value::Null);
 
         // Fetch the runtime mod.ts file using a macro and add it to the paths
         for path in &self.config.paths {
             let file = std::fs::read_to_string(path).unwrap();
 
-            final_result = self.agent.run_in_realm(&self.realm_root, |agent, gc| {
+            result = self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {
                 let source_text = types::String::from_string(agent, file, gc.nogc());
-                let realm = agent.current_realm_id();
+                let realm = agent.current_realm(gc.nogc());
 
                 let script = match parse_script(
                     agent,
@@ -176,14 +176,15 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                     Err(errors) => exit_with_parse_errors(errors, path, source_text.as_str(agent)),
                 };
 
-                script_evaluation(agent, script, gc)
-            })?;
+                script_evaluation(agent, script.unbind(), gc.reborrow()).unbind()
+            });
         }
 
         loop {
             while let Some(job) = self.host_hooks.pop_promise_job() {
-                self.agent
-                    .run_in_realm(&self.realm_root, |agent, gc| job.run(agent, gc))?;
+                result = self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {
+                    job.run(agent, gc.reborrow()).unbind().map(|_| Value::Null)
+                });
             }
 
             // If both the microtasks and macrotasks queues are empty we can end the event loop
@@ -194,7 +195,11 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             self.handle_macro_task();
         }
 
-        Ok(final_result)
+        RuntimeOutput {
+            agent: self.agent,
+            realm_root: self.realm_root,
+            result,
+        }
     }
 
     // Listen for pending macro tasks and resolve one by one
@@ -223,4 +228,10 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             _ => {}
         }
     }
+}
+
+pub struct RuntimeOutput {
+    pub agent: GcAgent,
+    pub realm_root: RealmRoot,
+    pub result: JsResult<'static, Value<'static>>,
 }

@@ -49,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             no_strict,
             paths,
         } => {
-            let mut runtime = Runtime::new(RuntimeConfig {
+            let runtime = Runtime::new(RuntimeConfig {
                 no_strict,
                 paths,
                 verbose,
@@ -57,23 +57,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 builtins: recommended_builtins(),
                 eventloop_handler: recommended_eventloop_handler,
             });
-            let runtime_result = runtime.run();
+            let mut runtime_output = runtime.run();
 
-            match runtime_result {
+            match runtime_output.result {
                 Ok(result) => {
                     if verbose {
                         println!("{:?}", result);
                     }
                 }
-                Err(error) => runtime
-                    .agent
-                    .run_in_realm(&runtime.realm_root, |agent, gc| {
-                        eprintln!(
-                            "Uncaught exception: {}",
-                            error.value().string_repr(agent, gc).as_str(agent)
-                        );
-                        std::process::exit(1);
-                    }),
+                Err(error) => {
+                    runtime_output
+                        .agent
+                        .run_in_realm(&runtime_output.realm_root, |agent, gc| {
+                            eprintln!(
+                                "Uncaught exception: {}",
+                                error.value().string_repr(agent, gc).as_str(agent)
+                            );
+                            std::process::exit(1);
+                        })
+                }
             }
         }
     });

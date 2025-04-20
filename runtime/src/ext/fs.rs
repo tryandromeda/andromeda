@@ -7,7 +7,7 @@ use nova_vm::{
         execution::{Agent, JsResult},
         types::Value,
     },
-    engine::context::GcScope,
+    engine::context::{Bindable, GcScope},
 };
 
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable};
@@ -47,57 +47,52 @@ impl FsExt {
     }
 
     /// Read a text file and return the content as a string.
-    pub fn internal_read_text_file(
+    pub fn internal_read_text_file<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
-        let binding = args.get(0).to_string(agent, gc.reborrow())?;
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
         let path = binding.as_str(agent);
         let content = match std::fs::read_to_string(path) {
             Ok(content) => content,
             Err(e) => {
-                return Ok(Value::from_string(
-                    agent,
-                    format!("Error: {}", e),
-                    gc.nogc(),
-                ));
+                return Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind());
             }
         };
-        Ok(Value::from_string(agent, content, gc.nogc()))
+        Ok(Value::from_string(agent, content, gc.nogc()).unbind())
     }
 
     // /// Write a text file with the content of the second argument.
-    pub fn internal_write_text_file(
+    pub fn internal_write_text_file<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
         let binding = args
             .get(0)
-            .to_string(agent, gc.borrow_mut().reborrow())?
-            .unbind();
-        let content = args.get(1).to_string(agent.borrow_mut(), gc.reborrow())?;
+            .to_string(agent, gc.borrow_mut().reborrow())
+            .unbind()?;
+        let content = args
+            .get(1)
+            .to_string(agent.borrow_mut(), gc.reborrow())
+            .unbind()?;
         match std::fs::write(binding.as_str(agent), content.as_str(agent)) {
-            Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc())),
-            Err(e) => Ok(Value::from_string(
-                agent,
-                format!("Error: {}", e),
-                gc.nogc(),
-            )),
+            Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
+            Err(e) => Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind()),
         }
     }
 
     /// Create a file and return a Rid.
-    pub fn internal_create_file(
+    pub fn internal_create_file<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
-        let binding = args.get(0).to_string(agent, gc.reborrow())?;
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
         let path = binding.as_str(agent);
         let file = File::create(path).unwrap(); // TODO: Handle errors
 
@@ -111,52 +106,47 @@ impl FsExt {
     }
 
     /// Copy a file from the first argument to the second argument.
-    pub fn internal_copy_file(
+    pub fn internal_copy_file<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
-        let from = args.get(0).to_string(agent, gc.reborrow())?.unbind();
-        let to = args.get(1).to_string(agent, gc.borrow_mut().reborrow())?;
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let from = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let to = args
+            .get(1)
+            .to_string(agent, gc.borrow_mut().reborrow())
+            .unbind()?;
 
         match std::fs::copy(from.as_str(agent), to.as_str(agent)) {
-            Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc())),
-            Err(e) => Ok(Value::from_string(
-                agent,
-                format!("Error: {}", e),
-                gc.nogc(),
-            )),
+            Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
+            Err(e) => Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind()),
         }
     }
 
     /// Create a directory.
-    pub fn internal_mk_dir(
+    pub fn internal_mk_dir<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
-        let binding = args.get(0).to_string(agent, gc.reborrow())?;
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
         let path = binding.as_str(agent);
         match std::fs::create_dir(path) {
-            Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc())),
-            Err(e) => Ok(Value::from_string(
-                agent,
-                format!("Error: {}", e),
-                gc.nogc(),
-            )),
+            Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
+            Err(e) => Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind()),
         }
     }
 
     /// Open a file and return a Rid.
-    pub fn internal_open_file(
+    pub fn internal_open_file<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut gc: GcScope<'_, '_>,
-    ) -> JsResult<Value> {
-        let binding = args.get(0).to_string(agent, gc.reborrow())?;
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
         let path = binding.as_str(agent);
         let file = File::open(path).unwrap(); // TODO: Handle errors
 

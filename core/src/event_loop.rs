@@ -4,7 +4,7 @@ use nova_vm::{ecmascript::types::Value, engine::Global};
 #[derive(Debug)]
 pub enum MacroTask<UserMacroTask> {
     /// Resolve a promise.
-    ResolvePromise(Global<Value>),
+    ResolvePromise(Global<Value<'static>>),
     /// User-defined macro task.
     User(UserMacroTask),
 }

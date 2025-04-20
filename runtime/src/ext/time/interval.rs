@@ -59,7 +59,7 @@ impl IntervalId {
                 let callback = global_callback.get(agent, gc.nogc());
                 let callback_function: Function = callback.try_into().unwrap();
                 callback_function
-                    .call(agent, Value::Undefined, &[], gc.reborrow())
+                    .call(agent, Value::Undefined, &mut [], gc.reborrow())
                     .unwrap();
             });
         });
@@ -69,7 +69,7 @@ impl IntervalId {
 #[derive(Debug, PartialEq)]
 pub struct Interval {
     pub(crate) period: Duration,
-    pub(crate) callback: Global<Value>,
+    pub(crate) callback: Global<Value<'static>>,
     pub(crate) task_id: TaskId,
 }
 
