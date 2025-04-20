@@ -1,7 +1,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-use andromeda_core::{Runtime, RuntimeConfig};
+use andromeda_core::{Runtime, RuntimeConfig, RuntimeData};
 use andromeda_runtime::{
     recommended_builtins, recommended_eventloop_handler, recommended_extensions,
 };
@@ -49,14 +49,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             no_strict,
             paths,
         } => {
-            let runtime = Runtime::new(RuntimeConfig {
-                no_strict,
-                paths,
-                verbose,
-                extensions: recommended_extensions(),
-                builtins: recommended_builtins(),
-                eventloop_handler: recommended_eventloop_handler,
-            });
+            let (macro_task_tx, macro_task_rx) = std::sync::mpsc::channel();
+            let runtime = Runtime::new(
+                RuntimeConfig {
+                    no_strict,
+                    paths,
+                    verbose,
+                    extensions: recommended_extensions(),
+                    builtins: recommended_builtins(),
+                    eventloop_handler: recommended_eventloop_handler,
+                },
+                RuntimeData {
+                    macro_task_tx,
+                    macro_task_rx,
+                },
+            );
             let mut runtime_output = runtime.run();
 
             match runtime_output.result {
