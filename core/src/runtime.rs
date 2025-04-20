@@ -3,10 +3,7 @@ use std::{
     borrow::BorrowMut,
     cell::RefCell,
     collections::VecDeque,
-    sync::{
-        atomic::Ordering,
-        mpsc::{Receiver, Sender},
-    },
+    sync::{atomic::Ordering, mpsc::Receiver},
 };
 
 use nova_vm::{
@@ -82,12 +79,7 @@ pub struct RuntimeConfig<UserMacroTask: 'static> {
     pub builtins: Vec<&'static str>,
     /// User event loop handler.
     pub eventloop_handler: EventLoopHandler<UserMacroTask>,
-}
-
-pub struct RuntimeData<UserMacroTask: 'static> {
-    /// Macro tasks sender.
-    pub macro_task_tx: Sender<MacroTask<UserMacroTask>>,
-    /// Macro tasks receiver.
+    /// Macro tasks eventloop receiver.
     pub macro_task_rx: Receiver<MacroTask<UserMacroTask>>,
 }
 
@@ -96,13 +88,14 @@ pub struct Runtime<UserMacroTask: 'static> {
     pub agent: GcAgent,
     pub realm_root: RealmRoot,
     pub host_hooks: &'static RuntimeHostHooks<UserMacroTask>,
-    pub macro_task_rx: Receiver<MacroTask<UserMacroTask>>,
 }
 
 impl<UserMacroTask> Runtime<UserMacroTask> {
     /// Create a new [Runtime] given a [RuntimeConfig]. Use [Runtime::run] to run it.
-    pub fn new(mut config: RuntimeConfig<UserMacroTask>, data: RuntimeData<UserMacroTask>) -> Self {
-        let host_data = HostData::new(data.macro_task_tx);
+    pub fn new(
+        mut config: RuntimeConfig<UserMacroTask>,
+        host_data: HostData<UserMacroTask>,
+    ) -> Self {
         let host_hooks = RuntimeHostHooks::new(host_data);
 
         let host_hooks: &RuntimeHostHooks<UserMacroTask> = &*Box::leak(Box::new(host_hooks));
@@ -135,7 +128,6 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             agent,
             realm_root,
             host_hooks,
-            macro_task_rx: data.macro_task_rx,
         }
     }
 
@@ -214,7 +206,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
 
     // Listen for pending macro tasks and resolve one by one
     pub fn handle_macro_task(&mut self) {
-        match self.macro_task_rx.recv() {
+        match self.config.macro_task_rx.recv() {
             Ok(MacroTask::ResolvePromise(root_value)) => {
                 self.agent.run_in_realm(&self.realm_root, |agent, gc| {
                     let value = root_value.take(agent);
