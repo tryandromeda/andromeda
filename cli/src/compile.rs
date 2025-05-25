@@ -1,6 +1,6 @@
 use libsui::{Elf, Macho, PortableExecutable};
 use std::error::Error;
-use std::fs::{File, metadata, set_permissions};
+use std::fs::File;
 use std::{env::current_exe, path::Path};
 
 pub static ANDROMEDA_JS_CODE_SECTION: &str = "ANDROMEDABINCODE";
@@ -30,7 +30,9 @@ pub fn compile(result_name: &Path, input_file: &Path) -> Result<(), Box<dyn Erro
 
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     {
+        use std::fs::{metadata, set_permissions};
         use std::os::unix::fs::PermissionsExt;
+
         // Make the binary executable on Unix-like systems
         if os == "macos" || os == "linux" {
             let mut perms = metadata(result_name)?.permissions();
