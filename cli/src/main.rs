@@ -51,12 +51,9 @@ enum Command {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Check if this is currently a single-file executable
-    match find_section(ANDROMEDA_JS_CODE_SECTION) {
-        Ok(Some(js)) => {
-            run(false, false, (Vec::new(), vec![js]));
-            return Ok(());
-        }
-        _ => {}
+    if let Ok(Some(js)) = find_section(ANDROMEDA_JS_CODE_SECTION) {
+        run(false, false, (Vec::new(), vec![js]));
+        return Ok(());
     }
 
     let args = Cli::parse();
