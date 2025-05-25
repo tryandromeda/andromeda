@@ -81,22 +81,19 @@ impl RuntimeFile {
     fn read(&self) -> String {
         match self {
             RuntimeFile::Embedded { path: _, content } => {
-                return String::from_utf8_lossy(content).into_owned();
+                String::from_utf8_lossy(content).into_owned()
             }
             RuntimeFile::Local { path } => {
-                return std::fs::read_to_string(path).unwrap();
+                // TODO: Improve on this by not panicking on invalid file path
+                std::fs::read_to_string(path).unwrap()
             }
         }
     }
 
     fn get_path(&self) -> &str {
         match self {
-            RuntimeFile::Embedded { path, content: _ } => {
-                return path;
-            }
-            RuntimeFile::Local { path } => {
-                return path;
-            }
+            RuntimeFile::Embedded { path, content: _ } => path,
+            RuntimeFile::Local { path } => path,
         }
     }
 }
