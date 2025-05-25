@@ -52,6 +52,7 @@ enum Command {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Check if this is currently a single-file executable
     if let Ok(Some(js)) = find_section(ANDROMEDA_JS_CODE_SECTION) {
+        // TODO: Store verbose and strict settings in a config section of the resultant binary
         run(false, false, (Vec::new(), vec![js]));
         return Ok(());
     }
