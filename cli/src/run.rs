@@ -26,16 +26,14 @@ pub fn run(verbose: bool, no_strict: bool, paths: (Vec<String>, Vec<&'static [u8
                 println!("{:?}", result);
             }
         }
-        Err(error) => {
-            runtime_output
-                .agent
-                .run_in_realm(&runtime_output.realm_root, |agent, gc| {
-                    eprintln!(
-                        "Uncaught exception: {}",
-                        error.value().string_repr(agent, gc).as_str(agent)
-                    );
-                    std::process::exit(1);
-                })
-        }
+        Err(error) => runtime_output
+            .agent
+            .run_in_realm(&runtime_output.realm_root, |agent, gc| {
+                eprintln!(
+                    "Uncaught exception: {}",
+                    error.value().string_repr(agent, gc).as_str(agent)
+                );
+                std::process::exit(1);
+            }),
     }
 }

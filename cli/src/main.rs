@@ -2,11 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 use clap::{Parser as ClapParser, Subcommand};
-use std::path::PathBuf;
 use libsui::find_section;
+use std::path::PathBuf;
 
 mod compile;
-use compile::{compile, ANDROMEDA_JS_CODE_SECTION};
+use compile::{ANDROMEDA_JS_CODE_SECTION, compile};
 mod run;
 use run::run;
 
@@ -46,7 +46,7 @@ enum Command {
         // The output binary location
         #[arg(required = true)]
         out: PathBuf,
-    }
+    },
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -74,13 +74,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             paths,
         } => {
             run(verbose, no_strict, (paths, Vec::new()));
-        },
-        Command::Compile { path, out } => {
-            match compile(out.as_path(), path.as_path()) {
-                Ok(_) => println!("Successfully created the output binary at {:?}", out),
-                Err(e) => eprintln!("Failed to output binary: {}", e),
-            }
         }
+        Command::Compile { path, out } => match compile(out.as_path(), path.as_path()) {
+            Ok(_) => println!("Successfully created the output binary at {:?}", out),
+            Err(e) => eprintln!("Failed to output binary: {}", e),
+        },
     });
 
     rt.block_on(nova_thread)

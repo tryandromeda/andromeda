@@ -1,5 +1,10 @@
 use std::{
-    any::Any, borrow::BorrowMut, cell::RefCell, collections::VecDeque, str, sync::{atomic::Ordering, mpsc::Receiver}
+    any::Any,
+    borrow::BorrowMut,
+    cell::RefCell,
+    collections::VecDeque,
+    str,
+    sync::{atomic::Ordering, mpsc::Receiver},
 };
 
 use nova_vm::{
@@ -193,7 +198,9 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                     gc.nogc(),
                 ) {
                     Ok(script) => script,
-                    Err(errors) => exit_with_parse_errors(errors, "internal", source_text.as_str(agent)),
+                    Err(errors) => {
+                        exit_with_parse_errors(errors, "internal", source_text.as_str(agent))
+                    }
                 };
 
                 script_evaluation(agent, script.unbind(), gc.reborrow()).unbind()

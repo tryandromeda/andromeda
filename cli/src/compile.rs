@@ -1,7 +1,7 @@
+use libsui::{Elf, Macho, PortableExecutable};
 use std::error::Error;
-use std::{env::current_exe, path::Path};
 use std::fs::File;
-use libsui::{Macho, Elf, PortableExecutable};
+use std::{env::current_exe, path::Path};
 
 pub static ANDROMEDA_JS_CODE_SECTION: &'static str = "ANDROMEDABINCODE";
 
@@ -19,8 +19,7 @@ pub fn compile(result_name: &Path, input_file: &Path) -> Result<(), Box<dyn Erro
             .write_section(ANDROMEDA_JS_CODE_SECTION, js)?
             .build_and_sign(&mut out)?;
     } else if os == "linux" {
-        Elf::new(&exe)
-            .append(ANDROMEDA_JS_CODE_SECTION, &js, &mut out)?;
+        Elf::new(&exe).append(ANDROMEDA_JS_CODE_SECTION, &js, &mut out)?;
     } else if os == "windows" {
         PortableExecutable::from(&exe)?
             .write_resource(ANDROMEDA_JS_CODE_SECTION, js)?
