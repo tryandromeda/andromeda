@@ -1,15 +1,15 @@
-use andromeda_core::{HostData, Runtime, RuntimeConfig};
+use andromeda_core::{HostData, Runtime, RuntimeConfig, RuntimeFile};
 use andromeda_runtime::{
     recommended_builtins, recommended_eventloop_handler, recommended_extensions,
 };
 
-pub fn run(verbose: bool, no_strict: bool, paths: (Vec<String>, Vec<&'static [u8]>)) {
+pub fn run(verbose: bool, no_strict: bool, files: Vec<RuntimeFile>) {
     let (macro_task_tx, macro_task_rx) = std::sync::mpsc::channel();
     let host_data = HostData::new(macro_task_tx);
     let runtime = Runtime::new(
         RuntimeConfig {
             no_strict,
-            paths,
+            files,
             verbose,
             extensions: recommended_extensions(),
             builtins: recommended_builtins(),

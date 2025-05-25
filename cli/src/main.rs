@@ -1,3 +1,4 @@
+use andromeda_core::RuntimeFile;
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -53,7 +54,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Check if this is currently a single-file executable
     if let Ok(Some(js)) = find_section(ANDROMEDA_JS_CODE_SECTION) {
         // TODO: Store verbose and strict settings in a config section of the resultant binary
-        run(false, false, (Vec::new(), vec![js]));
+        run(
+            false,
+            false,
+            vec![RuntimeFile::Embedded {
+                path: String::from("internal"),
+                content: js,
+            }],
+        );
         return Ok(());
     }
 
@@ -71,7 +79,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             no_strict,
             paths,
         } => {
-            run(verbose, no_strict, (paths, Vec::new()));
+            let runtime_files: Vec<RuntimeFile> = paths
+                .into_iter()
+                .map(|path| RuntimeFile::Local { path })
+                .collect();
+
+            run(verbose, no_strict, runtime_files);
         }
         Command::Compile { path, out } => match compile(out.as_path(), path.as_path()) {
             Ok(_) => println!("Successfully created the output binary at {:?}", out),

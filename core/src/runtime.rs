@@ -67,11 +67,45 @@ pub type EventLoopHandler<UserMacroTask> = fn(
     host_data: &HostData<UserMacroTask>,
 );
 
+pub enum RuntimeFile {
+    Embedded {
+        path: String,
+        content: &'static [u8],
+    },
+    Local {
+        path: String,
+    },
+}
+
+impl RuntimeFile {
+    fn read(&self) -> String {
+        match self {
+            RuntimeFile::Embedded { path: _, content } => {
+                return String::from_utf8_lossy(content).into_owned();
+            }
+            RuntimeFile::Local { path } => {
+                return std::fs::read_to_string(path).unwrap();
+            }
+        }
+    }
+
+    fn get_path(&self) -> &str {
+        match self {
+            RuntimeFile::Embedded { path, content: _ } => {
+                return path;
+            }
+            RuntimeFile::Local { path } => {
+                return path;
+            }
+        }
+    }
+}
+
 pub struct RuntimeConfig<UserMacroTask: 'static> {
     /// Disable or not strict mode.
     pub no_strict: bool,
     /// List of js files to load.
-    pub paths: (Vec<String>, Vec<&'static [u8]>),
+    pub files: Vec<RuntimeFile>,
     /// Enable or not verbose outputs.
     pub verbose: bool,
     /// Collection of Rust Extensions
@@ -160,33 +194,10 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
         let mut result = JsResult::Ok(Value::Null);
 
         // Fetch the runtime mod.ts file using a macro and add it to the paths
-        for path in &self.config.paths.0 {
-            let file = std::fs::read_to_string(path).unwrap();
-
+        for file in &self.config.files {
+            let file_content = file.read();
             result = self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {
-                let source_text = types::String::from_string(agent, file, gc.nogc());
-                let realm = agent.current_realm(gc.nogc());
-
-                let script = match parse_script(
-                    agent,
-                    source_text,
-                    realm,
-                    !self.config.no_strict,
-                    None,
-                    gc.nogc(),
-                ) {
-                    Ok(script) => script,
-                    Err(errors) => exit_with_parse_errors(errors, path, source_text.as_str(agent)),
-                };
-
-                script_evaluation(agent, script.unbind(), gc.reborrow()).unbind()
-            });
-        }
-
-        for code in &self.config.paths.1 {
-            let source_text = String::from_utf8_lossy(code).into_owned();
-            result = self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {
-                let source_text = types::String::from_string(agent, source_text, gc.nogc());
+                let source_text = types::String::from_string(agent, file_content, gc.nogc());
                 let realm = agent.current_realm(gc.nogc());
 
                 let script = match parse_script(
@@ -199,7 +210,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                 ) {
                     Ok(script) => script,
                     Err(errors) => {
-                        exit_with_parse_errors(errors, "internal", source_text.as_str(agent))
+                        exit_with_parse_errors(errors, file.get_path(), source_text.as_str(agent))
                     }
                 };
 
