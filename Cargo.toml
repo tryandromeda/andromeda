@@ -18,6 +18,7 @@ anymap = "0.12.1"
 clap = { version = "4.5.23", features = ["derive"] }
 cliclack = "0.3.5"
 console = "0.15.8"
+libsui = "0.10.0"
 nova_vm = { git = "https://github.com/trynova/nova", rev = "393be1488c62951b6b9cd5b321d9f36c80f16c70", features = ["typescript"] }
 oxc_ast = "0.51.0"
 oxc_diagnostics = "0.51.0"
