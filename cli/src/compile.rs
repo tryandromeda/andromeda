@@ -3,7 +3,7 @@ use std::error::Error;
 use std::fs::File;
 use std::{env::current_exe, path::Path};
 
-pub static ANDROMEDA_JS_CODE_SECTION: &'static str = "ANDROMEDABINCODE";
+pub static ANDROMEDA_JS_CODE_SECTION: &str = "ANDROMEDABINCODE";
 
 pub fn compile(result_name: &Path, input_file: &Path) -> Result<(), Box<dyn Error>> {
     let exe_path = current_exe()?;
