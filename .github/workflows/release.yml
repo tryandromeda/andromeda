@@ -37,21 +37,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - name: Install the rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          target: ${{ matrix.rust-target }}
-      
-      - uses: Swatinem/rust-cache@v2
+          toolchain: 1.85.0
+          targets: ${{ matrix.rust-target }}
       
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
+        run: cargo build --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
           
       - name: Prepare binary
         shell: bash

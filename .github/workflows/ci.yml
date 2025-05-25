@@ -20,30 +20,13 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Cache Rust dependencies
-        uses: actions/cache@v3
+      - name: Set up cargo cache
+        uses: Swatinem/rust-cache@v2
+        if: github.ref != 'refs/heads/main'
         with:
-          path: |
-            ~/.cargo
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      - name: Set up Rust toolchain version
-        run: |
-          if [ ! -f rust-toolchain.toml ]; then
-            echo "Error: rust-toolchain.toml file not found!" >&2
-            exit 1
-          fi
-          TOOLCHAIN_VERSION=$(grep 'channel' rust-toolchain.toml | cut -d '"' -f2)
-          echo "TOOLCHAIN_VERSION=${TOOLCHAIN_VERSION}" >> $GITHUB_ENV
-      - name: Install Rust toolchain
-        run: |
-          rustup set profile minimal
-          rustup install "$TOOLCHAIN_VERSION"
-          rustup default "$TOOLCHAIN_VERSION"
-          rustup component add rustfmt clippy llvm-tools-preview rustc-dev
-          rustup show
+          prefix-key: "andromeda-${{ runner.os }}"
+      - name: Install the rust toolchain
+        uses: dtolnay/rust-toolchain@stable
       - name: Test
         run: cargo test
         timeout-minutes: 20
@@ -54,4 +37,4 @@ jobs:
       - name: Clippy
         run: |
           cargo clippy --all-targets -- -D warnings
-          cargo +$TOOLCHAIN_VERSION clippy --all-targets --all-features -- -D warnings
+          cargo clippy --all-targets --all-features -- -D warnings
