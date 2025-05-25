@@ -1,9 +1,5 @@
 use std::{
-    any::Any,
-    borrow::BorrowMut,
-    cell::RefCell,
-    collections::VecDeque,
-    sync::{atomic::Ordering, mpsc::Receiver},
+    any::Any, borrow::BorrowMut, cell::RefCell, collections::VecDeque, str, sync::{atomic::Ordering, mpsc::Receiver}
 };
 
 use nova_vm::{
@@ -70,7 +66,7 @@ pub struct RuntimeConfig<UserMacroTask: 'static> {
     /// Disable or not strict mode.
     pub no_strict: bool,
     /// List of js files to load.
-    pub paths: Vec<String>,
+    pub paths: (Vec<String>, Vec<&'static [u8]>),
     /// Enable or not verbose outputs.
     pub verbose: bool,
     /// Collection of Rust Extensions
@@ -159,7 +155,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
         let mut result = JsResult::Ok(Value::Null);
 
         // Fetch the runtime mod.ts file using a macro and add it to the paths
-        for path in &self.config.paths {
+        for path in &self.config.paths.0 {
             let file = std::fs::read_to_string(path).unwrap();
 
             result = self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {
@@ -176,6 +172,28 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                 ) {
                     Ok(script) => script,
                     Err(errors) => exit_with_parse_errors(errors, path, source_text.as_str(agent)),
+                };
+
+                script_evaluation(agent, script.unbind(), gc.reborrow()).unbind()
+            });
+        }
+
+        for code in &self.config.paths.1 {
+            let source_text = String::from_utf8_lossy(code).into_owned();
+            result = self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {
+                let source_text = types::String::from_string(agent, source_text, gc.nogc());
+                let realm = agent.current_realm(gc.nogc());
+
+                let script = match parse_script(
+                    agent,
+                    source_text,
+                    realm,
+                    !self.config.no_strict,
+                    None,
+                    gc.nogc(),
+                ) {
+                    Ok(script) => script,
+                    Err(errors) => exit_with_parse_errors(errors, "internal", source_text.as_str(agent)),
                 };
 
                 script_evaluation(agent, script.unbind(), gc.reborrow()).unbind()
