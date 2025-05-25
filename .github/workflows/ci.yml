@@ -12,6 +12,12 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  spell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Spell check
+        uses: crate-ci/typos@master
   lint:
     name: Lint
     runs-on: ${{ matrix.os }}
@@ -30,8 +36,6 @@ jobs:
       - name: Test
         run: cargo test
         timeout-minutes: 20
-      - name: Spell check
-        uses: crate-ci/typos@master
       - name: Check formatting
         run: cargo fmt --check
       - name: Clippy
