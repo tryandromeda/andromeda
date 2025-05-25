@@ -1,11 +1,16 @@
+use andromeda_core::RuntimeFile;
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-use andromeda_core::{HostData, Runtime, RuntimeConfig};
-use andromeda_runtime::{
-    recommended_builtins, recommended_eventloop_handler, recommended_extensions,
-};
 use clap::{Parser as ClapParser, Subcommand};
+use libsui::find_section;
+use std::path::PathBuf;
+
+mod compile;
+use compile::{ANDROMEDA_JS_CODE_SECTION, compile};
+mod run;
+use run::run;
+
 /// A JavaScript runtime
 #[derive(Debug, ClapParser)]
 #[command(name = "andromeda")]
@@ -32,9 +37,34 @@ enum Command {
         #[arg(required = true)]
         paths: Vec<String>,
     },
+
+    /// Compiles a js file into a single-file executable
+    Compile {
+        // The path of the file to compile the executable for
+        #[arg(required = true)]
+        path: PathBuf,
+
+        // The output binary location
+        #[arg(required = true)]
+        out: PathBuf,
+    },
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Check if this is currently a single-file executable
+    if let Ok(Some(js)) = find_section(ANDROMEDA_JS_CODE_SECTION) {
+        // TODO: Store verbose and strict settings in a config section of the resultant binary
+        run(
+            false,
+            false,
+            vec![RuntimeFile::Embedded {
+                path: String::from("internal"),
+                content: js,
+            }],
+        );
+        return Ok(());
+    }
+
     let args = Cli::parse();
 
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -49,41 +79,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             no_strict,
             paths,
         } => {
-            let (macro_task_tx, macro_task_rx) = std::sync::mpsc::channel();
-            let host_data = HostData::new(macro_task_tx);
-            let runtime = Runtime::new(
-                RuntimeConfig {
-                    no_strict,
-                    paths,
-                    verbose,
-                    extensions: recommended_extensions(),
-                    builtins: recommended_builtins(),
-                    eventloop_handler: recommended_eventloop_handler,
-                    macro_task_rx,
-                },
-                host_data,
-            );
-            let mut runtime_output = runtime.run();
+            let runtime_files: Vec<RuntimeFile> = paths
+                .into_iter()
+                .map(|path| RuntimeFile::Local { path })
+                .collect();
 
-            match runtime_output.result {
-                Ok(result) => {
-                    if verbose {
-                        println!("{:?}", result);
-                    }
-                }
-                Err(error) => {
-                    runtime_output
-                        .agent
-                        .run_in_realm(&runtime_output.realm_root, |agent, gc| {
-                            eprintln!(
-                                "Uncaught exception: {}",
-                                error.value().string_repr(agent, gc).as_str(agent)
-                            );
-                            std::process::exit(1);
-                        })
-                }
-            }
+            run(verbose, no_strict, runtime_files);
         }
+        Command::Compile { path, out } => match compile(out.as_path(), path.as_path()) {
+            Ok(_) => println!("Successfully created the output binary at {:?}", out),
+            Err(e) => eprintln!("Failed to output binary: {}", e),
+        },
     });
 
     rt.block_on(nova_thread)
