@@ -19,7 +19,7 @@ clap = { version = "4.5.23", features = ["derive"] }
 cliclack = "0.3.5"
 console = "0.15.8"
 libsui = "0.10.0"
-nova_vm = { git = "https://github.com/trynova/nova", features = ["typescript"] }
+nova_vm = { git = "https://github.com/trynova/nova", rev="cd94cf0c6d9610a68adb9582b2d1d09a27c8d1da", features = ["typescript"] }
 oxc_ast = "0.72.0"
 oxc_allocator = "0.72.0"
 oxc_diagnostics = "0.72.0"
