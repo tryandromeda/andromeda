@@ -19,15 +19,16 @@ clap = { version = "4.5.23", features = ["derive"] }
 cliclack = "0.3.5"
 console = "0.15.8"
 libsui = "0.10.0"
-nova_vm = { git = "https://github.com/trynova/nova", rev = "393be1488c62951b6b9cd5b321d9f36c80f16c70", features = ["typescript"] }
-oxc_ast = "0.51.0"
-oxc_diagnostics = "0.51.0"
-oxc-miette = { version = "1.0.2", features = ["fancy"] }
-oxc_parser = "0.51.0"
-oxc_semantic = "0.51.0"
-oxc_span = "0.51.0"
+nova_vm = { git = "https://github.com/trynova/nova", rev="cd94cf0c6d9610a68adb9582b2d1d09a27c8d1da", features = ["typescript"] }
+oxc_ast = "0.72.0"
+oxc_allocator = "0.72.0"
+oxc_diagnostics = "0.72.0"
+oxc-miette = { version = "2.2.1", features = ["fancy"] }
+oxc_parser = "0.72.0"
+oxc_semantic = "0.72.0"
+oxc_span = "0.72.0"
 serde = { version = "1.0.130", features = ["derive"] }
-tokio = { version = "1.39.0", features = ["rt", "sync", "time"]}
+tokio = { version = "1.39.0", features = ["rt", "sync", "time"] }
 url = { version = "2", features = ["serde", "expose_internals"] }
 
 [profile.release]
