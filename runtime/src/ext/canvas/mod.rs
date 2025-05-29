@@ -74,11 +74,11 @@ impl CanvasExt {
             files: vec![include_str!("./mod.ts")],
         }
     }
-    fn internal_canvas_create<'a, 'b, 'c, 'd, 'e, 'gc>(
-        agent: &'a mut Agent,
-        _this: Value<'b>,
-        args: ArgumentsList<'c, 'd>,
-        mut gc: GcScope<'gc, 'e>,
+    fn internal_canvas_create<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let width = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
         let height = args.get(1).to_int32(agent, gc.reborrow()).unbind()? as u32;
@@ -95,11 +95,11 @@ impl CanvasExt {
         });
         Ok(Value::Integer(SmallInteger::from(rid.index() as i32)))
     }
-    fn internal_canvas_get_width<'a, 'b, 'c, 'd, 'e, 'gc>(
-        agent: &'a mut Agent,
-        _this: Value<'b>,
-        args: ArgumentsList<'c, 'd>,
-        mut gc: GcScope<'gc, 'e>,
+    fn internal_canvas_get_width<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
         let rid = Rid::from_index(rid_val);
@@ -112,11 +112,11 @@ impl CanvasExt {
         let data = res.canvases.get(rid).unwrap();
         Ok(Value::Integer(SmallInteger::from(data.width as i32)))
     }
-    fn internal_canvas_get_height<'a, 'b, 'c, 'd, 'e, 'gc>(
-        agent: &'a mut Agent,
-        _this: Value<'b>,
-        args: ArgumentsList<'c, 'd>,
-        mut gc: GcScope<'gc, 'e>,
+    fn internal_canvas_get_height<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
         let rid = Rid::from_index(rid_val);
