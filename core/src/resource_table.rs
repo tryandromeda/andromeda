@@ -7,6 +7,18 @@ impl Rid {
     pub fn index(&self) -> u32 {
         self.0
     }
+    /// Create a Rid from its numeric index.
+    pub fn from_index(index: u32) -> Rid {
+        Rid(index)
+    }
+}
+
+// Allow retrieving resources; requires T: Clone
+impl<T: Clone> ResourceTable<T> {
+    /// Get a clone of the resource by Rid.
+    pub fn get(&self, rid: Rid) -> Option<T> {
+        self.table.borrow().get(&rid).cloned()
+    }
 }
 
 pub struct ResourceTable<T> {
