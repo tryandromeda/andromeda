@@ -1,7 +1,8 @@
-use andromeda_core::RuntimeFile;
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+use andromeda_core::RuntimeFile;
 use clap::{Parser as ClapParser, Subcommand};
 use libsui::find_section;
 use std::path::PathBuf;
