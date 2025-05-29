@@ -3,37 +3,45 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 // deno-lint-ignore-file no-unused-vars
-
-// deno-lint-ignore-file no-unused-vars
-// @ts-ignore: provided by Andromeda runtime
-declare function internal_canvas_create(width: number, height: number): number;
-// @ts-ignore: provided by Andromeda runtime
-declare function internal_canvas_get_width(rid: number): number;
-// @ts-ignore: provided by Andromeda runtime
-declare function internal_canvas_get_height(rid: number): number;
 /**
- * A minimal Canvas implementation with internal op bindings.
+ * A minimal Canvas implementation
  */
-export class Canvas {
-  private rid: number;
+class Canvas {
+  #rid: number;
   constructor(width: number, height: number) {
-    this.rid = internal_canvas_create(width, height);
+    this.#rid = internal_canvas_create(width, height);
   }
-  /** Get the width of the canvas. */
+
+  /**
+   * Get the width of the canvas.
+   */
   getWidth(): number {
-    return internal_canvas_get_width(this.rid);
+    return internal_canvas_get_width(this.#rid);
   }
-  /** Get the height of the canvas. */
+
+  /**
+   * Get the height of the canvas.
+   */
   getHeight(): number {
-    return internal_canvas_get_height(this.rid);
+    return internal_canvas_get_height(this.#rid);
   }
-  /** Get a drawing context (not yet implemented). */
+
+  /**
+   * Get a drawing context (not yet implemented).
+   */
   getContext(type: string): never {
     throw new Error("Canvas context not implemented");
   }
 }
 
-/** Convenience factory to create a Canvas. */
-export function createCanvas(width: number, height: number): Canvas {
+/**
+ * Creates a new Canvas instance with the specified width and height.
+ *
+ * @example
+ * ```typescript
+ * const canvas = createCanvas(800, 600);
+ * ```
+ */
+function createCanvas(width: number, height: number): Canvas {
   return new Canvas(width, height);
 }

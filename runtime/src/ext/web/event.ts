@@ -4,7 +4,7 @@
 
 // deno-lint-ignore-file no-unused-vars
 class Event {
-  constructor(type, eventInitDict = { __proto__: null }) {
+  constructor(type: string, eventInitDict = { __proto__: null }) {
     // @ts-ignore - this is a hack to make the URL object work
     this.SymbolToStringTag = "Event";
     // @ts-ignore - this is a hack to make the URL object work

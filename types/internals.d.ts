@@ -101,7 +101,23 @@ declare function internal_url_parse_no_base(url: string): string;
  * The `internal_btoa` function encodes a string in base64.
  */
 declare function internal_btoa(input: string): string;
+
 /**
  * The `internal_atob` function decodes a string in base64.
  */
 declare function internal_atob(input: string): string;
+
+/**
+ * The `internal_canvas_create` function creates a canvas with the specified width and height.
+ */
+declare function internal_canvas_create(width: number, height: number): number;
+
+/**
+ * The `internal_canvas_get_width` function gets the width of the canvas.
+ */
+declare function internal_canvas_get_width(rid: number): number;
+
+/**
+ * The `internal_canvas_get_height` function gets the height of the canvas.
+ */
+declare function internal_canvas_get_height(rid: number): number;
