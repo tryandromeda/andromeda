@@ -48,3 +48,27 @@ class Canvas {
 function createCanvas(width: number, height: number): Canvas {
   return new Canvas(width, height);
 }
+
+/**
+ * A 2D rendering context for Canvas
+ */
+class CanvasRenderingContext2D {
+  #rid: number;
+  constructor(rid: number) {
+    this.#rid = rid;
+  }
+
+  /**
+   * Draws a filled rectangle whose starting corner is at (x, y).
+   */
+  fillRect(x: number, y: number, width: number, height: number): void {
+    internal_canvas_fill_rect(this.#rid, x, y, width, height);
+  }
+
+  /**
+   * Clears the specified rectangular area, making it fully transparent.
+   */
+  clearRect(x: number, y: number, width: number, height: number): void {
+    internal_canvas_clear_rect(this.#rid, x, y, width, height);
+  }
+}

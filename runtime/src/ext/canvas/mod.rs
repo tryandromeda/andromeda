@@ -3,6 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable, Rid};
+mod context2d;
+use self::context2d::{internal_canvas_fill_rect, internal_canvas_clear_rect};
 use nova_vm::{
     SmallInteger,
     ecmascript::{
@@ -61,16 +63,8 @@ impl CanvasExt {
                     Self::internal_canvas_get_height,
                     1,
                 ),
-                ExtensionOp::new(
-                    "internal_canvas_fill_rect",
-                    Self::internal_canvas_fill_rect,
-                    5,
-                ),
-                ExtensionOp::new(
-                    "internal_canvas_clear_rect",
-                    Self::internal_canvas_clear_rect,
-                    5,
-                ),
+                ExtensionOp::new("internal_canvas_fill_rect", internal_canvas_fill_rect, 5),
+                ExtensionOp::new("internal_canvas_clear_rect", internal_canvas_clear_rect, 5),
             ],
             storage: Some(Box::new(|storage: &mut OpsStorage| {
                 storage.insert(CanvasResources {
@@ -134,92 +128,5 @@ impl CanvasExt {
         let res: &CanvasResources = storage.get().unwrap();
         let data = res.canvases.get(rid).unwrap();
         Ok(Value::Integer(SmallInteger::from(data.height as i32)))
-    }
-    fn internal_canvas_fill_rect<'a, 'b, 'c, 'd, 'e, 'gc>(
-        agent: &'a mut Agent,
-        _this: Value<'b>,
-        args: ArgumentsList<'c, 'd>,
-        mut gc: GcScope<'gc, 'e>,
-    ) -> JsResult<'gc, Value<'gc>> {
-        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
-        let x = args
-            .get(1)
-            .to_number(agent, gc.reborrow())
-            .unbind()
-            .unwrap();
-        let y = args
-            .get(2)
-            .to_number(agent, gc.reborrow())
-            .unbind()
-            .unwrap();
-        let width = args
-            .get(3)
-            .to_number(agent, gc.reborrow())
-            .unbind()
-            .unwrap();
-        let height = args
-            .get(4)
-            .to_number(agent, gc.reborrow())
-            .unbind()
-            .unwrap();
-        let host_data = agent
-            .get_host_data()
-            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
-            .unwrap();
-        let mut storage = host_data.storage.borrow_mut();
-        let res: &mut CanvasResources = storage.get_mut().unwrap();
-        let rid = Rid::from_index(rid_val);
-        let mut data = res.canvases.get_mut(rid).unwrap();
-        data.commands.push(CanvasCommand::FillRect {
-            x,
-            y,
-            width,
-            height,
-        });
-        Ok(Value::Undefined)
-    }
-
-    fn internal_canvas_clear_rect<'a, 'b, 'c, 'd, 'e, 'gc>(
-        agent: &'a mut Agent,
-        _this: Value<'b>,
-        args: ArgumentsList<'c, 'd>,
-        mut gc: GcScope<'gc, 'e>,
-    ) -> JsResult<'gc, Value<'gc>> {
-        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
-        let x = args
-            .get(1)
-            .to_number(agent, gc.reborrow())
-            .unbind()
-            .unwrap();
-        let y = args
-            .get(2)
-            .to_number(agent, gc.reborrow())
-            .unbind()
-            .unwrap();
-        let width = args
-            .get(3)
-            .to_number(agent, gc.reborrow())
-            .unbind()
-            .unwrap();
-        let height = args
-            .get(4)
-            .to_number(agent, gc.reborrow())
-            .unbind()
-            .unwrap();
-        let host_data = agent
-            .get_host_data()
-            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
-            .unwrap();
-        let mut storage = host_data.storage.borrow_mut();
-        let res: &mut CanvasResources = storage.get_mut().unwrap();
-        let rid = Rid::from_index(rid_val);
-        let mut data = res.canvases.get_mut(rid).unwrap();
-        data.commands.push(CanvasCommand::ClearRect {
-            x,
-            y,
-            width,
-            height,
-        });
-        Ok(Value::Undefined)
     }
 }

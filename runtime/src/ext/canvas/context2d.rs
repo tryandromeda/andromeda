@@ -2,50 +2,105 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use andromeda_core::{HostData};
-use nova_vm::{
-    ecmascript::{execution::Agent, types::Value},
-    engine::context::GcScope,
-};
+use super::Rid;
+use super::{CanvasCommand, CanvasResources};
 use crate::RuntimeMacroTask;
+use andromeda_core::HostData;
+use nova_vm::{
+    ecmascript::{
+        builtins::ArgumentsList,
+        execution::{Agent, JsResult},
+        types::Value,
+    },
+    engine::context::{Bindable, GcScope},
+};
 
-/// A 2D rendering context for Canvas
-pub struct CanvasRenderingContext2D {
-    rid: u32,
+/// Internal op to fill a rectangle on a canvas by Rid
+pub fn internal_canvas_fill_rect<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+    let x = args
+        .get(1)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let y = args
+        .get(2)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let width = args
+        .get(3)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let height = args
+        .get(4)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+    let mut data = res.canvases.get_mut(rid).unwrap();
+    data.commands.push(CanvasCommand::FillRect {
+        x,
+        y,
+        width,
+        height,
+    });
+    Ok(Value::Undefined)
 }
 
-impl CanvasRenderingContext2D {
-    pub fn new(rid: u32) -> Self {
-        Self { rid }
-    }
-
-    pub fn fill_rect<'gc>(
-        &self,
-        agent: &mut Agent,
-        _this: Value,
-        args: super::ArgumentsList,
-        _gc: GcScope<'gc, '_>,
-    ) -> super::JsResult<'gc, Value<'gc>> {
-        let x = args.get(0).to_number(agent, _gc.reborrow()).unwrap();
-        let y = args.get(1).to_number(agent, _gc.reborrow()).unwrap();
-        let width = args.get(2).to_number(agent, _gc.reborrow()).unwrap();
-        let height = args.get(3).to_number(agent, _gc.reborrow()).unwrap();
-        internal_canvas_fill_rect(self.rid, x, y, width, height);
-        Ok(Value::Undefined)
-    }
-
-    pub fn clear_rect<'gc>(
-        &self,
-        agent: &mut Agent,
-        _this: Value,
-        args: super::ArgumentsList,
-        _gc: GcScope<'gc, '_>,
-    ) -> super::JsResult<'gc, Value<'gc>> {
-        let x = args.get(0).to_number(agent, _gc.reborrow()).unwrap();
-        let y = args.get(1).to_number(agent, _gc.reborrow()).unwrap();
-        let width = args.get(2).to_number(agent, _gc.reborrow()).unwrap();
-        let height = args.get(3).to_number(agent, _gc.reborrow()).unwrap();
-        internal_canvas_clear_rect(self.rid, x, y, width, height);
-        Ok(Value::Undefined)
-    }
+/// Internal op to clear a rectangle on a canvas by Rid
+pub fn internal_canvas_clear_rect<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+    let x = args
+        .get(1)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let y = args
+        .get(2)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let width = args
+        .get(3)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let height = args
+        .get(4)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+    let mut data = res.canvases.get_mut(rid).unwrap();
+    data.commands.push(CanvasCommand::ClearRect {
+        x,
+        y,
+        width,
+        height,
+    });
+    Ok(Value::Undefined)
 }
