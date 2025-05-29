@@ -2,7 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use std::{cell::{RefCell, RefMut}, collections::HashMap, hash::Hash};
+use std::{
+    cell::{RefCell, RefMut},
+    collections::HashMap,
+    hash::Hash,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub struct Rid(u32);

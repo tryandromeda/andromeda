@@ -4,7 +4,7 @@
 
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable, Rid};
 mod context2d;
-use self::context2d::{internal_canvas_fill_rect, internal_canvas_clear_rect};
+use self::context2d::{internal_canvas_clear_rect, internal_canvas_fill_rect};
 use nova_vm::{
     SmallInteger,
     ecmascript::{
