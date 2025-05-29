@@ -27,10 +27,13 @@ class Canvas {
   }
 
   /**
-   * Get a drawing context (not yet implemented).
+   * Get a drawing context.
    */
-  getContext(type: string): never {
-    throw new Error("Canvas context not implemented");
+  getContext(type: string): CanvasRenderingContext2D | null {
+    if (type === "2d") {
+      return new CanvasRenderingContext2D(this.#rid);
+    }
+    return null;
   }
 }
 

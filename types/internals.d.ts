@@ -121,3 +121,23 @@ declare function internal_canvas_get_width(rid: number): number;
  * The `internal_canvas_get_height` function gets the height of the canvas.
  */
 declare function internal_canvas_get_height(rid: number): number;
+/**
+ * Draws a filled rectangle on the specified canvas.
+ */
+declare function internal_canvas_fill_rect(
+  rid: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void;
+/**
+ * Clears the specified rectangle on the canvas.
+ */
+declare function internal_canvas_clear_rect(
+  rid: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void;
