@@ -187,3 +187,40 @@ declare function prompt(message: string): string;
  * The `confirm` function prompts the user for confirmation.
  */
 declare function confirm(message: string): boolean;
+
+/**
+ * An offscreen Canvas implementation.
+ */
+declare class Canvas {
+  /**
+   * Create a new off-screen canvas with the given dimensions.
+   */
+  constructor(width: number, height: number);
+  /** Get the width of the canvas. */
+  getWidth(): number;
+  /** Get the height of the canvas. */
+  getHeight(): number;
+  /**
+   * Returns a 2D rendering context or null if not available.
+   */
+  getContext(type: "2d"): CanvasRenderingContext2D | null;
+}
+
+/**
+ * Factory to create a Canvas instance.
+ */
+declare function createCanvas(width: number, height: number): Canvas;
+
+/**
+ * The 2D rendering context for a Canvas.
+ */
+declare class CanvasRenderingContext2D {
+  /**
+   * Draws a filled rectangle whose starting corner is at (x, y).
+   */
+  fillRect(x: number, y: number, width: number, height: number): void;
+  /**
+   * Clears the specified rectangular area, making it fully transparent.
+   */
+  clearRect(x: number, y: number, width: number, height: number): void;
+}

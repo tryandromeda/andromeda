@@ -54,7 +54,6 @@ impl<T> ResourceTable<T> {
         rid
     }
     /// Get a mutable reference to the resource by Rid.
-    /// Get a mutable reference to the resource by Rid.
     pub fn get_mut(&self, rid: Rid) -> Option<RefMut<'_, T>> {
         let borrow = self.table.borrow_mut();
         if borrow.contains_key(&rid) {
