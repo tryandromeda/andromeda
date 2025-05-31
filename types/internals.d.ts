@@ -141,6 +141,31 @@ declare function internal_canvas_clear_rect(
   width: number,
   height: number,
 ): void;
+
+/**
+ * The `internal_canvas_arc` function creates an arc on the canvas.
+ */
+declare function internal_canvas_arc(
+  rid: number,
+  x: number,
+  y: number,
+  radius: number,
+  start_angle: number,
+  end_angle: number,
+): void;
+
+/**
+ * The `internal_canvas_arc_to` function creates an arc on the canvas.
+ */
+declare function internal_canvas_arc_to(
+  rid: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  radius: number,
+): void;
+
 /**
  * The `internal_image_bitmap_create` function creates an ImageBitmap resource and returns its Rid.
  */

@@ -4,41 +4,26 @@
 
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable, Rid};
 mod context2d;
-use self::context2d::{internal_canvas_clear_rect, internal_canvas_fill_rect};
+use self::context2d::{
+    internal_canvas_arc, internal_canvas_arc_to, internal_canvas_clear_rect,
+    internal_canvas_fill_rect,
+};
 use nova_vm::{
     SmallInteger,
     ecmascript::{
         builtins::ArgumentsList,
         execution::{Agent, JsResult},
-        types::{Number, Value},
+        types::Value,
     },
     engine::context::{Bindable, GcScope},
 };
-
-/// A command to be executed on the canvas
-#[derive(Clone)]
-#[allow(dead_code)]
-enum CanvasCommand<'gc> {
-    FillRect {
-        x: Number<'gc>,
-        y: Number<'gc>,
-        width: Number<'gc>,
-        height: Number<'gc>,
-    },
-    ClearRect {
-        x: Number<'gc>,
-        y: Number<'gc>,
-        width: Number<'gc>,
-        height: Number<'gc>,
-    },
-}
 
 /// A Canvas extension
 #[derive(Clone)]
 struct CanvasData<'gc> {
     width: u32,
     height: u32,
-    commands: Vec<CanvasCommand<'gc>>,
+    commands: Vec<context2d::CanvasCommand<'gc>>,
 }
 
 struct CanvasResources<'gc> {
@@ -59,6 +44,7 @@ impl CanvasExt {
         Extension {
             name: "canvas",
             ops: vec![
+                // Internal operations for Canvas API
                 ExtensionOp::new("internal_canvas_create", Self::internal_canvas_create, 2),
                 ExtensionOp::new(
                     "internal_canvas_get_width",
@@ -70,8 +56,13 @@ impl CanvasExt {
                     Self::internal_canvas_get_height,
                     1,
                 ),
+
+                // Context2D operations
                 ExtensionOp::new("internal_canvas_fill_rect", internal_canvas_fill_rect, 5),
                 ExtensionOp::new("internal_canvas_clear_rect", internal_canvas_clear_rect, 5),
+                ExtensionOp::new("internal_canvas_arc", internal_canvas_arc, 5),
+                ExtensionOp::new("internal_canvas_arc_to", internal_canvas_arc_to, 5),
+
                 // ImageBitmap API
                 ExtensionOp::new(
                     "internal_image_bitmap_create",

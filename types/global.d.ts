@@ -223,6 +223,27 @@ declare class CanvasRenderingContext2D {
    * Clears the specified rectangular area, making it fully transparent.
    */
   clearRect(x: number, y: number, width: number, height: number): void;
+  /**
+   * Creates an arc/curve.
+   */
+  arc(
+    x: number,
+    y: number,
+    radius: number,
+    startAngle: number,
+    endAngle: number,
+    anticlockwise?: boolean,
+  ): void;
+  /**
+   * Creates an arc/curve between two tangents.
+   */
+  arcTo(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    radius: number,
+  ): void;
 }
 
 /**

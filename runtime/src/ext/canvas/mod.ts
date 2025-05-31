@@ -71,4 +71,30 @@ class CanvasRenderingContext2D {
   clearRect(x: number, y: number, width: number, height: number): void {
     internal_canvas_clear_rect(this.#rid, x, y, width, height);
   }
+
+  /**
+   * Creates an arc on the canvas.
+   */
+  arc(
+    x: number,
+    y: number,
+    radius: number,
+    startAngle: number,
+    endAngle: number,
+  ): void {
+    internal_canvas_arc(this.#rid, x, y, radius, startAngle, endAngle);
+  }
+
+  /**
+   * Creates an arc to the canvas.
+   */
+  arcTo(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    radius: number,
+  ): void {
+    internal_canvas_arc_to(this.#rid, x1, y1, x2, y2, radius);
+  }
 }
