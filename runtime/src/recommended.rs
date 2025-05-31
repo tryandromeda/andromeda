@@ -5,7 +5,9 @@
 use andromeda_core::{Extension, HostData};
 use nova_vm::ecmascript::execution::agent::{GcAgent, RealmRoot};
 
-use crate::{CanvasExt, ConsoleExt, FsExt, HeadersExt, ProcessExt, RuntimeMacroTask, TimeExt, URLExt, WebExt};
+use crate::{
+    CanvasExt, ConsoleExt, FsExt, HeadersExt, ProcessExt, RuntimeMacroTask, TimeExt, URLExt, WebExt,
+};
 
 pub fn recommended_extensions() -> Vec<Extension> {
     vec![

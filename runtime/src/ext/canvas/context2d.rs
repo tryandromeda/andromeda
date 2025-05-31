@@ -306,19 +306,23 @@ pub fn internal_canvas_bezier_curve_to<'gc>(
     let cp2x = args
         .get(3)
         .to_number(agent, gc.reborrow())
-        .unbind().unwrap();
+        .unbind()
+        .unwrap();
     let cp2y = args
         .get(4)
         .to_number(agent, gc.reborrow())
-        .unbind().unwrap();
+        .unbind()
+        .unwrap();
     let x = args
         .get(5)
         .to_number(agent, gc.reborrow())
-        .unbind().unwrap();
+        .unbind()
+        .unwrap();
     let y = args
         .get(6)
         .to_number(agent, gc.reborrow())
-        .unbind().unwrap();
+        .unbind()
+        .unwrap();
     let host_data = agent
         .get_host_data()
         .downcast_ref::<HostData<RuntimeMacroTask>>()
