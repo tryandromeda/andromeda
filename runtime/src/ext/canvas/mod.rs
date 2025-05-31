@@ -73,9 +73,21 @@ impl CanvasExt {
                 ExtensionOp::new("internal_canvas_fill_rect", internal_canvas_fill_rect, 5),
                 ExtensionOp::new("internal_canvas_clear_rect", internal_canvas_clear_rect, 5),
                 // ImageBitmap API
-                ExtensionOp::new("internal_image_bitmap_create", Self::internal_image_bitmap_create, 1),
-                ExtensionOp::new("internal_image_bitmap_get_width", Self::internal_image_bitmap_get_width, 1),
-                ExtensionOp::new("internal_image_bitmap_get_height", Self::internal_image_bitmap_get_height, 1),
+                ExtensionOp::new(
+                    "internal_image_bitmap_create",
+                    Self::internal_image_bitmap_create,
+                    1,
+                ),
+                ExtensionOp::new(
+                    "internal_image_bitmap_get_width",
+                    Self::internal_image_bitmap_get_width,
+                    1,
+                ),
+                ExtensionOp::new(
+                    "internal_image_bitmap_get_height",
+                    Self::internal_image_bitmap_get_height,
+                    1,
+                ),
             ],
             storage: Some(Box::new(|storage: &mut OpsStorage| {
                 storage.insert(CanvasResources {
@@ -157,7 +169,10 @@ impl CanvasExt {
             .unwrap();
         let mut storage = host_data.storage.borrow_mut();
         let res: &mut CanvasResources = storage.get_mut().unwrap();
-        let rid = res.images.push(ImageData { width: 0, height: 0 });
+        let rid = res.images.push(ImageData {
+            width: 0,
+            height: 0,
+        });
         Ok(Value::Integer(SmallInteger::from(rid.index() as i32)))
     }
     /// Internal op to get ImageBitmap width
