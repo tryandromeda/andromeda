@@ -214,40 +214,38 @@ declare function createCanvas(width: number, height: number): Canvas;
 /**
  * The 2D rendering context for a Canvas.
  */
+/**
+ * The 2D rendering context for a Canvas.
+ */
 declare class CanvasRenderingContext2D {
-  /**
-   * Draws a filled rectangle whose starting corner is at (x, y).
-   */
-  fillRect(x: number, y: number, width: number, height: number): void;
-  /**
-   * Clears the specified rectangular area, making it fully transparent.
-   */
+  /** Creates an arc/curve on the canvas context. */
+  arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void;
+  /** Creates an arc-to command on the canvas context. */
+  arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
+  /** Begins a new path on the canvas context. */
+  beginPath(): void;
+  /** Adds a cubic Bézier curve to the path. */
+  bezierCurveTo(cp1x: number, cp1y: number, cp2x: number, cp2y: number, x: number, y: number): void;
+  /** Clears the specified rectangular area, making it fully transparent. */
   clearRect(x: number, y: number, width: number, height: number): void;
-  /**
-   * Creates an arc/curve.
-   */
-  arc(
-    x: number,
-    y: number,
-    radius: number,
-    startAngle: number,
-    endAngle: number,
-    anticlockwise?: boolean,
-  ): void;
-  /**
-   * Creates an arc/curve between two tangents.
-   */
-  arcTo(
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    radius: number,
-  ): void;
+  /** Closes the current path on the canvas context. */
+  closePath(): void;
+  /** Draws a filled rectangle whose starting corner is at (x, y). */
+  fillRect(x: number, y: number, width: number, height: number): void;
+}
+
+/**
+ * A bitmap image resource.
+ */
+declare class ImageBitmap {
+  /** The width of the image in pixels. */
+  readonly width: number;
+  /** The height of the image in pixels. */
+  readonly height: number;
 }
 
 /**
  * Creates an ImageBitmap from a file path or URL.
  * @param path The file path or URL to load.
  */
-declare function createImageBitmap(path: string): ImageBitmap;
+declare function createImageBitmap(path: string): Promise<ImageBitmap>;

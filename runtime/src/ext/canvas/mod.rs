@@ -4,6 +4,10 @@
 
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable, Rid};
 mod context2d;
+use crate::ext::canvas::context2d::{
+    internal_canvas_begin_path, internal_canvas_bezier_curve_to, internal_canvas_close_path,
+};
+
 use self::context2d::{
     internal_canvas_arc, internal_canvas_arc_to, internal_canvas_clear_rect,
     internal_canvas_fill_rect,
@@ -56,13 +60,18 @@ impl CanvasExt {
                     Self::internal_canvas_get_height,
                     1,
                 ),
-
                 // Context2D operations
-                ExtensionOp::new("internal_canvas_fill_rect", internal_canvas_fill_rect, 5),
-                ExtensionOp::new("internal_canvas_clear_rect", internal_canvas_clear_rect, 5),
                 ExtensionOp::new("internal_canvas_arc", internal_canvas_arc, 5),
                 ExtensionOp::new("internal_canvas_arc_to", internal_canvas_arc_to, 5),
-
+                ExtensionOp::new(
+                    "internal_canvas_bezier_curve_to",
+                    internal_canvas_bezier_curve_to,
+                    7,
+                ),
+                ExtensionOp::new("internal_canvas_begin_path", internal_canvas_begin_path, 1),
+                ExtensionOp::new("internal_canvas_clear_rect", internal_canvas_clear_rect, 5),
+                ExtensionOp::new("internal_canvas_close_path", internal_canvas_close_path, 1),
+                ExtensionOp::new("internal_canvas_fill_rect", internal_canvas_fill_rect, 5),
                 // ImageBitmap API
                 ExtensionOp::new(
                     "internal_image_bitmap_create",

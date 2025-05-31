@@ -122,27 +122,6 @@ declare function internal_canvas_get_width(rid: number): number;
  */
 declare function internal_canvas_get_height(rid: number): number;
 /**
- * Draws a filled rectangle on the specified canvas.
- */
-declare function internal_canvas_fill_rect(
-  rid: number,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-): void;
-/**
- * Clears the specified rectangle on the canvas.
- */
-declare function internal_canvas_clear_rect(
-  rid: number,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-): void;
-
-/**
  * The `internal_canvas_arc` function creates an arc on the canvas.
  */
 declare function internal_canvas_arc(
@@ -164,6 +143,49 @@ declare function internal_canvas_arc_to(
   x2: number,
   y2: number,
   radius: number,
+): void;
+
+/**
+ * The `internal_canvas_begin_path` function begins a new path on the canvas.
+ */
+declare function internal_canvas_begin_path(rid: number): void;
+
+/**
+ * The `internal_canvas_bezier_curve_to` function creates a bezier curve on the canvas.
+ */
+declare function internal_canvas_bezier_curve_to(
+  rid: number,
+  cp1x: number,
+  cp1y: number,
+  cp2x: number,
+  cp2y: number,
+  x: number,
+  y: number,
+): void;
+/**
+ * Clears the specified rectangle on the canvas.
+ */
+declare function internal_canvas_clear_rect(
+  rid: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void;
+
+/**
+ * The `internal_canvas_close_path` function closes the current path on the canvas.
+ */
+declare function internal_canvas_close_path(rid: number): void;
+/**
+ * Draws a filled rectangle on the specified canvas.
+ */
+declare function internal_canvas_fill_rect(
+  rid: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
 ): void;
 
 /**

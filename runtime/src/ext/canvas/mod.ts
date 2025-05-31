@@ -59,20 +59,6 @@ class CanvasRenderingContext2D {
   }
 
   /**
-   * Draws a filled rectangle whose starting corner is at (x, y).
-   */
-  fillRect(x: number, y: number, width: number, height: number): void {
-    internal_canvas_fill_rect(this.#rid, x, y, width, height);
-  }
-
-  /**
-   * Clears the specified rectangular area, making it fully transparent.
-   */
-  clearRect(x: number, y: number, width: number, height: number): void {
-    internal_canvas_clear_rect(this.#rid, x, y, width, height);
-  }
-
-  /**
    * Creates an arc on the canvas.
    */
   arc(
@@ -96,5 +82,54 @@ class CanvasRenderingContext2D {
     radius: number,
   ): void {
     internal_canvas_arc_to(this.#rid, x1, y1, x2, y2, radius);
+  }
+
+  /**
+   * Begin a new path on the canvas.
+   */
+  beginPath(): void {
+    internal_canvas_begin_path(this.#rid);
+  }
+
+  /**
+   * Bezier curve to the canvas.
+   */
+  bezierCurveTo(
+    cp1x: number,
+    cp1y: number,
+    cp2x: number,
+    cp2y: number,
+    x: number,
+    y: number,
+  ): void {
+    internal_canvas_bezier_curve_to(
+      this.#rid,
+      cp1x,
+      cp1y,
+      cp2x,
+      cp2y,
+      x,
+      y,
+    );
+  }
+  /**
+   * Clears the specified rectangular area, making it fully transparent.
+   */
+  clearRect(x: number, y: number, width: number, height: number): void {
+    internal_canvas_clear_rect(this.#rid, x, y, width, height);
+  }
+
+  /**
+   * Closes the current path on the canvas.
+   */
+  closePath(): void {
+    internal_canvas_close_path(this.#rid);
+  }
+
+  /**
+   * Draws a filled rectangle whose starting corner is at (x, y).
+   */
+  fillRect(x: number, y: number, width: number, height: number): void {
+    internal_canvas_fill_rect(this.#rid, x, y, width, height);
   }
 }

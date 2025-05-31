@@ -156,8 +156,8 @@ pub enum CanvasCommand<'gc> {
     },
 }
 
-/// Internal op to fill a rectangle on a canvas by Rid
-pub fn internal_canvas_fill_rect<'gc>(
+// Internal op to create an arc on a canvas by Rid
+pub fn internal_canvas_arc<'gc>(
     agent: &mut Agent,
     _this: Value,
     args: ArgumentsList,
@@ -175,16 +175,22 @@ pub fn internal_canvas_fill_rect<'gc>(
         .to_number(agent, gc.reborrow())
         .unbind()
         .unwrap();
-    let width = args
+    let radius = args
         .get(3)
         .to_number(agent, gc.reborrow())
         .unbind()
         .unwrap();
-    let height = args
+    let start_angle = args
         .get(4)
         .to_number(agent, gc.reborrow())
         .unbind()
         .unwrap();
+    let end_angle = args
+        .get(5)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+
     let host_data = agent
         .get_host_data()
         .downcast_ref::<HostData<RuntimeMacroTask>>()
@@ -192,11 +198,141 @@ pub fn internal_canvas_fill_rect<'gc>(
     let mut storage = host_data.storage.borrow_mut();
     let res: &mut CanvasResources = storage.get_mut().unwrap();
     let mut data = res.canvases.get_mut(rid).unwrap();
-    data.commands.push(CanvasCommand::FillRect {
+
+    data.commands.push(CanvasCommand::Arc {
         x,
         y,
-        width,
-        height,
+        radius,
+        start_angle,
+        end_angle,
+    });
+
+    Ok(Value::Undefined)
+}
+
+// Internal op to create an arc on a canvas by Rid, with additional parameters
+pub fn internal_canvas_arc_to<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+    let x1 = args
+        .get(1)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let y1 = args
+        .get(2)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let x2 = args
+        .get(3)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let y2 = args
+        .get(4)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let radius = args
+        .get(5)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+    let mut data = res.canvases.get_mut(rid).unwrap();
+
+    data.commands.push(CanvasCommand::ArcTo {
+        x1,
+        y1,
+        x2,
+        y2,
+        radius,
+    });
+
+    Ok(Value::Undefined)
+}
+
+/// Internal op to begin a path on a canvas by Rid
+pub fn internal_canvas_begin_path<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+    let mut data = res.canvases.get_mut(rid).unwrap();
+    data.commands.push(CanvasCommand::BeginPath);
+    Ok(Value::Undefined)
+}
+
+/// Internal op to create a bezier curve on a canvas by Rid
+pub fn internal_canvas_bezier_curve_to<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+    let cp1x = args
+        .get(1)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let cp1y = args
+        .get(2)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let cp2x = args
+        .get(3)
+        .to_number(agent, gc.reborrow())
+        .unbind().unwrap();
+    let cp2y = args
+        .get(4)
+        .to_number(agent, gc.reborrow())
+        .unbind().unwrap();
+    let x = args
+        .get(5)
+        .to_number(agent, gc.reborrow())
+        .unbind().unwrap();
+    let y = args
+        .get(6)
+        .to_number(agent, gc.reborrow())
+        .unbind().unwrap();
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+    let mut data = res.canvases.get_mut(rid).unwrap();
+    data.commands.push(CanvasCommand::BezierCurveTo {
+        cp1x,
+        cp1y,
+        cp2x,
+        cp2y,
+        x,
+        y,
     });
     Ok(Value::Undefined)
 }
@@ -246,7 +382,8 @@ pub fn internal_canvas_clear_rect<'gc>(
     Ok(Value::Undefined)
 }
 
-pub fn internal_canvas_arc<'gc>(
+/// Internal op to close a path on a canvas by Rid
+pub fn internal_canvas_close_path<'gc>(
     agent: &mut Agent,
     _this: Value,
     args: ArgumentsList,
@@ -254,12 +391,6 @@ pub fn internal_canvas_arc<'gc>(
 ) -> JsResult<'gc, Value<'gc>> {
     let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
     let rid = Rid::from_index(rid_val);
-    let x = args.get(1).to_number(agent, gc.reborrow()).unbind().unwrap();
-    let y = args.get(2).to_number(agent, gc.reborrow()).unbind().unwrap();
-    let radius = args.get(3).to_number(agent, gc.reborrow()).unbind().unwrap();
-    let start_angle = args.get(4).to_number(agent, gc.reborrow()).unbind().unwrap();
-    let end_angle = args.get(5).to_number(agent, gc.reborrow()).unbind().unwrap();
-    
     let host_data = agent
         .get_host_data()
         .downcast_ref::<HostData<RuntimeMacroTask>>()
@@ -267,19 +398,12 @@ pub fn internal_canvas_arc<'gc>(
     let mut storage = host_data.storage.borrow_mut();
     let res: &mut CanvasResources = storage.get_mut().unwrap();
     let mut data = res.canvases.get_mut(rid).unwrap();
-    
-    data.commands.push(CanvasCommand::Arc {
-        x,
-        y,
-        radius,
-        start_angle,
-        end_angle,
-    });
-    
+    data.commands.push(CanvasCommand::ClosePath);
     Ok(Value::Undefined)
 }
 
-pub fn internal_canvas_arc_to<'gc>(
+/// Internal op to fill a rectangle on a canvas by Rid
+pub fn internal_canvas_fill_rect<'gc>(
     agent: &mut Agent,
     _this: Value,
     args: ArgumentsList,
@@ -287,12 +411,26 @@ pub fn internal_canvas_arc_to<'gc>(
 ) -> JsResult<'gc, Value<'gc>> {
     let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
     let rid = Rid::from_index(rid_val);
-    let x1 = args.get(1).to_number(agent, gc.reborrow()).unbind().unwrap();
-    let y1 = args.get(2).to_number(agent, gc.reborrow()).unbind().unwrap();
-    let x2 = args.get(3).to_number(agent, gc.reborrow()).unbind().unwrap();
-    let y2 = args.get(4).to_number(agent, gc.reborrow()).unbind().unwrap();
-    let radius = args.get(5).to_number(agent, gc.reborrow()).unbind().unwrap();
-
+    let x = args
+        .get(1)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let y = args
+        .get(2)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let width = args
+        .get(3)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let height = args
+        .get(4)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
     let host_data = agent
         .get_host_data()
         .downcast_ref::<HostData<RuntimeMacroTask>>()
@@ -300,14 +438,11 @@ pub fn internal_canvas_arc_to<'gc>(
     let mut storage = host_data.storage.borrow_mut();
     let res: &mut CanvasResources = storage.get_mut().unwrap();
     let mut data = res.canvases.get_mut(rid).unwrap();
-
-    data.commands.push(CanvasCommand::ArcTo {
-        x1,
-        y1,
-        x2,
-        y2,
-        radius,
+    data.commands.push(CanvasCommand::FillRect {
+        x,
+        y,
+        width,
+        height,
     });
-
     Ok(Value::Undefined)
 }
