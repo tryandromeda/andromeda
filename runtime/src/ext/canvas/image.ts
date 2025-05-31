@@ -3,20 +3,42 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // deno-lint-ignore-file no-unused-vars
 
+const _width = Symbol("[[width]]");
+const _height = Symbol("[[height]]");
+const _detached = Symbol("[[detached]]");
+
 /**
  * A bitmap image resource.
  */
 class ImageBitmap {
   #rid: number;
-  /** The width of the image in pixels. */
-  width: number;
-  /** The height of the image in pixels. */
-  height: number;
-
+  [_width]: number;
+  [_height]: number;
+  [_detached]: boolean = false;
   constructor(rid: number, width: number, height: number) {
     this.#rid = rid;
-    this.width = width;
-    this.height = height;
+    this[_width] = width;
+    this[_height] = height;
+  }
+
+  /**
+   * Gets the width of the image bitmap.
+   */
+  get width(): number {
+    if (this[_detached]) {
+      throw new Error("ImageBitmap has been detached.");
+    }
+    return this[_width];
+  }
+
+  /**
+   * Gets the height of the image bitmap.
+   */
+  get height(): number {
+    if (this[_detached]) {
+      throw new Error("ImageBitmap has been detached.");
+    }
+    return this[_height];
   }
 }
 
@@ -24,8 +46,7 @@ class ImageBitmap {
  * Creates an ImageBitmap from a file path or URL.
  * @param path The file path or URL to load.
  */
-// deno-lint-ignore require-await
-async function createImageBitmap(path: string): Promise<ImageBitmap> {
+function createImageBitmap(path: string): ImageBitmap {
   const rid = internal_image_bitmap_create(path);
   const width = internal_image_bitmap_get_width(rid);
   const height = internal_image_bitmap_get_height(rid);

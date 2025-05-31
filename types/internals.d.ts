@@ -129,7 +129,7 @@ declare function internal_canvas_fill_rect(
   x: number,
   y: number,
   width: number,
-  height: number
+  height: number,
 ): void;
 /**
  * Clears the specified rectangle on the canvas.
@@ -139,7 +139,7 @@ declare function internal_canvas_clear_rect(
   x: number,
   y: number,
   width: number,
-  height: number
+  height: number,
 ): void;
 /**
  * The `internal_image_bitmap_create` function creates an ImageBitmap resource and returns its Rid.
@@ -153,4 +153,3 @@ declare function internal_image_bitmap_get_width(rid: number): number;
  * The `internal_image_bitmap_get_height` function returns the height of the ImageBitmap resource.
  */
 declare function internal_image_bitmap_get_height(rid: number): number;
-
