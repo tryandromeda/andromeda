@@ -187,3 +187,65 @@ declare function prompt(message: string): string;
  * The `confirm` function prompts the user for confirmation.
  */
 declare function confirm(message: string): boolean;
+
+/**
+ * An offscreen Canvas implementation.
+ */
+declare class Canvas {
+  /**
+   * Create a new off-screen canvas with the given dimensions.
+   */
+  constructor(width: number, height: number);
+  /** Get the width of the canvas. */
+  getWidth(): number;
+  /** Get the height of the canvas. */
+  getHeight(): number;
+  /**
+   * Returns a 2D rendering context or null if not available.
+   */
+  getContext(type: "2d"): CanvasRenderingContext2D | null;
+}
+
+/**
+ * Factory to create a Canvas instance.
+ */
+declare function createCanvas(width: number, height: number): Canvas;
+
+/**
+ * The 2D rendering context for a Canvas.
+ */
+/**
+ * The 2D rendering context for a Canvas.
+ */
+declare class CanvasRenderingContext2D {
+  /** Creates an arc/curve on the canvas context. */
+  arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void;
+  /** Creates an arc-to command on the canvas context. */
+  arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
+  /** Begins a new path on the canvas context. */
+  beginPath(): void;
+  /** Adds a cubic Bézier curve to the path. */
+  bezierCurveTo(cp1x: number, cp1y: number, cp2x: number, cp2y: number, x: number, y: number): void;
+  /** Clears the specified rectangular area, making it fully transparent. */
+  clearRect(x: number, y: number, width: number, height: number): void;
+  /** Closes the current path on the canvas context. */
+  closePath(): void;
+  /** Draws a filled rectangle whose starting corner is at (x, y). */
+  fillRect(x: number, y: number, width: number, height: number): void;
+}
+
+/**
+ * A bitmap image resource.
+ */
+declare class ImageBitmap {
+  /** The width of the image in pixels. */
+  readonly width: number;
+  /** The height of the image in pixels. */
+  readonly height: number;
+}
+
+/**
+ * Creates an ImageBitmap from a file path or URL.
+ * @param path The file path or URL to load.
+ */
+declare function createImageBitmap(path: string): Promise<ImageBitmap>;

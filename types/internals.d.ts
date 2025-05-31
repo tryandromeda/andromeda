@@ -101,7 +101,102 @@ declare function internal_url_parse_no_base(url: string): string;
  * The `internal_btoa` function encodes a string in base64.
  */
 declare function internal_btoa(input: string): string;
+
 /**
  * The `internal_atob` function decodes a string in base64.
  */
 declare function internal_atob(input: string): string;
+
+/**
+ * The `internal_canvas_create` function creates a canvas with the specified width and height.
+ */
+declare function internal_canvas_create(width: number, height: number): number;
+
+/**
+ * The `internal_canvas_get_width` function gets the width of the canvas.
+ */
+declare function internal_canvas_get_width(rid: number): number;
+
+/**
+ * The `internal_canvas_get_height` function gets the height of the canvas.
+ */
+declare function internal_canvas_get_height(rid: number): number;
+/**
+ * The `internal_canvas_arc` function creates an arc on the canvas.
+ */
+declare function internal_canvas_arc(
+  rid: number,
+  x: number,
+  y: number,
+  radius: number,
+  start_angle: number,
+  end_angle: number,
+): void;
+
+/**
+ * The `internal_canvas_arc_to` function creates an arc on the canvas.
+ */
+declare function internal_canvas_arc_to(
+  rid: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  radius: number,
+): void;
+
+/**
+ * The `internal_canvas_begin_path` function begins a new path on the canvas.
+ */
+declare function internal_canvas_begin_path(rid: number): void;
+
+/**
+ * The `internal_canvas_bezier_curve_to` function creates a bezier curve on the canvas.
+ */
+declare function internal_canvas_bezier_curve_to(
+  rid: number,
+  cp1x: number,
+  cp1y: number,
+  cp2x: number,
+  cp2y: number,
+  x: number,
+  y: number,
+): void;
+/**
+ * Clears the specified rectangle on the canvas.
+ */
+declare function internal_canvas_clear_rect(
+  rid: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void;
+
+/**
+ * The `internal_canvas_close_path` function closes the current path on the canvas.
+ */
+declare function internal_canvas_close_path(rid: number): void;
+/**
+ * Draws a filled rectangle on the specified canvas.
+ */
+declare function internal_canvas_fill_rect(
+  rid: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void;
+
+/**
+ * The `internal_image_bitmap_create` function creates an ImageBitmap resource and returns its Rid.
+ */
+declare function internal_image_bitmap_create(path: string): number;
+/**
+ * The `internal_image_bitmap_get_width` function returns the width of the ImageBitmap resource.
+ */
+declare function internal_image_bitmap_get_width(rid: number): number;
+/**
+ * The `internal_image_bitmap_get_height` function returns the height of the ImageBitmap resource.
+ */
+declare function internal_image_bitmap_get_height(rid: number): number;
