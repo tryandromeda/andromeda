@@ -57,6 +57,12 @@ impl<T> ResourceTable<T> {
 
         rid
     }
+
+    /// Remove a resource by Rid.
+    pub fn remove(&self, rid: Rid) -> Option<T> {
+        self.table.borrow_mut().remove(&rid)
+    }
+
     /// Get a mutable reference to the resource by Rid.
     pub fn get_mut(&self, rid: Rid) -> Option<RefMut<'_, T>> {
         let borrow = self.table.borrow_mut();

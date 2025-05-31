@@ -224,3 +224,12 @@ declare class CanvasRenderingContext2D {
    */
   clearRect(x: number, y: number, width: number, height: number): void;
 }
+
+
+/**
+ * Creates an ImageBitmap from a file path or URL.
+ * @param path The file path or URL to load.
+ */
+declare function createImageBitmap(path: string): Promise<ImageBitmap>;
+
+
