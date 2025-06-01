@@ -4,6 +4,7 @@
 
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable, Rid};
 mod context2d;
+mod renderer;
 use crate::ext::canvas::context2d::{
     internal_canvas_begin_path, internal_canvas_bezier_curve_to, internal_canvas_close_path,
 };

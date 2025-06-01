@@ -16,4 +16,5 @@ oxc-miette.workspace = true
 oxc_diagnostics.workspace = true
 serde.workspace = true
 url.workspace = true
-base64-simd = "0.8.0"
+base64-simd.workspace = true
+wgpu.workspace = true

@@ -10,6 +10,7 @@ use std::path::PathBuf;
 mod compile;
 use compile::{ANDROMEDA_JS_CODE_SECTION, compile};
 mod run;
+mod styles;
 use run::run;
 
 /// A JavaScript runtime
@@ -17,8 +18,11 @@ use run::run;
 #[command(name = "andromeda")]
 #[command(
     about = "The coolest JavaScript Runtime",
-    long_about = "JS/TS Runtime in rust powered by Nova with no transpilation BS"
+    long_about = "JS/TS Runtime in rust powered by Nova with no transpilation needed.",
+    version = env!("CARGO_PKG_VERSION"),
+    author = "Andromeda Team",
 )]
+#[clap(styles = styles::ANDROMEDA_STYLING)]
 struct Cli {
     #[command(subcommand)]
     command: Command,

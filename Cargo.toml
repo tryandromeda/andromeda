@@ -13,9 +13,11 @@ version = "0.1.0"
 [workspace.dependencies]
 andromeda-core = { path = "core" }
 andromeda-runtime = { path = "runtime" }
-anyhow = "1.0.94"
+anyhow = "1.0.98"
 anymap = "0.12.1"
-clap = { version = "4.5.23", features = ["derive"] }
+base64-simd = "0.8.0"
+wgpu = { version = "25.0.2", features = ["wgsl", "webgpu"]}
+clap = { version = "4.5.39", features = ["derive"] }
 cliclack = "0.3.5"
 console = "0.15.8"
 libsui = "0.10.0"
@@ -23,12 +25,13 @@ nova_vm = { git = "https://github.com/trynova/nova", rev="cd94cf0c6d9610a68adb95
 oxc_ast = "0.72.0"
 oxc_allocator = "0.72.0"
 oxc_diagnostics = "0.72.0"
-oxc-miette = { version = "2.2.1", features = ["fancy"] }
+oxc-miette = { version = "2.3.0", features = ["fancy"] }
 oxc_parser = "0.72.0"
 oxc_semantic = "0.72.0"
 oxc_span = "0.72.0"
+
 serde = { version = "1.0.130", features = ["derive"] }
-tokio = { version = "1.39.0", features = ["rt", "sync", "time"] }
+tokio = { version = "1.45.1", features = ["rt", "sync", "time"] }
 url = { version = "2", features = ["serde", "expose_internals"] }
 
 [profile.release]
