@@ -1,6 +1,6 @@
 #![allow(dead_code)]
-use wgpu::PollType;
 use image;
+use wgpu::PollType;
 
 use super::*;
 
@@ -99,7 +99,7 @@ impl Renderer {
         let pipeline = device.create_render_pipeline(&pipeline_desc);
         let encoder =
             Some(device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None }));
-        
+
         let background = device.create_texture(&wgpu::TextureDescriptor {
             label: None,
             dimension: wgpu::TextureDimension::D2,
@@ -179,7 +179,8 @@ impl Renderer {
         let padded_bytes_per_row = ((unpadded_bytes_per_row + align - 1) / align) * align;
 
         // Create a new buffer with the correct size to accommodate padding
-        let padded_buffer_size = (padded_bytes_per_row * self.dimensions.height) as wgpu::BufferAddress;
+        let padded_buffer_size =
+            (padded_bytes_per_row * self.dimensions.height) as wgpu::BufferAddress;
         let result_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             mapped_at_creation: false,
@@ -211,7 +212,7 @@ impl Renderer {
         );
         let encoder = self.encoder.take().unwrap();
         self.queue.submit([encoder.finish()]);
-        
+
         let data = {
             let buffer_slice = result_buffer.slice(..);
             // map buffer for reading (callback-based API)
@@ -220,7 +221,7 @@ impl Renderer {
             self.device.poll(PollType::Wait).unwrap();
             // now read mapped data
             let mapped_data = buffer_slice.get_mapped_range().to_vec();
-            
+
             // Remove padding from each row to get the actual image data
             let mut unpadded_data = Vec::new();
             for row in 0..self.dimensions.height {
@@ -267,7 +268,7 @@ impl Renderer {
     pub fn render_rect(&mut self, rect: Rect, color: Color) {
         // Set the color uniform
         self.set_uniform_at(vec![color[0], color[1], color[2], color[3]], 0);
-        
+
         let start = translate_coords(&rect.start, &self.dimensions);
         let x1 = (start.0 as f32).to_le_bytes();
         let y1 = (start.1 as f32).to_le_bytes();
@@ -330,10 +331,10 @@ impl Renderer {
     pub async fn save_as_png(&mut self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
         // First render all pending operations
         self.render_all();
-        
+
         // Extract pixel data from GPU
         let pixel_data = self.create_bitmap().await;
-        
+
         // Convert from BGRA to RGBA (wgpu typically uses BGRA format)
         let mut rgba_data = Vec::new();
         for chunk in pixel_data.chunks(4) {
@@ -345,14 +346,12 @@ impl Renderer {
                 rgba_data.push(chunk[3]); // A
             }
         }
-        
+
         // Save as PNG using the image crate
-        let img = image::RgbaImage::from_raw(
-            self.dimensions.width,
-            self.dimensions.height,
-            rgba_data,
-        ).ok_or("Failed to create image from pixel data")?;
-        
+        let img =
+            image::RgbaImage::from_raw(self.dimensions.width, self.dimensions.height, rgba_data)
+                .ok_or("Failed to create image from pixel data")?;
+
         img.save(path)?;
         Ok(())
     }
