@@ -376,13 +376,39 @@ pub fn internal_canvas_clear_rect<'gc>(
         .unwrap();
     let mut storage = host_data.storage.borrow_mut();
     let res: &mut CanvasResources = storage.get_mut().unwrap();
-    let mut data = res.canvases.get_mut(rid).unwrap();
-    data.commands.push(CanvasCommand::ClearRect {
-        x,
-        y,
-        width,
-        height,
-    });
+    
+    // Try to use GPU renderer if available
+    if let Some(mut renderer) = res.renderers.get_mut(rid) {
+        // Convert Nova VM Numbers to f64
+        let x_f64 = x.into_f64(agent);
+        let y_f64 = y.into_f64(agent);
+        let width_f64 = width.into_f64(agent);
+        let height_f64 = height.into_f64(agent);
+        
+        // Create a rect for clearing (transparent/background color)
+        let clear_rect = crate::ext::canvas::renderer::Rect {
+            start: crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 },
+            end: crate::ext::canvas::renderer::Point { 
+                x: x_f64 + width_f64, 
+                y: y_f64 + height_f64 
+            },
+        };
+        
+        // TODO: Implement proper clear operation in renderer
+        // For now, render a transparent rectangle
+        let transparent_color = [0.0, 0.0, 0.0, 0.0]; // Transparent black
+        renderer.render_rect(clear_rect, transparent_color);
+    } else {
+        // Fallback to command buffering if no renderer
+        let mut data = res.canvases.get_mut(rid).unwrap();
+        data.commands.push(CanvasCommand::ClearRect {
+            x,
+            y,
+            width,
+            height,
+        });
+    }
+    
     Ok(Value::Undefined)
 }
 
@@ -441,12 +467,54 @@ pub fn internal_canvas_fill_rect<'gc>(
         .unwrap();
     let mut storage = host_data.storage.borrow_mut();
     let res: &mut CanvasResources = storage.get_mut().unwrap();
-    let mut data = res.canvases.get_mut(rid).unwrap();
-    data.commands.push(CanvasCommand::FillRect {
-        x,
-        y,
-        width,
-        height,
-    });
+    
+    // Try to render directly with GPU if renderer exists
+    let has_renderer = {
+        // Check in a separate scope to avoid borrow conflicts
+        match res.renderers.get_mut(rid) {
+            Some(_) => true,
+            None => false,
+        }
+    };
+    
+    if has_renderer {
+        use super::renderer::{Rect, Point};
+        // Convert Nova VM Number to f64 for GPU renderer
+        // Use into_f64() method that Nova VM provides
+        let x_val = x.into_f64(agent);
+        let y_val = y.into_f64(agent);
+        let width_val = width.into_f64(agent);
+        let height_val = height.into_f64(agent);
+        
+        let rect = Rect {
+            start: Point { 
+                x: x_val, 
+                y: y_val 
+            },
+            end: Point { 
+                x: x_val + width_val, 
+                y: y_val + height_val 
+            },
+        };
+        
+        // Get the current fill style color
+        let data = res.canvases.get(rid).unwrap();
+        let color = match &data.fill_style {
+            super::FillStyle::Color { r, g, b, a } => [*r, *g, *b, *a],
+            _ => [0.0, 0.0, 0.0, 1.0], // Default black
+        };
+        
+        res.renderers.get_mut(rid).unwrap().render_rect(rect, color);
+    } else {
+        // Fallback to command storage if no renderer
+        let mut data = res.canvases.get_mut(rid).unwrap();
+        data.commands.push(CanvasCommand::FillRect {
+            x,
+            y,
+            width,
+            height,
+        });
+    }
+    
     Ok(Value::Undefined)
 }

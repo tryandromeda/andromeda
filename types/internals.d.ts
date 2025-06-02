@@ -189,6 +189,30 @@ declare function internal_canvas_fill_rect(
 ): void;
 
 /**
+ * The `internal_canvas_render` function renders the canvas to finalize GPU operations.
+ * Returns true if rendering was successful, false otherwise.
+ */
+declare function internal_canvas_render(rid: number): boolean;
+
+/**
+ * The `internal_canvas_save_as_png` function saves the canvas as a PNG file.
+ * Returns true if save was successful, false otherwise.
+ */
+declare function internal_canvas_save_as_png(rid: number, path: string): boolean;
+
+/**
+ * The `internal_canvas_get_fill_style` function gets the current fill style of the canvas context.
+ * Returns the fill style as a CSS color string.
+ */
+declare function internal_canvas_get_fill_style(rid: number): string;
+
+/**
+ * The `internal_canvas_set_fill_style` function sets the fill style of the canvas context.
+ * Accepts CSS color strings like '#ff0000', 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'red', etc.
+ */
+declare function internal_canvas_set_fill_style(rid: number, style: string): void;
+
+/**
  * The `internal_image_bitmap_create` function creates an ImageBitmap resource and returns its Rid.
  */
 declare function internal_image_bitmap_create(path: string): number;

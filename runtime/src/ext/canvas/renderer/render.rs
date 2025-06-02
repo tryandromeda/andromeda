@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use wgpu::PollType;
+use image;
 
 use super::*;
 
@@ -98,12 +99,7 @@ impl Renderer {
         let pipeline = device.create_render_pipeline(&pipeline_desc);
         let encoder =
             Some(device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None }));
-        let result = device.create_buffer(&wgpu::BufferDescriptor {
-            label: None,
-            mapped_at_creation: false,
-            size: (U32_SIZE * dimensions.width * dimensions.height) as wgpu::BufferAddress,
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        });
+        
         let background = device.create_texture(&wgpu::TextureDescriptor {
             label: None,
             dimension: wgpu::TextureDimension::D2,
@@ -131,7 +127,6 @@ impl Renderer {
             bind_group: Vec::new(),
             commands: Vec::new(),
             background,
-            result,
         };
         let view = buffers.background.create_view(&Default::default());
 
@@ -177,6 +172,21 @@ impl Renderer {
     }
 
     pub async fn create_bitmap(&mut self) -> Vec<u8> {
+        // Calculate bytes per row with proper alignment
+        let bytes_per_pixel = U32_SIZE; // 4 bytes per pixel for RGBA
+        let unpadded_bytes_per_row = self.dimensions.width * bytes_per_pixel;
+        let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let padded_bytes_per_row = ((unpadded_bytes_per_row + align - 1) / align) * align;
+
+        // Create a new buffer with the correct size to accommodate padding
+        let padded_buffer_size = (padded_bytes_per_row * self.dimensions.height) as wgpu::BufferAddress;
+        let result_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            mapped_at_creation: false,
+            size: padded_buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+        });
+
         let encoder = self.encoder.as_mut().unwrap();
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
@@ -186,9 +196,9 @@ impl Renderer {
                 origin: wgpu::Origin3d::ZERO,
             },
             wgpu::TexelCopyBufferInfo {
-                buffer: &self.buffers.result,
+                buffer: &result_buffer,
                 layout: wgpu::TexelCopyBufferLayout {
-                    bytes_per_row: Some(self.dimensions.width * U32_SIZE),
+                    bytes_per_row: Some(padded_bytes_per_row),
                     rows_per_image: Some(self.dimensions.height),
                     offset: 0,
                 },
@@ -201,16 +211,26 @@ impl Renderer {
         );
         let encoder = self.encoder.take().unwrap();
         self.queue.submit([encoder.finish()]);
+        
         let data = {
-            let buffer_slice = self.buffers.result.slice(..);
+            let buffer_slice = result_buffer.slice(..);
             // map buffer for reading (callback-based API)
             buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
             // poll until mapping is ready
             self.device.poll(PollType::Wait).unwrap();
             // now read mapped data
-            buffer_slice.get_mapped_range().to_vec()
+            let mapped_data = buffer_slice.get_mapped_range().to_vec();
+            
+            // Remove padding from each row to get the actual image data
+            let mut unpadded_data = Vec::new();
+            for row in 0..self.dimensions.height {
+                let row_start = (row * padded_bytes_per_row) as usize;
+                let row_end = row_start + (unpadded_bytes_per_row as usize);
+                unpadded_data.extend_from_slice(&mapped_data[row_start..row_end]);
+            }
+            unpadded_data
         };
-        self.buffers.result.unmap();
+        result_buffer.unmap();
 
         data
     }
@@ -244,7 +264,10 @@ impl Renderer {
         );
     }
 
-    pub fn render_rect(&mut self, rect: Rect) {
+    pub fn render_rect(&mut self, rect: Rect, color: Color) {
+        // Set the color uniform
+        self.set_uniform_at(vec![color[0], color[1], color[2], color[3]], 0);
+        
         let start = translate_coords(&rect.start, &self.dimensions);
         let x1 = (start.0 as f32).to_le_bytes();
         let y1 = (start.1 as f32).to_le_bytes();
@@ -302,6 +325,36 @@ impl Renderer {
         self.buffers.bind_group.push(bind_group);
         self.queue
             .write_buffer(self.buffers.vertex.last().unwrap(), 0, &buf);
+    }
+
+    pub async fn save_as_png(&mut self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        // First render all pending operations
+        self.render_all();
+        
+        // Extract pixel data from GPU
+        let pixel_data = self.create_bitmap().await;
+        
+        // Convert from BGRA to RGBA (wgpu typically uses BGRA format)
+        let mut rgba_data = Vec::new();
+        for chunk in pixel_data.chunks(4) {
+            if chunk.len() == 4 {
+                // Convert BGRA -> RGBA
+                rgba_data.push(chunk[2]); // R
+                rgba_data.push(chunk[1]); // G  
+                rgba_data.push(chunk[0]); // B
+                rgba_data.push(chunk[3]); // A
+            }
+        }
+        
+        // Save as PNG using the image crate
+        let img = image::RgbaImage::from_raw(
+            self.dimensions.width,
+            self.dimensions.height,
+            rgba_data,
+        ).ok_or("Failed to create image from pixel data")?;
+        
+        img.save(path)?;
+        Ok(())
     }
 
     fn create_vertex_buffer(&self, size: u64) -> wgpu::Buffer {

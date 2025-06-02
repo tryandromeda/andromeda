@@ -17,4 +17,5 @@ oxc_diagnostics.workspace = true
 serde.workspace = true
 url.workspace = true
 base64-simd.workspace = true
+image.workspace = true
 wgpu.workspace = true

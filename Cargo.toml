@@ -20,6 +20,7 @@ wgpu = { version = "25.0.2", features = ["wgsl", "webgpu"]}
 clap = { version = "4.5.39", features = ["derive"] }
 cliclack = "0.3.5"
 console = "0.15.8"
+image = "0.25.5"
 libsui = "0.10.0"
 nova_vm = { git = "https://github.com/trynova/nova", rev="cd94cf0c6d9610a68adb9582b2d1d09a27c8d1da", features = ["typescript"] }
 oxc_ast = "0.72.0"

@@ -35,6 +35,22 @@ class Canvas {
     }
     return null;
   }
+
+  /**
+   * Renders the canvas to finalize GPU operations and optionally extract pixel data.
+   * Returns true if rendering was successful, false otherwise.
+   */
+  render(): boolean {
+    return internal_canvas_render(this.#rid);
+  }
+
+  /**
+   * Saves the canvas as a PNG image file.
+   * Returns true if save was successful, false otherwise.
+   */
+  saveAsPng(path: string): boolean {
+    return internal_canvas_save_as_png(this.#rid, path);
+  }
 }
 
 /**
@@ -56,6 +72,18 @@ class CanvasRenderingContext2D {
   #rid: number;
   constructor(rid: number) {
     this.#rid = rid;
+  }
+
+  /**
+   * Gets or sets the current fill style for drawing operations.
+   * Accepts CSS color strings like '#ff0000', 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'red', etc.
+   */
+  get fillStyle(): string {
+    return internal_canvas_get_fill_style(this.#rid);
+  }
+
+  set fillStyle(value: string) {
+    internal_canvas_set_fill_style(this.#rid, value);
   }
 
   /**

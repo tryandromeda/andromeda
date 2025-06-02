@@ -204,6 +204,16 @@ declare class Canvas {
    * Returns a 2D rendering context or null if not available.
    */
   getContext(type: "2d"): CanvasRenderingContext2D | null;
+  /**
+   * Renders the canvas to finalize GPU operations and optionally extract pixel data.
+   * Returns true if rendering was successful, false otherwise.
+   */
+  render(): boolean;
+  /**
+   * Saves the canvas as a PNG image file.
+   * Returns true if save was successful, false otherwise.
+   */
+  saveAsPng(path: string): boolean;
 }
 
 /**
@@ -218,6 +228,8 @@ declare function createCanvas(width: number, height: number): Canvas;
  * The 2D rendering context for a Canvas.
  */
 declare class CanvasRenderingContext2D {
+  /** Gets or sets the current fill style for drawing operations. */
+  fillStyle: string;
   /** Creates an arc/curve on the canvas context. */
   arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void;
   /** Creates an arc-to command on the canvas context. */

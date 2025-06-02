@@ -2,15 +2,15 @@ use super::UNIFORM_LENGTH;
 
 pub const SHADER2D: &str = r#"
 struct Uniforms {
-    color: vec4<f32>;
-    mode: f32;
+    color: vec4<f32>,
+    mode: f32,
 };
 
 @group(0) @binding(0)
 var<uniform> uniforms: Uniforms;
 
 struct VertexOutput {
-    @builtin(position) position: vec4<f32>;
+    @builtin(position) position: vec4<f32>,
 };
 
 @vertex
@@ -35,7 +35,6 @@ pub struct Buffers {
     pub commands: Vec<RenderCommand>,
 
     pub background: wgpu::Texture,
-    pub result: wgpu::Buffer,
 }
 
 #[derive(Debug)]
