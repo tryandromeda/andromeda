@@ -53,7 +53,7 @@ ctx.fillRect(500, 140, 80, 80);
 ctx.fillStyle = "black";
 ctx.fillRect(320, 230, 80, 80);
 
-ctx.fillStyle = "white";
+ctx.fillStyle = "rebeccapurple";
 ctx.fillRect(410, 230, 80, 80);
 
 ctx.fillStyle = "gray";
