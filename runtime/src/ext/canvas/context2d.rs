@@ -538,9 +538,10 @@ pub fn internal_canvas_fill_rect<'gc>(
 
         // Get the current fill style color
         let data = res.canvases.get(rid).unwrap();
+        // Apply globalAlpha to fill color
         let color = match &data.fill_style {
-            super::FillStyle::Color { r, g, b, a } => [*r, *g, *b, *a],
-            _ => [0.0, 0.0, 0.0, 1.0], // Default black
+            super::FillStyle::Color { r, g, b, a } => [*r, *g, *b, *a * data.global_alpha],
+            _ => [0.0, 0.0, 0.0, data.global_alpha], // Default black with alpha
         };
 
         res.renderers.get_mut(rid).unwrap().render_rect(rect, color);
@@ -668,9 +669,10 @@ pub fn internal_canvas_fill<'gc>(
 
         if data.current_path.len() >= 3 {
             // Get the current fill style color
+            // Apply globalAlpha to fill color
             let color = match &data.fill_style {
-                super::FillStyle::Color { r, g, b, a } => [*r, *g, *b, *a],
-                _ => [0.0, 0.0, 0.0, 1.0], // Default black
+                super::FillStyle::Color { r, g, b, a } => [*r, *g, *b, *a * data.global_alpha],
+                _ => [0.0, 0.0, 0.0, data.global_alpha], // Default black with alpha
             };
 
             // Render the polygon using the GPU renderer
@@ -708,9 +710,10 @@ pub fn internal_canvas_stroke<'gc>(
 
         if data.current_path.len() >= 2 {
             // Get the current stroke style color
+            // Apply globalAlpha to stroke color
             let color = match &data.stroke_style {
-                super::FillStyle::Color { r, g, b, a } => [*r, *g, *b, *a],
-                _ => [0.0, 0.0, 0.0, 1.0], // Default black
+                super::FillStyle::Color { r, g, b, a } => [*r, *g, *b, *a * data.global_alpha],
+                _ => [0.0, 0.0, 0.0, data.global_alpha], // Default black with alpha
             };
 
             // Convert path to stroke polygon using line width

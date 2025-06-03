@@ -234,6 +234,8 @@ declare class CanvasRenderingContext2D {
   strokeStyle: string;
   /** Gets or sets the line width for drawing operations. */
   lineWidth: number;
+  /** Gets or sets the global alpha value (transparency) for drawing operations. Values range from 0.0 (transparent) to 1.0 (opaque). */
+  globalAlpha: number;
   /** Creates an arc/curve on the canvas context. */
   arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void;
   /** Creates an arc-to command on the canvas context. */

@@ -249,6 +249,18 @@ declare function internal_canvas_set_line_width(rid: number, lineWidth: number):
 declare function internal_canvas_set_stroke_style(rid: number, style: string): void;
 
 /**
+ * The `internal_canvas_get_global_alpha` function gets the global alpha value of the canvas context.
+ * Returns the global alpha as an integer (scaled by 1000).
+ */
+declare function internal_canvas_get_global_alpha(rid: number): number;
+
+/**
+ * The `internal_canvas_set_global_alpha` function sets the global alpha value of the canvas context.
+ * Accepts a global alpha value as an integer (scaled by 1000).
+ */
+declare function internal_canvas_set_global_alpha(rid: number, alpha: number): void;
+
+/**
  * The `internal_image_bitmap_create` function creates an ImageBitmap resource and returns its Rid.
  */
 declare function internal_image_bitmap_create(path: string): number;

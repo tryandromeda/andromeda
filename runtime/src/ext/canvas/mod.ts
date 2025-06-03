@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 // deno-lint-ignore-file no-unused-vars
+
 /**
  * A minimal Canvas implementation
  */
@@ -70,8 +71,20 @@ function createCanvas(width: number, height: number): Canvas {
  */
 class CanvasRenderingContext2D {
   #rid: number;
+  
   constructor(rid: number) {
     this.#rid = rid;
+  }  /**
+   * Gets or sets the global alpha value (transparency) for drawing operations.
+   * Value is in range [0.0, 1.0].
+   */
+  get globalAlpha(): number {
+    // Convert integer representation back to float (divide by 1000)
+    return internal_canvas_get_global_alpha(this.#rid) / 1000;
+  }
+  
+  set globalAlpha(value: number) {
+    internal_canvas_set_global_alpha(this.#rid, value);
   }
 
   /**

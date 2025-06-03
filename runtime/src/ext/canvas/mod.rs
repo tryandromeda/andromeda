@@ -264,6 +264,7 @@ struct CanvasData<'gc> {
     fill_style: FillStyle,
     stroke_style: FillStyle,
     line_width: f64,
+    global_alpha: f32,
     // Path state for renderer
     current_path: Vec<renderer::Point>,
     path_started: bool,
@@ -339,6 +340,16 @@ impl CanvasExt {
                     Self::internal_canvas_set_fill_style,
                     2,
                 ),
+                ExtensionOp::new(
+                    "internal_canvas_get_global_alpha",
+                    Self::internal_canvas_get_global_alpha,
+                    1,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_set_global_alpha",
+                    Self::internal_canvas_set_global_alpha,
+                    2,
+                ),
                 ExtensionOp::new("internal_canvas_render", Self::internal_canvas_render, 1),
                 ExtensionOp::new(
                     "internal_canvas_save_as_png",
@@ -386,9 +397,7 @@ impl CanvasExt {
             .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
             .unwrap();
         let mut storage = host_data.storage.borrow_mut();
-        let res: &mut CanvasResources = storage.get_mut().unwrap();
-
-        // Create canvas data
+        let res: &mut CanvasResources = storage.get_mut().unwrap(); // Create canvas data
         let canvas_rid = res.canvases.push(CanvasData {
             width,
             height,
@@ -396,6 +405,7 @@ impl CanvasExt {
             fill_style: FillStyle::default(),
             stroke_style: FillStyle::default(),
             line_width: 1.0,
+            global_alpha: 1.0,
             current_path: Vec::new(),
             path_started: false,
         });
@@ -411,6 +421,60 @@ impl CanvasExt {
             SmallInteger::from(canvas_rid.index() as i32),
         ))
     }
+
+    /// Internal op to get the current globalAlpha of a canvas context
+    #[allow(dead_code)]
+    fn internal_canvas_get_global_alpha<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let data = res.canvases.get(rid).unwrap();
+        let global_alpha = data.global_alpha;
+        drop(storage);
+
+        // Convert global_alpha (0.0-1.0) to integer representation for return
+        // We multiply by 1000 to preserve 3 decimal places precision
+        let alpha_int = (global_alpha * 1000.0) as i32;
+        Ok(Value::Integer(SmallInteger::from(alpha_int)))
+    }
+
+    /// Internal op to set the globalAlpha of a canvas context
+    #[allow(dead_code)]
+    fn internal_canvas_set_global_alpha<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+        let alpha_val = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let alpha = alpha_val.into_f64(agent).clamp(0.0, 1.0) as f32;
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+        let mut data = res.canvases.get_mut(rid).unwrap();
+        data.global_alpha = alpha;
+        Ok(Value::Undefined)
+    }
+
     fn internal_canvas_get_width<'gc>(
         agent: &mut Agent,
         _this: Value<'_>,
@@ -653,9 +717,7 @@ impl CanvasExt {
             .unwrap();
         let mut storage = host_data.storage.borrow_mut();
         let res: &mut CanvasResources = storage.get_mut().unwrap();
-        let mut data = res.canvases.get_mut(rid).unwrap();
-
-        // Parse the CSS color and update fill style
+        let mut data = res.canvases.get_mut(rid).unwrap(); // Parse the CSS color and update fill style
         match FillStyle::from_css_color(style_string) {
             Ok(fill_style) => {
                 data.fill_style = fill_style;
