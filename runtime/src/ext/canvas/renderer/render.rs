@@ -432,7 +432,7 @@ impl Renderer {
 
         // Tessellate the curve into line segments
         let points = self.tessellate_quadratic_bezier(start, control, end, segments);
-        
+
         // Render the line segments as a connected path
         self.render_polyline(points, color, line_width);
     }
@@ -453,7 +453,7 @@ impl Renderer {
 
         // Tessellate the curve into line segments
         let points = self.tessellate_cubic_bezier(start, control1, control2, end, segments);
-        
+
         // Render the line segments as a connected path
         self.render_polyline(points, color, line_width);
     }
@@ -466,40 +466,52 @@ impl Renderer {
 
         // Create a vector of triangles to form the line with width
         let mut vertices = Vec::new();
-        
+
         for i in 0..points.len() - 1 {
             let p1 = &points[i];
             let p2 = &points[i + 1];
-            
+
             // Calculate the direction vector
             let dx = p2.x - p1.x;
             let dy = p2.y - p1.y;
-            
+
             // Normalize the direction
             let length = (dx * dx + dy * dy).sqrt();
             if length < 0.0001 {
                 continue; // Skip zero-length segments
             }
-            
+
             let nx = dx / length;
             let ny = dy / length;
-            
+
             // Calculate the perpendicular vector with half line width
             let half_width = line_width / 2.0;
             let px = -ny * half_width;
             let py = nx * half_width;
-            
+
             // Create four corners of the line segment as a rectangle
-            let a = Point { x: p1.x + px, y: p1.y + py };
-            let b = Point { x: p1.x - px, y: p1.y - py };
-            let c = Point { x: p2.x + px, y: p2.y + py };
-            let d = Point { x: p2.x - px, y: p2.y - py };
-            
+            let a = Point {
+                x: p1.x + px,
+                y: p1.y + py,
+            };
+            let b = Point {
+                x: p1.x - px,
+                y: p1.y - py,
+            };
+            let c = Point {
+                x: p2.x + px,
+                y: p2.y + py,
+            };
+            let d = Point {
+                x: p2.x - px,
+                y: p2.y - py,
+            };
+
             // Add rectangle as two triangles
             vertices.push(a.clone());
             vertices.push(b.clone());
             vertices.push(c.clone());
-            
+
             vertices.push(b.clone());
             vertices.push(d.clone());
             vertices.push(c.clone());
@@ -518,18 +530,18 @@ impl Renderer {
         segments: usize,
     ) -> Vec<Point> {
         let mut points = Vec::with_capacity(segments + 1);
-        
+
         for i in 0..=segments {
             let t = i as f64 / segments as f64;
             let t_inv = 1.0 - t;
-            
+
             // Quadratic Bezier formula: B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
             let x = t_inv * t_inv * start.x + 2.0 * t_inv * t * control.x + t * t * end.x;
             let y = t_inv * t_inv * start.y + 2.0 * t_inv * t * control.y + t * t * end.y;
-            
+
             points.push(Point { x, y });
         }
-        
+
         points
     }
 
@@ -543,28 +555,28 @@ impl Renderer {
         segments: usize,
     ) -> Vec<Point> {
         let mut points = Vec::with_capacity(segments + 1);
-        
+
         for i in 0..=segments {
             let t = i as f64 / segments as f64;
             let t_inv = 1.0 - t;
-            
+
             // Cubic Bezier formula: B(t) = (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
             let t_inv_sq = t_inv * t_inv;
             let t_sq = t * t;
-            
-            let x = t_inv_sq * t_inv * start.x + 
-                    3.0 * t_inv_sq * t * control1.x + 
-                    3.0 * t_inv * t_sq * control2.x + 
-                    t_sq * t * end.x;
-                    
-            let y = t_inv_sq * t_inv * start.y + 
-                    3.0 * t_inv_sq * t * control1.y + 
-                    3.0 * t_inv * t_sq * control2.y + 
-                    t_sq * t * end.y;
-            
+
+            let x = t_inv_sq * t_inv * start.x
+                + 3.0 * t_inv_sq * t * control1.x
+                + 3.0 * t_inv * t_sq * control2.x
+                + t_sq * t * end.x;
+
+            let y = t_inv_sq * t_inv * start.y
+                + 3.0 * t_inv_sq * t * control1.y
+                + 3.0 * t_inv * t_sq * control2.y
+                + t_sq * t * end.y;
+
             points.push(Point { x, y });
         }
-        
+
         points
     }
 }
