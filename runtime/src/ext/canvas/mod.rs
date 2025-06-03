@@ -11,7 +11,9 @@ use crate::ext::canvas::context2d::{
 
 use self::context2d::{
     internal_canvas_arc, internal_canvas_arc_to, internal_canvas_clear_rect,
-    internal_canvas_fill_rect,
+    internal_canvas_fill_rect, internal_canvas_move_to, internal_canvas_line_to,
+    internal_canvas_fill, internal_canvas_stroke, internal_canvas_rect,
+    internal_canvas_set_line_width, internal_canvas_set_stroke_style,
 };
 use nova_vm::{
     SmallInteger,
@@ -247,6 +249,11 @@ struct CanvasData<'gc> {
     height: u32,
     commands: Vec<context2d::CanvasCommand<'gc>>,
     fill_style: FillStyle,
+    stroke_style: FillStyle,
+    line_width: f64,
+    // Path state for renderer
+    current_path: Vec<renderer::Point>,
+    path_started: bool,
 }
 
 struct CanvasResources<'gc> {
@@ -292,6 +299,13 @@ impl CanvasExt {
                 ExtensionOp::new("internal_canvas_clear_rect", internal_canvas_clear_rect, 5),
                 ExtensionOp::new("internal_canvas_close_path", internal_canvas_close_path, 1),
                 ExtensionOp::new("internal_canvas_fill_rect", internal_canvas_fill_rect, 5),
+                ExtensionOp::new("internal_canvas_move_to", internal_canvas_move_to, 3),
+                ExtensionOp::new("internal_canvas_line_to", internal_canvas_line_to, 3),
+                ExtensionOp::new("internal_canvas_fill", internal_canvas_fill, 1),
+                ExtensionOp::new("internal_canvas_stroke", internal_canvas_stroke, 1),
+                ExtensionOp::new("internal_canvas_rect", internal_canvas_rect, 5),
+                ExtensionOp::new("internal_canvas_set_line_width", internal_canvas_set_line_width, 2),
+                ExtensionOp::new("internal_canvas_set_stroke_style", internal_canvas_set_stroke_style, 2),
                 ExtensionOp::new(
                     "internal_canvas_get_fill_style",
                     Self::internal_canvas_get_fill_style,
@@ -356,6 +370,10 @@ impl CanvasExt {
             height,
             commands: Vec::new(),
             fill_style: FillStyle::default(),
+            stroke_style: FillStyle::default(),
+            line_width: 1.0,
+            current_path: Vec::new(),
+            path_started: false,
         });
 
         // Create renderer with GPU device

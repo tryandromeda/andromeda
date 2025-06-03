@@ -197,7 +197,24 @@ pub fn internal_canvas_arc<'gc>(
         .unwrap();
     let mut storage = host_data.storage.borrow_mut();
     let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+    // Convert Nova VM Numbers to f64 for renderer
+    let x_f64 = x.into_f64(agent);
+    let y_f64 = y.into_f64(agent);
+    let radius_f64 = radius.into_f64(agent);
+    let start_angle_f64 = start_angle.into_f64(agent);
+    let end_angle_f64 = end_angle.into_f64(agent);
+
+    // Tessellate arc and add to current path
     let mut data = res.canvases.get_mut(rid).unwrap();
+    tessellate_arc_to_path(
+        &mut data.current_path,
+        x_f64,
+        y_f64,
+        radius_f64,
+        start_angle_f64,
+        end_angle_f64,
+    );
 
     data.commands.push(CanvasCommand::Arc {
         x,
@@ -330,6 +347,33 @@ pub fn internal_canvas_bezier_curve_to<'gc>(
     let mut storage = host_data.storage.borrow_mut();
     let res: &mut CanvasResources = storage.get_mut().unwrap();
     let mut data = res.canvases.get_mut(rid).unwrap();
+
+    // Convert Nova VM Numbers to f64 for renderer
+    let cp1x_f64 = cp1x.into_f64(agent);
+    let cp1y_f64 = cp1y.into_f64(agent);
+    let cp2x_f64 = cp2x.into_f64(agent);
+    let cp2y_f64 = cp2y.into_f64(agent);
+    let x_f64 = x.into_f64(agent);
+    let y_f64 = y.into_f64(agent);
+
+    // Get the last point as starting point for Bezier curve
+    if let Some(last_point) = data.current_path.last().cloned() {
+        tessellate_bezier_to_path(
+            &mut data.current_path,
+            last_point.x,
+            last_point.y,
+            cp1x_f64,
+            cp1y_f64,
+            cp2x_f64,
+            cp2y_f64,
+            x_f64,
+            y_f64,
+        );
+    } else {
+        // If no previous point, just add the end point
+        data.current_path.push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
+    }
+
     data.commands.push(CanvasCommand::BezierCurveTo {
         cp1x,
         cp1y,
@@ -514,4 +558,425 @@ pub fn internal_canvas_fill_rect<'gc>(
     }
 
     Ok(Value::Undefined)
+}
+
+/// Internal op to move to a point on a canvas by Rid
+pub fn internal_canvas_move_to<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+    let x = args
+        .get(1)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let y = args
+        .get(2)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+    let mut data = res.canvases.get_mut(rid).unwrap();
+
+    // Convert Nova VM Numbers to f64 for renderer
+    let x_f64 = x.into_f64(agent);
+    let y_f64 = y.into_f64(agent);
+
+    // Start a new subpath in the current path
+    data.current_path.push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
+    data.path_started = true;
+
+    // Also store as command for fallback
+    data.commands.push(CanvasCommand::MoveTo { x, y });
+
+    Ok(Value::Undefined)
+}
+
+/// Internal op to draw a line to a point on a canvas by Rid
+pub fn internal_canvas_line_to<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+    let x = args
+        .get(1)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let y = args
+        .get(2)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+    let mut data = res.canvases.get_mut(rid).unwrap();
+
+    // Convert Nova VM Numbers to f64 for renderer
+    let x_f64 = x.into_f64(agent);
+    let y_f64 = y.into_f64(agent);
+
+    // Add point to current path if path is started
+    if data.path_started {
+        data.current_path.push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
+    }
+
+    // Also store as command for fallback
+    data.commands.push(CanvasCommand::LineTo { x, y });
+
+    Ok(Value::Undefined)
+}
+
+/// Internal op to fill the current path on a canvas by Rid
+pub fn internal_canvas_fill<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+    // Try to use GPU renderer if available and path has points
+    if let Some(mut renderer) = res.renderers.get_mut(rid) {
+        let data = res.canvases.get(rid).unwrap();
+        
+        if data.current_path.len() >= 3 {
+            // Get the current fill style color
+            let color = match &data.fill_style {
+                super::FillStyle::Color { r, g, b, a } => [*r, *g, *b, *a],
+                _ => [0.0, 0.0, 0.0, 1.0], // Default black
+            };
+
+            // Render the polygon using the GPU renderer
+            renderer.render_polygon(data.current_path.clone(), color);
+        }
+    } else {
+        // Fallback to command storage if no renderer
+        let mut data = res.canvases.get_mut(rid).unwrap();
+        data.commands.push(CanvasCommand::Fill);
+    }
+
+    Ok(Value::Undefined)
+}
+
+/// Internal op to stroke the current path on a canvas by Rid
+pub fn internal_canvas_stroke<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+    // Try to use GPU renderer if available and path has points
+    if let Some(mut renderer) = res.renderers.get_mut(rid) {
+        let data = res.canvases.get(rid).unwrap();
+        
+        if data.current_path.len() >= 2 {
+            // Get the current stroke style color
+            let color = match &data.stroke_style {
+                super::FillStyle::Color { r, g, b, a } => [*r, *g, *b, *a],
+                _ => [0.0, 0.0, 0.0, 1.0], // Default black
+            };
+
+            // Convert path to stroke polygon using line width
+            let stroke_path = generate_stroke_path(&data.current_path, data.line_width);
+            
+            // Render the stroke as a polygon using the GPU renderer
+            renderer.render_polygon(stroke_path, color);
+        }
+    } else {
+        // Fallback to command storage if no renderer
+        let mut data = res.canvases.get_mut(rid).unwrap();
+        data.commands.push(CanvasCommand::Stroke);
+    }
+
+    Ok(Value::Undefined)
+}
+
+/// Internal op to create a rectangle path on a canvas by Rid  
+pub fn internal_canvas_rect<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+    let x = args
+        .get(1)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let y = args
+        .get(2)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let width = args
+        .get(3)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let height = args
+        .get(4)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+    let mut data = res.canvases.get_mut(rid).unwrap();
+
+    // Convert Nova VM Numbers to f64 for renderer
+    let x_f64 = x.into_f64(agent);
+    let y_f64 = y.into_f64(agent);
+    let width_f64 = width.into_f64(agent);
+    let height_f64 = height.into_f64(agent);
+
+    // Add rectangle to current path as four corners
+    data.current_path.push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
+    data.current_path.push(crate::ext::canvas::renderer::Point { x: x_f64 + width_f64, y: y_f64 });
+    data.current_path.push(crate::ext::canvas::renderer::Point { x: x_f64 + width_f64, y: y_f64 + height_f64 });
+    data.current_path.push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 + height_f64 });
+    data.path_started = true;
+
+    // Also store as command for fallback
+    data.commands.push(CanvasCommand::Rect { x, y, width, height });
+
+    Ok(Value::Undefined)
+}
+
+/// Internal op to set the line width for stroking on a canvas by Rid
+pub fn internal_canvas_set_line_width<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+    let line_width = args
+        .get(1)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap()
+        .into_f64(agent);
+
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+    let mut data = res.canvases.get_mut(rid).unwrap();
+    data.line_width = line_width;
+
+    Ok(Value::Undefined)
+}
+
+/// Internal op to set the stroke style for a canvas by Rid
+pub fn internal_canvas_set_stroke_style<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+    let color_str = args.get(1).to_string(agent, gc.reborrow()).unbind().unwrap();
+    let color_str = color_str.as_str(agent);
+
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+    let mut data = res.canvases.get_mut(rid).unwrap();
+    
+    // Parse color string (simplified - just handle basic hex colors)
+    if let Some(color) = parse_color_string(color_str) {
+        data.stroke_style = color;
+    }
+
+    Ok(Value::Undefined)
+}
+
+/// Simple color string parser (handles basic hex colors like "#RRGGBB" and "#RRGGBBAA")
+fn parse_color_string(color_str: &str) -> Option<super::FillStyle> {
+    if color_str.starts_with('#') && color_str.len() >= 7 {
+        let hex = &color_str[1..];
+        
+        // Parse RGB components
+        if let (Ok(r), Ok(g), Ok(b)) = (
+            u8::from_str_radix(&hex[0..2], 16),
+            u8::from_str_radix(&hex[2..4], 16),
+            u8::from_str_radix(&hex[4..6], 16),
+        ) {
+            let a = if hex.len() >= 8 {
+                u8::from_str_radix(&hex[6..8], 16).unwrap_or(255)
+            } else {
+                255
+            };
+            
+            return Some(super::FillStyle::Color {
+                r: r as f32 / 255.0,
+                g: g as f32 / 255.0,
+                b: b as f32 / 255.0,
+                a: a as f32 / 255.0,
+            });
+        }
+    }
+    
+    // Handle basic named colors
+    match color_str {
+        "black" => Some(super::FillStyle::Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }),
+        "white" => Some(super::FillStyle::Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }),
+        "red" => Some(super::FillStyle::Color { r: 1.0, g: 0.0, b: 0.0, a: 1.0 }),
+        "green" => Some(super::FillStyle::Color { r: 0.0, g: 1.0, b: 0.0, a: 1.0 }),
+        "blue" => Some(super::FillStyle::Color { r: 0.0, g: 0.0, b: 1.0, a: 1.0 }),
+        _ => None,
+    }
+}
+
+/// Tessellate an arc into line segments and add to path
+fn tessellate_arc_to_path(
+    path: &mut Vec<crate::ext::canvas::renderer::Point>,
+    center_x: f64,
+    center_y: f64,
+    radius: f64,
+    start_angle: f64,
+    end_angle: f64,
+) {
+    const SEGMENTS: usize = 32; // Number of segments for arc approximation
+    
+    let angle_diff = end_angle - start_angle;
+    let step = angle_diff / SEGMENTS as f64;
+    
+    for i in 0..=SEGMENTS {
+        let angle = start_angle + (i as f64 * step);
+        let x = center_x + radius * angle.cos();
+        let y = center_y + radius * angle.sin();
+        path.push(crate::ext::canvas::renderer::Point { x, y });
+    }
+}
+
+/// Tessellate a cubic Bezier curve into line segments and add to path
+fn tessellate_bezier_to_path(
+    path: &mut Vec<crate::ext::canvas::renderer::Point>,
+    start_x: f64,
+    start_y: f64,
+    cp1x: f64,
+    cp1y: f64,
+    cp2x: f64,
+    cp2y: f64,
+    end_x: f64,
+    end_y: f64,
+) {
+    const SEGMENTS: usize = 20; // Number of segments for curve approximation
+    
+    for i in 0..=SEGMENTS {
+        let t = i as f64 / SEGMENTS as f64;
+        let t2 = t * t;
+        let t3 = t2 * t;
+        let mt = 1.0 - t;
+        let mt2 = mt * mt;
+        let mt3 = mt2 * mt;
+        
+        // Cubic Bezier formula: B(t) = (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
+        let x = mt3 * start_x + 3.0 * mt2 * t * cp1x + 3.0 * mt * t2 * cp2x + t3 * end_x;
+        let y = mt3 * start_y + 3.0 * mt2 * t * cp1y + 3.0 * mt * t2 * cp2y + t3 * end_y;
+        
+        path.push(crate::ext::canvas::renderer::Point { x, y });
+    }
+}
+
+/// Generate a stroke path from a line path by creating a polygon with the specified width
+fn generate_stroke_path(
+    path: &[crate::ext::canvas::renderer::Point], 
+    line_width: f64
+) -> Vec<crate::ext::canvas::renderer::Point> {
+    if path.len() < 2 {
+        return Vec::new();
+    }
+    
+    let half_width = line_width / 2.0;
+    let mut stroke_polygon = Vec::new();
+    
+    // For each line segment, create perpendicular lines for the stroke width
+    for window in path.windows(2) {
+        let start = &window[0];
+        let end = &window[1];
+        
+        // Calculate perpendicular vector
+        let dx = end.x - start.x;
+        let dy = end.y - start.y;
+        let length = (dx * dx + dy * dy).sqrt();
+        
+        if length > 0.0 {
+            let perpendicular_x = -dy / length * half_width;
+            let perpendicular_y = dx / length * half_width;
+            
+            // Add points for this segment (simplified approach - creates rectangles)
+            stroke_polygon.push(crate::ext::canvas::renderer::Point {
+                x: start.x + perpendicular_x,
+                y: start.y + perpendicular_y,
+            });
+            stroke_polygon.push(crate::ext::canvas::renderer::Point {
+                x: start.x - perpendicular_x,
+                y: start.y - perpendicular_y,
+            });
+            stroke_polygon.push(crate::ext::canvas::renderer::Point {
+                x: end.x - perpendicular_x,
+                y: end.y - perpendicular_y,
+            });
+            stroke_polygon.push(crate::ext::canvas::renderer::Point {
+                x: end.x + perpendicular_x,
+                y: end.y + perpendicular_y,
+            });
+        }
+    }
+    
+    stroke_polygon
 }

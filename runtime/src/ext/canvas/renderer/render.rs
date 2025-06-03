@@ -1,4 +1,7 @@
-#![allow(dead_code)]
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 use image;
 use wgpu::PollType;
 
@@ -294,7 +297,10 @@ impl Renderer {
             .write_buffer(self.buffers.vertex.last().unwrap(), 0, &buf);
     }
 
-    pub fn render_polygon(&mut self, polygon: Path) {
+    pub fn render_polygon(&mut self, polygon: Path, color: Color) {
+        // Set the color uniform
+        self.set_uniform_at(vec![color[0], color[1], color[2], color[3]], 0);
+
         let mut data = Vec::new();
         if let 0 = polygon.len() % 2 {
             for i in 0..(polygon.len() / 2) {

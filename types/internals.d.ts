@@ -213,6 +213,42 @@ declare function internal_canvas_get_fill_style(rid: number): string;
 declare function internal_canvas_set_fill_style(rid: number, style: string): void;
 
 /**
+ * The `internal_canvas_move_to` function moves the path starting point to the specified coordinates.
+ */
+declare function internal_canvas_move_to(rid: number, x: number, y: number): void;
+
+/**
+ * The `internal_canvas_line_to` function connects the last point in the current sub-path to the specified coordinates with a straight line.
+ */
+declare function internal_canvas_line_to(rid: number, x: number, y: number): void;
+
+/**
+ * The `internal_canvas_fill` function fills the current path with the current fill style.
+ */
+declare function internal_canvas_fill(rid: number): void;
+
+/**
+ * The `internal_canvas_stroke` function strokes the current path with the current stroke style.
+ */
+declare function internal_canvas_stroke(rid: number): void;
+
+/**
+ * The `internal_canvas_rect` function adds a rectangle to the current path.
+ */
+declare function internal_canvas_rect(rid: number, x: number, y: number, width: number, height: number): void;
+
+/**
+ * The `internal_canvas_set_line_width` function sets the line width for stroking on the canvas.
+ */
+declare function internal_canvas_set_line_width(rid: number, lineWidth: number): void;
+
+/**
+ * The `internal_canvas_set_stroke_style` function sets the stroke style of the canvas context.
+ * Accepts CSS color strings like '#ff0000', 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'red', etc.
+ */
+declare function internal_canvas_set_stroke_style(rid: number, style: string): void;
+
+/**
  * The `internal_image_bitmap_create` function creates an ImageBitmap resource and returns its Rid.
  */
 declare function internal_image_bitmap_create(path: string): number;

@@ -230,6 +230,10 @@ declare function createCanvas(width: number, height: number): Canvas;
 declare class CanvasRenderingContext2D {
   /** Gets or sets the current fill style for drawing operations. */
   fillStyle: string;
+  /** Gets or sets the current stroke style for drawing operations. */
+  strokeStyle: string;
+  /** Gets or sets the line width for drawing operations. */
+  lineWidth: number;
   /** Creates an arc/curve on the canvas context. */
   arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void;
   /** Creates an arc-to command on the canvas context. */
@@ -244,6 +248,16 @@ declare class CanvasRenderingContext2D {
   closePath(): void;
   /** Draws a filled rectangle whose starting corner is at (x, y). */
   fillRect(x: number, y: number, width: number, height: number): void;
+  /** Moves the path starting point to the specified coordinates. */
+  moveTo(x: number, y: number): void;
+  /** Connects the last point in the current sub-path to the specified coordinates with a straight line. */
+  lineTo(x: number, y: number): void;
+  /** Fills the current path with the current fill style. */
+  fill(): void;
+  /** Strokes the current path with the current stroke style. */
+  stroke(): void;
+  /** Adds a rectangle to the current path. */
+  rect(x: number, y: number, width: number, height: number): void;
 }
 
 /**

@@ -49,7 +49,7 @@ class Canvas {
    * Returns true if save was successful, false otherwise.
    */
   saveAsPng(path: string): boolean {
-    return internal_canvas_save_as_png(this.#rid, path);
+    return this.render() ? internal_canvas_save_as_png(this.#rid, path) : false;
   }
 }
 
@@ -84,6 +84,21 @@ class CanvasRenderingContext2D {
 
   set fillStyle(value: string) {
     internal_canvas_set_fill_style(this.#rid, value);
+  }
+
+  /**
+   * Gets or sets the current stroke style for drawing operations.
+   * Accepts CSS color strings like '#ff0000', 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'red', etc.
+   */
+  set strokeStyle(value: string) {
+    internal_canvas_set_stroke_style(this.#rid, value);
+  }
+
+  /**
+   * Gets or sets the line width for drawing operations.
+   */
+  set lineWidth(value: number) {
+    internal_canvas_set_line_width(this.#rid, value);
   }
 
   /**
@@ -159,5 +174,40 @@ class CanvasRenderingContext2D {
    */
   fillRect(x: number, y: number, width: number, height: number): void {
     internal_canvas_fill_rect(this.#rid, x, y, width, height);
+  }
+
+  /**
+   * Moves the path starting point to the specified coordinates.
+   */
+  moveTo(x: number, y: number): void {
+    internal_canvas_move_to(this.#rid, x, y);
+  }
+
+  /**
+   * Connects the last point in the current sub-path to the specified coordinates with a straight line.
+   */
+  lineTo(x: number, y: number): void {
+    internal_canvas_line_to(this.#rid, x, y);
+  }
+
+  /**
+   * Fills the current path with the current fill style.
+   */
+  fill(): void {
+    internal_canvas_fill(this.#rid);
+  }
+
+  /**
+   * Strokes the current path with the current stroke style.
+   */
+  stroke(): void {
+    internal_canvas_stroke(this.#rid);
+  }
+
+  /**
+   * Adds a rectangle to the current path.
+   */
+  rect(x: number, y: number, width: number, height: number): void {
+    internal_canvas_rect(this.#rid, x, y, width, height);
   }
 }
