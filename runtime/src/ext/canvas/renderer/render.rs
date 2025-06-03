@@ -438,6 +438,7 @@ impl Renderer {
     }
 
     /// Renders a cubic Bezier curve from start through two control points to end point
+    #[allow(clippy::too_many_arguments)]
     pub fn render_cubic_bezier(
         &mut self,
         start: Point,
