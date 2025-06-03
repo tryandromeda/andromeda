@@ -371,7 +371,8 @@ pub fn internal_canvas_bezier_curve_to<'gc>(
         );
     } else {
         // If no previous point, just add the end point
-        data.current_path.push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
+        data.current_path
+            .push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
     }
 
     data.commands.push(CanvasCommand::BezierCurveTo {
@@ -593,7 +594,8 @@ pub fn internal_canvas_move_to<'gc>(
     let y_f64 = y.into_f64(agent);
 
     // Start a new subpath in the current path
-    data.current_path.push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
+    data.current_path
+        .push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
     data.path_started = true;
 
     // Also store as command for fallback
@@ -636,7 +638,8 @@ pub fn internal_canvas_line_to<'gc>(
 
     // Add point to current path if path is started
     if data.path_started {
-        data.current_path.push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
+        data.current_path
+            .push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
     }
 
     // Also store as command for fallback
@@ -665,7 +668,7 @@ pub fn internal_canvas_fill<'gc>(
     // Try to use GPU renderer if available and path has points
     if let Some(mut renderer) = res.renderers.get_mut(rid) {
         let data = res.canvases.get(rid).unwrap();
-        
+
         if data.current_path.len() >= 3 {
             // Get the current fill style color
             let color = match &data.fill_style {
@@ -705,7 +708,7 @@ pub fn internal_canvas_stroke<'gc>(
     // Try to use GPU renderer if available and path has points
     if let Some(mut renderer) = res.renderers.get_mut(rid) {
         let data = res.canvases.get(rid).unwrap();
-        
+
         if data.current_path.len() >= 2 {
             // Get the current stroke style color
             let color = match &data.stroke_style {
@@ -715,7 +718,7 @@ pub fn internal_canvas_stroke<'gc>(
 
             // Convert path to stroke polygon using line width
             let stroke_path = generate_stroke_path(&data.current_path, data.line_width);
-            
+
             // Render the stroke as a polygon using the GPU renderer
             renderer.render_polygon(stroke_path, color);
         }
@@ -773,14 +776,29 @@ pub fn internal_canvas_rect<'gc>(
     let height_f64 = height.into_f64(agent);
 
     // Add rectangle to current path as four corners
-    data.current_path.push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
-    data.current_path.push(crate::ext::canvas::renderer::Point { x: x_f64 + width_f64, y: y_f64 });
-    data.current_path.push(crate::ext::canvas::renderer::Point { x: x_f64 + width_f64, y: y_f64 + height_f64 });
-    data.current_path.push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 + height_f64 });
+    data.current_path
+        .push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
+    data.current_path.push(crate::ext::canvas::renderer::Point {
+        x: x_f64 + width_f64,
+        y: y_f64,
+    });
+    data.current_path.push(crate::ext::canvas::renderer::Point {
+        x: x_f64 + width_f64,
+        y: y_f64 + height_f64,
+    });
+    data.current_path.push(crate::ext::canvas::renderer::Point {
+        x: x_f64,
+        y: y_f64 + height_f64,
+    });
     data.path_started = true;
 
     // Also store as command for fallback
-    data.commands.push(CanvasCommand::Rect { x, y, width, height });
+    data.commands.push(CanvasCommand::Rect {
+        x,
+        y,
+        width,
+        height,
+    });
 
     Ok(Value::Undefined)
 }
@@ -823,7 +841,11 @@ pub fn internal_canvas_set_stroke_style<'gc>(
 ) -> JsResult<'gc, Value<'gc>> {
     let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
     let rid = Rid::from_index(rid_val);
-    let color_str = args.get(1).to_string(agent, gc.reborrow()).unbind().unwrap();
+    let color_str = args
+        .get(1)
+        .to_string(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
     let color_str = color_str.as_str(agent);
 
     let host_data = agent
@@ -834,7 +856,7 @@ pub fn internal_canvas_set_stroke_style<'gc>(
     let res: &mut CanvasResources = storage.get_mut().unwrap();
 
     let mut data = res.canvases.get_mut(rid).unwrap();
-    
+
     // Parse color string (simplified - just handle basic hex colors)
     if let Some(color) = parse_color_string(color_str) {
         data.stroke_style = color;
@@ -847,7 +869,7 @@ pub fn internal_canvas_set_stroke_style<'gc>(
 fn parse_color_string(color_str: &str) -> Option<super::FillStyle> {
     if color_str.starts_with('#') && color_str.len() >= 7 {
         let hex = &color_str[1..];
-        
+
         // Parse RGB components
         if let (Ok(r), Ok(g), Ok(b)) = (
             u8::from_str_radix(&hex[0..2], 16),
@@ -859,7 +881,7 @@ fn parse_color_string(color_str: &str) -> Option<super::FillStyle> {
             } else {
                 255
             };
-            
+
             return Some(super::FillStyle::Color {
                 r: r as f32 / 255.0,
                 g: g as f32 / 255.0,
@@ -868,14 +890,39 @@ fn parse_color_string(color_str: &str) -> Option<super::FillStyle> {
             });
         }
     }
-    
+
     // Handle basic named colors
     match color_str {
-        "black" => Some(super::FillStyle::Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }),
-        "white" => Some(super::FillStyle::Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }),
-        "red" => Some(super::FillStyle::Color { r: 1.0, g: 0.0, b: 0.0, a: 1.0 }),
-        "green" => Some(super::FillStyle::Color { r: 0.0, g: 1.0, b: 0.0, a: 1.0 }),
-        "blue" => Some(super::FillStyle::Color { r: 0.0, g: 0.0, b: 1.0, a: 1.0 }),
+        "black" => Some(super::FillStyle::Color {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        }),
+        "white" => Some(super::FillStyle::Color {
+            r: 1.0,
+            g: 1.0,
+            b: 1.0,
+            a: 1.0,
+        }),
+        "red" => Some(super::FillStyle::Color {
+            r: 1.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        }),
+        "green" => Some(super::FillStyle::Color {
+            r: 0.0,
+            g: 1.0,
+            b: 0.0,
+            a: 1.0,
+        }),
+        "blue" => Some(super::FillStyle::Color {
+            r: 0.0,
+            g: 0.0,
+            b: 1.0,
+            a: 1.0,
+        }),
         _ => None,
     }
 }
@@ -890,10 +937,10 @@ fn tessellate_arc_to_path(
     end_angle: f64,
 ) {
     const SEGMENTS: usize = 32; // Number of segments for arc approximation
-    
+
     let angle_diff = end_angle - start_angle;
     let step = angle_diff / SEGMENTS as f64;
-    
+
     for i in 0..=SEGMENTS {
         let angle = start_angle + (i as f64 * step);
         let x = center_x + radius * angle.cos();
@@ -915,7 +962,7 @@ fn tessellate_bezier_to_path(
     end_y: f64,
 ) {
     const SEGMENTS: usize = 20; // Number of segments for curve approximation
-    
+
     for i in 0..=SEGMENTS {
         let t = i as f64 / SEGMENTS as f64;
         let t2 = t * t;
@@ -923,41 +970,41 @@ fn tessellate_bezier_to_path(
         let mt = 1.0 - t;
         let mt2 = mt * mt;
         let mt3 = mt2 * mt;
-        
+
         // Cubic Bezier formula: B(t) = (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
         let x = mt3 * start_x + 3.0 * mt2 * t * cp1x + 3.0 * mt * t2 * cp2x + t3 * end_x;
         let y = mt3 * start_y + 3.0 * mt2 * t * cp1y + 3.0 * mt * t2 * cp2y + t3 * end_y;
-        
+
         path.push(crate::ext::canvas::renderer::Point { x, y });
     }
 }
 
 /// Generate a stroke path from a line path by creating a polygon with the specified width
 fn generate_stroke_path(
-    path: &[crate::ext::canvas::renderer::Point], 
-    line_width: f64
+    path: &[crate::ext::canvas::renderer::Point],
+    line_width: f64,
 ) -> Vec<crate::ext::canvas::renderer::Point> {
     if path.len() < 2 {
         return Vec::new();
     }
-    
+
     let half_width = line_width / 2.0;
     let mut stroke_polygon = Vec::new();
-    
+
     // For each line segment, create perpendicular lines for the stroke width
     for window in path.windows(2) {
         let start = &window[0];
         let end = &window[1];
-        
+
         // Calculate perpendicular vector
         let dx = end.x - start.x;
         let dy = end.y - start.y;
         let length = (dx * dx + dy * dy).sqrt();
-        
+
         if length > 0.0 {
             let perpendicular_x = -dy / length * half_width;
             let perpendicular_y = dx / length * half_width;
-            
+
             // Add points for this segment (simplified approach - creates rectangles)
             stroke_polygon.push(crate::ext::canvas::renderer::Point {
                 x: start.x + perpendicular_x,
@@ -977,6 +1024,6 @@ fn generate_stroke_path(
             });
         }
     }
-    
+
     stroke_polygon
 }

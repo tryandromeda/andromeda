@@ -10,10 +10,10 @@ use crate::ext::canvas::context2d::{
 };
 
 use self::context2d::{
-    internal_canvas_arc, internal_canvas_arc_to, internal_canvas_clear_rect,
-    internal_canvas_fill_rect, internal_canvas_move_to, internal_canvas_line_to,
-    internal_canvas_fill, internal_canvas_stroke, internal_canvas_rect,
-    internal_canvas_set_line_width, internal_canvas_set_stroke_style,
+    internal_canvas_arc, internal_canvas_arc_to, internal_canvas_clear_rect, internal_canvas_fill,
+    internal_canvas_fill_rect, internal_canvas_line_to, internal_canvas_move_to,
+    internal_canvas_rect, internal_canvas_set_line_width, internal_canvas_set_stroke_style,
+    internal_canvas_stroke,
 };
 use nova_vm::{
     SmallInteger,
@@ -304,8 +304,16 @@ impl CanvasExt {
                 ExtensionOp::new("internal_canvas_fill", internal_canvas_fill, 1),
                 ExtensionOp::new("internal_canvas_stroke", internal_canvas_stroke, 1),
                 ExtensionOp::new("internal_canvas_rect", internal_canvas_rect, 5),
-                ExtensionOp::new("internal_canvas_set_line_width", internal_canvas_set_line_width, 2),
-                ExtensionOp::new("internal_canvas_set_stroke_style", internal_canvas_set_stroke_style, 2),
+                ExtensionOp::new(
+                    "internal_canvas_set_line_width",
+                    internal_canvas_set_line_width,
+                    2,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_set_stroke_style",
+                    internal_canvas_set_stroke_style,
+                    2,
+                ),
                 ExtensionOp::new(
                     "internal_canvas_get_fill_style",
                     Self::internal_canvas_get_fill_style,
