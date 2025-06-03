@@ -21,6 +21,37 @@ const U32_SIZE: u32 = std::mem::size_of::<u32>() as u32;
 pub const UNIFORM_LENGTH: usize = 32;
 
 impl Renderer {
+    #[allow(dead_code)]
+    /// Render an arc as a filled polygon (fan) using tessellation
+    pub fn render_arc(
+        &mut self,
+        center_x: f64,
+        center_y: f64,
+        radius: f64,
+        start_angle: f64,
+        end_angle: f64,
+        color: Color,
+    ) {
+        // Tessellate arc into points
+        const SEGMENTS: usize = 32;
+        let angle_diff = end_angle - start_angle;
+        let step = angle_diff / SEGMENTS as f64;
+        let mut points = Vec::new();
+        // Center point for fan
+        points.push(crate::ext::canvas::renderer::Point {
+            x: center_x,
+            y: center_y,
+        });
+        for i in 0..=SEGMENTS {
+            let angle = start_angle + (i as f64 * step);
+            let x = center_x + radius * angle.cos();
+            let y = center_y + radius * angle.sin();
+            points.push(crate::ext::canvas::renderer::Point { x, y });
+        }
+        // Render as polygon (triangle fan)
+        self.render_polygon(points, color);
+    }
+
     pub fn new(
         device: wgpu::Device,
         queue: wgpu::Queue,

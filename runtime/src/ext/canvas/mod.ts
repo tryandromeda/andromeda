@@ -113,6 +113,7 @@ class CanvasRenderingContext2D {
   ): void {
     internal_canvas_arc(this.#rid, x, y, radius, startAngle, endAngle);
   }
+  
 
   /**
    * Creates an arc to the canvas.

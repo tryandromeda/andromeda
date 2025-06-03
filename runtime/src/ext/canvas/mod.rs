@@ -240,6 +240,19 @@ impl FillStyle {
             _ => (0.0, 0.0, 0.0, 1.0), // Default to black for unsupported types
         }
     }
+
+    // Add method to apply global alpha
+    pub fn with_global_alpha(&self, global_alpha: f32) -> Self {
+        match self {
+            FillStyle::Color { r, g, b, a } => FillStyle::Color {
+                r: *r,
+                g: *g,
+                b: *b,
+                a: a * global_alpha,
+            },
+            _ => self.clone(),
+        }
+    }
 }
 
 /// A Canvas extension
@@ -261,12 +274,14 @@ struct CanvasResources<'gc> {
     images: ResourceTable<ImageData>,
     renderers: ResourceTable<renderer::Renderer>,
 }
+
 /// Stored image dimensions
 #[derive(Clone)]
 struct ImageData {
     width: u32,
     height: u32,
 }
+
 #[derive(Default)]
 pub struct CanvasExt;
 
@@ -357,6 +372,7 @@ impl CanvasExt {
             files: vec![include_str!("./mod.ts"), include_str!("./image.ts")],
         }
     }
+
     fn internal_canvas_create<'gc>(
         agent: &mut Agent,
         _this: Value<'_>,
@@ -412,6 +428,7 @@ impl CanvasExt {
         let data = res.canvases.get(rid).unwrap();
         Ok(Value::Integer(SmallInteger::from(data.width as i32)))
     }
+
     fn internal_canvas_get_height<'gc>(
         agent: &mut Agent,
         _this: Value<'_>,
@@ -429,6 +446,7 @@ impl CanvasExt {
         let data = res.canvases.get(rid).unwrap();
         Ok(Value::Integer(SmallInteger::from(data.height as i32)))
     }
+
     /// Internal op to create an ImageBitmap resource
     fn internal_image_bitmap_create<'gc>(
         agent: &mut Agent,
@@ -451,6 +469,7 @@ impl CanvasExt {
         });
         Ok(Value::Integer(SmallInteger::from(rid.index() as i32)))
     }
+
     /// Internal op to get ImageBitmap width
     fn internal_image_bitmap_get_width<'gc>(
         agent: &mut Agent,
@@ -469,6 +488,7 @@ impl CanvasExt {
         let data = res.images.get(rid).unwrap();
         Ok(Value::Integer(SmallInteger::from(data.width as i32)))
     }
+
     /// Internal op to get ImageBitmap height
     fn internal_image_bitmap_get_height<'gc>(
         agent: &mut Agent,
