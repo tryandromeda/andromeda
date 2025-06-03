@@ -516,10 +516,7 @@ pub fn internal_canvas_fill_rect<'gc>(
     // Try to render directly with GPU if renderer exists
     let has_renderer = {
         // Check in a separate scope to avoid borrow conflicts
-        match res.renderers.get_mut(rid) {
-            Some(_) => true,
-            None => false,
-        }
+        res.renderers.get_mut(rid).is_some()
     };
 
     if has_renderer {
@@ -949,6 +946,7 @@ fn tessellate_arc_to_path(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 /// Tessellate a cubic Bezier curve into line segments and add to path
 fn tessellate_bezier_to_path(
     path: &mut Vec<crate::ext::canvas::renderer::Point>,
