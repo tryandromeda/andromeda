@@ -16,6 +16,8 @@ pub fn recommended_extensions() -> Vec<Extension> {
         URLExt::new_extension(),
         WebExt::new_extension(),
         HeadersExt::new_extension(),
+        #[cfg(feature = "canvas")]
+        crate::CanvasExt::new_extension(),
     ]
 }
 

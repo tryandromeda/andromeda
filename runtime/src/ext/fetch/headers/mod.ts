@@ -1,34 +1,39 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// deno-lint-ignore-file no-unused-vars
 
 class Headers {
   // TODO: Private properties
-  // #guard
-  // #headerList
+  #guard: "none" | "immutable" = "none";
+  #headerList: [string, string][] = [];
 
   // TODO: this is HeaderList type
   // https://fetch.spec.whatwg.org/#headers-class
   constructor(init = undefined) {
-    // @ts-ignore
-    this.guard = "none";
-    // @ts-ignore
-    this.headerList = [];
     fillHeaders(this, init);
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-get
   get(name: string) {
-    return getHeader(this.headerList, name);
+    return getHeader(this.#headerList, name);
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-append
-  append(name, value) {
+  append(name: string, value: string) {
     return appendHeader(this, name, value);
+  }
+
+  get headerList() {
+    return this.#headerList;
+  }
+  get guard() {
+    return this.#guard;
   }
 }
 
-function fillHeaders(headers: Headers, object) {
+// deno-lint-ignore no-explicit-any
+function fillHeaders(headers: Headers, object: any) {
   if (Array.isArray(object)) {
     for (let i = 0; i < object.length; ++i) {
       const header = object[i];
@@ -49,14 +54,14 @@ function fillHeaders(headers: Headers, object) {
   }
 }
 
-function byteLowerCase(s) {
+function byteLowerCase(s: string): string {
   // NOTE: correct since all callers convert to ByteString first
   // TODO(@AaronO): maybe prefer a ByteString_Lower webidl converter
   return s;
 }
 
 //  https://fetch.spec.whatwg.org/#concept-headers-append
-function appendHeader(headers, name, value) {
+function appendHeader(headers: Headers, name: string, value: string) {
   // 1.
   value = normalizeHeaderValue(value);
 
@@ -85,12 +90,12 @@ function appendHeader(headers, name, value) {
   list.push([name, value]);
 }
 
-function normalizeHeaderValue(potentialValue) {
+function normalizeHeaderValue(potentialValue: string): string {
   return httpTrim(potentialValue);
 }
 
 // TODO: move to web
-function isHttpWhitespace(char) {
+function isHttpWhitespace(char: string): boolean {
   switch (char) {
     case "\u0009":
     case "\u000A":
@@ -106,7 +111,7 @@ function isHttpWhitespace(char) {
 //   `^[${HTTP_WHITESPACE_MATCHER}]*(.*?)[${HTTP_WHITESPACE_MATCHER}]*$`,
 // );
 // TODO: move to web
-function httpTrim(s) {
+function httpTrim(s: string): string {
   if (!isHttpWhitespace(s[0]) && !isHttpWhitespace(s[s.length - 1])) {
     return s;
   }
@@ -116,7 +121,7 @@ function httpTrim(s) {
 }
 
 //  https://fetch.spec.whatwg.org/#concept-header-list-get
-function getHeader(list, name) {
+function getHeader(list: [string, string][], name: string): string | null {
   const lowercaseName = byteLowerCase(name);
   const entries = [];
   for (let i = 0; i < list.length; i++) {
@@ -128,6 +133,6 @@ function getHeader(list, name) {
   if (entries.length === 0) {
     return null;
   } else {
-    return entries.join(entries, "\x2C\x20");
+    return entries.join("\x2C\x20");
   }
 }

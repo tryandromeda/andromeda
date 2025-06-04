@@ -101,7 +101,233 @@ declare function internal_url_parse_no_base(url: string): string;
  * The `internal_btoa` function encodes a string in base64.
  */
 declare function internal_btoa(input: string): string;
+
 /**
  * The `internal_atob` function decodes a string in base64.
  */
 declare function internal_atob(input: string): string;
+
+/**
+ * The `internal_canvas_create` function creates a canvas with the specified width and height.
+ */
+declare function internal_canvas_create(width: number, height: number): number;
+
+/**
+ * The `internal_canvas_get_width` function gets the width of the canvas.
+ */
+declare function internal_canvas_get_width(rid: number): number;
+
+/**
+ * The `internal_canvas_get_height` function gets the height of the canvas.
+ */
+declare function internal_canvas_get_height(rid: number): number;
+/**
+ * The `internal_canvas_arc` function creates an arc on the canvas.
+ */
+declare function internal_canvas_arc(
+  rid: number,
+  x: number,
+  y: number,
+  radius: number,
+  start_angle: number,
+  end_angle: number,
+): void;
+
+/**
+ * The `internal_canvas_arc_to` function creates an arc on the canvas.
+ */
+declare function internal_canvas_arc_to(
+  rid: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  radius: number,
+): void;
+
+/**
+ * The `internal_canvas_begin_path` function begins a new path on the canvas.
+ */
+declare function internal_canvas_begin_path(rid: number): void;
+
+/**
+ * The `internal_canvas_bezier_curve_to` function creates a bezier curve on the canvas.
+ */
+declare function internal_canvas_bezier_curve_to(
+  rid: number,
+  cp1x: number,
+  cp1y: number,
+  cp2x: number,
+  cp2y: number,
+  x: number,
+  y: number,
+): void;
+/**
+ * Clears the specified rectangle on the canvas.
+ */
+declare function internal_canvas_clear_rect(
+  rid: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void;
+
+/**
+ * The `internal_canvas_close_path` function closes the current path on the canvas.
+ */
+declare function internal_canvas_close_path(rid: number): void;
+/**
+ * Draws a filled rectangle on the specified canvas.
+ */
+declare function internal_canvas_fill_rect(
+  rid: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void;
+
+/**
+ * The `internal_canvas_render` function renders the canvas to finalize GPU operations.
+ * Returns true if rendering was successful, false otherwise.
+ */
+declare function internal_canvas_render(rid: number): boolean;
+
+/**
+ * The `internal_canvas_save_as_png` function saves the canvas as a PNG file.
+ * Returns true if save was successful, false otherwise.
+ */
+declare function internal_canvas_save_as_png(rid: number, path: string): boolean;
+
+/**
+ * The `internal_canvas_get_fill_style` function gets the current fill style of the canvas context.
+ * Returns the fill style as a CSS color string.
+ */
+declare function internal_canvas_get_fill_style(rid: number): string;
+
+/**
+ * The `internal_canvas_set_fill_style` function sets the fill style of the canvas context.
+ * Accepts CSS color strings like '#ff0000', 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'red', etc.
+ */
+declare function internal_canvas_set_fill_style(rid: number, style: string): void;
+
+/**
+ * The `internal_canvas_move_to` function moves the path starting point to the specified coordinates.
+ */
+declare function internal_canvas_move_to(rid: number, x: number, y: number): void;
+
+/**
+ * The `internal_canvas_line_to` function connects the last point in the current sub-path to the specified coordinates with a straight line.
+ */
+declare function internal_canvas_line_to(rid: number, x: number, y: number): void;
+
+/**
+ * The `internal_canvas_fill` function fills the current path with the current fill style.
+ */
+declare function internal_canvas_fill(rid: number): void;
+
+/**
+ * The `internal_canvas_stroke` function strokes the current path with the current stroke style.
+ */
+declare function internal_canvas_stroke(rid: number): void;
+
+/**
+ * The `internal_canvas_rect` function adds a rectangle to the current path.
+ */
+declare function internal_canvas_rect(rid: number, x: number, y: number, width: number, height: number): void;
+
+/**
+ * The `internal_canvas_set_line_width` function sets the line width for stroking on the canvas.
+ */
+declare function internal_canvas_set_line_width(rid: number, lineWidth: number): void;
+
+/**
+ * The `internal_canvas_set_stroke_style` function sets the stroke style of the canvas context.
+ * Accepts CSS color strings like '#ff0000', 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'red', etc.
+ */
+declare function internal_canvas_set_stroke_style(rid: number, style: string): void;
+
+/**
+ * The `internal_canvas_get_global_alpha` function gets the global alpha value of the canvas context.
+ * Returns the global alpha as an integer (scaled by 1000).
+ */
+declare function internal_canvas_get_global_alpha(rid: number): number;
+
+/**
+ * The `internal_canvas_set_global_alpha` function sets the global alpha value of the canvas context.
+ * Accepts a global alpha value as an integer (scaled by 1000).
+ */
+declare function internal_canvas_set_global_alpha(rid: number, alpha: number): void;
+
+/**
+ * The `internal_image_bitmap_create` function creates an ImageBitmap resource and returns its Rid.
+ */
+declare function internal_image_bitmap_create(path: string): number;
+/**
+ * The `internal_image_bitmap_get_width` function returns the width of the ImageBitmap resource.
+ */
+declare function internal_image_bitmap_get_width(rid: number): number;
+/**
+ * The `internal_image_bitmap_get_height` function returns the height of the ImageBitmap resource.
+ */
+declare function internal_image_bitmap_get_height(rid: number): number;
+/**
+ * The `internal_canvas_quadratic_curve_to` function creates a quadratic curve on the canvas.
+ */
+declare function internal_canvas_quadratic_curve_to(
+  rid: number,
+  cpx: number,
+  cpy: number,
+  x: number,
+  y: number
+): void;
+
+/**
+ * The `internal_canvas_ellipse` function creates an ellipse on the canvas.
+ */
+declare function internal_canvas_ellipse(
+  rid: number,
+  x: number,
+  y: number,
+  radiusX: number,
+  radiusY: number,
+  rotation: number,
+  startAngle: number,
+  endAngle: number,
+  counterclockwise?: boolean
+): void;
+
+/**
+ * The `internal_canvas_round_rect` function adds a rounded rectangle to the current path.
+ */
+declare function internal_canvas_round_rect(
+  rid: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+): void;
+
+/**
+ * The `internal_canvas_save` function saves the current canvas state (styles, transformations, etc.).
+ */
+declare function internal_canvas_save(rid: number): void;
+
+/**
+ * The `internal_canvas_restore` function restores the most recently saved canvas state.
+ */
+declare function internal_canvas_restore(rid: number): void;
+
+/**
+ * The `internal_canvas_get_stroke_style` function gets the current stroke style of the canvas context.
+ * Returns the stroke style as a CSS color string.
+ */
+declare function internal_canvas_get_stroke_style(rid: number): string;
+
+/**
+ * The `internal_canvas_get_line_width` function gets the current line width of the canvas context.
+ * Returns the line width as a number.
+ */
+declare function internal_canvas_get_line_width(rid: number): number;

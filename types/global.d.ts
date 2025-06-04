@@ -187,3 +187,125 @@ declare function prompt(message: string): string;
  * The `confirm` function prompts the user for confirmation.
  */
 declare function confirm(message: string): boolean;
+
+/**
+ * An offscreen Canvas implementation.
+ */
+declare class OffscreenCanvas {
+  /**
+   * Create a new off-screen canvas with the given dimensions.
+   */
+  constructor(width: number, height: number);
+  /** Get the width of the canvas. */
+  getWidth(): number;
+  /** Get the height of the canvas. */
+  getHeight(): number;
+  /**
+   * Returns a 2D rendering context or null if not available.
+   */
+  getContext(type: "2d"): CanvasRenderingContext2D | null;
+  /**
+   * Renders the canvas to finalize GPU operations and optionally extract pixel data.
+   * Returns true if rendering was successful, false otherwise.
+   */
+  render(): boolean;
+  /**
+   * Saves the canvas as a PNG image file.
+   * Returns true if save was successful, false otherwise.
+   */
+  saveAsPng(path: string): boolean;
+}
+
+/**
+ * The 2D rendering context for a Canvas.
+ */
+declare class CanvasRenderingContext2D {
+  /** Gets or sets the current fill style for drawing operations. */
+  fillStyle: string;
+  /** Gets or sets the current stroke style for drawing operations. */
+  strokeStyle: string;
+  /** Gets or sets the line width for drawing operations. */
+  lineWidth: number;
+  /** Gets or sets the global alpha value (transparency) for drawing operations. Values range from 0.0 (transparent) to 1.0 (opaque). */
+  globalAlpha: number;
+  /** Creates an arc/curve on the canvas context. */
+  arc(
+    x: number,
+    y: number,
+    radius: number,
+    startAngle: number,
+    endAngle: number,
+  ): void;
+  /** Creates an arc-to command on the canvas context. */
+  arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
+  /** Begins a new path on the canvas context. */
+  beginPath(): void;
+  /** Adds a cubic Bézier curve to the path. */
+  bezierCurveTo(
+    cp1x: number,
+    cp1y: number,
+    cp2x: number,
+    cp2y: number,
+    x: number,
+    y: number,
+  ): void;
+  /** Clears the specified rectangular area, making it fully transparent. */
+  clearRect(x: number, y: number, width: number, height: number): void;
+  /** Closes the current path on the canvas context. */
+  closePath(): void;
+  /** Draws a filled rectangle whose starting corner is at (x, y). */
+  fillRect(x: number, y: number, width: number, height: number): void;
+  /** Moves the path starting point to the specified coordinates. */
+  moveTo(x: number, y: number): void;
+  /** Connects the last point in the current sub-path to the specified coordinates with a straight line. */
+  lineTo(
+    x: number,
+    y: number,
+  ): void; /** Fills the current path with the current fill style. */
+  fill(): void;
+  /** Strokes the current path with the current stroke style. */
+  stroke(): void; /** Adds a rectangle to the current path. */
+  rect(x: number, y: number, width: number, height: number): void;
+  /** Adds a quadratic Bézier curve to the current path. */
+  quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void;
+  /** Adds an ellipse to the current path. */
+  ellipse(
+    x: number,
+    y: number,
+    radiusX: number,
+    radiusY: number,
+    rotation: number,
+    startAngle: number,
+    endAngle: number,
+    counterclockwise?: boolean,
+  ): void;
+  /** Adds a rounded rectangle to the current path. */
+  roundRect(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    radii: number | number[],
+  ): void;
+  /** Saves the current canvas state (styles, transformations, etc.) to a stack. */
+  save(): void;
+  /** Restores the most recently saved canvas state from the stack. */
+  restore(): void;
+}
+
+/**
+ * A bitmap image resource.
+ */
+// @ts-ignore ImageBitmap is available in Deno's scope
+declare class ImageBitmap {
+  /** The width of the image in pixels. */
+  readonly width: number;
+  /** The height of the image in pixels. */
+  readonly height: number;
+}
+
+/**
+ * Creates an ImageBitmap from a file path or URL.
+ * @param path The file path or URL to load.
+ */
+declare function createImageBitmap(path: string): Promise<ImageBitmap>;
