@@ -219,9 +219,6 @@ declare class OffscreenCanvas {
 /**
  * The 2D rendering context for a Canvas.
  */
-/**
- * The 2D rendering context for a Canvas.
- */
 declare class CanvasRenderingContext2D {
   /** Gets or sets the current fill style for drawing operations. */
   fillStyle: string;
@@ -232,13 +229,26 @@ declare class CanvasRenderingContext2D {
   /** Gets or sets the global alpha value (transparency) for drawing operations. Values range from 0.0 (transparent) to 1.0 (opaque). */
   globalAlpha: number;
   /** Creates an arc/curve on the canvas context. */
-  arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void;
+  arc(
+    x: number,
+    y: number,
+    radius: number,
+    startAngle: number,
+    endAngle: number,
+  ): void;
   /** Creates an arc-to command on the canvas context. */
   arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
   /** Begins a new path on the canvas context. */
   beginPath(): void;
   /** Adds a cubic Bézier curve to the path. */
-  bezierCurveTo(cp1x: number, cp1y: number, cp2x: number, cp2y: number, x: number, y: number): void;
+  bezierCurveTo(
+    cp1x: number,
+    cp1y: number,
+    cp2x: number,
+    cp2y: number,
+    x: number,
+    y: number,
+  ): void;
   /** Clears the specified rectangular area, making it fully transparent. */
   clearRect(x: number, y: number, width: number, height: number): void;
   /** Closes the current path on the canvas context. */
@@ -248,17 +258,35 @@ declare class CanvasRenderingContext2D {
   /** Moves the path starting point to the specified coordinates. */
   moveTo(x: number, y: number): void;
   /** Connects the last point in the current sub-path to the specified coordinates with a straight line. */
-  lineTo(x: number, y: number): void;  /** Fills the current path with the current fill style. */
+  lineTo(
+    x: number,
+    y: number,
+  ): void; /** Fills the current path with the current fill style. */
   fill(): void;
   /** Strokes the current path with the current stroke style. */
-  stroke(): void;  /** Adds a rectangle to the current path. */
+  stroke(): void; /** Adds a rectangle to the current path. */
   rect(x: number, y: number, width: number, height: number): void;
   /** Adds a quadratic Bézier curve to the current path. */
   quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void;
   /** Adds an ellipse to the current path. */
-  ellipse(x: number, y: number, radiusX: number, radiusY: number, rotation: number, startAngle: number, endAngle: number, counterclockwise?: boolean): void;
+  ellipse(
+    x: number,
+    y: number,
+    radiusX: number,
+    radiusY: number,
+    rotation: number,
+    startAngle: number,
+    endAngle: number,
+    counterclockwise?: boolean,
+  ): void;
   /** Adds a rounded rectangle to the current path. */
-  roundRect(x: number, y: number, w: number, h: number, radii: number | number[]): void;
+  roundRect(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    radii: number | number[],
+  ): void;
   /** Saves the current canvas state (styles, transformations, etc.) to a stack. */
   save(): void;
   /** Restores the most recently saved canvas state from the stack. */
