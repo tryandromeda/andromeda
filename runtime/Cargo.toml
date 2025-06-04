@@ -7,7 +7,7 @@ repository.workspace = true
 readme = "../README.md"
 
 [features]
-default = ["canvas"]
+default = []
 canvas = ["dep:wgpu", "dep:image"]
 
 [dependencies]
