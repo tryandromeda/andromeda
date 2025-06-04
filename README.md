@@ -72,6 +72,44 @@ andromeda repl --print-internals --expose-internals
 - `--print-internals`: Print internal debugging information  
 - `--disable-gc`: Disable garbage collection
 
+## 🎨 Enhanced REPL Features
+
+The Andromeda REPL provides a beautiful and powerful development experience:
+
+### ✨ Smart Multiline Input
+- **Automatic Detection**: Incomplete JavaScript syntax automatically triggers multiline mode
+- **Visual Feedback**: Clear continuation prompts with line numbers
+- **Manual Control**: Force completion with `;;;` or cancel with Ctrl+C
+- **Syntax Awareness**: Handles functions, objects, arrays, and control structures
+
+### 🎯 Interactive Commands
+- `help` - Show available commands and multiline tips
+- `history` - View command history (last 20 entries)
+- `clear` - Clear the screen
+- `gc` - Manual garbage collection with progress feedback
+- `exit`/`quit` - Graceful exit
+
+### 🌈 Visual Enhancements  
+- **Type-aware Output**: Different colors for strings, numbers, booleans, etc.
+- **Execution Timing**: Performance metrics for every evaluation
+- **Beautiful Themes**: Consistent color scheme throughout
+- **Smart Prompts**: Dynamic prompts showing evaluation count
+- **Startup Tips**: Random JavaScript examples to get you started
+
+### Example Multiline Usage:
+```javascript
+js [1] function fibonacci(n) {
+...[2]   if (n <= 1) return n;
+...[3]   return fibonacci(n-1) + fibonacci(n-2);
+...[4] }
+← function fibonacci(n) { ... } (function)
+  ⏱️ 3ms
+
+js [2] fibonacci(10)
+← 55 (number)
+  ⏱️ 1ms
+```
+
 ## Crates
 
 | Crate                         | Description                                               |
