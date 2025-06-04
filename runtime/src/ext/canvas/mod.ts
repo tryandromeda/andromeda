@@ -55,19 +55,6 @@ class OffscreenCanvas {
 }
 
 /**
- * Creates a new Canvas instance with the specified width and height.
- *
- * @example
- * ```typescript
- * const canvas = createCanvas(800, 600);
- * ```
- */
-function createCanvas(width: number, height: number): OffscreenCanvas {
-  return new OffscreenCanvas(width, height);
-}
-
-
-/**
  * A 2D rendering context for Canvas
  */
 class CanvasRenderingContext2D {

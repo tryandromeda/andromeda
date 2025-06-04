@@ -217,11 +217,6 @@ declare class OffscreenCanvas {
 }
 
 /**
- * Factory to create a Canvas instance.
- */
-declare function createCanvas(width: number, height: number): OffscreenCanvas;
-
-/**
  * The 2D rendering context for a Canvas.
  */
 /**
