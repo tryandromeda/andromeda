@@ -47,6 +47,31 @@ To run a JavaScript or TypeScript file, use the following command:
 andromeda run <file>
 ```
 
+### Interactive REPL
+
+Andromeda includes an interactive REPL (Read-Eval-Print Loop) for testing JavaScript or TypeScript code quickly:
+
+```bash
+# Start the REPL
+andromeda repl
+
+# REPL with debugging options
+andromeda repl --print-internals --expose-internals
+```
+
+**REPL Commands:**
+
+- Type JavaScript code and press Enter to evaluate
+- Type `exit` to quit
+- Type `gc` to trigger garbage collection
+- Press Ctrl+C to exit
+
+**REPL Options:**
+
+- `--expose-internals`: Expose Nova internal APIs for debugging
+- `--print-internals`: Print internal debugging information  
+- `--disable-gc`: Disable garbage collection
+
 ## Crates
 
 | Crate                         | Description                                               |

@@ -9,6 +9,8 @@ use std::path::PathBuf;
 
 mod compile;
 use compile::{ANDROMEDA_JS_CODE_SECTION, compile};
+mod repl;
+use repl::run_repl;
 mod run;
 mod styles;
 use run::run;
@@ -53,6 +55,21 @@ enum Command {
         #[arg(required = true)]
         out: PathBuf,
     },
+
+    /// Start an interactive REPL (Read-Eval-Print Loop)
+    Repl {
+        /// Expose Nova internal APIs for debugging
+        #[arg(long)]
+        expose_internals: bool,
+
+        /// Print internal debugging information
+        #[arg(long)]
+        print_internals: bool,
+
+        /// Disable garbage collection
+        #[arg(long)]
+        disable_gc: bool,
+    },
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -75,9 +92,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_time()
         .build()
-        .unwrap();
-
-    // Run Nova in a secondary blocking thread so tokio tasks can still run
+        .unwrap(); // Run Nova in a secondary blocking thread so tokio tasks can still run
     let nova_thread = rt.spawn_blocking(move || match args.command {
         Command::Run {
             verbose,
@@ -94,6 +109,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Command::Compile { path, out } => match compile(out.as_path(), path.as_path()) {
             Ok(_) => println!("Successfully created the output binary at {:?}", out),
             Err(e) => eprintln!("Failed to output binary: {}", e),
+        },
+        Command::Repl {
+            expose_internals,
+            print_internals,
+            disable_gc,
+        } => match run_repl(expose_internals, print_internals, disable_gc) {
+            Ok(_) => (),
+            Err(e) => eprintln!("REPL error: {}", e),
         },
     });
 
