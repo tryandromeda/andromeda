@@ -1,4 +1,4 @@
-const canvas = createCanvas(600, 400);
+const canvas = new OffscreenCanvas(600, 400);
 const ctx = canvas.getContext("2d");
 
 if (!ctx) {

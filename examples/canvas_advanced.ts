@@ -1,6 +1,6 @@
 // Example demonstrating advanced Canvas 2D features with GPU acceleration
 // Create a canvas
-const canvas = createCanvas(800, 600);
+const canvas = new OffscreenCanvas(800, 600);
 const ctx = canvas.getContext("2d");
 
 if (!ctx) {

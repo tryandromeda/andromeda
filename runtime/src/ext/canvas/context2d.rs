@@ -3,7 +3,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use super::CanvasResources;
+use super::FillStyle;
 use super::Rid;
+use super::renderer::{Point, Rect};
 use crate::RuntimeMacroTask;
 use andromeda_core::HostData;
 use nova_vm::ecmascript::types::Number;
@@ -154,6 +156,7 @@ pub enum CanvasCommand<'gc> {
         x: Number<'gc>,
         y: Number<'gc>,
     },
+    SetStrokeStyle(crate::ext::canvas::FillStyle),
 }
 
 // Internal op to create an arc on a canvas by Rid
@@ -358,17 +361,18 @@ pub fn internal_canvas_bezier_curve_to<'gc>(
 
     // Get the last point as starting point for Bezier curve
     if let Some(last_point) = data.current_path.last().cloned() {
-        tessellate_bezier_to_path(
-            &mut data.current_path,
-            last_point.x,
-            last_point.y,
-            cp1x_f64,
-            cp1y_f64,
-            cp2x_f64,
-            cp2y_f64,
-            x_f64,
-            y_f64,
-        );
+        let start = last_point;
+        let cp1 = crate::ext::canvas::renderer::Point {
+            x: cp1x_f64,
+            y: cp1y_f64,
+        };
+        let cp2 = crate::ext::canvas::renderer::Point {
+            x: cp2x_f64,
+            y: cp2y_f64,
+        };
+        let end = crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 };
+
+        tessellate_bezier_curve_to_path(&mut data.current_path, start, cp1, cp2, end);
     } else {
         // If no previous point, just add the end point
         data.current_path
@@ -520,7 +524,6 @@ pub fn internal_canvas_fill_rect<'gc>(
     };
 
     if has_renderer {
-        use super::renderer::{Point, Rect};
         // Convert Nova VM Number to f64 for GPU renderer
         // Use into_f64() method that Nova VM provides
         let x_val = x.into_f64(agent);
@@ -841,12 +844,14 @@ pub fn internal_canvas_set_stroke_style<'gc>(
 ) -> JsResult<'gc, Value<'gc>> {
     let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
     let rid = Rid::from_index(rid_val);
-    let color_str = args
-        .get(1)
-        .to_string(agent, gc.reborrow())
-        .unbind()
-        .unwrap();
-    let color_str = color_str.as_str(agent);
+    let style = args.get(1);
+
+    // Convert style to string first to avoid borrowing conflicts
+    let style_string = if style.is_string() {
+        Some(style.to_string(agent, gc.reborrow()).unbind().unwrap())
+    } else {
+        None
+    };
 
     let host_data = agent
         .get_host_data()
@@ -854,949 +859,804 @@ pub fn internal_canvas_set_stroke_style<'gc>(
         .unwrap();
     let mut storage = host_data.storage.borrow_mut();
     let res: &mut CanvasResources = storage.get_mut().unwrap();
-
     let mut data = res.canvases.get_mut(rid).unwrap();
 
-    // Parse color string (simplified - just handle basic hex colors)
-    if let Some(color) = parse_color_string(color_str) {
-        data.stroke_style = color;
+    if let Some(style_str_obj) = style_string {
+        let style_str = style_str_obj.as_str(agent);
+        if let Ok(parsed_style) =
+            FillStyle::from_css_color(style_str).map_err(|_| "Invalid color format")
+        {
+            data.stroke_style = parsed_style.clone();
+            data.commands
+                .push(CanvasCommand::SetStrokeStyle(parsed_style));
+        }
     }
+    Ok(Value::Undefined)
+}
+
+/// Internal op to create a quadratic curve on a canvas by Rid
+pub fn internal_canvas_quadratic_curve_to<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+    let cpx = args
+        .get(1)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let cpy = args
+        .get(2)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let x = args
+        .get(3)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let y = args
+        .get(4)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+    let mut data = res.canvases.get_mut(rid).unwrap();
+
+    // Convert Nova VM Numbers to f64 for renderer
+    let cpx_f64 = cpx.into_f64(agent);
+    let cpy_f64 = cpy.into_f64(agent);
+    let x_f64 = x.into_f64(agent);
+    let y_f64 = y.into_f64(agent);
+
+    // Get the last point as starting point for quadratic curve
+    if let Some(last_point) = data.current_path.last().cloned() {
+        let start = last_point;
+        let control = crate::ext::canvas::renderer::Point {
+            x: cpx_f64,
+            y: cpy_f64,
+        };
+        let end = crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 };
+
+        tessellate_quadratic_curve_to_path(&mut data.current_path, start, control, end);
+    } else {
+        // If no previous point, just add the end point
+        data.current_path
+            .push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
+    }
+
+    data.commands
+        .push(CanvasCommand::QuadraticCurveTo { cpx, cpy, x, y });
 
     Ok(Value::Undefined)
 }
 
-/// Simple color string parser (handles basic hex colors like "#RRGGBB" and "#RRGGBBAA")
-fn parse_color_string(color_str: &str) -> Option<super::FillStyle> {
-    if color_str.starts_with('#') && color_str.len() >= 7 {
-        let hex = &color_str[1..];
+/// Internal op to create an ellipse on a canvas by Rid
+pub fn internal_canvas_ellipse<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+    let x = args
+        .get(1)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let y = args
+        .get(2)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let radius_x = args
+        .get(3)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let radius_y = args
+        .get(4)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let rotation = args
+        .get(5)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let start_angle = args
+        .get(6)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let end_angle = args
+        .get(7)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let counter_clockwise = false; // TODO: properly convert boolean from args.get(8)
 
-        // Parse RGB components
-        if let (Ok(r), Ok(g), Ok(b)) = (
-            u8::from_str_radix(&hex[0..2], 16),
-            u8::from_str_radix(&hex[2..4], 16),
-            u8::from_str_radix(&hex[4..6], 16),
-        ) {
-            let a = if hex.len() >= 8 {
-                u8::from_str_radix(&hex[6..8], 16).unwrap_or(255)
-            } else {
-                255
-            };
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+    let mut data = res.canvases.get_mut(rid).unwrap();
 
-            return Some(super::FillStyle::Color {
-                r: r as f32 / 255.0,
-                g: g as f32 / 255.0,
-                b: b as f32 / 255.0,
-                a: a as f32 / 255.0,
-            });
-        }
+    // Convert Nova VM Numbers to f64 for renderer
+    let x_f64 = x.into_f64(agent);
+    let y_f64 = y.into_f64(agent);
+    let radius_x_f64 = radius_x.into_f64(agent);
+    let radius_y_f64 = radius_y.into_f64(agent);
+    let rotation_f64 = rotation.into_f64(agent);
+    let start_angle_f64 = start_angle.into_f64(agent);
+    let end_angle_f64 = end_angle.into_f64(agent);
+
+    // Tessellate ellipse to current path
+    tessellate_ellipse_to_path(
+        &mut data.current_path,
+        x_f64,
+        y_f64,
+        radius_x_f64,
+        radius_y_f64,
+        rotation_f64,
+        start_angle_f64,
+        end_angle_f64,
+        counter_clockwise,
+    );
+
+    data.commands.push(CanvasCommand::Ellipse {
+        x,
+        y,
+        radius_x,
+        radius_y,
+        rotation,
+        start_angle,
+        end_angle,
+        counter_clockwise,
+    });
+
+    Ok(Value::Undefined)
+}
+
+/// Internal op to create a rounded rectangle on a canvas by Rid
+pub fn internal_canvas_round_rect<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+    let x = args
+        .get(1)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let y = args
+        .get(2)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let width = args
+        .get(3)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let height = args
+        .get(4)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+    let radius = args
+        .get(5)
+        .to_number(agent, gc.reborrow())
+        .unbind()
+        .unwrap();
+
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+    let mut data = res.canvases.get_mut(rid).unwrap();
+
+    // Convert Nova VM Numbers to f64 for renderer
+    let x_f64 = x.into_f64(agent);
+    let y_f64 = y.into_f64(agent);
+    let width_f64 = width.into_f64(agent);
+    let height_f64 = height.into_f64(agent);
+    let radius_f64 = radius.into_f64(agent);
+
+    // Tessellate rounded rectangle to current path
+    tessellate_rounded_rect_to_path(
+        &mut data.current_path,
+        x_f64,
+        y_f64,
+        width_f64,
+        height_f64,
+        radius_f64,
+    );
+
+    data.commands.push(CanvasCommand::RoundRect {
+        x,
+        y,
+        width,
+        height,
+        radius,
+    });
+
+    Ok(Value::Undefined)
+}
+
+/// Internal op to save the current canvas state
+pub fn internal_canvas_save<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+    let mut data = res.canvases.get_mut(rid).unwrap();
+
+    // Save current state to stack
+    let current_state = crate::ext::canvas::state::CanvasState {
+        fill_style: data.fill_style.clone(),
+        stroke_style: data.stroke_style.clone(),
+        line_width: data.line_width,
+        global_alpha: data.global_alpha,
+    };
+    data.state_stack.push(current_state);
+
+    // Add save command to command list
+    data.commands.push(CanvasCommand::Save);
+
+    Ok(Value::Undefined)
+}
+
+/// Internal op to restore the last saved canvas state
+pub fn internal_canvas_restore<'gc>(
+    agent: &mut Agent,
+    _this: Value,
+    args: ArgumentsList,
+    mut gc: GcScope<'gc, '_>,
+) -> JsResult<'gc, Value<'gc>> {
+    let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+    let rid = Rid::from_index(rid_val);
+
+    let host_data = agent
+        .get_host_data()
+        .downcast_ref::<HostData<RuntimeMacroTask>>()
+        .unwrap();
+    let mut storage = host_data.storage.borrow_mut();
+    let res: &mut CanvasResources = storage.get_mut().unwrap();
+    let mut data = res.canvases.get_mut(rid).unwrap();
+
+    // Restore state from stack if available
+    if let Some(saved_state) = data.state_stack.pop() {
+        data.fill_style = saved_state.fill_style;
+        data.stroke_style = saved_state.stroke_style;
+        data.line_width = saved_state.line_width;
+        data.global_alpha = saved_state.global_alpha;
     }
 
-    match color_str {
-        "aliceblue" => Some(super::FillStyle::Color {
-            r: 0.941,
-            g: 0.973,
-            b: 1.0,
-            a: 1.0,
-        }),
-        "antiquewhite" => Some(super::FillStyle::Color {
-            r: 0.98,
-            g: 0.92,
-            b: 0.84,
-            a: 1.0,
-        }),
-        "aqua" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 1.0,
-            b: 1.0,
-            a: 1.0,
-        }),
-        "aquamarine" => Some(super::FillStyle::Color {
-            r: 0.498,
-            g: 1.0,
-            b: 0.831,
-            a: 1.0,
-        }),
-        "azure" => Some(super::FillStyle::Color {
-            r: 0.941,
-            g: 1.0,
-            b: 1.0,
-            a: 1.0,
-        }),
-        "beige" => Some(super::FillStyle::Color {
-            r: 0.96,
-            g: 0.96,
-            b: 0.86,
-            a: 1.0,
-        }),
-        "bisque" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.894,
-            b: 0.769,
-            a: 1.0,
-        }),
-        "black" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-            a: 1.0,
-        }),
-        "blanchedalmond" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.922,
-            b: 0.804,
-            a: 1.0,
-        }),
-        "blue" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 0.0,
-            b: 1.0,
-            a: 1.0,
-        }),
-        "blueviolet" => Some(super::FillStyle::Color {
-            r: 0.541,
-            g: 0.169,
-            b: 0.886,
-            a: 1.0,
-        }),
-        "brown" => Some(super::FillStyle::Color {
-            r: 0.647,
-            g: 0.165,
-            b: 0.165,
-            a: 1.0,
-        }),
-        "burlywood" => Some(super::FillStyle::Color {
-            r: 0.871,
-            g: 0.722,
-            b: 0.529,
-            a: 1.0,
-        }),
-        "cadetblue" => Some(super::FillStyle::Color {
-            r: 0.373,
-            g: 0.62,
-            b: 0.627,
-            a: 1.0,
-        }),
-        "cameo" => Some(super::FillStyle::Color {
-            r: 0.937,
-            g: 0.867,
-            b: 0.702,
-            a: 1.0,
-        }),
-        "chartreuse" => Some(super::FillStyle::Color {
-            r: 0.498,
-            g: 1.0,
-            b: 0.0,
-            a: 1.0,
-        }),
-        "chocolate" => Some(super::FillStyle::Color {
-            r: 0.824,
-            g: 0.412,
-            b: 0.118,
-            a: 1.0,
-        }),
-        "coral" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.498,
-            b: 0.314,
-            a: 1.0,
-        }),
-        "cornflowerblue" => Some(super::FillStyle::Color {
-            r: 0.392,
-            g: 0.584,
-            b: 0.929,
-            a: 1.0,
-        }),
-        "crimson" => Some(super::FillStyle::Color {
-            r: 0.863,
-            g: 0.078,
-            b: 0.235,
-            a: 1.0,
-        }),
-        "cyan" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 1.0,
-            b: 1.0,
-            a: 1.0,
-        }),
-        "darkblue" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 0.0,
-            b: 0.545,
-            a: 1.0,
-        }),
-        "darkcyan" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 0.545,
-            b: 0.545,
-            a: 1.0,
-        }),
-        "darkgoldenrod" => Some(super::FillStyle::Color {
-            r: 0.722,
-            g: 0.525,
-            b: 0.043,
-            a: 1.0,
-        }),
-        "darkgray" => Some(super::FillStyle::Color {
-            r: 0.663,
-            g: 0.663,
-            b: 0.663,
-            a: 1.0,
-        }),
-        "darkgreen" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 0.392,
-            b: 0.0,
-            a: 1.0,
-        }),
-        "darkkhaki" => Some(super::FillStyle::Color {
-            r: 0.741,
-            g: 0.717,
-            b: 0.419,
-            a: 1.0,
-        }),
-        "darkmagenta" => Some(super::FillStyle::Color {
-            r: 0.545,
-            g: 0.0,
-            b: 0.545,
-            a: 1.0,
-        }),
-        "darkolivegreen" => Some(super::FillStyle::Color {
-            r: 0.333,
-            g: 0.42,
-            b: 0.184,
-            a: 1.0,
-        }),
-        "darkorange" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.549,
-            b: 0.0,
-            a: 1.0,
-        }),
-        "darkorchid" => Some(super::FillStyle::Color {
-            r: 0.6,
-            g: 0.196,
-            b: 0.8,
-            a: 1.0,
-        }),
-        "darkred" => Some(super::FillStyle::Color {
-            r: 0.545,
-            g: 0.0,
-            b: 0.0,
-            a: 1.0,
-        }),
-        "darksalmon" => Some(super::FillStyle::Color {
-            r: 0.914,
-            g: 0.588,
-            b: 0.478,
-            a: 1.0,
-        }),
-        "darkseagreen" => Some(super::FillStyle::Color {
-            r: 0.561,
-            g: 0.737,
-            b: 0.561,
-            a: 1.0,
-        }),
-        "darkslateblue" => Some(super::FillStyle::Color {
-            r: 0.282,
-            g: 0.239,
-            b: 0.545,
-            a: 1.0,
-        }),
-        "darkslategray" => Some(super::FillStyle::Color {
-            r: 0.184,
-            g: 0.31,
-            b: 0.31,
-            a: 1.0,
-        }),
-        "darkturquoise" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 0.807,
-            b: 0.819,
-            a: 1.0,
-        }),
-        "darkviolet" => Some(super::FillStyle::Color {
-            r: 0.58,
-            g: 0.0,
-            b: 0.827,
-            a: 1.0,
-        }),
-        "deeppink" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.078,
-            b: 0.576,
-            a: 1.0,
-        }),
-        "deepskyblue" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 0.749,
-            b: 1.0,
-            a: 1.0,
-        }),
-        "dimgray" => Some(super::FillStyle::Color {
-            r: 0.412,
-            g: 0.412,
-            b: 0.412,
-            a: 1.0,
-        }),
-        "dimpurple" => Some(super::FillStyle::Color {
-            r: 0.415,
-            g: 0.313,
-            b: 0.494,
-            a: 1.0,
-        }),
-        "dodgerblue" => Some(super::FillStyle::Color {
-            r: 0.118,
-            g: 0.565,
-            b: 1.0,
-            a: 1.0,
-        }),
-        "firebrick" => Some(super::FillStyle::Color {
-            r: 0.698,
-            g: 0.132,
-            b: 0.203,
-            a: 1.0,
-        }),
-        "floralwhite" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.98,
-            b: 0.941,
-            a: 1.0,
-        }),
-        "forestgreen" => Some(super::FillStyle::Color {
-            r: 0.133,
-            g: 0.545,
-            b: 0.133,
-            a: 1.0,
-        }),
-        "fuchsia" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.0,
-            b: 1.0,
-            a: 1.0,
-        }),
-        "gainsboro" => Some(super::FillStyle::Color {
-            r: 0.863,
-            g: 0.863,
-            b: 0.863,
-            a: 1.0,
-        }),
-        "ghostwhite" => Some(super::FillStyle::Color {
-            r: 0.973,
-            g: 0.973,
-            b: 1.0,
-            a: 1.0,
-        }),
-        "gold" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.843,
-            b: 0.0,
-            a: 1.0,
-        }),
-        "goldenrod" => Some(super::FillStyle::Color {
-            r: 0.855,
-            g: 0.647,
-            b: 0.125,
-            a: 1.0,
-        }),
-        "gray" => Some(super::FillStyle::Color {
-            r: 0.5,
-            g: 0.5,
-            b: 0.5,
-            a: 1.0,
-        }),
-        "green" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 1.0,
-            b: 0.0,
-            a: 1.0,
-        }),
-        "greenyellow" => Some(super::FillStyle::Color {
-            r: 0.678,
-            g: 1.0,
-            b: 0.184,
-            a: 1.0,
-        }),
-        "honeydew" => Some(super::FillStyle::Color {
-            r: 0.941,
-            g: 1.0,
-            b: 0.941,
-            a: 1.0,
-        }),
-        "hotpink" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.412,
-            b: 0.706,
-            a: 1.0,
-        }),
-        "indianred" => Some(super::FillStyle::Color {
-            r: 0.804,
-            g: 0.361,
-            b: 0.361,
-            a: 1.0,
-        }),
-        "indigo" => Some(super::FillStyle::Color {
-            r: 0.294,
-            g: 0.0,
-            b: 0.51,
-            a: 1.0,
-        }),
-        "ivory" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 1.0,
-            b: 0.941,
-            a: 1.0,
-        }),
-        "khaki" => Some(super::FillStyle::Color {
-            r: 0.941,
-            g: 0.902,
-            b: 0.549,
-            a: 1.0,
-        }),
-        "lavender" => Some(super::FillStyle::Color {
-            r: 0.902,
-            g: 0.902,
-            b: 0.98,
-            a: 1.0,
-        }),
-        "lavenderblush" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.941,
-            b: 0.961,
-            a: 1.0,
-        }),
-        "lawngreen" => Some(super::FillStyle::Color {
-            r: 0.486,
-            g: 0.988,
-            b: 0.0,
-            a: 1.0,
-        }),
-        "lemonchiffon" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.98,
-            b: 0.804,
-            a: 1.0,
-        }),
-        "lightblue" => Some(super::FillStyle::Color {
-            r: 0.678,
-            g: 0.847,
-            b: 0.902,
-            a: 1.0,
-        }),
-        "lightcoral" => Some(super::FillStyle::Color {
-            r: 0.941,
-            g: 0.502,
-            b: 0.502,
-            a: 1.0,
-        }),
-        "lightcyan" => Some(super::FillStyle::Color {
-            r: 0.878,
-            g: 1.0,
-            b: 1.0,
-            a: 1.0,
-        }),
-        "lightgoldenrodyellow" => Some(super::FillStyle::Color {
-            r: 0.980,
-            g: 0.980,
-            b: 0.824,
-            a: 1.0,
-        }),
-        "lightgray" => Some(super::FillStyle::Color {
-            r: 0.827,
-            g: 0.827,
-            b: 0.827,
-            a: 1.0,
-        }),
-        "lightgreen" => Some(super::FillStyle::Color {
-            r: 0.565,
-            g: 0.933,
-            b: 0.565,
-            a: 1.0,
-        }),
-        "lightpink" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.714,
-            b: 0.757,
-            a: 1.0,
-        }),
-        "lightsalmon" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.627,
-            b: 0.478,
-            a: 1.0,
-        }),
-        "lightseagreen" => Some(super::FillStyle::Color {
-            r: 0.125,
-            g: 0.698,
-            b: 0.667,
-            a: 1.0,
-        }),
-        "lightskyblue" => Some(super::FillStyle::Color {
-            r: 0.529,
-            g: 0.808,
-            b: 0.98,
-            a: 1.0,
-        }),
-        "lightslategray" => Some(super::FillStyle::Color {
-            r: 0.467,
-            g: 0.533,
-            b: 0.6,
-            a: 1.0,
-        }),
-        "lightsteelblue" => Some(super::FillStyle::Color {
-            r: 0.690,
-            g: 0.769,
-            b: 0.871,
-            a: 1.0,
-        }),
-        "lightyellow" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 1.0,
-            b: 0.878,
-            a: 1.0,
-        }),
-        "lime" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 1.0,
-            b: 0.0,
-            a: 1.0,
-        }),
-        "limegreen" => Some(super::FillStyle::Color {
-            r: 0.196,
-            g: 0.804,
-            b: 0.196,
-            a: 1.0,
-        }),
-        "linen" => Some(super::FillStyle::Color {
-            r: 0.98,
-            g: 0.941,
-            b: 0.902,
-            a: 1.0,
-        }),
-        "magenta" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.0,
-            b: 1.0,
-            a: 1.0,
-        }),
-        "maroon" => Some(super::FillStyle::Color {
-            r: 0.5,
-            g: 0.0,
-            b: 0.0,
-            a: 1.0,
-        }),
-        "mediumaquamarine" => Some(super::FillStyle::Color {
-            r: 0.4,
-            g: 0.804,
-            b: 0.667,
-            a: 1.0,
-        }),
-        "mediumblue" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 0.0,
-            b: 0.804,
-            a: 1.0,
-        }),
-        "mediumorchid" => Some(super::FillStyle::Color {
-            r: 0.729,
-            g: 0.333,
-            b: 0.827,
-            a: 1.0,
-        }),
-        "mediumpurple" => Some(super::FillStyle::Color {
-            r: 0.576,
-            g: 0.439,
-            b: 0.859,
-            a: 1.0,
-        }),
-        "mediumseagreen" => Some(super::FillStyle::Color {
-            r: 0.235,
-            g: 0.702,
-            b: 0.443,
-            a: 1.0,
-        }),
-        "mediumslateblue" => Some(super::FillStyle::Color {
-            r: 0.482,
-            g: 0.408,
-            b: 0.933,
-            a: 1.0,
-        }),
-        "mediumspringgreen" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 0.98,
-            b: 0.604,
-            a: 1.0,
-        }),
-        "mediumturquoise" => Some(super::FillStyle::Color {
-            r: 0.282,
-            g: 0.82,
-            b: 0.8,
-            a: 1.0,
-        }),
-        "mediumvioletred" => Some(super::FillStyle::Color {
-            r: 0.78,
-            g: 0.082,
-            b: 0.522,
-            a: 1.0,
-        }),
-        "midnightblue" => Some(super::FillStyle::Color {
-            r: 0.098,
-            g: 0.098,
-            b: 0.439,
-            a: 1.0,
-        }),
-        "mintcream" => Some(super::FillStyle::Color {
-            r: 0.961,
-            g: 1.0,
-            b: 0.98,
-            a: 1.0,
-        }),
-        "mistyrose" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.894,
-            b: 0.882,
-            a: 1.0,
-        }),
-        "mocha" => Some(super::FillStyle::Color {
-            r: 0.824,
-            g: 0.706,
-            b: 0.549,
-            a: 1.0,
-        }),
-        "navajowhite" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.871,
-            b: 0.678,
-            a: 1.0,
-        }),
-        "navy" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 0.0,
-            b: 0.5,
-            a: 1.0,
-        }),
-        "oldlace" => Some(super::FillStyle::Color {
-            r: 0.992,
-            g: 0.961,
-            b: 0.902,
-            a: 1.0,
-        }),
-        "olive" => Some(super::FillStyle::Color {
-            r: 0.5,
-            g: 0.5,
-            b: 0.0,
-            a: 1.0,
-        }),
-        "olivedrab" => Some(super::FillStyle::Color {
-            r: 0.42,
-            g: 0.557,
-            b: 0.137,
-            a: 1.0,
-        }),
-        "orange" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.647,
-            b: 0.0,
-            a: 1.0,
-        }),
-        "orangered" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.271,
-            b: 0.0,
-            a: 1.0,
-        }),
-        "orchid" => Some(super::FillStyle::Color {
-            r: 0.855,
-            g: 0.439,
-            b: 0.839,
-            a: 1.0,
-        }),
-        "palegoldenrod" => Some(super::FillStyle::Color {
-            r: 0.933,
-            g: 0.91,
-            b: 0.667,
-            a: 1.0,
-        }),
-        "palegreen" => Some(super::FillStyle::Color {
-            r: 0.596,
-            g: 0.984,
-            b: 0.596,
-            a: 1.0,
-        }),
-        "paleturquoise" => Some(super::FillStyle::Color {
-            r: 0.686,
-            g: 0.933,
-            b: 0.933,
-            a: 1.0,
-        }),
-        "palevioletred" => Some(super::FillStyle::Color {
-            r: 0.859,
-            g: 0.439,
-            b: 0.576,
-            a: 1.0,
-        }),
-        "papayawhip" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.937,
-            b: 0.835,
-            a: 1.0,
-        }),
-        "peachpuff" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.855,
-            b: 0.725,
-            a: 1.0,
-        }),
-        "peru" => Some(super::FillStyle::Color {
-            r: 0.804,
-            g: 0.522,
-            b: 0.247,
-            a: 1.0,
-        }),
-        "pink" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.753,
-            b: 0.796,
-            a: 1.0,
-        }),
-        "plum" => Some(super::FillStyle::Color {
-            r: 0.867,
-            g: 0.627,
-            b: 0.867,
-            a: 1.0,
-        }),
-        "powderblue" => Some(super::FillStyle::Color {
-            r: 0.69,
-            g: 0.878,
-            b: 0.902,
-            a: 1.0,
-        }),
-        "purple" => Some(super::FillStyle::Color {
-            r: 0.5,
-            g: 0.0,
-            b: 0.5,
-            a: 1.0,
-        }),
-        "red" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.0,
-            b: 0.0,
-            a: 1.0,
-        }),
-        "rosybrown" => Some(super::FillStyle::Color {
-            r: 0.737,
-            g: 0.561,
-            b: 0.561,
-            a: 1.0,
-        }),
-        "royalblue" => Some(super::FillStyle::Color {
-            r: 0.255,
-            g: 0.412,
-            b: 0.882,
-            a: 1.0,
-        }),
-        "saddlebrown" => Some(super::FillStyle::Color {
-            r: 0.545,
-            g: 0.271,
-            b: 0.075,
-            a: 1.0,
-        }),
-        "salmon" => Some(super::FillStyle::Color {
-            r: 0.98,
-            g: 0.502,
-            b: 0.447,
-            a: 1.0,
-        }),
-        "sandybrown" => Some(super::FillStyle::Color {
-            r: 0.957,
-            g: 0.643,
-            b: 0.376,
-            a: 1.0,
-        }),
-        "seagreen" => Some(super::FillStyle::Color {
-            r: 0.18,
-            g: 0.545,
-            b: 0.341,
-            a: 1.0,
-        }),
-        "seashell" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.961,
-            b: 0.933,
-            a: 1.0,
-        }),
-        "sienna" => Some(super::FillStyle::Color {
-            r: 0.627,
-            g: 0.322,
-            b: 0.176,
-            a: 1.0,
-        }),
-        "silver" => Some(super::FillStyle::Color {
-            r: 0.75,
-            g: 0.75,
-            b: 0.75,
-            a: 1.0,
-        }),
-        "skyblue" => Some(super::FillStyle::Color {
-            r: 0.529,
-            g: 0.808,
-            b: 0.922,
-            a: 1.0,
-        }),
-        "slateblue" => Some(super::FillStyle::Color {
-            r: 0.416,
-            g: 0.353,
-            b: 0.804,
-            a: 1.0,
-        }),
-        "slategray" => Some(super::FillStyle::Color {
-            r: 0.439,
-            g: 0.502,
-            b: 0.565,
-            a: 1.0,
-        }),
-        "snow" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.98,
-            b: 0.98,
-            a: 1.0,
-        }),
-        "springgreen" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 1.0,
-            b: 0.498,
-            a: 1.0,
-        }),
-        "steelblue" => Some(super::FillStyle::Color {
-            r: 0.275,
-            g: 0.51,
-            b: 0.706,
-            a: 1.0,
-        }),
-        "tan" => Some(super::FillStyle::Color {
-            r: 0.824,
-            g: 0.706,
-            b: 0.549,
-            a: 1.0,
-        }),
-        "teal" => Some(super::FillStyle::Color {
-            r: 0.0,
-            g: 0.5,
-            b: 0.5,
-            a: 1.0,
-        }),
-        "thistle" => Some(super::FillStyle::Color {
-            r: 0.847,
-            g: 0.749,
-            b: 0.847,
-            a: 1.0,
-        }),
-        "tomato" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 0.388,
-            b: 0.278,
-            a: 1.0,
-        }),
-        "turquoise" => Some(super::FillStyle::Color {
-            r: 0.251,
-            g: 0.878,
-            b: 0.816,
-            a: 1.0,
-        }),
-        "violet" => Some(super::FillStyle::Color {
-            r: 0.933,
-            g: 0.51,
-            b: 0.933,
-            a: 1.0,
-        }),
-        "wheat" => Some(super::FillStyle::Color {
-            r: 0.961,
-            g: 0.871,
-            b: 0.702,
-            a: 1.0,
-        }),
-        "white" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 1.0,
-            b: 1.0,
-            a: 1.0,
-        }),
-        "whitesmoke" => Some(super::FillStyle::Color {
-            r: 0.961,
-            g: 0.961,
-            b: 0.961,
-            a: 1.0,
-        }),
-        "yellow" => Some(super::FillStyle::Color {
-            r: 1.0,
-            g: 1.0,
-            b: 0.0,
-            a: 1.0,
-        }),
-        "yellowgreen" => Some(super::FillStyle::Color {
-            r: 0.604,
-            g: 0.804,
-            b: 0.196,
-            a: 1.0,
-        }),
+    // Add restore command to command list
+    data.commands.push(CanvasCommand::Restore);
 
-        _ => None,
+    Ok(Value::Undefined)
+}
+
+/// Process all saved commands and render them using the renderer
+#[allow(dead_code, clippy::needless_lifetimes)]
+pub fn process_all_commands<'gc>(
+    commands: &Vec<CanvasCommand<'gc>>,
+    renderer: &mut crate::ext::canvas::renderer::Renderer,
+    agent: &mut Agent,
+    fill_style: &crate::ext::canvas::FillStyle,
+    stroke_style: &crate::ext::canvas::FillStyle,
+    line_width: f64,
+    global_alpha: f32,
+) {
+    let mut current_path = Vec::new();
+
+    for command in commands {
+        match command {
+            CanvasCommand::MoveTo { x, y } => {
+                let x_f64 = x.into_f64(agent);
+                let y_f64 = y.into_f64(agent);
+                current_path.clear();
+                current_path.push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
+            }
+            CanvasCommand::LineTo { x, y } => {
+                let x_f64 = x.into_f64(agent);
+                let y_f64 = y.into_f64(agent);
+                current_path.push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
+            }
+            CanvasCommand::BezierCurveTo {
+                cp1x,
+                cp1y,
+                cp2x,
+                cp2y,
+                x,
+                y,
+            } => {
+                let cp1x_f64 = cp1x.into_f64(agent);
+                let cp1y_f64 = cp1y.into_f64(agent);
+                let cp2x_f64 = cp2x.into_f64(agent);
+                let cp2y_f64 = cp2y.into_f64(agent);
+                let x_f64 = x.into_f64(agent);
+                let y_f64 = y.into_f64(agent);
+
+                if let Some(last_point) = current_path.last().cloned() {
+                    let start = last_point;
+                    let cp1 = crate::ext::canvas::renderer::Point {
+                        x: cp1x_f64,
+                        y: cp1y_f64,
+                    };
+                    let cp2 = crate::ext::canvas::renderer::Point {
+                        x: cp2x_f64,
+                        y: cp2y_f64,
+                    };
+                    let end = crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 };
+
+                    tessellate_bezier_curve_to_path(&mut current_path, start, cp1, cp2, end);
+                }
+            }
+            CanvasCommand::QuadraticCurveTo { cpx, cpy, x, y } => {
+                let cpx_f64 = cpx.into_f64(agent);
+                let cpy_f64 = cpy.into_f64(agent);
+                let x_f64 = x.into_f64(agent);
+                let y_f64 = y.into_f64(agent);
+
+                if let Some(last_point) = current_path.last().cloned() {
+                    let start = last_point;
+                    let control = crate::ext::canvas::renderer::Point {
+                        x: cpx_f64,
+                        y: cpy_f64,
+                    };
+                    let end = crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 };
+
+                    tessellate_quadratic_curve_to_path(&mut current_path, start, control, end);
+                }
+            }
+            CanvasCommand::Ellipse {
+                x,
+                y,
+                radius_x,
+                radius_y,
+                rotation,
+                start_angle,
+                end_angle,
+                counter_clockwise,
+            } => {
+                let x_f64 = x.into_f64(agent);
+                let y_f64 = y.into_f64(agent);
+                let radius_x_f64 = radius_x.into_f64(agent);
+                let radius_y_f64 = radius_y.into_f64(agent);
+                let rotation_f64 = rotation.into_f64(agent);
+                let start_angle_f64 = start_angle.into_f64(agent);
+                let end_angle_f64 = end_angle.into_f64(agent);
+
+                tessellate_ellipse_to_path(
+                    &mut current_path,
+                    x_f64,
+                    y_f64,
+                    radius_x_f64,
+                    radius_y_f64,
+                    rotation_f64,
+                    start_angle_f64,
+                    end_angle_f64,
+                    *counter_clockwise,
+                );
+            }
+            CanvasCommand::RoundRect {
+                x,
+                y,
+                width,
+                height,
+                radius,
+            } => {
+                let x_f64 = x.into_f64(agent);
+                let y_f64 = y.into_f64(agent);
+                let width_f64 = width.into_f64(agent);
+                let height_f64 = height.into_f64(agent);
+                let radius_f64 = radius.into_f64(agent);
+
+                tessellate_rounded_rect_to_path(
+                    &mut current_path,
+                    x_f64,
+                    y_f64,
+                    width_f64,
+                    height_f64,
+                    radius_f64,
+                );
+            }
+            CanvasCommand::BeginPath => {
+                current_path.clear();
+            }
+            CanvasCommand::ClosePath => {
+                if !current_path.is_empty() {
+                    if let Some(first) = current_path.first() {
+                        current_path.push(first.clone()); // Close the path by connecting to start
+                    }
+                }
+            }
+            CanvasCommand::Fill => {
+                if !current_path.is_empty() {
+                    let color = match fill_style {
+                        crate::ext::canvas::FillStyle::Color { r, g, b, a } => {
+                            [*r, *g, *b, *a * global_alpha]
+                        }
+                        _ => [0.0, 0.0, 0.0, global_alpha], // Default to black
+                    };
+                    renderer.render_polygon(current_path.clone(), color);
+                }
+            }
+            CanvasCommand::Stroke => {
+                if !current_path.is_empty() {
+                    let color = match stroke_style {
+                        crate::ext::canvas::FillStyle::Color { r, g, b, a } => {
+                            [*r, *g, *b, *a * global_alpha]
+                        }
+                        _ => [0.0, 0.0, 0.0, global_alpha], // Default to black
+                    };
+                    renderer.render_polyline(current_path.clone(), color, line_width);
+                }
+            }
+            CanvasCommand::FillRect {
+                x,
+                y,
+                width,
+                height,
+            } => {
+                let x_f64 = x.into_f64(agent);
+                let y_f64 = y.into_f64(agent);
+                let width_f64 = width.into_f64(agent);
+                let height_f64 = height.into_f64(agent);
+
+                let color = match fill_style {
+                    crate::ext::canvas::FillStyle::Color { r, g, b, a } => {
+                        [*r, *g, *b, *a * global_alpha]
+                    }
+                    _ => [0.0, 0.0, 0.0, global_alpha], // Default to black
+                };
+
+                let rect = crate::ext::canvas::renderer::Rect {
+                    start: crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 },
+                    end: crate::ext::canvas::renderer::Point {
+                        x: x_f64 + width_f64,
+                        y: y_f64 + height_f64,
+                    },
+                };
+                renderer.render_rect(rect, color);
+            }
+            CanvasCommand::StrokeRect {
+                x,
+                y,
+                width,
+                height,
+            } => {
+                let x_f64 = x.into_f64(agent);
+                let y_f64 = y.into_f64(agent);
+                let width_f64 = width.into_f64(agent);
+                let height_f64 = height.into_f64(agent);
+
+                let color = match stroke_style {
+                    crate::ext::canvas::FillStyle::Color { r, g, b, a } => {
+                        [*r, *g, *b, *a * global_alpha]
+                    }
+                    _ => [0.0, 0.0, 0.0, global_alpha], // Default to black
+                };
+
+                // Create rectangle outline as polyline
+                let rect_path = vec![
+                    crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 },
+                    crate::ext::canvas::renderer::Point {
+                        x: x_f64 + width_f64,
+                        y: y_f64,
+                    },
+                    crate::ext::canvas::renderer::Point {
+                        x: x_f64 + width_f64,
+                        y: y_f64 + height_f64,
+                    },
+                    crate::ext::canvas::renderer::Point {
+                        x: x_f64,
+                        y: y_f64 + height_f64,
+                    },
+                    crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 }, // Close the rectangle
+                ];
+                renderer.render_polyline(rect_path, color, line_width);
+            }
+            CanvasCommand::ClearRect {
+                x,
+                y,
+                width,
+                height,
+            } => {
+                let x_f64 = x.into_f64(agent);
+                let y_f64 = y.into_f64(agent);
+                let width_f64 = width.into_f64(agent);
+                let height_f64 = height.into_f64(agent);
+
+                // Clear with white color (background)
+                let rect = crate::ext::canvas::renderer::Rect {
+                    start: crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 },
+                    end: crate::ext::canvas::renderer::Point {
+                        x: x_f64 + width_f64,
+                        y: y_f64 + height_f64,
+                    },
+                };
+                renderer.render_rect(rect, [1.0, 1.0, 1.0, 1.0]); // White background
+            }
+            // Handle other commands that don't directly affect rendering
+            CanvasCommand::Arc { .. }
+            | CanvasCommand::ArcTo { .. }
+            | CanvasCommand::Rect { .. }
+            | CanvasCommand::Save
+            | CanvasCommand::Restore
+            | CanvasCommand::Scale { .. }
+            | CanvasCommand::Rotate { .. }
+            | CanvasCommand::Translate { .. }
+            | CanvasCommand::Transform { .. }
+            | CanvasCommand::SetTransform { .. }
+            | CanvasCommand::ResetTransform
+            | CanvasCommand::Reset
+            | CanvasCommand::SetLineDash { .. } => {
+                // These commands don't directly affect path rendering
+            }
+            CanvasCommand::SetStrokeStyle(_style) => {
+                // Update stroke style
+                // Note: The actual style change is handled by the renderer
+            }
+            CanvasCommand::CreateLinearGradient { .. }
+            | CanvasCommand::CreateRadialGradient { .. }
+            | CanvasCommand::CreateConicGradient { .. } => {
+                // These commands would need more complex state management
+                // For now, we'll skip them in this basic implementation
+            }
+        }
     }
 }
 
-/// Tessellate an arc into line segments and add to path
+/// Tessellate a quadratic Bezier curve into line segments and add to path
+fn tessellate_quadratic_curve_to_path(
+    path: &mut Vec<crate::ext::canvas::renderer::Point>,
+    start: crate::ext::canvas::renderer::Point,
+    control: crate::ext::canvas::renderer::Point,
+    end: crate::ext::canvas::renderer::Point,
+) {
+    const SEGMENTS: usize = 16; // Number of segments for curve approximation
+
+    for i in 1..=SEGMENTS {
+        let t = i as f64 / SEGMENTS as f64;
+        let one_minus_t = 1.0 - t;
+
+        // Quadratic Bezier formula: (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
+        let x =
+            one_minus_t * one_minus_t * start.x + 2.0 * one_minus_t * t * control.x + t * t * end.x;
+        let y =
+            one_minus_t * one_minus_t * start.y + 2.0 * one_minus_t * t * control.y + t * t * end.y;
+
+        path.push(crate::ext::canvas::renderer::Point { x, y });
+    }
+}
+
+/// Tessellate an ellipse into line segments and add to path
+#[allow(clippy::too_many_arguments)]
+fn tessellate_ellipse_to_path(
+    path: &mut Vec<crate::ext::canvas::renderer::Point>,
+    x: f64,
+    y: f64,
+    radius_x: f64,
+    radius_y: f64,
+    rotation: f64,
+    start_angle: f64,
+    end_angle: f64,
+    counter_clockwise: bool,
+) {
+    const SEGMENTS: usize = 32; // Number of segments for ellipse approximation
+
+    let current_angle = start_angle;
+    let mut end_target = end_angle;
+
+    // Handle counter-clockwise direction
+    if counter_clockwise && end_target > current_angle {
+        end_target -= 2.0 * std::f64::consts::PI;
+    } else if !counter_clockwise && end_target < current_angle {
+        end_target += 2.0 * std::f64::consts::PI;
+    }
+
+    let angle_diff = end_target - current_angle;
+    let step = angle_diff / SEGMENTS as f64;
+
+    let cos_rotation = rotation.cos();
+    let sin_rotation = rotation.sin();
+
+    for i in 0..=SEGMENTS {
+        let angle = current_angle + i as f64 * step;
+
+        // Point on unrotated ellipse
+        let ellipse_x = radius_x * angle.cos();
+        let ellipse_y = radius_y * angle.sin();
+
+        // Apply rotation
+        let rotated_x = ellipse_x * cos_rotation - ellipse_y * sin_rotation;
+        let rotated_y = ellipse_x * sin_rotation + ellipse_y * cos_rotation;
+
+        // Translate to center
+        path.push(crate::ext::canvas::renderer::Point {
+            x: x + rotated_x,
+            y: y + rotated_y,
+        });
+    }
+}
+
+/// Tessellate a rounded rectangle into line segments and add to path
+fn tessellate_rounded_rect_to_path(
+    path: &mut Vec<crate::ext::canvas::renderer::Point>,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    radius: f64,
+) {
+    let radius = radius.min(width / 2.0).min(height / 2.0).max(0.0);
+
+    if radius <= 0.0 {
+        // Simple rectangle
+        path.push(crate::ext::canvas::renderer::Point { x, y });
+        path.push(crate::ext::canvas::renderer::Point { x: x + width, y });
+        path.push(crate::ext::canvas::renderer::Point {
+            x: x + width,
+            y: y + height,
+        });
+        path.push(crate::ext::canvas::renderer::Point { x, y: y + height });
+        path.push(crate::ext::canvas::renderer::Point { x, y }); // Close
+        return;
+    }
+
+    const CORNER_SEGMENTS: usize = 8; // Segments per corner
+
+    // Top-left corner (start at right edge of arc)
+    for i in 0..=CORNER_SEGMENTS {
+        let angle =
+            std::f64::consts::PI + i as f64 * std::f64::consts::PI / (2.0 * CORNER_SEGMENTS as f64);
+        let corner_x = x + radius + radius * angle.cos();
+        let corner_y = y + radius + radius * angle.sin();
+        path.push(crate::ext::canvas::renderer::Point {
+            x: corner_x,
+            y: corner_y,
+        });
+    }
+
+    // Top edge
+    path.push(crate::ext::canvas::renderer::Point {
+        x: x + width - radius,
+        y,
+    });
+
+    // Top-right corner
+    for i in 0..=CORNER_SEGMENTS {
+        let angle = -std::f64::consts::PI / 2.0
+            + i as f64 * std::f64::consts::PI / (2.0 * CORNER_SEGMENTS as f64);
+        let corner_x = x + width - radius + radius * angle.cos();
+        let corner_y = y + radius + radius * angle.sin();
+        path.push(crate::ext::canvas::renderer::Point {
+            x: corner_x,
+            y: corner_y,
+        });
+    }
+
+    // Right edge
+    path.push(crate::ext::canvas::renderer::Point {
+        x: x + width,
+        y: y + height - radius,
+    });
+
+    // Bottom-right corner
+    for i in 0..=CORNER_SEGMENTS {
+        let angle = 0.0 + i as f64 * std::f64::consts::PI / (2.0 * CORNER_SEGMENTS as f64);
+        let corner_x = x + width - radius + radius * angle.cos();
+        let corner_y = y + height - radius + radius * angle.sin();
+        path.push(crate::ext::canvas::renderer::Point {
+            x: corner_x,
+            y: corner_y,
+        });
+    }
+
+    // Bottom edge
+    path.push(crate::ext::canvas::renderer::Point {
+        x: x + radius,
+        y: y + height,
+    });
+
+    // Bottom-left corner
+    for i in 0..=CORNER_SEGMENTS {
+        let angle = std::f64::consts::PI / 2.0
+            + i as f64 * std::f64::consts::PI / (2.0 * CORNER_SEGMENTS as f64);
+        let corner_x = x + radius + radius * angle.cos();
+        let corner_y = y + height - radius + radius * angle.sin();
+        path.push(crate::ext::canvas::renderer::Point {
+            x: corner_x,
+            y: corner_y,
+        });
+    }
+
+    // Left edge and close
+    path.push(crate::ext::canvas::renderer::Point { x, y: y + radius });
+}
+
+/// Helper function to tessellate arc and add to path (for existing arc function)
 fn tessellate_arc_to_path(
     path: &mut Vec<crate::ext::canvas::renderer::Point>,
-    center_x: f64,
-    center_y: f64,
+    x: f64,
+    y: f64,
     radius: f64,
     start_angle: f64,
     end_angle: f64,
 ) {
-    const SEGMENTS: usize = 32; // Number of segments for arc approximation
-
-    let angle_diff = end_angle - start_angle;
-    let step = angle_diff / SEGMENTS as f64;
-
-    for i in 0..=SEGMENTS {
-        let angle = start_angle + (i as f64 * step);
-        let x = center_x + radius * angle.cos();
-        let y = center_y + radius * angle.sin();
-        path.push(crate::ext::canvas::renderer::Point { x, y });
-    }
+    tessellate_ellipse_to_path(
+        path,
+        x,
+        y,
+        radius,
+        radius,
+        0.0,
+        start_angle,
+        end_angle,
+        false,
+    );
 }
 
-#[allow(clippy::too_many_arguments)]
 /// Tessellate a cubic Bezier curve into line segments and add to path
-fn tessellate_bezier_to_path(
+fn tessellate_bezier_curve_to_path(
     path: &mut Vec<crate::ext::canvas::renderer::Point>,
-    start_x: f64,
-    start_y: f64,
-    cp1x: f64,
-    cp1y: f64,
-    cp2x: f64,
-    cp2y: f64,
-    end_x: f64,
-    end_y: f64,
+    start: crate::ext::canvas::renderer::Point,
+    cp1: crate::ext::canvas::renderer::Point,
+    cp2: crate::ext::canvas::renderer::Point,
+    end: crate::ext::canvas::renderer::Point,
 ) {
-    const SEGMENTS: usize = 20; // Number of segments for curve approximation
+    const SEGMENTS: usize = 16; // Number of segments for curve approximation
 
-    for i in 0..=SEGMENTS {
+    for i in 1..=SEGMENTS {
         let t = i as f64 / SEGMENTS as f64;
-        let t2 = t * t;
-        let t3 = t2 * t;
-        let mt = 1.0 - t;
-        let mt2 = mt * mt;
-        let mt3 = mt2 * mt;
+        let one_minus_t = 1.0 - t;
 
-        // Cubic Bezier formula: B(t) = (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
-        let x = mt3 * start_x + 3.0 * mt2 * t * cp1x + 3.0 * mt * t2 * cp2x + t3 * end_x;
-        let y = mt3 * start_y + 3.0 * mt2 * t * cp1y + 3.0 * mt * t2 * cp2y + t3 * end_y;
+        // Cubic Bezier formula: (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
+        let x = one_minus_t * one_minus_t * one_minus_t * start.x
+            + 3.0 * one_minus_t * one_minus_t * t * cp1.x
+            + 3.0 * one_minus_t * t * t * cp2.x
+            + t * t * t * end.x;
+        let y = one_minus_t * one_minus_t * one_minus_t * start.y
+            + 3.0 * one_minus_t * one_minus_t * t * cp1.y
+            + 3.0 * one_minus_t * t * t * cp2.y
+            + t * t * t * end.y;
 
         path.push(crate::ext::canvas::renderer::Point { x, y });
     }
 }
 
-/// Generate a stroke path from a line path by creating a polygon with the specified width
+/// Generate stroke path from current path with line width
 fn generate_stroke_path(
     path: &[crate::ext::canvas::renderer::Point],
     line_width: f64,
@@ -1806,41 +1666,41 @@ fn generate_stroke_path(
     }
 
     let half_width = line_width / 2.0;
-    let mut stroke_polygon = Vec::new();
+    let mut stroke_vertices = Vec::new();
 
-    // For each line segment, create perpendicular lines for the stroke width
-    for window in path.windows(2) {
-        let start = &window[0];
-        let end = &window[1];
+    // Simple stroke generation - create parallel lines on both sides
+    for i in 0..path.len() - 1 {
+        let a = &path[i];
+        let b = &path[i + 1];
 
         // Calculate perpendicular vector
-        let dx = end.x - start.x;
-        let dy = end.y - start.y;
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
         let length = (dx * dx + dy * dy).sqrt();
 
         if length > 0.0 {
-            let perpendicular_x = -dy / length * half_width;
-            let perpendicular_y = dx / length * half_width;
+            let nx = -dy / length * half_width; // Perpendicular x
+            let ny = dx / length * half_width; // Perpendicular y
 
-            // Add points for this segment (simplified approach - creates rectangles)
-            stroke_polygon.push(crate::ext::canvas::renderer::Point {
-                x: start.x + perpendicular_x,
-                y: start.y + perpendicular_y,
+            // Add vertices for the stroke quad
+            stroke_vertices.push(crate::ext::canvas::renderer::Point {
+                x: a.x + nx,
+                y: a.y + ny,
             });
-            stroke_polygon.push(crate::ext::canvas::renderer::Point {
-                x: start.x - perpendicular_x,
-                y: start.y - perpendicular_y,
+            stroke_vertices.push(crate::ext::canvas::renderer::Point {
+                x: a.x - nx,
+                y: a.y - ny,
             });
-            stroke_polygon.push(crate::ext::canvas::renderer::Point {
-                x: end.x - perpendicular_x,
-                y: end.y - perpendicular_y,
+            stroke_vertices.push(crate::ext::canvas::renderer::Point {
+                x: b.x + nx,
+                y: b.y + ny,
             });
-            stroke_polygon.push(crate::ext::canvas::renderer::Point {
-                x: end.x + perpendicular_x,
-                y: end.y + perpendicular_y,
+            stroke_vertices.push(crate::ext::canvas::renderer::Point {
+                x: b.x - nx,
+                y: b.y - ny,
             });
         }
     }
 
-    stroke_polygon
+    stroke_vertices
 }

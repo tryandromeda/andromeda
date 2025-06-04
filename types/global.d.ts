@@ -191,7 +191,7 @@ declare function confirm(message: string): boolean;
 /**
  * An offscreen Canvas implementation.
  */
-declare class Canvas {
+declare class OffscreenCanvas {
   /**
    * Create a new off-screen canvas with the given dimensions.
    */
@@ -219,7 +219,7 @@ declare class Canvas {
 /**
  * Factory to create a Canvas instance.
  */
-declare function createCanvas(width: number, height: number): Canvas;
+declare function createCanvas(width: number, height: number): OffscreenCanvas;
 
 /**
  * The 2D rendering context for a Canvas.
@@ -253,18 +253,27 @@ declare class CanvasRenderingContext2D {
   /** Moves the path starting point to the specified coordinates. */
   moveTo(x: number, y: number): void;
   /** Connects the last point in the current sub-path to the specified coordinates with a straight line. */
-  lineTo(x: number, y: number): void;
-  /** Fills the current path with the current fill style. */
+  lineTo(x: number, y: number): void;  /** Fills the current path with the current fill style. */
   fill(): void;
   /** Strokes the current path with the current stroke style. */
-  stroke(): void;
-  /** Adds a rectangle to the current path. */
+  stroke(): void;  /** Adds a rectangle to the current path. */
   rect(x: number, y: number, width: number, height: number): void;
+  /** Adds a quadratic Bézier curve to the current path. */
+  quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void;
+  /** Adds an ellipse to the current path. */
+  ellipse(x: number, y: number, radiusX: number, radiusY: number, rotation: number, startAngle: number, endAngle: number, counterclockwise?: boolean): void;
+  /** Adds a rounded rectangle to the current path. */
+  roundRect(x: number, y: number, w: number, h: number, radii: number | number[]): void;
+  /** Saves the current canvas state (styles, transformations, etc.) to a stack. */
+  save(): void;
+  /** Restores the most recently saved canvas state from the stack. */
+  restore(): void;
 }
 
 /**
  * A bitmap image resource.
  */
+// @ts-ignore ImageBitmap is available in Deno's scope
 declare class ImageBitmap {
   /** The width of the image in pixels. */
   readonly width: number;

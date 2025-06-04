@@ -272,3 +272,62 @@ declare function internal_image_bitmap_get_width(rid: number): number;
  * The `internal_image_bitmap_get_height` function returns the height of the ImageBitmap resource.
  */
 declare function internal_image_bitmap_get_height(rid: number): number;
+/**
+ * The `internal_canvas_quadratic_curve_to` function creates a quadratic curve on the canvas.
+ */
+declare function internal_canvas_quadratic_curve_to(
+  rid: number,
+  cpx: number,
+  cpy: number,
+  x: number,
+  y: number
+): void;
+
+/**
+ * The `internal_canvas_ellipse` function creates an ellipse on the canvas.
+ */
+declare function internal_canvas_ellipse(
+  rid: number,
+  x: number,
+  y: number,
+  radiusX: number,
+  radiusY: number,
+  rotation: number,
+  startAngle: number,
+  endAngle: number,
+  counterclockwise?: boolean
+): void;
+
+/**
+ * The `internal_canvas_round_rect` function adds a rounded rectangle to the current path.
+ */
+declare function internal_canvas_round_rect(
+  rid: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+): void;
+
+/**
+ * The `internal_canvas_save` function saves the current canvas state (styles, transformations, etc.).
+ */
+declare function internal_canvas_save(rid: number): void;
+
+/**
+ * The `internal_canvas_restore` function restores the most recently saved canvas state.
+ */
+declare function internal_canvas_restore(rid: number): void;
+
+/**
+ * The `internal_canvas_get_stroke_style` function gets the current stroke style of the canvas context.
+ * Returns the stroke style as a CSS color string.
+ */
+declare function internal_canvas_get_stroke_style(rid: number): string;
+
+/**
+ * The `internal_canvas_get_line_width` function gets the current line width of the canvas context.
+ * Returns the line width as a number.
+ */
+declare function internal_canvas_get_line_width(rid: number): number;

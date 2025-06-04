@@ -580,6 +580,135 @@ impl Renderer {
 
         points
     }
+
+    /// Renders an ellipse as a filled polygon using tessellation
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_ellipse(
+        &mut self,
+        center_x: f64,
+        center_y: f64,
+        radius_x: f64,
+        radius_y: f64,
+        rotation: f64,
+        start_angle: f64,
+        end_angle: f64,
+        color: Color,
+    ) {
+        // Tessellate ellipse into points
+        const SEGMENTS: usize = 64;
+        let angle_diff = if end_angle > start_angle {
+            end_angle - start_angle
+        } else {
+            (end_angle + 2.0 * std::f64::consts::PI) - start_angle
+        };
+        let step = angle_diff / SEGMENTS as f64;
+        let mut points = Vec::new();
+
+        for i in 0..=SEGMENTS {
+            let angle = start_angle + (i as f64 * step);
+            // Apply ellipse parameters
+            let x = radius_x * angle.cos();
+            let y = radius_y * angle.sin();
+
+            // Apply rotation if needed
+            let (rotated_x, rotated_y) = if rotation != 0.0 {
+                let cos_rot = rotation.cos();
+                let sin_rot = rotation.sin();
+                (x * cos_rot - y * sin_rot, x * sin_rot + y * cos_rot)
+            } else {
+                (x, y)
+            };
+
+            points.push(crate::ext::canvas::renderer::Point {
+                x: center_x + rotated_x,
+                y: center_y + rotated_y,
+            });
+        }
+
+        // Render as polygon
+        self.render_polygon(points, color);
+    }
+
+    /// Renders a rounded rectangle as a filled polygon using tessellation
+    pub fn render_rounded_rect(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        radius: f64,
+        color: Color,
+    ) {
+        // Clamp radius to valid range
+        let max_radius = (width.min(height)) / 2.0;
+        let radius = radius.min(max_radius).max(0.0);
+
+        if radius <= 0.0 {
+            // Just render as regular rectangle
+            let rect = Rect {
+                start: Point { x, y },
+                end: Point {
+                    x: x + width,
+                    y: y + height,
+                },
+            };
+            self.render_rect(rect, color);
+            return;
+        }
+
+        let mut points = Vec::new();
+        const CORNER_SEGMENTS: usize = 8;
+        let step = std::f64::consts::PI / (2.0 * CORNER_SEGMENTS as f64);
+
+        // Top-left corner
+        for i in 0..=CORNER_SEGMENTS {
+            let angle = std::f64::consts::PI + (i as f64 * step);
+            let corner_x = x + radius + radius * angle.cos();
+            let corner_y = y + radius + radius * angle.sin();
+            points.push(Point {
+                x: corner_x,
+                y: corner_y,
+            });
+        }
+
+        // Top-right corner
+        for i in 0..=CORNER_SEGMENTS {
+            let angle = 1.5 * std::f64::consts::PI + (i as f64 * step);
+            let corner_x = x + width - radius + radius * angle.cos();
+            let corner_y = y + radius + radius * angle.sin();
+            points.push(Point {
+                x: corner_x,
+                y: corner_y,
+            });
+        }
+
+        // Bottom-right corner
+        for i in 0..=CORNER_SEGMENTS {
+            let angle = 0.0 + (i as f64 * step);
+            let corner_x = x + width - radius + radius * angle.cos();
+            let corner_y = y + height - radius + radius * angle.sin();
+            points.push(Point {
+                x: corner_x,
+                y: corner_y,
+            });
+        }
+
+        // Bottom-left corner
+        for i in 0..=CORNER_SEGMENTS {
+            let angle = 0.5 * std::f64::consts::PI + (i as f64 * step);
+            let corner_x = x + radius + radius * angle.cos();
+            let corner_y = y + height - radius + radius * angle.sin();
+            points.push(Point {
+                x: corner_x,
+                y: corner_y,
+            });
+        }
+
+        // Render as polygon
+        self.render_polygon(points, color);
+    }
+
+    // ...existing code...
 }
 
 pub fn translate_coords(point: &Point, dimensions: &Dimensions) -> (f64, f64) {

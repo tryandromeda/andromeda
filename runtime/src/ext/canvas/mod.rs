@@ -2,17 +2,25 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable, Rid};
 mod context2d;
+mod fill_style;
 mod renderer;
+mod state;
+use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable, Rid};
+use std::sync::{Arc, Mutex};
+use std::thread;
+
 use crate::ext::canvas::context2d::{
     internal_canvas_begin_path, internal_canvas_bezier_curve_to, internal_canvas_close_path,
 };
+pub use fill_style::FillStyle;
 
-use self::context2d::{
-    internal_canvas_arc, internal_canvas_arc_to, internal_canvas_clear_rect, internal_canvas_fill,
-    internal_canvas_fill_rect, internal_canvas_line_to, internal_canvas_move_to,
-    internal_canvas_rect, internal_canvas_set_line_width, internal_canvas_set_stroke_style,
+use crate::ext::canvas::context2d::{
+    internal_canvas_arc, internal_canvas_arc_to, internal_canvas_clear_rect,
+    internal_canvas_ellipse, internal_canvas_fill, internal_canvas_fill_rect,
+    internal_canvas_line_to, internal_canvas_move_to, internal_canvas_quadratic_curve_to,
+    internal_canvas_rect, internal_canvas_restore, internal_canvas_round_rect,
+    internal_canvas_save, internal_canvas_set_line_width, internal_canvas_set_stroke_style,
     internal_canvas_stroke,
 };
 use nova_vm::{
@@ -24,236 +32,6 @@ use nova_vm::{
     },
     engine::context::{Bindable, GcScope},
 };
-
-/// Represents different fill styles for Canvas 2D operations
-#[derive(Clone, Debug)]
-pub enum FillStyle {
-    /// Solid color specified as RGBA values (0.0-1.0)
-    Color { r: f32, g: f32, b: f32, a: f32 },
-    /// Linear gradient (placeholder for future implementation)
-    LinearGradient,
-    /// Radial gradient (placeholder for future implementation)
-    RadialGradient,
-    /// Pattern (placeholder for future implementation)
-    Pattern,
-}
-
-impl Default for FillStyle {
-    fn default() -> Self {
-        // Default to black color
-        FillStyle::Color {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-            a: 1.0,
-        }
-    }
-}
-
-impl FillStyle {
-    /// Parse a CSS color string into a FillStyle
-    pub fn from_css_color(color_str: &str) -> Result<Self, String> {
-        let color_str = color_str.trim();
-
-        // Handle hex colors
-        if color_str.starts_with('#') {
-            return Self::parse_hex_color(color_str);
-        }
-
-        // Handle rgb() and rgba() colors
-        if color_str.starts_with("rgb(") || color_str.starts_with("rgba(") {
-            return Self::parse_rgb_color(color_str);
-        }
-
-        // Handle named colors
-        Self::parse_named_color(color_str)
-    }
-
-    fn parse_hex_color(hex: &str) -> Result<Self, String> {
-        let hex = hex.trim_start_matches('#');
-
-        match hex.len() {
-            3 => {
-                // Short hex format like #RGB
-                let r = u8::from_str_radix(&hex[0..1].repeat(2), 16)
-                    .map_err(|_| "Invalid hex color")?;
-                let g = u8::from_str_radix(&hex[1..2].repeat(2), 16)
-                    .map_err(|_| "Invalid hex color")?;
-                let b = u8::from_str_radix(&hex[2..3].repeat(2), 16)
-                    .map_err(|_| "Invalid hex color")?;
-                Ok(FillStyle::Color {
-                    r: r as f32 / 255.0,
-                    g: g as f32 / 255.0,
-                    b: b as f32 / 255.0,
-                    a: 1.0,
-                })
-            }
-            6 => {
-                // Full hex format like #RRGGBB
-                let r = u8::from_str_radix(&hex[0..2], 16).map_err(|_| "Invalid hex color")?;
-                let g = u8::from_str_radix(&hex[2..4], 16).map_err(|_| "Invalid hex color")?;
-                let b = u8::from_str_radix(&hex[4..6], 16).map_err(|_| "Invalid hex color")?;
-                Ok(FillStyle::Color {
-                    r: r as f32 / 255.0,
-                    g: g as f32 / 255.0,
-                    b: b as f32 / 255.0,
-                    a: 1.0,
-                })
-            }
-            8 => {
-                // Hex with alpha like #RRGGBBAA
-                let r = u8::from_str_radix(&hex[0..2], 16).map_err(|_| "Invalid hex color")?;
-                let g = u8::from_str_radix(&hex[2..4], 16).map_err(|_| "Invalid hex color")?;
-                let b = u8::from_str_radix(&hex[4..6], 16).map_err(|_| "Invalid hex color")?;
-                let a = u8::from_str_radix(&hex[6..8], 16).map_err(|_| "Invalid hex color")?;
-                Ok(FillStyle::Color {
-                    r: r as f32 / 255.0,
-                    g: g as f32 / 255.0,
-                    b: b as f32 / 255.0,
-                    a: a as f32 / 255.0,
-                })
-            }
-            _ => Err("Invalid hex color length".to_string()),
-        }
-    }
-
-    fn parse_rgb_color(rgb: &str) -> Result<Self, String> {
-        let is_rgba = rgb.starts_with("rgba(");
-        let inner = if is_rgba {
-            rgb.trim_start_matches("rgba(").trim_end_matches(')')
-        } else {
-            rgb.trim_start_matches("rgb(").trim_end_matches(')')
-        };
-
-        let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
-
-        if (!is_rgba && parts.len() != 3) || (is_rgba && parts.len() != 4) {
-            return Err("Invalid rgb/rgba format".to_string());
-        }
-
-        let r = parts[0].parse::<f32>().map_err(|_| "Invalid red value")? / 255.0;
-        let g = parts[1].parse::<f32>().map_err(|_| "Invalid green value")? / 255.0;
-        let b = parts[2].parse::<f32>().map_err(|_| "Invalid blue value")? / 255.0;
-        let a = if is_rgba {
-            parts[3].parse::<f32>().map_err(|_| "Invalid alpha value")?
-        } else {
-            1.0
-        };
-
-        Ok(FillStyle::Color { r, g, b, a })
-    }
-
-    fn parse_named_color(name: &str) -> Result<Self, String> {
-        match name.to_lowercase().as_str() {
-            "black" => Ok(FillStyle::Color {
-                r: 0.0,
-                g: 0.0,
-                b: 0.0,
-                a: 1.0,
-            }),
-            "white" => Ok(FillStyle::Color {
-                r: 1.0,
-                g: 1.0,
-                b: 1.0,
-                a: 1.0,
-            }),
-            "red" => Ok(FillStyle::Color {
-                r: 1.0,
-                g: 0.0,
-                b: 0.0,
-                a: 1.0,
-            }),
-            "green" => Ok(FillStyle::Color {
-                r: 0.0,
-                g: 1.0,
-                b: 0.0,
-                a: 1.0,
-            }),
-            "blue" => Ok(FillStyle::Color {
-                r: 0.0,
-                g: 0.0,
-                b: 1.0,
-                a: 1.0,
-            }),
-            "yellow" => Ok(FillStyle::Color {
-                r: 1.0,
-                g: 1.0,
-                b: 0.0,
-                a: 1.0,
-            }),
-            "magenta" | "fuchsia" => Ok(FillStyle::Color {
-                r: 1.0,
-                g: 0.0,
-                b: 1.0,
-                a: 1.0,
-            }),
-            "cyan" | "aqua" => Ok(FillStyle::Color {
-                r: 0.0,
-                g: 1.0,
-                b: 1.0,
-                a: 1.0,
-            }),
-            "orange" => Ok(FillStyle::Color {
-                r: 1.0,
-                g: 0.65,
-                b: 0.0,
-                a: 1.0,
-            }),
-            "purple" => Ok(FillStyle::Color {
-                r: 0.5,
-                g: 0.0,
-                b: 0.5,
-                a: 1.0,
-            }),
-            "brown" => Ok(FillStyle::Color {
-                r: 0.65,
-                g: 0.16,
-                b: 0.16,
-                a: 1.0,
-            }),
-            "pink" => Ok(FillStyle::Color {
-                r: 1.0,
-                g: 0.75,
-                b: 0.8,
-                a: 1.0,
-            }),
-            "gray" | "grey" => Ok(FillStyle::Color {
-                r: 0.5,
-                g: 0.5,
-                b: 0.5,
-                a: 1.0,
-            }),
-            "silver" => Ok(FillStyle::Color {
-                r: 0.75,
-                g: 0.75,
-                b: 0.75,
-                a: 1.0,
-            }),
-            _ => Err(format!("Unknown color name: {}", name)),
-        }
-    }
-
-    /// Get the RGBA color values for rendering
-    pub fn get_rgba(&self) -> (f32, f32, f32, f32) {
-        match self {
-            FillStyle::Color { r, g, b, a } => (*r, *g, *b, *a),
-            _ => (0.0, 0.0, 0.0, 1.0), // Default to black for unsupported types
-        }
-    }
-
-    // Add method to apply global alpha
-    pub fn with_global_alpha(&self, global_alpha: f32) -> Self {
-        match self {
-            FillStyle::Color { r, g, b, a } => FillStyle::Color {
-                r: *r,
-                g: *g,
-                b: *b,
-                a: a * global_alpha,
-            },
-            _ => self.clone(),
-        }
-    }
-}
 
 /// A Canvas extension
 #[derive(Clone)]
@@ -268,6 +46,8 @@ struct CanvasData<'gc> {
     // Path state for renderer
     current_path: Vec<renderer::Point>,
     path_started: bool,
+    // State stack for save/restore functionality
+    state_stack: Vec<state::CanvasState>,
 }
 
 struct CanvasResources<'gc> {
@@ -321,6 +101,13 @@ impl CanvasExt {
                 ExtensionOp::new("internal_canvas_stroke", internal_canvas_stroke, 1),
                 ExtensionOp::new("internal_canvas_rect", internal_canvas_rect, 5),
                 ExtensionOp::new(
+                    "internal_canvas_quadratic_curve_to",
+                    internal_canvas_quadratic_curve_to,
+                    5,
+                ),
+                ExtensionOp::new("internal_canvas_ellipse", internal_canvas_ellipse, 9),
+                ExtensionOp::new("internal_canvas_round_rect", internal_canvas_round_rect, 6),
+                ExtensionOp::new(
                     "internal_canvas_set_line_width",
                     internal_canvas_set_line_width,
                     2,
@@ -329,6 +116,16 @@ impl CanvasExt {
                     "internal_canvas_set_stroke_style",
                     internal_canvas_set_stroke_style,
                     2,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_stroke_style",
+                    Self::internal_canvas_get_stroke_style,
+                    1,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_line_width",
+                    Self::internal_canvas_get_line_width,
+                    1,
                 ),
                 ExtensionOp::new(
                     "internal_canvas_get_fill_style",
@@ -356,6 +153,8 @@ impl CanvasExt {
                     Self::internal_canvas_save_as_png,
                     2,
                 ),
+                ExtensionOp::new("internal_canvas_save", internal_canvas_save, 1),
+                ExtensionOp::new("internal_canvas_restore", internal_canvas_restore, 1),
                 // ImageBitmap API
                 ExtensionOp::new(
                     "internal_image_bitmap_create",
@@ -408,6 +207,7 @@ impl CanvasExt {
             global_alpha: 1.0,
             current_path: Vec::new(),
             path_started: false,
+            state_stack: Vec::new(),
         });
 
         // Create renderer with GPU device
@@ -612,7 +412,7 @@ impl CanvasExt {
         let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
         let rid = Rid::from_index(rid_val);
         let path_str = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
-        let path = path_str.as_str(agent);
+        let path_owned = path_str.as_str(agent).to_owned();
 
         let host_data = agent
             .get_host_data()
@@ -624,7 +424,6 @@ impl CanvasExt {
         // Try to save with GPU renderer if available
         if let Some(mut renderer) = res.renderers.get_mut(rid) {
             // Since we can't use async in this context, we'll use a blocking approach
-            let path_owned = path.to_owned();
 
             // First render all pending operations
             renderer.render_all();
@@ -729,6 +528,79 @@ impl CanvasExt {
             }
         }
     }
+
+    /// Internal op to get the current stroke style of a canvas context
+    fn internal_canvas_get_stroke_style<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let data = res.canvases.get(rid).unwrap();
+
+        // Convert stroke style back to CSS string representation
+        let css_string = match &data.stroke_style {
+            FillStyle::Color { r, g, b, a } => {
+                if *a == 1.0 {
+                    // RGB format for opaque colors
+                    format!(
+                        "rgb({}, {}, {})",
+                        (*r * 255.0) as u8,
+                        (*g * 255.0) as u8,
+                        (*b * 255.0) as u8
+                    )
+                } else {
+                    // RGBA format for transparent colors
+                    format!(
+                        "rgba({}, {}, {}, {})",
+                        (*r * 255.0) as u8,
+                        (*g * 255.0) as u8,
+                        (*b * 255.0) as u8,
+                        a
+                    )
+                }
+            }
+            _ => "rgb(0, 0, 0)".to_string(), // Default fallback
+        };
+
+        // Drop storage borrow before creating string
+        drop(storage);
+
+        Ok(Value::from_string(agent, css_string, gc.nogc()).unbind())
+    }
+
+    /// Internal op to get the current line width of a canvas context
+    fn internal_canvas_get_line_width<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let data = res.canvases.get(rid).unwrap();
+
+        let line_width = data.line_width;
+
+        // Drop storage borrow before creating result
+        drop(storage);
+
+        Ok(Value::from_f64(agent, line_width, gc.nogc()).unbind())
+    }
 }
 
 async fn create_wgpu_device() -> (wgpu::Device, wgpu::Queue) {
@@ -762,10 +634,6 @@ async fn create_wgpu_device() -> (wgpu::Device, wgpu::Queue) {
 
 fn create_wgpu_device_sync() -> (wgpu::Device, wgpu::Queue) {
     // Use a simple blocking executor - we'll create a simpler version for now
-    // TODO: Replace with proper async runtime integration
-    use std::sync::{Arc, Mutex};
-    use std::thread;
-
     let result = Arc::new(Mutex::new(None));
     let result_clone = result.clone();
 

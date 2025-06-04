@@ -5,9 +5,9 @@
 // deno-lint-ignore-file no-unused-vars
 
 /**
- * A minimal Canvas implementation
+ * A OffscreenCanvas implementation
  */
-class Canvas {
+class OffscreenCanvas {
   #rid: number;
   constructor(width: number, height: number) {
     this.#rid = internal_canvas_create(width, height);
@@ -62,9 +62,10 @@ class Canvas {
  * const canvas = createCanvas(800, 600);
  * ```
  */
-function createCanvas(width: number, height: number): Canvas {
-  return new Canvas(width, height);
+function createCanvas(width: number, height: number): OffscreenCanvas {
+  return new OffscreenCanvas(width, height);
 }
+
 
 /**
  * A 2D rendering context for Canvas
@@ -98,18 +99,24 @@ class CanvasRenderingContext2D {
   set fillStyle(value: string) {
     internal_canvas_set_fill_style(this.#rid, value);
   }
-
   /**
    * Gets or sets the current stroke style for drawing operations.
    * Accepts CSS color strings like '#ff0000', 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'red', etc.
    */
+  get strokeStyle(): string {
+    return internal_canvas_get_stroke_style(this.#rid);
+  }
+
   set strokeStyle(value: string) {
     internal_canvas_set_stroke_style(this.#rid, value);
   }
-
   /**
    * Gets or sets the line width for drawing operations.
    */
+  get lineWidth(): number {
+    return internal_canvas_get_line_width(this.#rid);
+  }
+
   set lineWidth(value: number) {
     internal_canvas_set_line_width(this.#rid, value);
   }
@@ -223,5 +230,64 @@ class CanvasRenderingContext2D {
    */
   rect(x: number, y: number, width: number, height: number): void {
     internal_canvas_rect(this.#rid, x, y, width, height);
+  }
+
+  /**
+   * Creates a quadratic Bézier curve to the specified point.
+   */
+  quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void {
+    internal_canvas_quadratic_curve_to(this.#rid, cpx, cpy, x, y);
+  }
+
+  /**
+   * Creates an elliptical arc on the canvas.
+   */
+  ellipse(
+    x: number,
+    y: number,
+    radiusX: number,
+    radiusY: number,
+    rotation: number,
+    startAngle: number,
+    endAngle: number,
+    counterclockwise?: boolean
+  ): void {
+    internal_canvas_ellipse(
+      this.#rid,
+      x,
+      y,
+      radiusX,
+      radiusY,
+      rotation,
+      startAngle,
+      endAngle,
+      counterclockwise
+    );
+  }
+  /**
+   * Adds a rounded rectangle to the current path.
+   */
+  roundRect(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radius: number
+  ): void {
+    internal_canvas_round_rect(this.#rid, x, y, width, height, radius);
+  }
+
+  /**
+   * Saves the current canvas state (styles, transformations, etc.) to a stack.
+   */
+  save(): void {
+    internal_canvas_save(this.#rid);
+  }
+
+  /**
+   * Restores the most recently saved canvas state from the stack.
+   */
+  restore(): void {
+    internal_canvas_restore(this.#rid);
   }
 }
