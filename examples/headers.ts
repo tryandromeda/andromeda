@@ -17,3 +17,6 @@ console.log("myHeaders", myHeaders2.get("Set-Cookie")); // greeting=hellogreetin
 const myAppendHeader = new Headers();
 myAppendHeader.append("Content-Type", "image/jpeg");
 console.log("myAppendHeader", myAppendHeader.get("Content-Type")); // 'image/jpeg'
+
+console.log("myAppendHeader._headerList", myAppendHeader._headerList); // undefined
+console.log("myAppendHeader._guard", myAppendHeader._guard); // undefined

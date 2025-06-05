@@ -2,24 +2,21 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-class Headers {
-  // TODO: Private properties
-  // #guard
-  // #headerList
+const _headerList = Symbol("header list");
+const _guard = Symbol("guard");
 
+class Headers {
+  [_headerList] = [];
+  [_guard];
   // TODO: this is HeaderList type
   // https://fetch.spec.whatwg.org/#headers-class
   constructor(init = undefined) {
-    // @ts-ignore
-    this.guard = "none";
-    // @ts-ignore
-    this.headerList = [];
     fillHeaders(this, init);
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-get
   get(name: string) {
-    return getHeader(this.headerList, name);
+    return getHeader(this[_headerList], name);
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-append
@@ -69,12 +66,12 @@ function appendHeader(headers, name, value) {
   // }
 
   // 3
-  if (headers.guard == "immutable") {
+  if (headers[_guard] == "immutable") {
     throw new TypeError("Cannot change header: headers are immutable");
   }
 
   // 7.
-  const list = headers.headerList;
+  const list = headers[_headerList];
   const lowercaseName = byteLowerCase(name);
   for (let i = 0; i < list.length; i++) {
     if (byteLowerCase(list[i][0]) === lowercaseName) {
