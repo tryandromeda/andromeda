@@ -309,3 +309,4 @@ declare class ImageBitmap {
  * @param path The file path or URL to load.
  */
 declare function createImageBitmap(path: string): Promise<ImageBitmap>;
+

@@ -18,6 +18,8 @@ pub fn recommended_extensions() -> Vec<Extension> {
         HeadersExt::new_extension(),
         #[cfg(feature = "canvas")]
         crate::CanvasExt::new_extension(),
+        #[cfg(feature = "crypto")]
+        crate::CryptoExt::new_extension(),
     ]
 }
 

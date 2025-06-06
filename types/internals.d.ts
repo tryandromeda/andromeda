@@ -331,3 +331,14 @@ declare function internal_canvas_get_stroke_style(rid: number): string;
  * Returns the line width as a number.
  */
 declare function internal_canvas_get_line_width(rid: number): number;
+// Declare internal functions provided by the Rust extension
+declare function internal_crypto_getRandomValues<T extends Uint8Array | Uint16Array | Uint32Array>(array: T): T;
+declare function internal_crypto_randomUUID(): string;
+declare function internal_subtle_digest(algorithm: AlgorithmIdentifier, data: Uint8Array | ArrayBuffer): ArrayBuffer;
+declare function internal_subtle_generateKey(algorithm: AlgorithmIdentifier, extractable: boolean, keyUsages: KeyUsage[]): CryptoKey | CryptoKeyPair;
+declare function internal_subtle_importKey(format: KeyFormat, keyData: ArrayBuffer | Uint8Array | object, algorithm: AlgorithmIdentifier, extractable: boolean, keyUsages: KeyUsage[]): CryptoKey;
+declare function internal_subtle_exportKey(format: KeyFormat, key: CryptoKey): ArrayBuffer | object;
+declare function internal_subtle_encrypt(algorithm: AlgorithmIdentifier, key: CryptoKey, data: Uint8Array | ArrayBuffer): ArrayBuffer;
+declare function internal_subtle_decrypt(algorithm: AlgorithmIdentifier, key: CryptoKey, data: Uint8Array | ArrayBuffer): ArrayBuffer;
+declare function internal_subtle_sign(algorithm: AlgorithmIdentifier, key: CryptoKey, data: Uint8Array | ArrayBuffer): ArrayBuffer;
+declare function internal_subtle_verify(algorithm: AlgorithmIdentifier, key: CryptoKey, signature: Uint8Array | ArrayBuffer, data: Uint8Array | ArrayBuffer): boolean;

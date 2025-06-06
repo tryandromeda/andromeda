@@ -9,6 +9,7 @@ readme = "../README.md"
 [features]
 default = []
 canvas = ["dep:wgpu", "dep:image"]
+crypto = ["dep:ring", "dep:rand"]
 
 [dependencies]
 andromeda-core.workspace = true
@@ -23,3 +24,5 @@ url.workspace = true
 base64-simd.workspace = true
 wgpu = { workspace = true, optional = true }
 image = { workspace = true, optional = true }
+ring = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }

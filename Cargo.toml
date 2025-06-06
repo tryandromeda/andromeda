@@ -12,7 +12,7 @@ version = "0.1.0"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
-andromeda-runtime = { path = "runtime" }
+andromeda-runtime = { path = "runtime" , features = ["canvas", "crypto"] }
 anyhow = "1.0.98"
 anymap = "0.12.1"
 base64-simd = "0.8.0"
@@ -35,6 +35,8 @@ reedline = "0.40.0"
 serde = { version = "1.0.130", features = ["derive"] }
 tokio = { version = "1.45.1", features = ["rt", "sync", "time"] }
 url = { version = "2", features = ["serde", "expose_internals"] }
+ring = "0.17.8"
+rand = "0.9.1"
 
 [profile.release]
 lto = true
