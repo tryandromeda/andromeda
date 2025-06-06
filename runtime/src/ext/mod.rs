@@ -4,6 +4,8 @@
 #[cfg(feature = "canvas")]
 mod canvas;
 mod console;
+#[cfg(feature = "crypto")]
+mod crypto;
 mod fetch;
 mod fs;
 mod process;
@@ -14,6 +16,8 @@ mod web;
 #[cfg(feature = "canvas")]
 pub use canvas::*;
 pub use console::*;
+#[cfg(feature = "crypto")]
+pub use crypto::*;
 pub use fetch::*;
 pub use fs::*;
 pub use process::*;
