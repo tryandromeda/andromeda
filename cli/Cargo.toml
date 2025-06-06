@@ -10,8 +10,9 @@ readme = "../README.md"
 
 [dependencies]
 clap.workspace = true
-cliclack.workspace = true
 console.workspace = true
+reedline.workspace = true
+nu-ansi-term.workspace = true
 nova_vm.workspace = true
 andromeda-core.workspace = true
 andromeda-runtime.workspace = true
