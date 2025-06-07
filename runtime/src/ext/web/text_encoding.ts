@@ -18,7 +18,6 @@ class TextEncoder {
    * Encodes a string into a Uint8Array of UTF-8 bytes.
    */
   encode(input: string = ""): Uint8Array {
-    // Call native implementation hich returns comma-separated byte values
     const bytesStr = internal_text_encode(input);
 
     if (bytesStr === "") {
