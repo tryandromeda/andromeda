@@ -49,7 +49,8 @@ andromeda run <file>
 
 ### Interactive REPL
 
-Andromeda includes an interactive REPL (Read-Eval-Print Loop) for testing JavaScript or TypeScript code quickly:
+Andromeda includes an interactive REPL (Read-Eval-Print Loop) for testing
+JavaScript or TypeScript code quickly:
 
 ```bash
 # Start the REPL
@@ -69,7 +70,7 @@ andromeda repl --print-internals --expose-internals
 **REPL Options:**
 
 - `--expose-internals`: Expose Nova internal APIs for debugging
-- `--print-internals`: Print internal debugging information  
+- `--print-internals`: Print internal debugging information
 - `--disable-gc`: Disable garbage collection
 
 ## 🎨 Enhanced REPL Features
@@ -77,19 +78,24 @@ andromeda repl --print-internals --expose-internals
 The Andromeda REPL provides a beautiful and powerful development experience:
 
 ### ✨ Smart Multiline Input
-- **Automatic Detection**: Incomplete JavaScript syntax automatically triggers multiline mode
+
+- **Automatic Detection**: Incomplete JavaScript syntax automatically triggers
+  multiline mode
 - **Visual Feedback**: Clear continuation prompts with line numbers
 - **Manual Control**: Force completion with `;;;` or cancel with Ctrl+C
-- **Syntax Awareness**: Handles functions, objects, arrays, and control structures
+- **Syntax Awareness**: Handles functions, objects, arrays, and control
+  structures
 
 ### 🎯 Interactive Commands
+
 - `help` - Show available commands and multiline tips
 - `history` - View command history (last 20 entries)
 - `clear` - Clear the screen
 - `gc` - Manual garbage collection with progress feedback
 - `exit`/`quit` - Graceful exit
 
-### 🌈 Visual Enhancements  
+### 🌈 Visual Enhancements
+
 - **Type-aware Output**: Different colors for strings, numbers, booleans, etc.
 - **Execution Timing**: Performance metrics for every evaluation
 - **Beautiful Themes**: Consistent color scheme throughout
@@ -97,6 +103,7 @@ The Andromeda REPL provides a beautiful and powerful development experience:
 - **Startup Tips**: Random JavaScript examples to get you started
 
 ### Example Multiline Usage:
+
 ```javascript
 js [1] function fibonacci(n) {
 ...[2]   if (n <= 1) return n;

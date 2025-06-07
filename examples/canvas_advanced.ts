@@ -4,8 +4,8 @@ const canvas = new OffscreenCanvas(800, 600);
 const ctx = canvas.getContext("2d");
 
 if (!ctx) {
-    console.error("Failed to get 2D context");
-    throw new Error("Canvas context not available");
+  console.error("Failed to get 2D context");
+  throw new Error("Canvas context not available");
 }
 
 // Clear the canvas with a background
@@ -51,7 +51,6 @@ ctx.lineTo(300, 200);
 ctx.lineTo(300, 280);
 ctx.lineTo(200, 280);
 ctx.stroke();
-
 
 // Draw a stroked circle
 ctx.beginPath();

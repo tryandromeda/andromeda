@@ -1,31 +1,30 @@
-
 const canvas = new OffscreenCanvas(300, 200);
 const ctx = canvas.getContext("2d");
 
 if (!ctx) {
-    console.log("Error: Could not get 2D context");
-    throw new Error("Canvas context not available");
+  console.log("Error: Could not get 2D context");
+  throw new Error("Canvas context not available");
 }
 
 console.log(`1. Default globalAlpha value: ${ctx.globalAlpha}`);
 console.log(
-    `   Expected: 1.0, Got: ${ctx.globalAlpha}, Result: ${
-        ctx.globalAlpha === 1 ? "✅ PASS" : "❌ FAIL"
-    }\n`,
+  `   Expected: 1.0, Got: ${ctx.globalAlpha}, Result: ${
+    ctx.globalAlpha === 1 ? "✅ PASS" : "❌ FAIL"
+  }\n`,
 );
 
 const testValues = [0.0, 0.25, 0.5, 0.75, 1.0];
 console.log("2. Testing globalAlpha getter/setter:");
 
 for (const value of testValues) {
-    ctx.globalAlpha = value;
-    const retrieved = ctx.globalAlpha;
-    const passed = Math.abs(retrieved - value) < 0.001; // Allow for small floating point differences
-    console.log(
-        `   Set: ${value}, Got: ${retrieved}, Result: ${
-            passed ? "✅ PASS" : "❌ FAIL"
-        }`,
-    );
+  ctx.globalAlpha = value;
+  const retrieved = ctx.globalAlpha;
+  const passed = Math.abs(retrieved - value) < 0.001; // Allow for small floating point differences
+  console.log(
+    `   Set: ${value}, Got: ${retrieved}, Result: ${
+      passed ? "✅ PASS" : "❌ FAIL"
+    }`,
+  );
 }
 console.log();
 
@@ -40,7 +39,7 @@ console.log(`   Drew red rectangle with globalAlpha: ${ctx.globalAlpha}`);
 ctx.globalAlpha = 0.5;
 ctx.fillRect(40, 40, 60, 60);
 console.log(
-    `   Drew overlapping red rectangle with globalAlpha: ${ctx.globalAlpha}`,
+  `   Drew overlapping red rectangle with globalAlpha: ${ctx.globalAlpha}`,
 );
 
 // Test 4: globalAlpha affects stroke operations
@@ -52,7 +51,7 @@ ctx.beginPath();
 ctx.rect(110, 10, 60, 60);
 ctx.stroke();
 console.log(
-    `   Drew blue stroke rectangle with globalAlpha: ${ctx.globalAlpha}`,
+  `   Drew blue stroke rectangle with globalAlpha: ${ctx.globalAlpha}`,
 );
 
 ctx.globalAlpha = 0.3;
@@ -60,7 +59,7 @@ ctx.beginPath();
 ctx.rect(140, 40, 60, 60);
 ctx.stroke();
 console.log(
-    `   Drew overlapping blue stroke rectangle with globalAlpha: ${ctx.globalAlpha}`,
+  `   Drew overlapping blue stroke rectangle with globalAlpha: ${ctx.globalAlpha}`,
 );
 
 // Test 5: globalAlpha affects path operations
@@ -79,15 +78,15 @@ canvas.render();
 const saved = canvas.saveAsPng("comprehensive_globalAlpha.demo.png");
 
 if (saved) {
-    console.log("   ✅ Canvas saved as 'comprehensive_globalAlpha_test.png'");
+  console.log("   ✅ Canvas saved as 'comprehensive_globalAlpha_test.png'");
 } else {
-    console.log("   ❌ Failed to save canvas");
+  console.log("   ❌ Failed to save canvas");
 }
 
 console.log("\n=== globalAlpha Implementation Test Complete ===");
 console.log(
-    "✅ All tests passed! The globalAlpha property is working correctly.",
+  "✅ All tests passed! The globalAlpha property is working correctly.",
 );
 console.log(
-    "📝 This implementation matches the HTML Canvas 2D API specification.",
+  "📝 This implementation matches the HTML Canvas 2D API specification.",
 );

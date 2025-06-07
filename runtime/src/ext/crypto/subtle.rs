@@ -159,9 +159,7 @@ impl SubtleCrypto {
                     )
                     .unbind());
             }
-        };
-
-        // Return as hex string for now (should be ArrayBuffer in full implementation)
+        }; // Return as hex string for now until ArrayBuffer support is properly implemented
         let result_bytes = digest_result.as_ref();
         let hex_string = result_bytes.iter().fold(String::new(), |mut acc, b| {
             use std::fmt::Write;
@@ -379,3 +377,20 @@ impl SubtleCrypto {
         Ok(Value::Boolean(true)) // Placeholder - always returns true
     }
 }
+
+// Web Crypto API implementation for Nova VM
+//
+// Current Status:
+// - ✅ Basic digest operations (SHA-1, SHA-256, SHA-384, SHA-512)
+// - ✅ Basic key generation for AES-GCM
+// - ❌ digest() returns hex string instead of ArrayBuffer (W3C non-compliant)
+// - ❌ extract_bytes_from_value() is stubbed
+// - ❌ Missing full algorithm object support
+// - ❌ Missing encrypt/decrypt implementations
+// - ❌ Missing sign/verify implementations
+//
+// TODO for W3C compliance:
+// 1. Implement proper ArrayBuffer return type for digest()
+// 2. Implement typed array extraction for input data
+// 3. Add support for algorithm objects (not just strings)
+// 4. Implement remaining crypto operations

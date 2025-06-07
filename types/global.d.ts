@@ -310,3 +310,530 @@ declare class ImageBitmap {
  */
 declare function createImageBitmap(path: string): Promise<ImageBitmap>;
 
+// =============================================================================
+// Text Encoding API
+// =============================================================================
+
+/**
+ * TextEncoder interface for encoding strings to UTF-8 bytes
+ */
+interface TextEncoder {
+  /**
+   * The encoding name, always "utf-8"
+   */
+  readonly encoding: string;
+
+  /**
+   * Encodes a string into a Uint8Array of UTF-8 bytes
+   * @param input The string to encode
+   */
+  encode(input?: string): Uint8Array;
+
+  /**
+   * Encodes a string into a Uint8Array of UTF-8 bytes with streaming support
+   * @param source The string to encode
+   * @param options Encoding options
+   */
+  encodeInto(
+    source: string,
+    destination: Uint8Array,
+  ): TextEncoderEncodeIntoResult;
+}
+
+/**
+ * Result of TextEncoder.encodeInto operation
+ */
+interface TextEncoderEncodeIntoResult {
+  /**
+   * Number of UTF-16 code units read from the source
+   */
+  read: number;
+
+  /**
+   * Number of bytes written to the destination
+   */
+  written: number;
+}
+
+/**
+ * TextDecoder interface for decoding UTF-8 bytes to strings
+ */
+interface TextDecoder {
+  /**
+   * The encoding name
+   */
+  readonly encoding: string;
+
+  /**
+   * Whether the decoder will throw on invalid sequences
+   */
+  readonly fatal: boolean;
+
+  /**
+   * Whether the decoder ignores BOM
+   */
+  readonly ignoreBOM: boolean;
+
+  /**
+   * Decodes a buffer into a string
+   * @param input The buffer to decode
+   * @param options Decoding options
+   */
+  decode(input?: BufferSource, options?: TextDecodeOptions): string;
+}
+
+/**
+ * Options for TextDecoder.decode
+ */
+interface TextDecodeOptions {
+  /**
+   * Whether the decoder should continue decoding in subsequent calls
+   */
+  stream?: boolean;
+}
+
+/**
+ * Constructor options for TextDecoder
+ */
+interface TextDecoderOptions {
+  /**
+   * Whether to throw on invalid sequences
+   */
+  fatal?: boolean;
+
+  /**
+   * Whether to ignore BOM
+   */
+  ignoreBOM?: boolean;
+}
+
+/**
+ * TextEncoder constructor
+ */
+declare const TextEncoder: {
+  new (): TextEncoder;
+};
+
+/**
+ * TextDecoder constructor
+ */
+declare const TextDecoder: {
+  new (label?: string, options?: TextDecoderOptions): TextDecoder;
+};
+
+// =============================================================================
+// Web Crypto API
+// =============================================================================
+
+/**
+ * Buffer source types for crypto operations
+ */
+type BufferSource = ArrayBufferView | ArrayBuffer;
+
+/**
+ * Key formats supported by the Web Crypto API
+ */
+type KeyFormat = "raw" | "spki" | "pkcs8" | "jwk";
+
+/**
+ * Key types
+ */
+type KeyType = "public" | "private" | "secret";
+
+/**
+ * Key usages
+ */
+type KeyUsage =
+  | "encrypt"
+  | "decrypt"
+  | "sign"
+  | "verify"
+  | "deriveKey"
+  | "deriveBits"
+  | "wrapKey"
+  | "unwrapKey";
+
+/**
+ * Hash algorithm identifiers
+ */
+type HashAlgorithmIdentifier =
+  | AlgorithmIdentifier
+  | "SHA-1"
+  | "SHA-256"
+  | "SHA-384"
+  | "SHA-512";
+
+/**
+ * Algorithm identifier
+ */
+type AlgorithmIdentifier = string | Algorithm;
+
+/**
+ * Base algorithm interface
+ */
+interface Algorithm {
+  name: string;
+}
+
+/**
+ * JSON Web Key interface
+ */
+interface JsonWebKey {
+  alg?: string;
+  crv?: string;
+  d?: string;
+  dp?: string;
+  dq?: string;
+  e?: string;
+  ext?: boolean;
+  k?: string;
+  key_ops?: string[];
+  kty?: string;
+  n?: string;
+  oth?: RsaOtherPrimesInfo[];
+  p?: string;
+  q?: string;
+  qi?: string;
+  use?: string;
+  x?: string;
+  y?: string;
+}
+
+/**
+ * RSA other primes info
+ */
+interface RsaOtherPrimesInfo {
+  d?: string;
+  r?: string;
+  t?: string;
+}
+
+/**
+ * CryptoKey interface
+ */
+interface CryptoKey {
+  readonly algorithm: KeyAlgorithm;
+  readonly extractable: boolean;
+  readonly type: KeyType;
+  readonly usages: KeyUsage[];
+}
+
+/**
+ * CryptoKeyPair interface
+ */
+interface CryptoKeyPair {
+  readonly privateKey: CryptoKey;
+  readonly publicKey: CryptoKey;
+}
+
+/**
+ * Key algorithm interface
+ */
+interface KeyAlgorithm {
+  name: string;
+}
+
+/**
+ * AES key generation parameters
+ */
+interface AesKeyGenParams extends Algorithm {
+  name: "AES-CTR" | "AES-CBC" | "AES-GCM";
+  length: 128 | 192 | 256;
+}
+
+/**
+ * AES-CTR parameters
+ */
+interface AesCtrParams extends Algorithm {
+  name: "AES-CTR";
+  counter: BufferSource;
+  length: number;
+}
+
+/**
+ * AES-CBC parameters
+ */
+interface AesCbcParams extends Algorithm {
+  name: "AES-CBC";
+  iv: BufferSource;
+}
+
+/**
+ * AES-GCM parameters
+ */
+interface AesGcmParams extends Algorithm {
+  name: "AES-GCM";
+  iv: BufferSource;
+  additionalData?: BufferSource;
+  tagLength?: number;
+}
+
+/**
+ * RSA hashed key generation parameters
+ */
+interface RsaHashedKeyGenParams extends Algorithm {
+  name: "RSASSA-PKCS1-v1_5" | "RSA-PSS" | "RSA-OAEP";
+  modulusLength: number;
+  publicExponent: Uint8Array;
+  hash: HashAlgorithmIdentifier;
+}
+
+/**
+ * RSA PKCS#1 v1.5 parameters
+ */
+interface RsaPkcs1v15Params extends Algorithm {
+  name: "RSASSA-PKCS1-v1_5";
+}
+
+/**
+ * RSA-PSS parameters
+ */
+interface RsaPssParams extends Algorithm {
+  name: "RSA-PSS";
+  saltLength: number;
+}
+
+/**
+ * RSA-OAEP parameters
+ */
+interface RsaOaepParams extends Algorithm {
+  name: "RSA-OAEP";
+  label?: BufferSource;
+}
+
+/**
+ * HMAC key generation parameters
+ */
+interface HmacKeyGenParams extends Algorithm {
+  name: "HMAC";
+  hash: HashAlgorithmIdentifier;
+  length?: number;
+}
+
+/**
+ * HMAC parameters
+ */
+interface HmacParams extends Algorithm {
+  name: "HMAC";
+}
+
+/**
+ * EC key generation parameters
+ */
+interface EcKeyGenParams extends Algorithm {
+  name: "ECDSA" | "ECDH";
+  namedCurve: string;
+}
+
+/**
+ * ECDSA parameters
+ */
+interface EcdsaParams extends Algorithm {
+  name: "ECDSA";
+  hash: HashAlgorithmIdentifier;
+}
+
+/**
+ * ECDH key derivation parameters
+ */
+interface EcdhKeyDeriveParams extends Algorithm {
+  name: "ECDH";
+  public: CryptoKey;
+}
+
+/**
+ * PBKDF2 parameters
+ */
+interface Pbkdf2Params extends Algorithm {
+  name: "PBKDF2";
+  salt: BufferSource;
+  iterations: number;
+  hash: HashAlgorithmIdentifier;
+}
+
+/**
+ * SubtleCrypto interface providing low-level cryptographic primitives
+ * following the W3C Web Crypto API specification
+ */
+interface SubtleCrypto {
+  /**
+   * Decrypts data using the specified algorithm and key
+   */
+  decrypt(
+    algorithm: AlgorithmIdentifier,
+    key: CryptoKey,
+    data: BufferSource,
+  ): Promise<ArrayBuffer>;
+
+  /**
+   * Derives a key from a base key using the specified algorithm
+   */
+  deriveKey(
+    algorithm: AlgorithmIdentifier,
+    baseKey: CryptoKey,
+    derivedKeyType: AlgorithmIdentifier,
+    extractable: boolean,
+    keyUsages: KeyUsage[],
+  ): Promise<CryptoKey>;
+
+  /**
+   * Derives bits from a base key using the specified algorithm
+   */
+  deriveBits(
+    algorithm: AlgorithmIdentifier,
+    baseKey: CryptoKey,
+    length: number,
+  ): Promise<ArrayBuffer>;
+
+  /**
+   * Computes a digest of the given data using the specified algorithm
+   */
+  digest(
+    algorithm: AlgorithmIdentifier,
+    data: BufferSource,
+  ): Promise<ArrayBuffer>;
+
+  /**
+   * Encrypts data using the specified algorithm and key
+   */
+  encrypt(
+    algorithm: AlgorithmIdentifier,
+    key: CryptoKey,
+    data: BufferSource,
+  ): Promise<ArrayBuffer>;
+
+  /**
+   * Exports a key in the specified format
+   */
+  exportKey(format: "jwk", key: CryptoKey): Promise<JsonWebKey>;
+  exportKey(
+    format: Exclude<KeyFormat, "jwk">,
+    key: CryptoKey,
+  ): Promise<ArrayBuffer>;
+  exportKey(
+    format: KeyFormat,
+    key: CryptoKey,
+  ): Promise<JsonWebKey | ArrayBuffer>;
+
+  /**
+   * Generates a key or key pair using the specified algorithm
+   */
+  generateKey(
+    algorithm: RsaHashedKeyGenParams | EcKeyGenParams,
+    extractable: boolean,
+    keyUsages: KeyUsage[],
+  ): Promise<CryptoKeyPair>;
+  generateKey(
+    algorithm: AesKeyGenParams | HmacKeyGenParams | Pbkdf2Params,
+    extractable: boolean,
+    keyUsages: KeyUsage[],
+  ): Promise<CryptoKey>;
+  generateKey(
+    algorithm: AlgorithmIdentifier,
+    extractable: boolean,
+    keyUsages: KeyUsage[],
+  ): Promise<CryptoKeyPair | CryptoKey>;
+
+  /**
+   * Imports a key from external data
+   */
+  importKey(
+    format: "jwk",
+    keyData: JsonWebKey,
+    algorithm: AlgorithmIdentifier,
+    extractable: boolean,
+    keyUsages: KeyUsage[],
+  ): Promise<CryptoKey>;
+  importKey(
+    format: Exclude<KeyFormat, "jwk">,
+    keyData: BufferSource,
+    algorithm: AlgorithmIdentifier,
+    extractable: boolean,
+    keyUsages: KeyUsage[],
+  ): Promise<CryptoKey>;
+  importKey(
+    format: KeyFormat,
+    keyData: JsonWebKey | BufferSource,
+    algorithm: AlgorithmIdentifier,
+    extractable: boolean,
+    keyUsages: KeyUsage[],
+  ): Promise<CryptoKey>;
+
+  /**
+   * Signs data using the specified algorithm and key
+   */
+  sign(
+    algorithm: AlgorithmIdentifier,
+    key: CryptoKey,
+    data: BufferSource,
+  ): Promise<ArrayBuffer>;
+
+  /**
+   * Unwraps a wrapped key
+   */
+  unwrapKey(
+    format: KeyFormat,
+    wrappedKey: BufferSource,
+    unwrappingKey: CryptoKey,
+    unwrapAlgorithm: AlgorithmIdentifier,
+    unwrappedKeyAlgorithm: AlgorithmIdentifier,
+    extractable: boolean,
+    keyUsages: KeyUsage[],
+  ): Promise<CryptoKey>;
+
+  /**
+   * Verifies a signature using the specified algorithm and key
+   */
+  verify(
+    algorithm: AlgorithmIdentifier,
+    key: CryptoKey,
+    signature: BufferSource,
+    data: BufferSource,
+  ): Promise<boolean>;
+
+  /**
+   * Wraps a key using the specified algorithm
+   */
+  wrapKey(
+    format: KeyFormat,
+    key: CryptoKey,
+    wrappingKey: CryptoKey,
+    wrapAlgorithm: AlgorithmIdentifier,
+  ): Promise<ArrayBuffer>;
+}
+
+/**
+ * Crypto interface following the W3C Web Crypto API specification
+ */
+interface Crypto {
+  /**
+   * The SubtleCrypto interface provides access to common cryptographic primitives
+   */
+  readonly subtle: SubtleCrypto;
+
+  /**
+   * Returns a cryptographically secure random UUID string
+   */
+  randomUUID(): string;
+
+  /**
+   * Fills the given typed array with cryptographically secure random values
+   */
+  getRandomValues<
+    T extends
+      | Int8Array
+      | Uint8Array
+      | Uint8ClampedArray
+      | Int16Array
+      | Uint16Array
+      | Int32Array
+      | Uint32Array
+      | BigInt64Array
+      | BigUint64Array,
+  >(array: T): T;
+}
+
+/**
+ * Global crypto instance following the W3C Web Crypto API specification
+ */
+declare const crypto: Crypto;
