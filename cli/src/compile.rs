@@ -150,13 +150,14 @@ pub fn compile(result_name: &Path, input_file: &Path) -> Result<()> {
         use std::os::unix::fs::PermissionsExt;
 
         if matches!(os, "macos" | "linux") {
-            let mut perms = metadata(result_name).map_err(|e| {
+            let metadata = metadata(result_name).map_err(|e| {
                 AndromedaError::permission_denied(
                     format!("reading permissions for {}", result_name.display()),
                     Some(result_name.to_path_buf()),
                     e,
                 )
             })?;
+            let mut perms = metadata.permissions();
             perms.set_mode(0o755); // rwxr-xr-x permissions
             set_permissions(result_name, perms).map_err(|e| {
                 AndromedaError::permission_denied(
