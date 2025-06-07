@@ -59,18 +59,19 @@ class OffscreenCanvas {
  */
 class CanvasRenderingContext2D {
   #rid: number;
-  
+
   constructor(rid: number) {
     this.#rid = rid;
-  }  /**
+  } /**
    * Gets or sets the global alpha value (transparency) for drawing operations.
    * Value is in range [0.0, 1.0].
    */
+
   get globalAlpha(): number {
     // Convert integer representation back to float (divide by 1000)
     return internal_canvas_get_global_alpha(this.#rid) / 1000;
   }
-  
+
   set globalAlpha(value: number) {
     internal_canvas_set_global_alpha(this.#rid, value);
   }
@@ -120,7 +121,6 @@ class CanvasRenderingContext2D {
   ): void {
     internal_canvas_arc(this.#rid, x, y, radius, startAngle, endAngle);
   }
-  
 
   /**
    * Creates an arc to the canvas.
@@ -237,7 +237,7 @@ class CanvasRenderingContext2D {
     rotation: number,
     startAngle: number,
     endAngle: number,
-    counterclockwise?: boolean
+    counterclockwise?: boolean,
   ): void {
     internal_canvas_ellipse(
       this.#rid,
@@ -248,7 +248,7 @@ class CanvasRenderingContext2D {
       rotation,
       startAngle,
       endAngle,
-      counterclockwise
+      counterclockwise,
     );
   }
   /**
@@ -259,7 +259,7 @@ class CanvasRenderingContext2D {
     y: number,
     width: number,
     height: number,
-    radius: number
+    radius: number,
   ): void {
     internal_canvas_round_rect(this.#rid, x, y, width, height, radius);
   }

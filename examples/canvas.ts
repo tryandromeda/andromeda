@@ -2,8 +2,8 @@ const canvas = new OffscreenCanvas(600, 400);
 const ctx = canvas.getContext("2d");
 
 if (!ctx) {
-    console.error("Failed to get 2D context");
-    throw new Error("Canvas context not available");
+  console.error("Failed to get 2D context");
+  throw new Error("Canvas context not available");
 }
 
 ctx.fillStyle = "#ff0000"; // Red

@@ -4,7 +4,7 @@ const canvas = new OffscreenCanvas(400, 400);
 const ctx = canvas.getContext("2d");
 
 if (!ctx) {
-    throw new Error("Failed to get 2D context");
+  throw new Error("Failed to get 2D context");
 }
 
 // Test quadraticCurveTo

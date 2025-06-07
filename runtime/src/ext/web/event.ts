@@ -4,32 +4,30 @@
 
 // deno-lint-ignore-file no-unused-vars
 class Event {
-  constructor(type: string, eventInitDict = { __proto__: null }) {
-    // @ts-ignore - this is a hack to make the URL object work
-    this.SymbolToStringTag = "Event";
-    // @ts-ignore - this is a hack to make the URL object work
-    this.canceledFlag = false;
-    // @ts-ignore - this is a hack to make the URL object work
-    this.stopPropagationFlag = false;
-    // @ts-ignore - this is a hack to make the URL object work
-    this._stopImmediatePropagationFlag = false;
-    // @ts-ignore - this is a hack to make the URL object work
-    this._inPassiveListener = false;
-    // @ts-ignore - this is a hack to make the URL object work
-    this.dispatched = false;
-    // @ts-ignore - this is a hack to make the URL object work
-    this.isTrusted = false;
-    // @ts-ignore - this is a hack to make the URL object work
-    this.path = [];
-
-    // @ts-ignore - this is a hack to make the URL object work
+  SymbolToStringTag: string = "Event";
+  stopPropagationFlag: boolean = false;
+  #stopImmediatePropagationFlag: boolean = false;
+  #inPassiveListener: boolean = false;
+  dispatched: boolean = false;
+  attributes: {
+    type: string;
+    bubbles: boolean;
+    cancelable: boolean;
+    composed: boolean;
+    currentTarget: null;
+    eventPhase: number;
+    target: null;
+    timeStamp: number;
+  };
+  canceledFlag: boolean = false;
+  isTrusted: boolean = false;
+  path: string[] = [];
+  // deno-lint-ignore no-explicit-any
+  constructor(type: string, eventInitDict: any = { __proto__: null }) {
     this.attributes = {
       type,
-      // @ts-ignore - this is a hack to make the URL object work
       bubbles: !!eventInitDict.bubbles,
-      // @ts-ignore - this is a hack to make the URL object work
       cancelable: !!eventInitDict.cancelable,
-      // @ts-ignore - this is a hack to make the URL object work
       composed: !!eventInitDict.composed,
       currentTarget: null,
       eventPhase: Event.NONE,
@@ -39,13 +37,11 @@ class Event {
   }
 
   get type() {
-    // @ts-ignore - this is a hack to make the URL object work
     return this.attributes.type;
   }
 
   // TODO: Null is not returned
   get target() {
-    // @ts-ignore - this is a hack to make the URL object work
     return this.attributes.target;
   }
 
@@ -59,7 +55,6 @@ class Event {
 
   // TODO: Null is not returned
   get currentTarget() {
-    // @ts-ignore - this is a hack to make the URL object work
     return this.attributes.currentTarget;
   }
 
@@ -96,18 +91,15 @@ class Event {
   }
 
   get eventPhase() {
-    // @ts-ignore - this is a hack to make the URL object work
     return this.attributes.eventPhase;
   }
 
   stopPropagation() {
-    // @ts-ignore - this is a hack to make the URL object work
     this.stopPropagationFlag = true;
   }
 
   /** @deprecated */
   get cancelBubble() {
-    // @ts-ignore - this is a hack to make the URL object work
     return this.stopPropagationFlag;
   }
 
@@ -117,49 +109,39 @@ class Event {
   }
 
   stopImmediatePropagation() {
-    // @ts-ignore - this is a hack to make the URL object work
-
     this.stopPropagationFlag = true;
-    // @ts-ignore - this is a hack to make the URL object work
-    this.stopImmediatePropagationFlag = true;
+    this.#stopImmediatePropagationFlag = true;
   }
 
   get bubbles() {
-    // @ts-ignore - this is a hack to make the URL object work
     return this.attributes.bubbles;
   }
 
   get cancelable() {
-    // @ts-ignore - this is a hack to make the URL object work
     return this.attributes.cancelable;
   }
 
   get returnValue() {
-    // @ts-ignore - this is a hack to make the URL object work
     return !this.canceledFlag;
   }
 
   set returnValue(value) {
     // if (!webidl.converters.boolean(value)) {
-    // @ts-ignore - this is a hack to make the URL object work
     this.canceledFlag = true;
     // }
   }
 
   preventDefault() {
     // if (this.attributes.cancelable && !this.inPassiveListener) {
-    // @ts-ignore - this is a hack to make the URL object work
     this.canceledFlag = true;
     // }
   }
 
   get defaultPrevented() {
-    // @ts-ignore - this is a hack to make the URL object work
     return this.canceledFlag;
   }
 
   get composed() {
-    // @ts-ignore - this is a hack to make the URL object work
     return this.attributes.composed;
   }
 
@@ -168,7 +150,6 @@ class Event {
   }
 
   get timeStamp() {
-    // @ts-ignore - this is a hack to make the URL object work
     return this.attributes.timeStamp;
   }
 }
