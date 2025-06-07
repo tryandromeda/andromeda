@@ -82,15 +82,12 @@ pub enum RuntimeFile {
 }
 
 impl RuntimeFile {
-    fn read(&self) -> String {
+    fn read(&self) -> Result<String, std::io::Error> {
         match self {
             RuntimeFile::Embedded { path: _, content } => {
-                String::from_utf8_lossy(content).into_owned()
+                Ok(String::from_utf8_lossy(content).into_owned())
             }
-            RuntimeFile::Local { path } => {
-                // TODO: Improve on this by not panicking on invalid file path
-                std::fs::read_to_string(path).unwrap()
-            }
+            RuntimeFile::Local { path } => std::fs::read_to_string(path),
         }
     }
 
@@ -98,6 +95,29 @@ impl RuntimeFile {
         match self {
             RuntimeFile::Embedded { path, content: _ } => path,
             RuntimeFile::Local { path } => path,
+        }
+    }
+
+    fn validate(&self) -> Result<(), std::io::Error> {
+        match self {
+            RuntimeFile::Embedded { .. } => Ok(()),
+            RuntimeFile::Local { path } => {
+                let path_obj = std::path::Path::new(path);
+                if !path_obj.exists() {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        format!("File not found: {}", path),
+                    ));
+                }
+                if !path_obj.is_file() {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        format!("Path is not a file: {}", path),
+                    ));
+                }
+                let _ = std::fs::File::open(path)?;
+                Ok(())
+            }
         }
     }
 }
@@ -192,11 +212,28 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             }
         });
 
-        let mut result = JsResult::Ok(Value::Null);
+        let mut result = JsResult::Ok(Value::Null); // Validate all files before execution
+        for file in &self.config.files {
+            if let Err(e) = file.validate() {
+                eprintln!("🚨 File validation error for {}: {}", file.get_path(), e);
+                std::process::exit(1);
+            }
+        }
 
         // Fetch the runtime mod.ts file using a macro and add it to the paths
         for file in &self.config.files {
-            let file_content = file.read();
+            let file_content = match file.read() {
+                Ok(content) => content,
+                Err(e) => {
+                    eprintln!("🚨 Failed to read file {}: {}", file.get_path(), e);
+                    std::process::exit(1);
+                }
+            };
+
+            if file_content.trim().is_empty() {
+                eprintln!("⚠️  Warning: File {} is empty", file.get_path());
+                continue;
+            }
             result = self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {
                 let source_text = types::String::from_string(agent, file_content, gc.nogc());
                 let realm = agent.current_realm(gc.nogc());

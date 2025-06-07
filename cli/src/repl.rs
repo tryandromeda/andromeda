@@ -2,7 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use andromeda_core::{HostData, RuntimeHostHooks, exit_with_parse_errors};
+use crate::error::{AndromedaError, Result, print_error};
+use crate::styles::format_js_value;
+use andromeda_core::{HostData, RuntimeHostHooks};
 use andromeda_runtime::{recommended_builtins, recommended_extensions};
 use console::Style;
 use nova_vm::{
@@ -23,13 +25,12 @@ use nova_vm::{
         rootable::Scopable,
     },
 };
+use oxc_diagnostics::OxcDiagnostic;
 use reedline::{
     Highlighter, Prompt, PromptHistorySearch, PromptHistorySearchStatus, Reedline, Signal,
     StyledText, ValidationResult, Validator,
 };
 use std::sync::mpsc;
-
-use crate::styles::format_js_value;
 
 #[derive(Clone)]
 struct ReplPrompt {
@@ -565,11 +566,21 @@ impl Highlighter for JsHighlighter {
     }
 }
 
-pub fn run_repl(
-    expose_internals: bool,
-    print_internals: bool,
-    disable_gc: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
+/// Handle parse errors in REPL with beautiful formatting
+fn handle_parse_errors(errors: Vec<OxcDiagnostic>, source_path: &str, source: &str) {
+    let error = AndromedaError::parse_error(errors, source_path.to_string(), source.to_string());
+    print_error(error);
+}
+
+/// Handle runtime errors in REPL with beautiful formatting
+fn handle_runtime_error_with_message(error_message: String) {
+    let error =
+        AndromedaError::runtime_error(error_message, Some("<repl>".to_string()), None, None, None);
+    print_error(error);
+}
+
+#[allow(clippy::result_large_err)]
+pub fn run_repl(expose_internals: bool, print_internals: bool, disable_gc: bool) -> Result<()> {
     let (_macro_task_tx, _macro_task_rx) = mpsc::channel();
     let host_data = HostData::new(_macro_task_tx);
 
@@ -607,11 +618,14 @@ pub fn run_repl(
             let source_text = types::String::from_str(agent, builtin, gc.nogc());
             let script = match parse_script(agent, source_text, realm_obj, true, None, gc.nogc()) {
                 Ok(script) => script,
-                Err(errors) => exit_with_parse_errors(errors, "<builtin>", builtin),
+                Err(errors) => {
+                    handle_parse_errors(errors, "<builtin>", builtin);
+                    std::process::exit(1);
+                }
             };
-            match script_evaluation(agent, script.unbind(), gc.reborrow()) {
-                Ok(_) => (),
-                Err(_) => eprintln!("Error loading builtin"),
+            if script_evaluation(agent, script.unbind(), gc.reborrow()).is_err() {
+                eprintln!("⚠️  Warning: Error loading builtin module");
+                handle_runtime_error_with_message("Script evaluation failed".to_string());
             }
         }
     });
@@ -708,7 +722,8 @@ pub fn run_repl(
             let script = match parse_script(agent, source_text, realm_obj, true, None, gc.nogc()) {
                 Ok(script) => script,
                 Err(errors) => {
-                    exit_with_parse_errors(errors, "<stdin>", &input);
+                    handle_parse_errors(errors, "<repl>", &input);
+                    return;
                 }
             };
             let result = script_evaluation(agent, script.unbind(), gc.reborrow()).unbind();
@@ -749,14 +764,12 @@ pub fn run_repl(
                     }
                 },
                 Err(error) => {
-                    let error_style = Style::new().red().bold();
-                    let details_style = Style::new().red();
-                    println!(
-                        "{} {}",
-                        error_style.apply_to("✗"),
-                        error_style.apply_to("Uncaught exception:")
-                    );
-                    println!("  {}", details_style.apply_to(format!("{error:?}")));
+                    let error_value = error.value();
+                    let error_message = error_value
+                        .string_repr(agent, gc.reborrow())
+                        .as_str(agent)
+                        .to_string();
+                    handle_runtime_error_with_message(error_message);
                 }
             }
         });
@@ -781,11 +794,14 @@ fn initialize_global_object(agent: &mut Agent, global_object: Object, mut gc: Gc
                 gc.nogc(),
             ) {
                 Ok(script) => script,
-                Err(errors) => exit_with_parse_errors(errors, "<extension>", file),
+                Err(errors) => {
+                    handle_parse_errors(errors, "<extension>", file);
+                    std::process::exit(1);
+                }
             };
-            match script_evaluation(agent, script.unbind(), gc.reborrow()) {
-                Ok(_) => (),
-                Err(_) => eprintln!("Error loading extension"),
+            if script_evaluation(agent, script.unbind(), gc.reborrow()).is_err() {
+                eprintln!("⚠️  Warning: Error loading extension");
+                handle_runtime_error_with_message("Script evaluation failed".to_string());
             }
         }
 

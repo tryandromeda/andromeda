@@ -9,20 +9,21 @@ license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
 version = "0.1.0"
 
-
 [workspace.dependencies]
 andromeda-core = { path = "core" }
-andromeda-runtime = { path = "runtime" , features = ["canvas", "crypto"] }
+andromeda-runtime = { path = "runtime", features = ["canvas", "crypto"] }
 anyhow = "1.0.98"
 anymap = "0.12.1"
 base64-simd = "0.8.0"
-wgpu = { version = "25.0.2", features = ["wgsl", "webgpu"]}
 clap = { version = "4.5.39", features = ["derive"] }
 console = "0.15.8"
 image = "0.25.5"
 libsui = "0.10.0"
-nova_vm = { git = "https://github.com/trynova/nova", rev="cd94cf0c6d9610a68adb9582b2d1d09a27c8d1da", features = ["typescript"] }
+nova_vm = { git = "https://github.com/trynova/nova", rev = "76688c29a4d9f8ab1d9ad42ba79485366ca3ed75", features = [
+    "typescript"
+] }
 nu-ansi-term = "0.50.0"
+owo-colors = "4.2.1"
 oxc_ast = "0.72.0"
 oxc_allocator = "0.72.0"
 oxc_diagnostics = "0.72.0"
@@ -30,13 +31,15 @@ oxc-miette = { version = "2.3.0", features = ["fancy"] }
 oxc_parser = "0.72.0"
 oxc_semantic = "0.72.0"
 oxc_span = "0.72.0"
+rand = "0.9.1"
 reedline = "0.40.0"
-
+regex = "1.11.1"
+ring = "0.17.8"
 serde = { version = "1.0.130", features = ["derive"] }
+thiserror = "2.0.12"
 tokio = { version = "1.45.1", features = ["rt", "sync", "time"] }
 url = { version = "2", features = ["serde", "expose_internals"] }
-ring = "0.17.8"
-rand = "0.9.1"
+wgpu = { version = "25.0.2", features = ["wgsl", "webgpu"] }
 
 [profile.release]
 lto = true

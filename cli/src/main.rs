@@ -14,6 +14,8 @@ use repl::run_repl;
 mod run;
 mod styles;
 use run::run;
+mod error;
+use error::{AndromedaError, Result, init_error_reporting, print_error};
 
 /// A JavaScript runtime
 #[derive(Debug, ClapParser)]
@@ -72,11 +74,21 @@ enum Command {
     },
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
+    // Initialize beautiful error reporting
+    init_error_reporting(); // Run the main logic and handle errors
+    if let Err(error) = run_main() {
+        print_error(error);
+        std::process::exit(1);
+    }
+}
+
+#[allow(clippy::result_large_err)]
+fn run_main() -> Result<()> {
     // Check if this is currently a single-file executable
     if let Ok(Some(js)) = find_section(ANDROMEDA_JS_CODE_SECTION) {
         // TODO: Store verbose and strict settings in a config section of the resultant binary
-        run(
+        return run(
             false,
             false,
             vec![RuntimeFile::Embedded {
@@ -84,7 +96,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 content: js,
             }],
         );
-        return Ok(());
     }
 
     let args = Cli::parse();
@@ -92,36 +103,57 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_time()
         .build()
-        .unwrap(); // Run Nova in a secondary blocking thread so tokio tasks can still run
-    let nova_thread = rt.spawn_blocking(move || match args.command {
-        Command::Run {
-            verbose,
-            no_strict,
-            paths,
-        } => {
-            let runtime_files: Vec<RuntimeFile> = paths
-                .into_iter()
-                .map(|path| RuntimeFile::Local { path })
-                .collect();
+        .map_err(|e| {
+            AndromedaError::config_error(
+                "Failed to initialize async runtime".to_string(),
+                None,
+                Some(Box::new(e)),
+            )
+        })?;
 
-            run(verbose, no_strict, runtime_files);
+    // Run Nova in a secondary blocking thread so tokio tasks can still run
+    let nova_thread = rt.spawn_blocking(move || -> Result<()> {
+        match args.command {
+            Command::Run {
+                verbose,
+                no_strict,
+                paths,
+            } => {
+                let runtime_files: Vec<RuntimeFile> = paths
+                    .into_iter()
+                    .map(|path| RuntimeFile::Local { path })
+                    .collect();
+
+                run(verbose, no_strict, runtime_files)
+            }
+            Command::Compile { path, out } => {
+                compile(out.as_path(), path.as_path()).map_err(|e| {
+                    AndromedaError::compile_error(
+                        format!("Compilation failed: {}", e),
+                        path.clone(),
+                        out.clone(),
+                        Some(e),
+                    )
+                })?;
+
+                println!("✅ Successfully created the output binary at {:?}", out);
+                Ok(())
+            }
+            Command::Repl {
+                expose_internals,
+                print_internals,
+                disable_gc,
+            } => run_repl(expose_internals, print_internals, disable_gc)
+                .map_err(|e| AndromedaError::repl_error(format!("REPL failed: {}", e), Some(e))),
         }
-        Command::Compile { path, out } => match compile(out.as_path(), path.as_path()) {
-            Ok(_) => println!("Successfully created the output binary at {:?}", out),
-            Err(e) => eprintln!("Failed to output binary: {}", e),
-        },
-        Command::Repl {
-            expose_internals,
-            print_internals,
-            disable_gc,
-        } => match run_repl(expose_internals, print_internals, disable_gc) {
-            Ok(_) => (),
-            Err(e) => eprintln!("REPL error: {}", e),
-        },
     });
 
-    rt.block_on(nova_thread)
-        .expect("oh no! Something went wrong when running Andromeda.");
-
-    Ok(())
+    match rt.block_on(nova_thread) {
+        Ok(result) => result,
+        Err(e) => Err(AndromedaError::config_error(
+            "Runtime execution failed".to_string(),
+            None,
+            Some(Box::new(e)),
+        )),
+    }
 }
