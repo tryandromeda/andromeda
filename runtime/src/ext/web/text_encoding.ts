@@ -30,9 +30,6 @@ class TextEncoder {
 
   /**
    * Encodes a string into an existing Uint8Array
-   * @param source The string to encode
-   * @param destination The Uint8Array to write to
-   * @returns An object with 'read' and 'written' properties
    */
   encodeInto(
     source: string,
@@ -44,7 +41,6 @@ class TextEncoder {
 
     const destStr = Array.from(destination).join(",");
 
-    // Call native implementation
     const result = internal_text_encode_into(
       source,
       destStr,
@@ -106,7 +102,6 @@ class TextDecoder {
   constructor(encoding: string = "utf-8", options: TextDecoderOptions = {}) {
     this.#encoding = encoding.toLowerCase().split("_").join("-");
 
-    // Validate encoding
     const supportedEncodings = [
       "utf-8",
       "utf8",
