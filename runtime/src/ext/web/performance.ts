@@ -63,7 +63,7 @@ class AndromedaPerformance {
    */
   mark(
     markName: string,
-    markOptions?: { detail?: unknown; startTime?: number },
+    markOptions?: { detail?: unknown; startTime?: number; },
   ): PerformanceMark {
     if (typeof markName !== "string") {
       throw new TypeError("Mark name must be a string");
@@ -179,12 +179,12 @@ class AndromedaPerformance {
           startTime = endTime - options.duration;
         }
       } else {
-        startTime = options.start !== undefined
-          ? this.#resolveTimeValue(options.start)
-          : 0;
-        endTime = options.end !== undefined
-          ? this.#resolveTimeValue(options.end)
-          : this.now();
+        startTime = options.start !== undefined ?
+          this.#resolveTimeValue(options.start) :
+          0;
+        endTime = options.end !== undefined ?
+          this.#resolveTimeValue(options.end) :
+          this.now();
       }
     } else {
       const startMark = startOrMeasureOptions;
@@ -320,5 +320,5 @@ class AndromedaPerformance {
   }
 }
 
-(globalThis as unknown as { performance: AndromedaPerformance }).performance =
+(globalThis as unknown as { performance: AndromedaPerformance; }).performance =
   new AndromedaPerformance();

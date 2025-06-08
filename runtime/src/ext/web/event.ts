@@ -446,9 +446,9 @@ function getParent(eventTarget: any): any {
 }
 
 function getRoot(eventTarget: any): any {
-  return isNode(eventTarget)
-    ? eventTarget.getRootNode({ composed: true })
-    : null;
+  return isNode(eventTarget) ?
+    eventTarget.getRootNode({ composed: true }) :
+    null;
 }
 
 function isNode(eventTarget: any): boolean {
@@ -970,7 +970,7 @@ class DOMException extends Error {
     this.name = name;
 
     // Common DOMException codes
-    const codes: { [key: string]: number } = {
+    const codes: { [key: string]: number; } = {
       "InvalidStateError": 11,
       "NotSupportedError": 9,
       "InvalidCharacterError": 5,

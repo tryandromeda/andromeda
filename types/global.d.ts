@@ -411,14 +411,14 @@ interface TextDecoderOptions {
  * TextEncoder constructor
  */
 declare const TextEncoder: {
-  new (): TextEncoder;
+  new(): TextEncoder;
 };
 
 /**
  * TextDecoder constructor
  */
 declare const TextDecoder: {
-  new (label?: string, options?: TextDecoderOptions): TextDecoder;
+  new(label?: string, options?: TextDecoderOptions): TextDecoder;
 };
 
 // =============================================================================
