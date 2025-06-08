@@ -837,3 +837,116 @@ interface Crypto {
  * Global crypto instance following the W3C Web Crypto API specification
  */
 declare const crypto: Crypto;
+
+/**
+ * Andromeda Performance Entry interface
+ * Base interface for all performance timeline entries
+ */
+interface AndromedaPerformanceEntry {
+  readonly name: string;
+  readonly entryType: string;
+  readonly startTime: number;
+  readonly duration: number;
+}
+
+/**
+ * Andromeda Performance Mark interface
+ * Represents a named timestamp in the performance timeline
+ */
+interface AndromedaPerformanceMark extends AndromedaPerformanceEntry {
+  readonly entryType: "mark";
+  readonly duration: 0;
+  readonly detail?: unknown;
+}
+
+/**
+ * Andromeda Performance Measure interface
+ * Represents a time measurement between two marks or timestamps
+ */
+interface AndromedaPerformanceMeasure extends AndromedaPerformanceEntry {
+  readonly entryType: "measure";
+  readonly detail?: unknown;
+}
+
+/**
+ * Andromeda Performance mark options
+ */
+interface AndromedaPerformanceMarkOptions {
+  detail?: unknown;
+  startTime?: number;
+}
+
+/**
+ * Andromeda Performance measure options
+ */
+interface AndromedaPerformanceMeasureOptions {
+  start?: string | number;
+  end?: string | number;
+  detail?: unknown;
+  duration?: number;
+}
+
+/**
+ * Andromeda Performance interface
+ * Provides high-resolution time measurements and performance monitoring
+ */
+interface AndromedaPerformance {
+  /**
+   * Returns a high-resolution timestamp in milliseconds
+   */
+  now(): number;
+
+  /**
+   * Returns the time origin (when the performance measurement started)
+   */
+  readonly timeOrigin: number;
+
+  /**
+   * Creates a named timestamp in the performance timeline
+   */
+  mark(markName: string, markOptions?: AndromedaPerformanceMarkOptions): AndromedaPerformanceMark;
+
+  /**
+   * Creates a named timestamp between two marks or times
+   */
+  measure(
+    measureName: string,
+    startOrMeasureOptions?: string | AndromedaPerformanceMeasureOptions,
+    endMark?: string
+  ): AndromedaPerformanceMeasure;
+
+  /**
+   * Removes performance marks from the timeline
+   */
+  clearMarks(markName?: string): void;
+
+  /**
+   * Removes performance measures from the timeline
+   */
+  clearMeasures(measureName?: string): void;
+
+  /**
+   * Returns a list of all performance entries
+   */
+  getEntries(): AndromedaPerformanceEntry[];
+
+  /**
+   * Returns a list of performance entries by type
+   */
+  getEntriesByType(type: string): AndromedaPerformanceEntry[];
+
+  /**
+   * Returns a list of performance entries by name
+   */
+  getEntriesByName(name: string, type?: string): AndromedaPerformanceEntry[];
+
+  /**
+   * Converts the Performance object to a JSON representation
+   */
+  toJSON(): object;
+}
+
+/**
+ * Global performance instance following the W3C High Resolution Time API
+ */
+declare const performance: AndromedaPerformance;

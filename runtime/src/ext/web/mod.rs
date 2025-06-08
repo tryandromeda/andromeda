@@ -6,11 +6,17 @@ use andromeda_core::{Extension, ExtensionOp};
 use nova_vm::{
     ecmascript::{
         builtins::ArgumentsList,
-        execution::{Agent, JsResult, agent::ExceptionType},
+        execution::{agent::ExceptionType, Agent, JsResult},
         types::Value,
     },
     engine::context::{Bindable, GcScope, NoGcScope},
 };
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+
+// TODO: Get the time origin from when the runtime starts
+// Temporarily use a static lock to initialize it once
+// This is a workaround until we have a proper runtime initialization
+static TIME_ORIGIN: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
 
 #[derive(Default)]
 pub struct WebExt;
@@ -29,11 +35,22 @@ impl WebExt {
                     Self::internal_text_encode_into,
                     2,
                 ),
+                ExtensionOp::new(
+                    "internal_performance_now",
+                    Self::internal_performance_now,
+                    0,
+                ),
+                ExtensionOp::new(
+                    "internal_performance_time_origin",
+                    Self::internal_performance_time_origin,
+                    0,
+                ),
             ],
             storage: None,
             files: vec![
                 include_str!("./event.ts"),
                 include_str!("./text_encoding.ts"),
+                include_str!("./performance.ts"),
             ],
         }
     }
@@ -367,5 +384,40 @@ impl WebExt {
         let result = format!("{}:{}:{}", result_bytes_str, chars_read, bytes_processed);
 
         Ok(Value::from_string(agent, result, gc_no).unbind())
+    }
+
+    pub fn internal_performance_now<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        _args: ArgumentsList,
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let gc = gc.into_nogc();
+        let origin = TIME_ORIGIN.get_or_init(|| Instant::now());
+
+        let elapsed = origin.elapsed();
+        let elapsed_ms =
+            elapsed.as_secs_f64() * 1000.0 + elapsed.subsec_nanos() as f64 / 1_000_000.0;
+
+        Ok(Value::from_f64(agent, elapsed_ms, gc).unbind())
+    }
+
+    pub fn internal_performance_time_origin<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        _args: ArgumentsList,
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let gc = gc.into_nogc();
+        static TIME_ORIGIN_UNIX: std::sync::OnceLock<f64> = std::sync::OnceLock::new();
+        let origin_ms = *TIME_ORIGIN_UNIX.get_or_init(|| {
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs_f64()
+                * 1000.0
+        });
+
+        Ok(Value::from_f64(agent, origin_ms, gc).unbind())
     }
 }
