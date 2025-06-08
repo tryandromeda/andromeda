@@ -6,7 +6,7 @@ use andromeda_core::{Extension, ExtensionOp};
 use nova_vm::{
     ecmascript::{
         builtins::ArgumentsList,
-        execution::{agent::ExceptionType, Agent, JsResult},
+        execution::{Agent, JsResult, agent::ExceptionType},
         types::Value,
     },
     engine::context::{Bindable, GcScope, NoGcScope},
@@ -393,7 +393,7 @@ impl WebExt {
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let gc = gc.into_nogc();
-        let origin = TIME_ORIGIN.get_or_init(|| Instant::now());
+        let origin = TIME_ORIGIN.get_or_init(Instant::now);
 
         let elapsed = origin.elapsed();
         let elapsed_ms =
