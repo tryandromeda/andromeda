@@ -53,9 +53,7 @@ class TextEncoder {
     const written = parseInt(parts[2], 10);
 
     if (newBytesStr) {
-      const newBytes = newBytesStr.split(",").map((s) =>
-        parseInt(s.trim(), 10)
-      );
+      const newBytes = newBytesStr.split(",").map((s) => parseInt(s.trim(), 10));
       for (
         let i = 0;
         i < newBytes.length && i < destination.length;

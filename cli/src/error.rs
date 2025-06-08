@@ -130,6 +130,19 @@ pub enum AndromedaError {
         #[source]
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
+
+    #[error("Formatting error: {message}")]
+    #[diagnostic(
+        code(andromeda::format_error),
+        help(
+            "Check that the file is valid JavaScript/TypeScript and that dprint is configured correctly"
+        )
+    )]
+    FormatError {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
 }
 
 impl AndromedaError {
@@ -257,6 +270,17 @@ impl AndromedaError {
         Self::ConfigError {
             message,
             config_path,
+            source: source.map(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Create a format error
+    pub fn format_error(
+        message: String,
+        source: Option<impl std::error::Error + Send + Sync + 'static>,
+    ) -> Self {
+        Self::FormatError {
+            message,
             source: source.map(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>),
         }
     }

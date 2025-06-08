@@ -17,6 +17,10 @@ anymap = "0.12.1"
 base64-simd = "0.8.0"
 clap = { version = "4.5.39", features = ["derive"] }
 console = "0.15.8"
+dprint-core = "0.67.4"
+dprint-plugin-typescript = "0.95.5"
+dprint-plugin-json = "0.20.0"
+indexmap = "2.0"
 image = "0.25.5"
 libsui = "0.10.0"
 nova_vm = { git = "https://github.com/trynova/nova", rev = "2f09304d915a3157e73ffc4a7f48bbd34aad3844", features = [

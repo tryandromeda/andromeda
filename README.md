@@ -4,125 +4,215 @@
 
 [![Discord Server](https://img.shields.io/discord/1264947585882259599.svg?logo=discord&style=flat-square)](https://discord.gg/tgjAnX2Ny3)
 
-The simplest JavaScript and TypeScript runtime, fully written in
-[Rust 🦀](https://www.rust-lang.org/) and powered [Nova](https://trynova.dev/).
+**A modern, fast, and secure JavaScript & TypeScript runtime** built from the ground up in [Rust 🦀](https://www.rust-lang.org/) and powered by [Nova Engine](https://trynova.dev/).
 
-> Note: ⚠️ This project is still in early stages and is not suitable for serious
-> use.
+Andromeda provides **zero-config TypeScript support**, **rich Web APIs**, and **native performance** - making it perfect for scripts, utilities, and applications that need to run fast without the complexity of traditional Node.js setups.
 
-## Installation
+## ✨ Key Features
 
-The easiest way to install Andromeda is to have
-[Cargo](https://doc.rust-lang.org/cargo/) installed and run the following
-command:
+- 🚀 **Zero-configuration TypeScript** - Run `.ts` files directly, no transpilation needed
+- 🎨 **Canvas & Graphics** - Full 2D Canvas API with PNG export capabilities  
+- 🔐 **Web Crypto API** - Industry-standard cryptographic primitives
+- 📁 **File System Access** - Simple APIs for reading/writing files
+- ⚡ **Native Performance** - Rust-powered execution with Nova's optimized JS engine
+- 🛠️ **Developer Tools** - Interactive REPL, code formatter, and single-file compilation
+- 🌐 **Web Standards** - TextEncoder/Decoder, Performance API, and more
+- 🔧 **Extensible** - Modular architecture with optional features
+
+## 🎯 Standards & Compatibility
+
+Andromeda aims to be **[WinterTC](https://wintertc.org/)** compliant, ensuring interoperability and compatibility with the broader JavaScript ecosystem. WinterTC provides a test suite for JavaScript engines to ensure they conform to ECMAScript standards and common runtime behaviors.
+
+> **Note:** ⚠️ Andromeda is in active development. While functional, it's not yet recommended for production use.
+
+## 🚀 Quick Start
+
+### Installation
+
+Install Andromeda using Cargo:
 
 ```bash
 cargo install --git https://github.com/tryandromeda/andromeda
 ```
 
-## Getting Started
+### Running Code
 
-To get started with Andromeda, follow these steps:
-
-1. **Clone the Repository:**
-
-   ```bash
-   git clone https://github.com/tryandromeda/andromeda
-   cd andromeda
-   ```
-
-2. **Install**
-
-   ```bash
-   cargo install --path ./cli
-   ```
-
----
-
-## Usage
-
-To run a JavaScript or TypeScript file, use the following command:
+Execute JavaScript or TypeScript files directly:
 
 ```bash
-andromeda run <file>
+# Run a TypeScript file (no compilation needed!)
+andromeda run hello.ts
+
+# Run multiple files
+andromeda run script1.js script2.ts
+
+# Run with verbose output
+andromeda run --verbose my-script.ts
 ```
+
+### Example: Hello World with Canvas
+
+```typescript
+// Create a simple drawing
+const canvas = new OffscreenCanvas(400, 300);
+const ctx = canvas.getContext("2d")!;
+
+ctx.fillStyle = "#ff6b6b";
+ctx.fillRect(50, 50, 100, 100);
+
+ctx.fillStyle = "#4ecdc4";
+ctx.beginPath();
+ctx.arc(200, 150, 50, 0, Math.PI * 2);
+ctx.fill();
+
+// Save as PNG
+canvas.render();
+canvas.saveAsPng("output.png");
+console.log("Image saved to output.png");
+```
+
+## 🛠️ Core APIs
+
+### File System
+
+```typescript
+// Read and write files synchronously
+const content = Andromeda.readTextFileSync("input.txt");
+Andromeda.writeTextFileSync("output.txt", content.toUpperCase());
+
+// Access environment variables
+const home = Andromeda.env.get("HOME");
+Andromeda.env.set("MY_VAR", "value");
+```
+
+### Canvas & Graphics
+
+```typescript
+// Create graphics programmatically
+const canvas = new OffscreenCanvas(800, 600);
+const ctx = canvas.getContext("2d")!;
+
+// Draw with full Canvas 2D API
+ctx.fillStyle = "linear-gradient(45deg, #f093fb, #f5576c)";
+ctx.fillRect(0, 0, 800, 600);
+
+// Export to PNG
+canvas.saveAsPng("artwork.png");
+```
+
+### Cryptography
+
+```typescript
+// Generate secure random values
+const uuid = crypto.randomUUID();
+const randomBytes = crypto.getRandomValues(new Uint8Array(32));
+
+// Hash data
+const data = new TextEncoder().encode("Hello, World!");
+const hash = await crypto.subtle.digest("SHA-256", data);
+```
+
+### Performance Monitoring
+
+```typescript
+// High-precision timing
+const start = performance.now();
+await someAsyncOperation();
+const duration = performance.now() - start;
+
+// Performance marks and measures
+performance.mark("operation-start");
+await doWork();
+performance.mark("operation-end");
+performance.measure("total-time", "operation-start", "operation-end");
+```
+
+## 🎯 Developer Experience
 
 ### Interactive REPL
 
-Andromeda includes an interactive REPL (Read-Eval-Print Loop) for testing
-JavaScript or TypeScript code quickly:
+Andromeda includes a powerful REPL with enhanced developer experience:
 
 ```bash
-# Start the REPL
+# Start the interactive REPL
 andromeda repl
 
 # REPL with debugging options
-andromeda repl --print-internals --expose-internals
+andromeda repl --print-internals --expose-internals --disable-gc
 ```
 
-**REPL Commands:**
+**✨ REPL Features:**
 
-- Type JavaScript code and press Enter to evaluate
-- Type `exit` to quit
-- Type `gc` to trigger garbage collection
-- Press Ctrl+C to exit
+- **Smart Multiline Input** - Automatic detection of incomplete syntax
+- **Syntax Highlighting** - Type-aware output coloring  
+- **Performance Metrics** - Execution timing for every evaluation
+- **Command History** - Navigate through previous commands
+- **Built-in Commands** - `help`, `history`, `clear`, `gc`, `exit`
 
-**REPL Options:**
+### Code Formatting
 
-- `--expose-internals`: Expose Nova internal APIs for debugging
-- `--print-internals`: Print internal debugging information
-- `--disable-gc`: Disable garbage collection
+Format TypeScript and JavaScript files with the built-in formatter:
 
-## 🎨 Enhanced REPL Features
+```bash
+# Format specific files
+andromeda fmt script.ts utils.js
 
-The Andromeda REPL provides a beautiful and powerful development experience:
+# Format entire directories
+andromeda fmt src/ examples/
 
-### ✨ Smart Multiline Input
-
-- **Automatic Detection**: Incomplete JavaScript syntax automatically triggers
-  multiline mode
-- **Visual Feedback**: Clear continuation prompts with line numbers
-- **Manual Control**: Force completion with `;;;` or cancel with Ctrl+C
-- **Syntax Awareness**: Handles functions, objects, arrays, and control
-  structures
-
-### 🎯 Interactive Commands
-
-- `help` - Show available commands and multiline tips
-- `history` - View command history (last 20 entries)
-- `clear` - Clear the screen
-- `gc` - Manual garbage collection with progress feedback
-- `exit`/`quit` - Graceful exit
-
-### 🌈 Visual Enhancements
-
-- **Type-aware Output**: Different colors for strings, numbers, booleans, etc.
-- **Execution Timing**: Performance metrics for every evaluation
-- **Beautiful Themes**: Consistent color scheme throughout
-- **Smart Prompts**: Dynamic prompts showing evaluation count
-- **Startup Tips**: Random JavaScript examples to get you started
-
-### Example Multiline Usage:
-
-```javascript
-js [1] function fibonacci(n) {
-...[2]   if (n <= 1) return n;
-...[3]   return fibonacci(n-1) + fibonacci(n-2);
-...[4] }
-← function fibonacci(n) { ... } (function)
-  ⏱️ 3ms
-
-js [2] fibonacci(10)
-← 55 (number)
-  ⏱️ 1ms
+# Format current directory
+andromeda fmt
 ```
+
+### Single-File Compilation
+
+Compile your scripts into standalone executables:
+
+```bash
+# Create a single-file executable
+andromeda compile my-script.ts my-app.exe
+
+# Run the compiled executable directly
+./my-app.exe
+```
+
+## 🏗️ Architecture & Extensions
+
+Andromeda is built with a modular architecture, allowing features to be enabled or disabled as needed:
+
+### Runtime Extensions
+
+| Extension | Description | APIs Provided |
+|-----------|-------------|---------------|
+| **Canvas** | 2D graphics rendering | `OffscreenCanvas`, `CanvasRenderingContext2D`, `ImageBitmap` |
+| **Crypto** | Web Crypto API implementation | `crypto.subtle`, `crypto.randomUUID()`, `crypto.getRandomValues()` |
+| **Console** | Enhanced console output | `console.log()`, `console.error()`, `console.warn()` |
+| **Fetch** | HTTP client capabilities | `fetch()`, `Request`, `Response`, `Headers` |
+| **File System** | File I/O operations | `Andromeda.readTextFileSync()`, `Andromeda.writeTextFileSync()` |
+| **Process** | System interaction | `Andromeda.args`, `Andromeda.env`, `Andromeda.exit()` |
+| **Time** | Timing utilities | `performance.now()`, `Andromeda.sleep()` |
+| **URL** | URL parsing and manipulation | `URL`, `URLSearchParams` |
+| **Web** | Web standards | `TextEncoder`, `TextDecoder`, `prompt()`, `confirm()` |
 
 ## Crates
 
-| Crate                         | Description                                               |
-| ----------------------------- | --------------------------------------------------------- |
-| [andromeda](/cli)             | Contains the Executable Command Line Interface (CLI) code |
-| [andromeda-core](/core)       | Contains the core runtime code                            |
-| [andromeda-runtime](/runtime) | Contains the runtime code                                 |
+| Crate | Description |
+|-------|-------------|
+| [**andromeda**](/cli) | Command-line interface and developer tools |
+| [**andromeda-core**](/core) | Core runtime engine and JavaScript execution |
+| [**andromeda-runtime**](/runtime) | Runtime extensions and Web API implementations |
+
+## 🤝 Contributing
+
+Andromeda is an open-source project and welcomes contributions! Whether you're interested in:
+
+- 🐛 **Bug fixes** - Help improve stability
+- ✨ **New features** - Add runtime capabilities  
+- 📚 **Documentation** - Improve guides and examples
+- 🧪 **Testing** - Expand test coverage
+
+Join our [Discord community](https://discord.gg/tgjAnX2Ny3) to discuss ideas and get involved!
+
+## 📜 License
 
 [Mozilla Public License Version 2.0](./LICENSE.md)

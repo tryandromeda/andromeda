@@ -16,6 +16,10 @@ mod styles;
 use run::run;
 mod error;
 use error::{AndromedaError, Result, init_error_reporting, print_error};
+mod format;
+use format::format_file;
+mod helper;
+use helper::find_formattable_files;
 
 /// A JavaScript runtime
 #[derive(Debug, ClapParser)]
@@ -72,11 +76,17 @@ enum Command {
         #[arg(long)]
         disable_gc: bool,
     },
+    /// Formats the specified files or directories
+    Fmt {
+        /// The file(s) or directory(ies) to format
+        #[arg(required = false)]
+        paths: Vec<PathBuf>,
+    },
 }
 
 fn main() {
     // Initialize beautiful error reporting
-    init_error_reporting(); // Run the main logic and handle errors
+    init_error_reporting();
     if let Err(error) = run_main() {
         print_error(error);
         std::process::exit(1);
@@ -145,6 +155,20 @@ fn run_main() -> Result<()> {
                 disable_gc,
             } => run_repl(expose_internals, print_internals, disable_gc)
                 .map_err(|e| AndromedaError::repl_error(format!("REPL failed: {}", e), Some(e))),
+            Command::Fmt { paths } => {
+                let files_to_format = find_formattable_files(&paths)?;
+
+                if files_to_format.is_empty() {
+                    println!("No formattable files found.");
+                    return Ok(());
+                }
+
+                println!("Found {} file(s) to format:", files_to_format.len());
+                for path in &files_to_format {
+                    format_file(path)?;
+                }
+                Ok(())
+            }
         }
     });
 

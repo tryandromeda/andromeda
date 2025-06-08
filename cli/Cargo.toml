@@ -11,6 +11,10 @@ readme = "../README.md"
 [dependencies]
 clap.workspace = true
 console.workspace = true
+dprint-core.workspace = true
+dprint-plugin-typescript.workspace = true
+dprint-plugin-json.workspace = true
+indexmap.workspace = true
 reedline.workspace = true
 nu-ansi-term.workspace = true
 nova_vm.workspace = true

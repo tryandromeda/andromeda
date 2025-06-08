@@ -21,9 +21,7 @@ for (const value of testValues) {
   const retrieved = ctx.globalAlpha;
   const passed = Math.abs(retrieved - value) < 0.001; // Allow for small floating point differences
   console.log(
-    `   Set: ${value}, Got: ${retrieved}, Result: ${
-      passed ? "✅ PASS" : "❌ FAIL"
-    }`,
+    `   Set: ${value}, Got: ${retrieved}, Result: ${passed ? "✅ PASS" : "❌ FAIL"}`,
   );
 }
 console.log();
