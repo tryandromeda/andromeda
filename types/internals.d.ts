@@ -791,3 +791,14 @@ declare function internal_subtle_verify(
   signature: Uint8Array | ArrayBuffer,
   data: Uint8Array | ArrayBuffer,
 ): boolean;
+
+/**
+ * The `internal_performance_now` function returns the current time in milliseconds since the page load.
+ */
+declare function internal_performance_now(): number;
+
+/**
+ * The `internal_performance_time_origin` function returns the time origin in milliseconds since the Unix epoch.
+ * This is the time when the performance timing started for the current page.
+ */
+declare function internal_performance_time_origin(): number;
