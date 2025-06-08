@@ -904,7 +904,10 @@ interface AndromedaPerformance {
   /**
    * Creates a named timestamp in the performance timeline
    */
-  mark(markName: string, markOptions?: AndromedaPerformanceMarkOptions): AndromedaPerformanceMark;
+  mark(
+    markName: string,
+    markOptions?: AndromedaPerformanceMarkOptions,
+  ): AndromedaPerformanceMark;
 
   /**
    * Creates a named timestamp between two marks or times
@@ -912,7 +915,7 @@ interface AndromedaPerformance {
   measure(
     measureName: string,
     startOrMeasureOptions?: string | AndromedaPerformanceMeasureOptions,
-    endMark?: string
+    endMark?: string,
   ): AndromedaPerformanceMeasure;
 
   /**

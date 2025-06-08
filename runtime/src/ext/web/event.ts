@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+// deno-lint-ignore-file no-explicit-any no-unused-vars
 // Andromeda Event API Implementation
 // Compliant with WHATWG HTML Living Standard
 // https://html.spec.whatwg.org/dev/webappapis.html#events
@@ -10,7 +11,9 @@
 const _attributes = Symbol("[[attributes]]");
 const _canceledFlag = Symbol("[[canceledFlag]]");
 const _stopPropagationFlag = Symbol("[[stopPropagationFlag]]");
-const _stopImmediatePropagationFlag = Symbol("[[stopImmediatePropagationFlag]]");
+const _stopImmediatePropagationFlag = Symbol(
+  "[[stopImmediatePropagationFlag]]",
+);
 const _inPassiveListener = Symbol("[[inPassiveListener]]");
 const _dispatched = Symbol("[[dispatched]]");
 const _isTrusted = Symbol("[[isTrusted]]");
@@ -83,17 +86,19 @@ class Event {
   [_inPassiveListener]: boolean = false;
   [_dispatched]: boolean = false;
   [_isTrusted]: boolean = false;
-  [_path]: any[] = [];  
-  
+  [_path]: any[] = [];
+
   constructor(type: string, eventInitDict: EventInit = {}) {
     // Per spec: If invoked without arguments, throw TypeError
     if (type === undefined) {
-      throw new TypeError("Failed to construct 'Event': 1 argument required, but only 0 present.");
+      throw new TypeError(
+        "Failed to construct 'Event': 1 argument required, but only 0 present.",
+      );
     }
-    
+
     // Per spec: Convert type to DOMString
     type = String(type);
-    
+
     this[_canceledFlag] = false;
     this[_stopPropagationFlag] = false;
     this[_stopImmediatePropagationFlag] = false;
@@ -306,6 +311,7 @@ class Event {
   }
 
   set returnValue(value: boolean) {
+    // deno-lint-ignore no-extra-boolean-cast
     if (!Boolean(value)) {
       this[_canceledFlag] = true;
     }
@@ -400,7 +406,7 @@ function getListeners(target: any): Record<string, ListenerEntry[]> {
 }
 
 function normalizeEventHandlerOptions(
-  options: boolean | AddEventListenerOptions | undefined
+  options: boolean | AddEventListenerOptions | undefined,
 ): EventListenerOptions {
   if (typeof options === "boolean" || typeof options === "undefined") {
     return {
@@ -413,7 +419,7 @@ function normalizeEventHandlerOptions(
 
 function addEventListenerOptionsConverter(
   V: boolean | AddEventListenerOptions | undefined,
-  prefix: string
+  prefix: string,
 ): AddEventListenerOptions {
   if (typeof V !== "object" || V === null) {
     return { capture: !!V, once: false, passive: false };
@@ -528,7 +534,7 @@ function retarget(a: any, b: any): any {
 
 function innerInvokeEventListeners(
   eventImpl: Event,
-  targetListeners: Record<string, ListenerEntry[]>
+  targetListeners: Record<string, ListenerEntry[]>,
 ): boolean {
   let found = false;
 
@@ -583,13 +589,20 @@ function innerInvokeEventListeners(
 
     if (passive) {
       setInPassiveListener(eventImpl, true);
-    }    if (typeof listener.callback === "object" && listener.callback !== null) {
-      if (typeof (listener.callback as EventListenerObject).handleEvent === "function") {
+    }
+    if (typeof listener.callback === "object" && listener.callback !== null) {
+      if (
+        typeof (listener.callback as EventListenerObject).handleEvent ===
+          "function"
+      ) {
         (listener.callback as EventListenerObject).handleEvent(eventImpl);
       }
     } else if (typeof listener.callback === "function") {
       try {
-        (listener.callback as EventListener).call(eventImpl.currentTarget, eventImpl);
+        (listener.callback as EventListener).call(
+          eventImpl.currentTarget,
+          eventImpl,
+        );
       } catch (error) {
         // Call without .call if it fails
         (listener.callback as EventListener)(eventImpl);
@@ -674,7 +687,6 @@ function dispatch(
     let slotInClosedTree = false;
     let parent = getParent(targetImpl);
 
-    // Populate event path
     while (parent !== null) {
       relatedTarget = retarget(eventRelatedTarget, parent);
 
@@ -799,22 +811,27 @@ class EventTarget {
 
   constructor() {
     this[eventTargetData] = getDefaultTargetData();
-  }  addEventListener(
+  }
+  addEventListener(
     type: string,
     callback: EventListenerOrEventListenerObject | null,
     options?: boolean | AddEventListenerOptions,
   ): void {
     // Per spec: Validate arguments
     if (type === undefined) {
-      throw new TypeError("Failed to execute 'addEventListener' on 'EventTarget': 1 argument required, but only 0 present.");
+      throw new TypeError(
+        "Failed to execute 'addEventListener' on 'EventTarget': 1 argument required, but only 0 present.",
+      );
     }
     if (callback === undefined) {
-      throw new TypeError("Failed to execute 'addEventListener' on 'EventTarget': 2 arguments required, but only 1 present.");
+      throw new TypeError(
+        "Failed to execute 'addEventListener' on 'EventTarget': 2 arguments required, but only 1 present.",
+      );
     }
-    
+
     // Per spec: Convert type to DOMString
     type = String(type);
-    
+
     const prefix = "Failed to execute 'addEventListener' on 'EventTarget'";
 
     const processedOptions = addEventListenerOptionsConverter(options, prefix);
@@ -855,22 +872,27 @@ class EventTarget {
     }
 
     listeners[type].push({ callback, options: processedOptions });
-  }  removeEventListener(
+  }
+  removeEventListener(
     type: string,
     callback: EventListenerOrEventListenerObject | null,
     options?: boolean | EventListenerOptions,
   ): void {
     // Per spec: Validate arguments
     if (type === undefined) {
-      throw new TypeError("Failed to execute 'removeEventListener' on 'EventTarget': 1 argument required, but only 0 present.");
+      throw new TypeError(
+        "Failed to execute 'removeEventListener' on 'EventTarget': 1 argument required, but only 0 present.",
+      );
     }
     if (callback === undefined) {
-      throw new TypeError("Failed to execute 'removeEventListener' on 'EventTarget': 2 arguments required, but only 1 present.");
+      throw new TypeError(
+        "Failed to execute 'removeEventListener' on 'EventTarget': 2 arguments required, but only 1 present.",
+      );
     }
-    
+
     // Per spec: Convert type to DOMString
     type = String(type);
-    
+
     const { listeners } = this[eventTargetData];
     if (callback === null || !listeners[type]) {
       return;
@@ -891,22 +913,31 @@ class EventTarget {
         break;
       }
     }
-  }  dispatchEvent(event: Event): boolean {
+  }
+  dispatchEvent(event: Event): boolean {
     // Per spec: Validate arguments
     if (event === undefined) {
-      throw new TypeError("Failed to execute 'dispatchEvent' on 'EventTarget': 1 argument required, but only 0 present.");
+      throw new TypeError(
+        "Failed to execute 'dispatchEvent' on 'EventTarget': 1 argument required, but only 0 present.",
+      );
     }
-    
+
     // Per spec: Check if event is currently being dispatched
     if (getDispatched(event)) {
-      throw new DOMException("Failed to execute 'dispatchEvent' on 'EventTarget': The event is already being dispatched.", "InvalidStateError");
+      throw new DOMException(
+        "Failed to execute 'dispatchEvent' on 'EventTarget': The event is already being dispatched.",
+        "InvalidStateError",
+      );
     }
 
     // Per spec: Check if event's initialized flag is not set
     if (event.eventPhase !== Event.NONE) {
-      throw new DOMException("Failed to execute 'dispatchEvent' on 'EventTarget': The event's phase is not NONE.", "InvalidStateError");
+      throw new DOMException(
+        "Failed to execute 'dispatchEvent' on 'EventTarget': The event's phase is not NONE.",
+        "InvalidStateError",
+      );
     }
-    
+
     const { listeners } = this[eventTargetData];
     if (!listeners[event.type]) {
       setTarget(event, this);
@@ -931,13 +962,13 @@ class EventTarget {
 
 // Simple DOMException implementation for spec compliance
 class DOMException extends Error {
-  readonly name: string;
+  override readonly name: string;
   readonly code: number;
 
   constructor(message?: string, name = "Error") {
     super(message);
     this.name = name;
-    
+
     // Common DOMException codes
     const codes: { [key: string]: number } = {
       "InvalidStateError": 11,
@@ -955,12 +986,11 @@ class DOMException extends Error {
       "ValidationError": 0,
       "TimeoutError": 23,
     };
-    
+
     this.code = codes[name] || 0;
   }
 }
 
-// Specialized Event classes
 class ErrorEvent extends Event {
   readonly message: string;
   readonly filename: string;
@@ -1058,12 +1088,6 @@ class MessageEvent extends Event {
   }
 }
 
-function CustomEvent(type: string, eventInitDict: any = {}) {
-  const event = new Event(type, eventInitDict);
-  event.detail = eventInitDict.detail ?? null;
-  return event;
-}
-
 class ProgressEvent extends Event {
   readonly lengthComputable: boolean;
   readonly loaded: number;
@@ -1113,7 +1137,6 @@ class PromiseRejectionEvent extends Event {
   }
 }
 
-// Event handler utilities
 const _eventHandlers = Symbol("eventHandlers");
 
 function makeWrappedHandler(
@@ -1131,6 +1154,7 @@ function makeWrappedHandler(
       evt.type === "error"
     ) {
       const ret = ((wrappedHandler as any).handler as any).call(
+        // @ts-ignore ignore this for now
         this,
         evt.message,
         evt.filename,
@@ -1144,6 +1168,7 @@ function makeWrappedHandler(
       return;
     }
 
+    // @ts-ignore ignore this for now
     return ((wrappedHandler as any).handler as EventListener).call(this, evt);
   }
   (wrappedHandler as any).handler = handler;
@@ -1188,6 +1213,7 @@ function defineEventHandler(
 }
 
 // Error reporting function
+// deno-lint-ignore prefer-const
 let reportExceptionStackedCalls = 0;
 
 function reportError(error: any): void {
