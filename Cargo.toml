@@ -15,7 +15,8 @@ andromeda-runtime = { path = "runtime", features = ["canvas", "crypto"] }
 anyhow = "1.0.98"
 anymap = "0.12.1"
 base64-simd = "0.8.0"
-clap = { version = "4.5.39", features = ["derive"] }
+clap = { version = "4.5.40", features = ["derive"] }
+clap_complete = "4.5.54"
 console = "0.15.8"
 dprint-core = "0.67.4"
 dprint-plugin-typescript = "0.95.5"

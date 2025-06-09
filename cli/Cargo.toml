@@ -10,6 +10,7 @@ readme = "../README.md"
 
 [dependencies]
 clap.workspace = true
+clap_complete.workspace = true
 console.workspace = true
 dprint-core.workspace = true
 dprint-plugin-typescript.workspace = true

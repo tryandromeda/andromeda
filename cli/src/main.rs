@@ -3,8 +3,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use andromeda_core::RuntimeFile;
-use clap::{Parser as ClapParser, Subcommand};
+use clap::{CommandFactory, Parser as ClapParser, Subcommand};
+use clap_complete::{Shell, generate};
 use libsui::find_section;
+use std::io;
 use std::path::PathBuf;
 
 mod compile;
@@ -81,6 +83,12 @@ enum Command {
         /// The file(s) or directory(ies) to format
         #[arg(required = false)]
         paths: Vec<PathBuf>,
+    },
+    /// Generate shell completion scripts
+    Completions {
+        /// The shell to generate completions for
+        #[arg(value_enum)]
+        shell: Option<Shell>,
     },
 }
 
@@ -169,9 +177,12 @@ fn run_main() -> Result<()> {
                 }
                 Ok(())
             }
+            Command::Completions { shell } => {
+                generate_completions(shell);
+                Ok(())
+            }
         }
     });
-
     match rt.block_on(nova_thread) {
         Ok(result) => result,
         Err(e) => Err(AndromedaError::config_error(
@@ -180,4 +191,47 @@ fn run_main() -> Result<()> {
             Some(Box::new(e)),
         )),
     }
+}
+
+fn generate_completions(shell: Option<Shell>) {
+    let mut cmd = Cli::command();
+    let bin_name = "andromeda";
+
+    match shell {
+        Some(shell) => {
+            generate(shell, &mut cmd, bin_name, &mut io::stdout());
+        }
+        None => {
+            // If no shell is specified, try to detect it from environment
+            // This mimics Deno's behavior
+            if let Some(detected_shell) = detect_shell() {
+                generate(detected_shell, &mut cmd, bin_name, &mut io::stdout());
+            } else {
+                eprintln!(
+                    "Error: Could not detect shell. Please specify one of: bash, zsh, fish, powershell"
+                );
+                std::process::exit(1);
+            }
+        }
+    }
+}
+
+fn detect_shell() -> Option<Shell> {
+    // Try to detect shell from environment variables
+    if let Ok(shell) = std::env::var("SHELL") {
+        if shell.contains("bash") {
+            return Some(Shell::Bash);
+        } else if shell.contains("zsh") {
+            return Some(Shell::Zsh);
+        } else if shell.contains("fish") {
+            return Some(Shell::Fish);
+        }
+    }
+
+    // On Windows, check for PowerShell
+    if cfg!(windows) && std::env::var("PSModulePath").is_ok() {
+        return Some(Shell::PowerShell);
+    }
+
+    None
 }
