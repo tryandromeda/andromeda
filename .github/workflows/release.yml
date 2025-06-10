@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build and Release
@@ -51,17 +54,15 @@ jobs:
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             mv andromeda.exe ${{ matrix.asset-name }}
           else
-            mv andromeda ${{ matrix.asset-name }}
-          fi
-
-      - name: Upload Binary to Release (Tag Only)
+      - name: Upload Binary to Release
+        if: github.ref == 'refs/heads/main'
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: target/${{ matrix.rust-target }}/release/${{ matrix.asset-name }}
           asset_name: ${{ matrix.asset-name }}
-          draft: false
-          tag: ${{ github.ref }}
+          draft: true
+          tag: latest
           overwrite: true
 
       - name: Upload Binary as Artifact (Main Branch)
