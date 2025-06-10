@@ -133,7 +133,7 @@ impl FsExt {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "copy_file", 
-                    &format!("{} -> {}", from.as_str(agent), to.as_str(agent)));
+                    format!("{} -> {}", from.as_str(agent), to.as_str(agent)));
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
             }

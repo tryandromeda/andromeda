@@ -74,7 +74,7 @@ impl ProcessExt {
             Err(env::VarError::NotPresent) => Ok(Value::Undefined),
             Err(env::VarError::NotUnicode(_)) => {
                 let error = AndromedaError::encoding_error("UTF-8", 
-                    &format!("Environment variable '{}' contains invalid Unicode", key_str));
+                    format!("Environment variable '{}' contains invalid Unicode", key_str));
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(nova_vm::ecmascript::types::String::from_string(
                     agent, 
