@@ -1905,7 +1905,7 @@ checksum = "0676bb32a98c1a483ce53e500a81ad9c3d5b3f7c920c28c24e9cb0980d0b5bc8"
 [[package]]
 name = "nova_vm"
 version = "0.1.0"
-source = "git+https://github.com/trynova/nova?rev=2f09304d915a3157e73ffc4a7f48bbd34aad3844#2f09304d915a3157e73ffc4a7f48bbd34aad3844"
+source = "git+https://github.com/trynova/nova?rev=7d1da0bd906ab7b8409878b41bd611f172789ce9#7d1da0bd906ab7b8409878b41bd611f172789ce9"
 dependencies = [
  "ahash",
  "fast-float",
@@ -2993,7 +2993,7 @@ dependencies = [
 [[package]]
 name = "small_string"
 version = "0.1.0"
-source = "git+https://github.com/trynova/nova?rev=2f09304d915a3157e73ffc4a7f48bbd34aad3844#2f09304d915a3157e73ffc4a7f48bbd34aad3844"
+source = "git+https://github.com/trynova/nova?rev=7d1da0bd906ab7b8409878b41bd611f172789ce9#7d1da0bd906ab7b8409878b41bd611f172789ce9"
 
 [[package]]
 name = "smallvec"

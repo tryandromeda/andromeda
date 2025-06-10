@@ -953,3 +953,88 @@ interface AndromedaPerformance {
  * Global performance instance following the W3C High Resolution Time API
  */
 declare const performance: AndromedaPerformance;
+
+/**
+ * AbortSignal interface following the WHATWG DOM Standard
+ * https://dom.spec.whatwg.org/#interface-abortsignal
+ */
+interface AbortSignal extends EventTarget {
+  /** Returns true if the signal has been aborted */
+  readonly aborted: boolean;
+
+  /** Returns the abort reason if the signal has been aborted */
+  readonly reason: any;
+
+  /** Throws the abort reason if the signal has been aborted */
+  throwIfAborted(): void;
+
+  /** Event handler for 'abort' events */
+  onabort: ((this: AbortSignal, ev: Event) => any) | null;
+}
+
+interface AbortSignalEventMap {
+  "abort": Event;
+}
+
+interface AbortSignal {
+  addEventListener<K extends keyof AbortSignalEventMap>(
+    type: K,
+    listener: (this: AbortSignal, ev: AbortSignalEventMap[K]) => any,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
+  addEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
+  removeEventListener<K extends keyof AbortSignalEventMap>(
+    type: K,
+    listener: (this: AbortSignal, ev: AbortSignalEventMap[K]) => any,
+    options?: boolean | EventListenerOptions,
+  ): void;
+  removeEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: boolean | EventListenerOptions,
+  ): void;
+}
+
+declare var AbortSignal: {
+  prototype: AbortSignal;
+  new(): AbortSignal;
+
+  /** Creates an already aborted AbortSignal */
+  abort(reason?: any): AbortSignal;
+
+  /** Creates an AbortSignal that will be aborted after the specified timeout */
+  timeout(milliseconds: number): AbortSignal;
+
+  /** Creates an AbortSignal that will be aborted when any of the provided signals are aborted */
+  any(signals: AbortSignal[]): AbortSignal;
+};
+
+/**
+ * AbortController interface following the WHATWG DOM Standard
+ * https://dom.spec.whatwg.org/#interface-abortcontroller
+ */
+interface AbortController {
+  /** The AbortSignal associated with this controller */
+  readonly signal: AbortSignal;
+
+  /** Aborts the associated signal */
+  abort(reason?: any): void;
+}
+
+declare var AbortController: {
+  prototype: AbortController;
+  new(): AbortController;
+};
+
+/**
+ * Options for addEventListener that includes AbortSignal support
+ */
+interface AddEventListenerOptions extends EventListenerOptions {
+  once?: boolean;
+  passive?: boolean;
+  signal?: AbortSignal;
+}

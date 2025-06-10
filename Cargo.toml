@@ -17,17 +17,17 @@ anymap = "0.12.1"
 base64-simd = "0.8.0"
 clap = { version = "4.5.40", features = ["derive"] }
 clap_complete = "4.5.54"
-console = "0.15.8"
+console = "0.15.11"
 dprint-core = "0.67.4"
 dprint-plugin-typescript = "0.95.5"
 dprint-plugin-json = "0.20.0"
-indexmap = "2.0"
-image = "0.25.5"
+indexmap = "2.9.0"
+image = "0.25.6"
 libsui = "0.10.0"
-nova_vm = { git = "https://github.com/trynova/nova", rev = "2f09304d915a3157e73ffc4a7f48bbd34aad3844", features = [
+nova_vm = { git = "https://github.com/trynova/nova", rev = "7d1da0bd906ab7b8409878b41bd611f172789ce9", features = [
     "typescript"
 ] }
-nu-ansi-term = "0.50.0"
+nu-ansi-term = "0.50.1"
 owo-colors = "4.2.1"
 oxc_ast = "0.72.0"
 oxc_allocator = "0.72.0"
@@ -40,10 +40,10 @@ rand = "0.9.1"
 reedline = "0.40.0"
 regex = "1.11.1"
 ring = "0.17.8"
-serde = { version = "1.0.130", features = ["derive"] }
+serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "2.0.12"
 tokio = { version = "1.45.1", features = ["rt", "sync", "time"] }
-url = { version = "2", features = ["serde", "expose_internals"] }
+url = { version = "2.5.4", features = ["serde", "expose_internals"] }
 wgpu = { version = "25.0.2", features = ["wgsl", "webgpu"] }
 
 [profile.release]
