@@ -859,15 +859,25 @@ class EventTarget {
         return;
       }
     }
-
     if (processedOptions?.signal) {
       const signal = processedOptions?.signal;
       if (signal.aborted) {
         return;
       } else {
-        signal.addEventListener("abort", () => {
-          this.removeEventListener(type, callback, options);
-        });
+        const removeListener = () => {
+          // Remove the specific listener entry that was added
+          const listenerList = this[eventTargetData].listeners[type];
+          if (listenerList) {
+            for (let i = 0; i < listenerList.length; i++) {
+              const listener = listenerList[i];
+              if (listener.callback === callback && listener.options === processedOptions) {
+                listenerList.splice(i, 1);
+                break;
+              }
+            }
+          }
+        };
+        signal.addEventListener("abort", removeListener);
       }
     }
 
@@ -924,7 +934,7 @@ class EventTarget {
 
     // Per spec: Check if event is currently being dispatched
     if (getDispatched(event)) {
-      throw new DOMException(
+      throw createDOMException(
         "Failed to execute 'dispatchEvent' on 'EventTarget': The event is already being dispatched.",
         "InvalidStateError",
       );
@@ -932,7 +942,7 @@ class EventTarget {
 
     // Per spec: Check if event's initialized flag is not set
     if (event.eventPhase !== Event.NONE) {
-      throw new DOMException(
+      throw createDOMException(
         "Failed to execute 'dispatchEvent' on 'EventTarget': The event's phase is not NONE.",
         "InvalidStateError",
       );
@@ -957,37 +967,6 @@ class EventTarget {
 
   getParent(_event: Event): any {
     return null;
-  }
-}
-
-// Simple DOMException implementation for spec compliance
-class DOMException extends Error {
-  override readonly name: string;
-  readonly code: number;
-
-  constructor(message?: string, name = "Error") {
-    super(message);
-    this.name = name;
-
-    // Common DOMException codes
-    const codes: { [key: string]: number; } = {
-      "InvalidStateError": 11,
-      "NotSupportedError": 9,
-      "InvalidCharacterError": 5,
-      "NoModificationAllowedError": 7,
-      "NotFoundError": 8,
-      "QuotaExceededError": 22,
-      "TypeMismatchError": 17,
-      "SecurityError": 18,
-      "NetworkError": 19,
-      "AbortError": 20,
-      "URLMismatchError": 21,
-      "InvalidAccessError": 15,
-      "ValidationError": 0,
-      "TimeoutError": 23,
-    };
-
-    this.code = codes[name] || 0;
   }
 }
 
@@ -1223,4 +1202,172 @@ function reportError(error: any): void {
 // Utility functions for external use
 function listenerCount(target: any, type: string): number {
   return getListeners(target)?.[type]?.length ?? 0;
+}
+
+// AbortSignal and AbortController implementation
+// Compliant with WHATWG DOM Standard
+// https://dom.spec.whatwg.org/#interface-abortsignal
+
+// Private symbols for AbortSignal internal state
+const _aborted = Symbol("[[aborted]]");
+const _abortReason = Symbol("[[abortReason]]");
+const _abortAlgorithms = Symbol("[[abortAlgorithms]]");
+
+class AbortSignal extends EventTarget {
+  constructor() {
+    super();
+
+    (this as any)[_aborted] = false;
+    (this as any)[_abortReason] = undefined;
+    (this as any)[_abortAlgorithms] = new Set();
+  }
+  get aborted(): boolean {
+    return (this as any)[_aborted];
+  }
+
+  get reason(): any {
+    return (this as any)[_abortReason];
+  }
+
+  throwIfAborted(): void {
+    if ((this as any)[_aborted]) {
+      throw (this as any)[_abortReason];
+    }
+  }
+  // Static factory methods
+  static abort(reason?: any): AbortSignal {
+    const signal = new AbortSignal();
+    (signal as any)[_aborted] = true;
+    (signal as any)[_abortReason] = reason !== undefined ?
+      reason :
+      createDOMException("signal is aborted without reason", "AbortError");
+    return signal;
+  }
+  static timeout(milliseconds: number): AbortSignal {
+    if (milliseconds < 0) {
+      throw new RangeError("milliseconds must be non-negative");
+    }
+
+    const signal = new AbortSignal();
+    if (milliseconds === 0) {
+      (signal as any)[_aborted] = true;
+      (signal as any)[_abortReason] = createDOMException("signal timed out", "TimeoutError");
+    } else {
+      const timeoutCallback = function() {
+        if (!(signal as any)[_aborted]) {
+          signalAbort(
+            signal,
+            createDOMException("signal timed out", "TimeoutError"),
+          );
+        }
+      };
+      setTimeout(timeoutCallback, milliseconds);
+    }
+
+    return signal;
+  }
+  static any(signals: AbortSignal[]): AbortSignal {
+    const resultSignal = new AbortSignal();
+
+    // If any signal is already aborted, return an aborted signal
+    for (const signal of signals) {
+      if (signal.aborted) {
+        (resultSignal as any)[_aborted] = true;
+        (resultSignal as any)[_abortReason] = signal.reason;
+        return resultSignal;
+      }
+    }
+
+    // Listen for abort on any of the signals
+    for (const signal of signals) {
+      signal.addEventListener("abort", () => {
+        if (!resultSignal.aborted) {
+          signalAbort(resultSignal, signal.reason);
+        }
+      });
+    }
+
+    return resultSignal;
+  }
+}
+
+// AbortController implementation
+class AbortController {
+  #signal: AbortSignal;
+
+  constructor() {
+    this.#signal = new AbortSignal();
+  }
+
+  get signal(): AbortSignal {
+    return this.#signal;
+  }
+
+  abort(reason?: any): void {
+    signalAbort(
+      this.#signal,
+      reason !== undefined ?
+        reason :
+        createDOMException("signal is aborted without reason", "AbortError"),
+    );
+  }
+}
+
+// Internal function to signal abort
+function signalAbort(signal: AbortSignal, reason: any): void {
+  if ((signal as any)[_aborted]) {
+    return;
+  }
+
+  (signal as any)[_aborted] = true;
+  (signal as any)[_abortReason] = reason;
+
+  // Execute abort algorithms
+  const algorithms = (signal as any)[_abortAlgorithms];
+  for (const algorithm of algorithms) {
+    try {
+      algorithm();
+    } catch (error) {
+      // Report the exception but continue with other algorithms
+      reportError(error);
+    }
+  }
+  algorithms.clear();
+
+  // Fire abort event
+  const event = new Event("abort");
+  signal.dispatchEvent(event);
+}
+
+// DOMException implementation for abort-related errors
+function createDOMException(message?: string, name: string = "Error"): Error {
+  const error = new Error(message);
+  error.name = name;
+
+  // Add code property for DOMException compatibility
+  const codes: Record<string, number> = {
+    "IndexSizeError": 1,
+    "HierarchyRequestError": 3,
+    "WrongDocumentError": 4,
+    "InvalidCharacterError": 5,
+    "NoModificationAllowedError": 7,
+    "NotFoundError": 8,
+    "NotSupportedError": 9,
+    "InvalidStateError": 11,
+    "SyntaxError": 12,
+    "InvalidModificationError": 13,
+    "NamespaceError": 14,
+    "InvalidAccessError": 15,
+    "SecurityError": 18,
+    "NetworkError": 19,
+    "AbortError": 20,
+    "URLMismatchError": 21,
+    "QuotaExceededError": 22,
+    "TimeoutError": 23,
+    "InvalidNodeTypeError": 24,
+    "DataCloneError": 25,
+  };
+
+  (error as any).code = codes[name] || 0;
+  return error;
 }
