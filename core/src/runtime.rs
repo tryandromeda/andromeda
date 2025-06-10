@@ -24,7 +24,9 @@ use nova_vm::{
     engine::context::{Bindable, GcScope},
 };
 
-use crate::{Extension, HostData, MacroTask, exit_with_parse_errors, AndromedaError, AndromedaResult};
+use crate::{
+    AndromedaError, AndromedaResult, Extension, HostData, MacroTask, exit_with_parse_errors,
+};
 
 pub struct RuntimeHostHooks<UserMacroTask> {
     pub(crate) promise_job_queue: RefCell<VecDeque<Job>>,
@@ -88,8 +90,7 @@ impl RuntimeFile {
                 Ok(String::from_utf8_lossy(content).into_owned())
             }
             RuntimeFile::Local { path } => {
-                std::fs::read_to_string(path)
-                    .map_err(|e| AndromedaError::fs_error(e, "read", path))
+                std::fs::read_to_string(path).map_err(|e| AndromedaError::fs_error(e, "read", path))
             }
         }
     }
@@ -222,12 +223,17 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                     Err(_) => println!("Error in runtime"),
                 }
             }
-        });        let mut result = JsResult::Ok(Value::Null); 
-        
+        });
+        let mut result = JsResult::Ok(Value::Null);
+
         // Validate all files before execution
         for file in &self.config.files {
             if let Err(error) = file.validate() {
-                eprintln!("🚨 File validation error for {}: {}", file.get_path(), error);
+                eprintln!(
+                    "🚨 File validation error for {}: {}",
+                    file.get_path(),
+                    error
+                );
                 std::process::exit(1);
             }
         }

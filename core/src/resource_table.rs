@@ -32,12 +32,9 @@ impl<T: Clone> ResourceTable<T> {
 
     /// Get a clone of the resource by Rid with proper error handling.
     pub fn get_or_error(&self, rid: Rid, operation: &str) -> AndromedaResult<T> {
-        self.table.borrow().get(&rid).cloned()
-            .ok_or_else(|| AndromedaError::resource_error(
-                rid.index(), 
-                operation, 
-                "Resource not found"
-            ))
+        self.table.borrow().get(&rid).cloned().ok_or_else(|| {
+            AndromedaError::resource_error(rid.index(), operation, "Resource not found")
+        })
     }
 }
 
@@ -77,12 +74,13 @@ impl<T> ResourceTable<T> {
 
     /// Remove a resource by Rid with proper error handling.
     pub fn remove_or_error(&self, rid: Rid, operation: &str) -> AndromedaResult<T> {
-        self.table.borrow_mut().remove(&rid)
-            .ok_or_else(|| AndromedaError::resource_error(
-                rid.index(), 
-                operation, 
-                "Resource not found or already removed"
-            ))
+        self.table.borrow_mut().remove(&rid).ok_or_else(|| {
+            AndromedaError::resource_error(
+                rid.index(),
+                operation,
+                "Resource not found or already removed",
+            )
+        })
     }
 
     /// Get a mutable reference to the resource by Rid.
@@ -104,9 +102,9 @@ impl<T> ResourceTable<T> {
             Ok(RefMut::map(borrow, move |m| m.get_mut(&rid).unwrap()))
         } else {
             Err(AndromedaError::resource_error(
-                rid.index(), 
-                operation, 
-                "Resource not found"
+                rid.index(),
+                operation,
+                "Resource not found",
             ))
         }
     }
