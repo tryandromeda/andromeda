@@ -8,6 +8,8 @@ use std::{
     hash::Hash,
 };
 
+use crate::{AndromedaError, AndromedaResult};
+
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub struct Rid(u32);
 
@@ -26,6 +28,13 @@ impl<T: Clone> ResourceTable<T> {
     /// Get a clone of the resource by Rid.
     pub fn get(&self, rid: Rid) -> Option<T> {
         self.table.borrow().get(&rid).cloned()
+    }
+
+    /// Get a clone of the resource by Rid with proper error handling.
+    pub fn get_or_error(&self, rid: Rid, operation: &str) -> AndromedaResult<T> {
+        self.table.borrow().get(&rid).cloned().ok_or_else(|| {
+            AndromedaError::resource_error(rid.index(), operation, "Resource not found")
+        })
     }
 }
 
@@ -63,6 +72,17 @@ impl<T> ResourceTable<T> {
         self.table.borrow_mut().remove(&rid)
     }
 
+    /// Remove a resource by Rid with proper error handling.
+    pub fn remove_or_error(&self, rid: Rid, operation: &str) -> AndromedaResult<T> {
+        self.table.borrow_mut().remove(&rid).ok_or_else(|| {
+            AndromedaError::resource_error(
+                rid.index(),
+                operation,
+                "Resource not found or already removed",
+            )
+        })
+    }
+
     /// Get a mutable reference to the resource by Rid.
     pub fn get_mut(&self, rid: Rid) -> Option<RefMut<'_, T>> {
         let borrow = self.table.borrow_mut();
@@ -71,6 +91,21 @@ impl<T> ResourceTable<T> {
             Some(RefMut::map(borrow, move |m| m.get_mut(&rid).unwrap()))
         } else {
             None
+        }
+    }
+
+    /// Get a mutable reference to the resource by Rid with proper error handling.
+    pub fn get_mut_or_error(&self, rid: Rid, operation: &str) -> AndromedaResult<RefMut<'_, T>> {
+        let borrow = self.table.borrow_mut();
+        if borrow.contains_key(&rid) {
+            // SAFETY: key exists, unwrap is safe
+            Ok(RefMut::map(borrow, move |m| m.get_mut(&rid).unwrap()))
+        } else {
+            Err(AndromedaError::resource_error(
+                rid.index(),
+                operation,
+                "Resource not found",
+            ))
         }
     }
 }

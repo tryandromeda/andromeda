@@ -3,38 +3,28 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use miette::NamedSource;
-use owo_colors::OwoColorize;
 use oxc_diagnostics::OxcDiagnostic;
+
+use crate::{AndromedaError, ErrorReporter};
 
 /// Exit the program with enhanced parse errors using oxc-miette with beautiful colors.
 pub fn exit_with_parse_errors(errors: Vec<OxcDiagnostic>, source_path: &str, source: &str) -> ! {
     assert!(!errors.is_empty());
 
-    eprintln!();
-    eprintln!(
-        "{} Parse Error in {}: {}",
-        "".red().bold(),
-        source_path.bright_yellow(),
-        "────────────────────────────────────────────────".red()
-    );
-    let source: &'static str = unsafe { std::mem::transmute(source) };
+    let parse_error = AndromedaError::parse_error(errors, source_path, source);
+    ErrorReporter::print_error(&parse_error);
+    std::process::exit(1);
+}
 
-    let named_source = NamedSource::new(source_path, source);
+/// Exit the program with a formatted Andromeda error
+pub fn exit_with_error(error: AndromedaError) -> ! {
+    ErrorReporter::print_error(&error);
+    std::process::exit(1);
+}
 
-    for (index, error) in errors.iter().enumerate() {
-        if errors.len() > 1 {
-            eprintln!(
-                "\n{} Error {} of {}:",
-                "".cyan(),
-                (index + 1).to_string().bright_cyan(),
-                errors.len().to_string().bright_cyan()
-            );
-        }
-
-        let report = error.clone().with_source_code(named_source.clone());
-        eprintln!("{}", report);
-    }
-
+/// Exit the program with multiple errors
+pub fn exit_with_errors(errors: Vec<AndromedaError>) -> ! {
+    ErrorReporter::print_errors(&errors);
     std::process::exit(1);
 }
 
