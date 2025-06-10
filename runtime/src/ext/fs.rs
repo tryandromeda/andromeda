@@ -14,7 +14,7 @@ use nova_vm::{
     engine::context::{Bindable, GcScope},
 };
 
-use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable};
+use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable, AndromedaError, ErrorReporter};
 
 use crate::RuntimeMacroTask;
 
@@ -48,9 +48,7 @@ impl FsExt {
             })),
             files: vec![],
         }
-    }
-
-    /// Read a text file and return the content as a string.
+    }    /// Read a text file and return the content as a string.
     pub fn internal_read_text_file<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -59,16 +57,16 @@ impl FsExt {
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
         let path = binding.as_str(agent);
-        let content = match std::fs::read_to_string(path) {
-            Ok(content) => content,
+        
+        match std::fs::read_to_string(path) {
+            Ok(content) => Ok(Value::from_string(agent, content, gc.nogc()).unbind()),
             Err(e) => {
-                return Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind());
+                let error = AndromedaError::fs_error(e, "read_text_file", path);
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
             }
-        };
-        Ok(Value::from_string(agent, content, gc.nogc()).unbind())
-    }
-
-    // /// Write a text file with the content of the second argument.
+        }
+    }    // /// Write a text file with the content of the second argument.
     pub fn internal_write_text_file<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -83,13 +81,16 @@ impl FsExt {
             .get(1)
             .to_string(agent.borrow_mut(), gc.reborrow())
             .unbind()?;
+            
         match std::fs::write(binding.as_str(agent), content.as_str(agent)) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
-            Err(e) => Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind()),
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "write_text_file", binding.as_str(agent));
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
         }
-    }
-
-    /// Create a file and return a Rid.
+    }    /// Create a file and return a Rid.
     pub fn internal_create_file<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -98,7 +99,15 @@ impl FsExt {
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
         let path = binding.as_str(agent);
-        let file = File::create(path).unwrap(); // TODO: Handle errors
+        
+        let file = match File::create(path) {
+            Ok(file) => file,
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "create_file", path);
+                let error_msg = ErrorReporter::format_error(&error);
+                return Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind());
+            }
+        };
 
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
@@ -107,9 +116,7 @@ impl FsExt {
         let rid = resources.files.push(file);
 
         Ok(Value::Integer(SmallInteger::from(rid.index())))
-    }
-
-    /// Copy a file from the first argument to the second argument.
+    }    /// Copy a file from the first argument to the second argument.
     pub fn internal_copy_file<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -124,11 +131,14 @@ impl FsExt {
 
         match std::fs::copy(from.as_str(agent), to.as_str(agent)) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
-            Err(e) => Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind()),
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "copy_file", 
+                    &format!("{} -> {}", from.as_str(agent), to.as_str(agent)));
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
         }
-    }
-
-    /// Create a directory.
+    }    /// Create a directory.
     pub fn internal_mk_dir<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -137,13 +147,16 @@ impl FsExt {
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
         let path = binding.as_str(agent);
+        
         match std::fs::create_dir(path) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
-            Err(e) => Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind()),
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "create_directory", path);
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
         }
-    }
-
-    /// Open a file and return a Rid.
+    }    /// Open a file and return a Rid.
     pub fn internal_open_file<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -152,7 +165,15 @@ impl FsExt {
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
         let path = binding.as_str(agent);
-        let file = File::open(path).unwrap(); // TODO: Handle errors
+        
+        let file = match File::open(path) {
+            Ok(file) => file,
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "open_file", path);
+                let error_msg = ErrorReporter::format_error(&error);
+                return Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind());
+            }
+        };
 
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();

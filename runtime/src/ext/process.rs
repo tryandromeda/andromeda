@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use andromeda_core::{Extension, ExtensionOp};
+use andromeda_core::{Extension, ExtensionOp, AndromedaError, ErrorReporter};
 use nova_vm::{
     ecmascript::{
         builtins::{ArgumentsList, Array},
@@ -53,9 +53,7 @@ impl ProcessExt {
         Ok(Array::from_slice(agent, args.as_slice(), gc.nogc())
             .unbind()
             .into())
-    }
-
-    fn internal_get_env<'gc>(
+    }    fn internal_get_env<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
@@ -63,7 +61,9 @@ impl ProcessExt {
     ) -> JsResult<'gc, Value<'gc>> {
         let key = args.get(0);
         let key = key.to_string(agent, gc.reborrow()).unbind()?;
-        match env::var(key.as_str(agent)) {
+        let key_str = key.as_str(agent);
+        
+        match env::var(key_str) {
             Ok(value) => {
                 Ok(
                     nova_vm::ecmascript::types::String::from_string(agent, value, gc.nogc())
@@ -71,7 +71,17 @@ impl ProcessExt {
                         .into(),
                 )
             }
-            _ => Ok(Value::Undefined),
+            Err(env::VarError::NotPresent) => Ok(Value::Undefined),
+            Err(env::VarError::NotUnicode(_)) => {
+                let error = AndromedaError::encoding_error("UTF-8", 
+                    &format!("Environment variable '{}' contains invalid Unicode", key_str));
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(nova_vm::ecmascript::types::String::from_string(
+                    agent, 
+                    format!("Error: {}", error_msg), 
+                    gc.nogc()
+                ).unbind().into())
+            }
         }
     }
 

@@ -24,7 +24,7 @@ use nova_vm::{
     engine::context::{Bindable, GcScope},
 };
 
-use crate::{Extension, HostData, MacroTask, exit_with_parse_errors};
+use crate::{Extension, HostData, MacroTask, exit_with_parse_errors, AndromedaError, AndromedaResult};
 
 pub struct RuntimeHostHooks<UserMacroTask> {
     pub(crate) promise_job_queue: RefCell<VecDeque<Job>>,
@@ -82,12 +82,15 @@ pub enum RuntimeFile {
 }
 
 impl RuntimeFile {
-    fn read(&self) -> Result<String, std::io::Error> {
+    fn read(&self) -> AndromedaResult<String> {
         match self {
             RuntimeFile::Embedded { path: _, content } => {
                 Ok(String::from_utf8_lossy(content).into_owned())
             }
-            RuntimeFile::Local { path } => std::fs::read_to_string(path),
+            RuntimeFile::Local { path } => {
+                std::fs::read_to_string(path)
+                    .map_err(|e| AndromedaError::fs_error(e, "read", path))
+            }
         }
     }
 
@@ -98,24 +101,33 @@ impl RuntimeFile {
         }
     }
 
-    fn validate(&self) -> Result<(), std::io::Error> {
+    fn validate(&self) -> AndromedaResult<()> {
         match self {
             RuntimeFile::Embedded { .. } => Ok(()),
             RuntimeFile::Local { path } => {
                 let path_obj = std::path::Path::new(path);
                 if !path_obj.exists() {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::NotFound,
-                        format!("File not found: {}", path),
+                    return Err(AndromedaError::fs_error(
+                        std::io::Error::new(
+                            std::io::ErrorKind::NotFound,
+                            format!("File not found: {}", path),
+                        ),
+                        "validate",
+                        path,
                     ));
                 }
                 if !path_obj.is_file() {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidInput,
-                        format!("Path is not a file: {}", path),
+                    return Err(AndromedaError::fs_error(
+                        std::io::Error::new(
+                            std::io::ErrorKind::InvalidInput,
+                            format!("Path is not a file: {}", path),
+                        ),
+                        "validate",
+                        path,
                     ));
                 }
-                let _ = std::fs::File::open(path)?;
+                std::fs::File::open(path)
+                    .map_err(|e| AndromedaError::fs_error(e, "validate", path))?;
                 Ok(())
             }
         }
@@ -210,12 +222,12 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                     Err(_) => println!("Error in runtime"),
                 }
             }
-        });
-
-        let mut result = JsResult::Ok(Value::Null); // Validate all files before execution
+        });        let mut result = JsResult::Ok(Value::Null); 
+        
+        // Validate all files before execution
         for file in &self.config.files {
-            if let Err(e) = file.validate() {
-                eprintln!("🚨 File validation error for {}: {}", file.get_path(), e);
+            if let Err(error) = file.validate() {
+                eprintln!("🚨 File validation error for {}: {}", file.get_path(), error);
                 std::process::exit(1);
             }
         }
@@ -224,8 +236,8 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
         for file in &self.config.files {
             let file_content = match file.read() {
                 Ok(content) => content,
-                Err(e) => {
-                    eprintln!("🚨 Failed to read file {}: {}", file.get_path(), e);
+                Err(error) => {
+                    eprintln!("🚨 Failed to read file {}: {}", file.get_path(), error);
                     std::process::exit(1);
                 }
             };

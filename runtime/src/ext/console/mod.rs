@@ -4,7 +4,7 @@
 
 use std::io::{Write, stdout};
 
-use andromeda_core::{Extension, ExtensionOp};
+use andromeda_core::{Extension, ExtensionOp, AndromedaError, ErrorReporter};
 use nova_vm::{
     ecmascript::{
         builtins::ArgumentsList,
@@ -32,25 +32,28 @@ impl ConsoleExt {
             storage: None,
             files: vec![include_str!("./mod.ts")],
         }
-    }
-
-    /// Print function that prints the first argument to the console.
+    }    /// Print function that prints the first argument to the console.
     fn internal_print<'gc>(
         agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        stdout()
+        if let Err(e) = stdout()
             .write_all(
                 args[0]
                     .to_string(agent, gc.reborrow())
                     .unbind()?
                     .as_str(agent)
                     .as_bytes(),
-            )
-            .unwrap();
-        stdout().flush().unwrap();
+            ) {
+            let error = AndromedaError::runtime_error(format!("Failed to write to stdout: {}", e));
+            ErrorReporter::print_error(&error);
+        }
+        if let Err(e) = stdout().flush() {
+            let error = AndromedaError::runtime_error(format!("Failed to flush stdout: {}", e));
+            ErrorReporter::print_error(&error);
+        }
         Ok(Value::Undefined)
     }
 
@@ -62,9 +65,7 @@ impl ConsoleExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         std::process::exit(args[0].to_int32(agent, gc.reborrow()).unbind()?);
-    }
-
-    /// Internal read for reading from the console.
+    }    /// Internal read for reading from the console.
     pub fn internal_read<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -72,11 +73,15 @@ impl ConsoleExt {
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
-        Ok(Value::from_string(agent, input.trim_end().to_string(), gc.nogc()).unbind())
-    }
-
-    /// Internal read line for reading from the console with a newline.
+        match std::io::stdin().read_line(&mut input) {
+            Ok(_) => Ok(Value::from_string(agent, input.trim_end().to_string(), gc.nogc()).unbind()),
+            Err(e) => {
+                let error = AndromedaError::runtime_error(format!("Failed to read from stdin: {}", e));
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
+        }
+    }    /// Internal read line for reading from the console with a newline.
     pub fn internal_read_line<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -84,8 +89,14 @@ impl ConsoleExt {
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
-        Ok(Value::from_string(agent, input.trim_end().to_string(), gc.nogc()).unbind())
+        match std::io::stdin().read_line(&mut input) {
+            Ok(_) => Ok(Value::from_string(agent, input.trim_end().to_string(), gc.nogc()).unbind()),
+            Err(e) => {
+                let error = AndromedaError::runtime_error(format!("Failed to read line from stdin: {}", e));
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
+        }
     }
 
     /// Internal write for writing to the console.
