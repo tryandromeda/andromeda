@@ -7,7 +7,7 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.0"
+version = "0.1.0-draft"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
@@ -43,6 +43,7 @@ ring = "0.17.8"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "2.0.12"
 tokio = { version = "1.45.1", features = ["rt", "sync", "time"] }
+ureq = { version = "2.12.1", features = ["json"] }
 url = { version = "2.5.4", features = ["serde", "expose_internals"] }
 wgpu = { version = "25.0.2", features = ["wgsl", "webgpu"] }
 
