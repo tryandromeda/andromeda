@@ -2,12 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
 use std::env;
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::Path;
 use std::process::Command;
 
 const REPO_OWNER: &str = "tryandromeda";
@@ -256,8 +256,8 @@ fn install_binary(binary_data: &[u8], _platform: &PlatformInfo) -> Result<()> {
 
 fn install_binary_windows(
     binary_data: &[u8],
-    current_exe: &PathBuf,
-    backup_path: &PathBuf,
+    current_exe: &Path,
+    backup_path: &Path,
 ) -> Result<()> {
     let temp_dir = env::temp_dir();
     let temp_binary = temp_dir.join("andromeda_new.exe");
@@ -307,11 +307,7 @@ echo Upgrade completed successfully!
     Ok(())
 }
 
-fn install_binary_unix(
-    binary_data: &[u8],
-    current_exe: &PathBuf,
-    backup_path: &PathBuf,
-) -> Result<()> {
+fn install_binary_unix(binary_data: &[u8], current_exe: &Path, backup_path: &Path) -> Result<()> {
     fs::write(current_exe, binary_data).context("Failed to write new binary")?;
 
     #[cfg(unix)]
