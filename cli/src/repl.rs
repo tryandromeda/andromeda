@@ -5,7 +5,7 @@
 use crate::error::{AndromedaError, Result, print_error};
 use crate::styles::format_js_value;
 use andromeda_core::{HostData, RuntimeHostHooks};
-use andromeda_runtime::{recommended_builtins, recommended_extensions};
+use andromeda_runtime::{RuntimeMacroTask, recommended_builtins, recommended_extensions};
 use console::Style;
 use nova_vm::{
     ecmascript::{
@@ -585,7 +585,7 @@ pub fn run_repl(expose_internals: bool, print_internals: bool, disable_gc: bool)
     let host_data = HostData::new(_macro_task_tx);
 
     let host_hooks = RuntimeHostHooks::new(host_data);
-    let host_hooks: &RuntimeHostHooks<()> = &*Box::leak(Box::new(host_hooks));
+    let host_hooks: &RuntimeHostHooks<RuntimeMacroTask> = &*Box::leak(Box::new(host_hooks));
 
     let mut agent = GcAgent::new(
         Options {
