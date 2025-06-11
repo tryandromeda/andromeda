@@ -22,6 +22,7 @@ mod format;
 use format::format_file;
 mod helper;
 use helper::find_formattable_files;
+mod upgrade;
 
 /// A JavaScript runtime
 #[derive(Debug, ClapParser)]
@@ -89,6 +90,20 @@ enum Command {
         /// The shell to generate completions for
         #[arg(value_enum)]
         shell: Option<Shell>,
+    },
+    /// Upgrade Andromeda to the latest version
+    Upgrade {
+        /// Force upgrade even if already on latest version
+        #[arg(short, long)]
+        force: bool,
+
+        /// Upgrade to a specific version instead of latest
+        #[arg(short, long)]
+        version: Option<String>,
+
+        /// Show what would be upgraded without actually upgrading
+        #[arg(long)]
+        dry_run: bool,
     },
 }
 
@@ -181,6 +196,19 @@ fn run_main() -> Result<()> {
                 generate_completions(shell);
                 Ok(())
             }
+            Command::Upgrade {
+                force,
+                version,
+                dry_run,
+            } => upgrade::run_upgrade(force, version, dry_run).map_err(|e| {
+                AndromedaError::runtime_error(
+                    format!("Upgrade failed: {}", e),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+            }),
         }
     });
     match rt.block_on(nova_thread) {
