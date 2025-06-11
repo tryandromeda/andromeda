@@ -2,10 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::RuntimeMacroTask;
 use andromeda_core::{Extension, ExtensionOp};
-use andromeda_core::{HostData, MacroTask};
-use nova_vm::engine::Global;
 use nova_vm::{
     ecmascript::{
         builtins::ArgumentsList,
@@ -49,13 +46,13 @@ impl WebExt {
                     Self::internal_performance_time_origin,
                     0,
                 ),
-                ExtensionOp::new("queueMicrotask", Self::queue_microtask, 1),
             ],
             storage: None,
             files: vec![
                 include_str!("./event.ts"),
                 include_str!("./text_encoding.ts"),
                 include_str!("./performance.ts"),
+                include_str!("./queueMicrotask.ts"),
             ],
         }
     }
@@ -422,53 +419,6 @@ impl WebExt {
                 .as_secs_f64()
                 * 1000.0
         });
-
         Ok(Value::from_f64(agent, origin_ms, gc).unbind())
-    }
-
-    /// Implementation of queueMicrotask as per HTML specification:
-    /// https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-queuemicrotask
-    pub fn queue_microtask<'gc>(
-        agent: &mut Agent,
-        _this: Value,
-        args: ArgumentsList,
-        gc: GcScope<'gc, '_>,
-    ) -> JsResult<'gc, Value<'gc>> {
-        let callback = args.get(0);
-        let _: nova_vm::ecmascript::types::Function = match callback.try_into() {
-            Ok(function) => function,
-            Err(_) => {
-                return Err(agent
-                    .throw_exception(
-                        ExceptionType::TypeError,
-                        "The callback provided as an argument to queueMicrotask must be a function.".to_string(),
-                        gc.nogc(),
-                    )
-                    .unbind());
-            }
-        };
-
-        // TODO: Implement proper microtask queueing when Nova APIs become available
-
-        // Store the callback globally so it can be called later
-        let root_callback = Global::new(agent, callback.unbind());
-
-        // Get host data to access the macro task system
-        let host_data = agent.get_host_data();
-        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
-        let macro_task_tx = host_data.macro_task_tx();
-
-        // Schedule an immediate task to call the callback
-        // Using spawn_macro_task with an immediately resolving future
-        host_data.spawn_macro_task(async move {
-            // Send a macro task to call the callback
-            macro_task_tx
-                .send(MacroTask::User(RuntimeMacroTask::RunMicrotaskCallback(
-                    root_callback,
-                )))
-                .unwrap();
-        });
-
-        Ok(Value::Undefined)
     }
 }

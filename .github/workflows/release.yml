@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Build and Release
+    name: Build ${{ matrix.asset-name }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -57,20 +57,32 @@ jobs:
             mv andromeda ${{ matrix.asset-name }}
           fi
 
-      - name: Upload Binary to Release
-        if: github.ref == 'refs/heads/main'
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/${{ matrix.rust-target }}/release/${{ matrix.asset-name }}
-          asset_name: ${{ matrix.asset-name }}
-          draft: true
-          tag: latest
-          overwrite: true
-
-      - name: Upload Binary as Artifact (Main Branch)
-        if: github.ref == 'refs/heads/main'
+      - name: Upload Binary as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset-name }}
           path: target/${{ matrix.rust-target }}/release/${{ matrix.asset-name }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Create Draft Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./artifacts/*/andromeda-*
+          file_glob: true
+          draft: true
+          tag: latest
+          overwrite: true
