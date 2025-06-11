@@ -297,16 +297,16 @@ echo Upgrade completed successfully!
             .context("Failed to start upgrade process")?;
 
         println!("⚠️  The upgrade will complete after this process exits.");
+        Ok(())
     }
 
     #[cfg(not(windows))]
     {
-        return Err(anyhow!(
+        // This should never be called on non-Windows, but just in case
+        Err(anyhow!(
             "Windows-specific function called on non-Windows platform"
-        ));
+        ))
     }
-
-    Ok(())
 }
 
 fn install_binary_unix(binary_data: &[u8], current_exe: &Path, backup_path: &Path) -> Result<()> {
