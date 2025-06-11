@@ -8,7 +8,6 @@ use std::env;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
-use std::process::Command;
 
 const REPO_OWNER: &str = "tryandromeda";
 const REPO_NAME: &str = "andromeda";
@@ -289,11 +288,15 @@ echo Upgrade completed successfully!
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
+        use std::process::Command;
+
         Command::new("cmd")
             .args(["/C", &batch_path.to_string_lossy()])
             .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .spawn()
             .context("Failed to start upgrade process")?;
+
+        println!("⚠️  The upgrade will complete after this process exits.");
     }
 
     #[cfg(not(windows))]
@@ -303,7 +306,6 @@ echo Upgrade completed successfully!
         ));
     }
 
-    println!("⚠️  The upgrade will complete after this process exits.");
     Ok(())
 }
 
