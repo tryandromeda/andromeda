@@ -54,6 +54,9 @@ jobs:
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             mv andromeda.exe ${{ matrix.asset-name }}
           else
+            mv andromeda ${{ matrix.asset-name }}
+          fi
+
       - name: Upload Binary to Release
         if: github.ref == 'refs/heads/main'
         uses: svenstaro/upload-release-action@v2
