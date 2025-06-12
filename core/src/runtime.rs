@@ -16,12 +16,19 @@ use nova_vm::{
         builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
         execution::{
             Agent, JsResult,
-            agent::{GcAgent, HostHooks, Job, Options, RealmRoot},
+            agent::{ExceptionType, GcAgent, HostHooks, Job, Options, RealmRoot},
         },
-        scripts_and_modules::script::{parse_script, script_evaluation},
-        types::{self, Object, Value},
+        scripts_and_modules::{
+            module::module_semantics::{
+                cyclic_module_records::GraphLoadingStateRecord,
+                finish_loading_imported_module,
+                source_text_module_records::{SourceTextModule, parse_module},
+            },
+            script::{HostDefined, parse_script, script_evaluation},
+        },
+        types::{Object, String as JsString, Value},
     },
-    engine::context::{Bindable, GcScope},
+    engine::context::{Bindable, GcScope, NoGcScope},
 };
 
 use crate::{
@@ -63,6 +70,44 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
 
     fn get_host_data(&self) -> &dyn Any {
         &self.host_data
+    }
+
+    fn load_imported_module<'gc>(
+        &self,
+        agent: &mut Agent,
+        referrer: SourceTextModule<'gc>,
+        module_request: &str,
+        host_defined: Option<HostDefined>,
+        payload: &mut GraphLoadingStateRecord<'gc>,
+        gc: NoGcScope<'gc, '_>,
+    ) {
+        let file = match std::fs::read_to_string(module_request) {
+            Ok(file) => file,
+            Err(err) => {
+                let result = Err(agent.throw_exception(ExceptionType::Error, err.to_string(), gc));
+                finish_loading_imported_module(
+                    agent,
+                    referrer,
+                    module_request,
+                    payload,
+                    result,
+                    gc,
+                );
+                return;
+            }
+        };
+        let source_text = JsString::from_string(agent, file, gc);
+        let result = parse_module(
+            agent,
+            source_text,
+            referrer.realm(agent),
+            host_defined.clone(),
+            gc,
+        )
+        .map_err(|err| {
+            agent.throw_exception(ExceptionType::Error, err.first().unwrap().to_string(), gc)
+        });
+        finish_loading_imported_module(agent, referrer, module_request, payload, result, gc);
     }
 }
 
@@ -206,7 +251,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
         self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {
             for builtin in &self.config.builtins {
                 let realm = agent.current_realm(gc.nogc());
-                let source_text = types::String::from_str(agent, builtin, gc.nogc());
+                let source_text = JsString::from_str(agent, builtin, gc.nogc());
                 let script = match parse_script(
                     agent,
                     source_text,
@@ -253,7 +298,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                 continue;
             }
             result = self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {
-                let source_text = types::String::from_string(agent, file_content, gc.nogc());
+                let source_text = JsString::from_string(agent, file_content, gc.nogc());
                 let realm = agent.current_realm(gc.nogc());
 
                 let script = match parse_script(
