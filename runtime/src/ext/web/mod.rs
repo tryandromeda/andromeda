@@ -456,11 +456,8 @@ impl WebExt {
         }
         #[cfg(target_os = "macos")]
         {
-            if cfg!(target_arch = "aarch64") {
-                "Macintosh; Intel Mac OS X 10_15_7"
-            } else {
-                "Macintosh; Intel Mac OS X 10_15_7"
-            }
+            // For web compatibility, we always report as Intel Mac regardless of actual architecture
+            "Macintosh; Intel Mac OS X 10_15_7"
         }
         #[cfg(target_os = "linux")]
         {
