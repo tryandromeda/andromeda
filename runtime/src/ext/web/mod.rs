@@ -53,6 +53,7 @@ impl WebExt {
                 include_str!("./text_encoding.ts"),
                 include_str!("./performance.ts"),
                 include_str!("./queueMicrotask.ts"),
+                include_str!("./structured_clone.ts"),
             ],
         }
     }

@@ -190,6 +190,47 @@ declare function prompt(message: string): string;
 declare function confirm(message: string): boolean;
 
 /**
+ * Options for structuredClone function
+ */
+interface StructuredSerializeOptions {
+  /**
+   * An array of transferable objects that will be transferred rather than cloned.
+   * The objects will be rendered unusable in the sending context after the transfer.
+   */
+  transfer?: any[];
+}
+
+/**
+ * Creates a deep clone of a given value using the structured clone algorithm.
+ *
+ * The structured clone algorithm copies complex JavaScript objects. It supports many built-in
+ * data types and can handle circular references. However, it cannot clone functions, symbols,
+ * or certain platform objects.
+ *
+ * @param value - The object to be cloned
+ * @param options - Options for the cloning operation, including transferable objects
+ * @returns A deep clone of the original value
+ * @throws DataCloneError if the value cannot be cloned
+ *
+ * @example
+ * ```ts
+ * // Clone a simple object
+ * const original = { a: 1, b: [2, 3] };
+ * const cloned = structuredClone(original);
+ *
+ * // Clone with circular references
+ * const circular = { self: null };
+ * circular.self = circular;
+ * const clonedCircular = structuredClone(circular);
+ *
+ * // Transfer an ArrayBuffer (makes original unusable)
+ * const buffer = new ArrayBuffer(8);
+ * const transferred = structuredClone(buffer, { transfer: [buffer] });
+ * ```
+ */
+declare function structuredClone<T = any>(value: T, options?: StructuredSerializeOptions): T;
+
+/**
  * An offscreen Canvas implementation.
  */
 declare class OffscreenCanvas {
