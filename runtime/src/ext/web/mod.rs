@@ -6,7 +6,7 @@ use andromeda_core::{Extension, ExtensionOp};
 use nova_vm::{
     ecmascript::{
         builtins::ArgumentsList,
-        execution::{Agent, JsResult, agent::ExceptionType},
+        execution::{agent::ExceptionType, Agent, JsResult},
         types::Value,
     },
     engine::context::{Bindable, GcScope, NoGcScope},
@@ -53,6 +53,7 @@ impl WebExt {
                 include_str!("./text_encoding.ts"),
                 include_str!("./performance.ts"),
                 include_str!("./queueMicrotask.ts"),
+                include_str!("./structured_clone.ts"),
             ],
         }
     }
