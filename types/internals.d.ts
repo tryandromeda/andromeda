@@ -440,3 +440,9 @@ declare function internal_performance_now(): number;
  * This is the time when the performance timing started for the current page.
  */
 declare function internal_performance_time_origin(): number;
+
+/**
+ * The `internal_navigator_user_agent` function returns the user agent string for the browser.
+ * This follows the HTML specification for navigator.userAgent.
+ */
+declare function internal_navigator_user_agent(): string;

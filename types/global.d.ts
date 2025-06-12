@@ -197,6 +197,7 @@ interface StructuredSerializeOptions {
    * An array of transferable objects that will be transferred rather than cloned.
    * The objects will be rendered unusable in the sending context after the transfer.
    */
+  // @ts-ignore Deno type issues
   transfer?: any[];
 }
 
@@ -1101,3 +1102,41 @@ interface AddEventListenerOptions extends EventListenerOptions {
   passive?: boolean;
   signal?: AbortSignal;
 }
+
+/**
+ * Navigator interface following the HTML specification
+ * https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
+ */
+interface Navigator {
+  /** Returns the complete User-Agent header */
+  readonly userAgent: string;
+
+  /** Returns the string "Mozilla" for compatibility */
+  readonly appCodeName: string;
+
+  /** Returns the string "Netscape" for compatibility */
+  readonly appName: string;
+
+  /** Returns the version of the browser */
+  readonly appVersion: string;
+
+  /** Returns the name of the platform */
+  readonly platform: string;
+
+  /** Returns the string "Gecko" for compatibility */
+  readonly product: string;
+
+  /** Returns the product sub-version */
+  readonly productSub: string;
+
+  /** Returns the vendor string */
+  readonly vendor: string;
+
+  /** Returns the vendor sub-version */
+  readonly vendorSub: string;
+}
+
+/**
+ * Global clientInformation instance (alias for navigator)
+ */
+declare const clientInformation: Navigator;
