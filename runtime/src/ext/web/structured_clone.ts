@@ -369,7 +369,6 @@ function structuredClone<T = any>(value: T, options: StructuredSerializeOptions 
           }
 
           transferredValues.push(transferred);
-
         }
       }
 

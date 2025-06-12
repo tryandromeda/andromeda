@@ -46,6 +46,11 @@ impl WebExt {
                     Self::internal_performance_time_origin,
                     0,
                 ),
+                ExtensionOp::new(
+                    "internal_navigator_user_agent",
+                    Self::internal_navigator_user_agent,
+                    0,
+                ),
             ],
             storage: None,
             files: vec![
@@ -54,6 +59,7 @@ impl WebExt {
                 include_str!("./performance.ts"),
                 include_str!("./queueMicrotask.ts"),
                 include_str!("./structured_clone.ts"),
+                include_str!("./navigator.ts"),
             ],
         }
     }
@@ -421,5 +427,54 @@ impl WebExt {
                 * 1000.0
         });
         Ok(Value::from_f64(agent, origin_ms, gc).unbind())
+    }
+
+    pub fn internal_navigator_user_agent<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        _args: ArgumentsList,
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let gc = gc.into_nogc();
+        let user_agent = format!(
+            "Mozilla/5.0 ({}) AppleWebKit/537.36 (KHTML, like Gecko) Andromeda/1.0.0",
+            Self::get_platform_string()
+        );
+        Ok(Value::from_string(agent, user_agent, gc).unbind())
+    }
+
+    fn get_platform_string() -> &'static str {
+        #[cfg(target_os = "windows")]
+        {
+            if cfg!(target_arch = "x86_64") {
+                "Windows NT 10.0; Win64; x64"
+            } else if cfg!(target_arch = "aarch64") {
+                "Windows NT 10.0; ARM64"
+            } else {
+                "Windows NT 10.0"
+            }
+        }
+        #[cfg(target_os = "macos")]
+        {
+            if cfg!(target_arch = "aarch64") {
+                "Macintosh; Intel Mac OS X 10_15_7"
+            } else {
+                "Macintosh; Intel Mac OS X 10_15_7"
+            }
+        }
+        #[cfg(target_os = "linux")]
+        {
+            if cfg!(target_arch = "x86_64") {
+                "X11; Linux x86_64"
+            } else if cfg!(target_arch = "aarch64") {
+                "X11; Linux aarch64"
+            } else {
+                "X11; Linux"
+            }
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        {
+            "Unknown"
+        }
     }
 }
