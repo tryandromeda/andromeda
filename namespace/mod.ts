@@ -65,6 +65,48 @@ function assertThrows(fn: () => void, message: string) {
   console.error(message);
 }
 
+// Signal type definition
+type Signal =
+  | "SIGABRT"
+  | "SIGALRM"
+  | "SIGBREAK"
+  | "SIGBUS"
+  | "SIGCHLD"
+  | "SIGCONT"
+  | "SIGEMT"
+  | "SIGFPE"
+  | "SIGHUP"
+  | "SIGILL"
+  | "SIGINFO"
+  | "SIGINT"
+  | "SIGIO"
+  | "SIGPOLL"
+  | "SIGUNUSED"
+  | "SIGKILL"
+  | "SIGPIPE"
+  | "SIGPROF"
+  | "SIGPWR"
+  | "SIGQUIT"
+  | "SIGSEGV"
+  | "SIGSTKFLT"
+  | "SIGSTOP"
+  | "SIGSYS"
+  | "SIGTERM"
+  | "SIGTRAP"
+  | "SIGTSTP"
+  | "SIGTTIN"
+  | "SIGTTOU"
+  | "SIGURG"
+  | "SIGUSR1"
+  | "SIGUSR2"
+  | "SIGVTALRM"
+  | "SIGWINCH"
+  | "SIGXCPU"
+  | "SIGXFSZ";
+
+// Internal signal listener storage
+const signalListeners: Map<Signal, Set<() => void>> = new Map();
+
 /**
  * Andromeda namespace for the Andromeda runtime.
  */
@@ -400,9 +442,7 @@ const Andromeda = {
      */
     remove(key: string): void {
       internal_delete_env(key);
-    },
-
-    /**
+    }, /**
      * The `keys` function gets the environment variable keys.
      *
      * @example
@@ -414,6 +454,80 @@ const Andromeda = {
     keys(): string[] {
       return internal_get_env_keys();
     },
+  },
+
+  // Signal handling functions
+  /**
+   * Registers the given function as a listener of the given signal event.
+   *
+   * @example
+   * ```ts
+   * Andromeda.addSignalListener(
+   *   "SIGTERM",
+   *   () => {
+   *     console.log("SIGTERM!")
+   *   }
+   * );
+   * ```
+   *
+   * Note: On Windows only "SIGINT" (Ctrl+C) and "SIGBREAK" (Ctrl+Break) are supported.
+   */
+  addSignalListener(signal: Signal, handler: () => void): void {
+    if (typeof handler !== "function") {
+      throw new TypeError("Handler must be a function");
+    }
+
+    // Get or create the set of listeners for this signal
+    let listeners = signalListeners.get(signal);
+    if (!listeners) {
+      listeners = new Set();
+      signalListeners.set(signal, listeners);
+    }
+
+    // Add the handler to the set
+    listeners.add(handler);
+
+    // Register with the native signal handler (only once per signal type)
+    if (listeners.size === 1) {
+      const result = internal_add_signal_listener(signal, () => {
+        // Call all registered handlers for this signal
+        const currentListeners = signalListeners.get(signal);
+        if (currentListeners) {
+          for (const listener of currentListeners) {
+            try {
+              listener();
+            } catch (error) {
+              console.error(`Error in signal handler for ${signal}:`, error);
+            }
+          }
+        }
+      });
+
+      if (typeof result === "string") {
+        throw new Error(result);
+      }
+    }
+  },
+
+  /**
+   * Removes the given function as a listener of the given signal event.
+   *
+   * @example
+   * ```ts
+   * Andromeda.removeSignalListener("SIGTERM", myHandler);
+   * ```
+   */
+  removeSignalListener(signal: Signal, handler: () => void): void {
+    const listeners = signalListeners.get(signal);
+    if (listeners) {
+      listeners.delete(handler);
+
+      // If no more listeners, unregister the native handler
+      if (listeners.size === 0) {
+        signalListeners.delete(signal);
+        internal_remove_signal_listener(signal, () => {});
+      }
+    }
   },
 };
 
