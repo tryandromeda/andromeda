@@ -296,13 +296,78 @@ declare namespace Andromeda {
      * keys returns the keys of all environment variables.
      *
      * @example
-     * ```ts
-     * const keys = Andromeda.env.keys();
+     * ```ts     * const keys = Andromeda.env.keys();
      * console.log(keys);
      * ```
      */
     function keys(): string[];
   }
+
+  // Signal handling types
+  type Signal =
+    | "SIGABRT"
+    | "SIGALRM"
+    | "SIGBREAK"
+    | "SIGBUS"
+    | "SIGCHLD"
+    | "SIGCONT"
+    | "SIGEMT"
+    | "SIGFPE"
+    | "SIGHUP"
+    | "SIGILL"
+    | "SIGINFO"
+    | "SIGINT"
+    | "SIGIO"
+    | "SIGPOLL"
+    | "SIGUNUSED"
+    | "SIGKILL"
+    | "SIGPIPE"
+    | "SIGPROF"
+    | "SIGPWR"
+    | "SIGQUIT"
+    | "SIGSEGV"
+    | "SIGSTKFLT"
+    | "SIGSTOP"
+    | "SIGSYS"
+    | "SIGTERM"
+    | "SIGTRAP"
+    | "SIGTSTP"
+    | "SIGTTIN"
+    | "SIGTTOU"
+    | "SIGURG"
+    | "SIGUSR1"
+    | "SIGUSR2"
+    | "SIGVTALRM"
+    | "SIGWINCH"
+    | "SIGXCPU"
+    | "SIGXFSZ";
+
+  /**
+   * Registers the given function as a listener of the given signal event.
+   *
+   * @example
+   * ```ts
+   * Andromeda.addSignalListener(
+   *   "SIGTERM",
+   *   () => {
+   *     console.log("SIGTERM!")
+   *   }
+   * );
+   * ```
+   *
+   * Note: On Windows only "SIGINT" (Ctrl+C) and "SIGBREAK" (Ctrl+Break) are supported.
+   */
+  function addSignalListener(signal: Signal, handler: () => void): void;
+
+  /**
+   * Removes the given function as a listener of the given signal event.
+   *
+   * @example
+   * ```ts
+   * Andromeda.removeSignalListener("SIGTERM", myHandler);
+   * ```
+   */
+  function removeSignalListener(signal: Signal, handler: () => void): void;
 }
 /**
  * The `prompt` function prompts the user for input.

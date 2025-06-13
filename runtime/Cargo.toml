@@ -26,3 +26,5 @@ wgpu = { workspace = true, optional = true }
 image = { workspace = true, optional = true }
 ring = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
+signal-hook.workspace = true
+lazy_static.workspace = true

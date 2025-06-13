@@ -541,3 +541,18 @@ declare function internal_performance_time_origin(): number;
  * This follows the HTML specification for navigator.userAgent.
  */
 declare function internal_navigator_user_agent(): string;
+
+/**
+ * The `internal_add_signal_listener` function adds a signal listener for the specified signal.
+ * The signal can be a string like "SIGINT", "SIGTERM", etc.
+ */
+declare function internal_add_signal_listener(signal: string, handler: () => void): string | void;
+
+/**
+ * The `internal_remove_signal_listener` function removes a signal listener for the specified signal.
+ * The signal can be a string like "SIGINT", "SIGTERM", etc.
+ */
+declare function internal_remove_signal_listener(
+  signal: string,
+  handler: () => void,
+): string | void;
