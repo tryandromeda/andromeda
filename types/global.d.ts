@@ -56,27 +56,158 @@ declare namespace Andromeda {
    * The `args` property contains the command-line arguments.
    */
   const args: string[];
+
+  // Text file operations
   /**
-   * readFileSync reads a file from the file system.
+   * readTextFileSync reads a text file from the file system.
    *
    * @example
    * ```ts
-   * const data = Andromeda.readFileSync("hello.txt");
+   * const data = Andromeda.readTextFileSync("hello.txt");
    * console.log(data);
    * ```
    */
   function readTextFileSync(path: string): string;
 
   /**
-   * writeFileSync writes a file to the file system.
+   * writeTextFileSync writes a text file to the file system.
    *
    * @example
    * ```ts
-   * Andromeda.writeFileSync("hello.txt", "Hello, World!");
+   * Andromeda.writeTextFileSync("hello.txt", "Hello, World!");
    * ```
    */
   function writeTextFileSync(path: string, data: string): void;
 
+  // Binary file operations
+  /**
+   * readFileSync reads a binary file from the file system.
+   *
+   * @example
+   * ```ts
+   * const data = Andromeda.readFileSync("image.png");
+   * console.log(data);
+   * ```
+   */
+  function readFileSync(path: string): Uint8Array;
+
+  /**
+   * writeFileSync writes binary data to a file in the file system.
+   *
+   * @example
+   * ```ts
+   * const data = new Uint8Array([72, 101, 108, 108, 111]);
+   * Andromeda.writeFileSync("data.bin", data);
+   * ```
+   */
+  function writeFileSync(path: string, data: Uint8Array): void;
+
+  // File operations
+  /**
+   * createSync creates a new empty file in the file system.
+   *
+   * @example
+   * ```ts
+   * Andromeda.createSync("hello.txt");
+   * ```
+   */
+  function createSync(path: string): void;
+
+  /**
+   * copyFileSync copies a file in the file system.
+   *
+   * @example
+   * ```ts
+   * Andromeda.copyFileSync("hello.txt", "world.txt");
+   * ```
+   */
+  function copyFileSync(source: string, destination: string): void;
+
+  /**
+   * removeSync removes a file from the file system.
+   *
+   * @example
+   * ```ts
+   * Andromeda.removeSync("hello.txt");
+   * ```
+   */
+  function removeSync(path: string): void;
+
+  /**
+   * removeAllSync recursively removes a file or directory from the file system.
+   *
+   * @example
+   * ```ts
+   * Andromeda.removeAllSync("my_directory");
+   * ```
+   */
+  function removeAllSync(path: string): void;
+
+  /**
+   * renameSync renames/moves a file or directory in the file system.
+   *
+   * @example
+   * ```ts
+   * Andromeda.renameSync("old_name.txt", "new_name.txt");
+   * ```
+   */
+  function renameSync(oldPath: string, newPath: string): void;
+
+  /**
+   * existsSync checks if a file or directory exists in the file system.
+   *
+   * @example
+   * ```ts
+   * if (Andromeda.existsSync("hello.txt")) {
+   *   console.log("File exists!");
+   * }
+   * ```
+   */
+  function existsSync(path: string): boolean;
+
+  /**
+   * truncateSync truncates a file to a specified length.
+   *
+   * @example
+   * ```ts
+   * Andromeda.truncateSync("hello.txt", 100);
+   * ```
+   */
+  function truncateSync(path: string, length: number): void;
+
+  /**
+   * chmodSync changes the permissions of a file or directory.
+   *
+   * @example
+   * ```ts
+   * Andromeda.chmodSync("hello.txt", 0o644);
+   * ```
+   */
+  function chmodSync(path: string, mode: number): void;
+
+  /**
+   * openSync opens a file and returns a file descriptor.
+   *
+   * @example
+   * ```ts
+   * const fd = Andromeda.openSync("hello.txt", "r");
+   * console.log("File descriptor:", fd);
+   * ```
+   */
+  function openSync(path: string, mode: string): number;
+
+  // Directory operations
+  /**
+   * mkdirSync creates a directory in the file system.
+   *
+   * @example
+   * ```ts
+   * Andromeda.mkdirSync("hello");
+   * ```
+   */
+  function mkdirSync(path: string): void;
+
+  // System operations
   /**
    * exit exits the program with an optional exit code.
    *
@@ -88,7 +219,7 @@ declare namespace Andromeda {
   function exit(code?: number): void;
 
   /**
-   * Returns a Promise to be resolved after the specified time un milliseconds.
+   * Returns a Promise to be resolved after the specified time in milliseconds.
    *
    * @example
    * ```ts

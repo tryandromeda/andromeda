@@ -73,12 +73,14 @@ const Andromeda = {
    * The `args` property contains the command-line arguments passed to the program.
    */
   args: internal_get_cli_args(),
+
+  // File operations
   /**
-   * the readFileSync function reads a file from the filesystem.
+   * The readTextFileSync function reads a text file from the filesystem.
    *
    * @example
    * ```ts
-   * const data = Andromeda.readFileSync("hello.txt");
+   * const data = Andromeda.readTextFileSync("hello.txt");
    * console.log(data);
    * ```
    */
@@ -87,11 +89,11 @@ const Andromeda = {
   },
 
   /**
-   * The writeFileSync function writes data to a file on the filesystem.
+   * The writeTextFileSync function writes text data to a file on the filesystem.
    *
    * @example
    * ```ts
-   * Andromeda.writeFileSync("hello.txt", "Hello, World!");
+   * Andromeda.writeTextFileSync("hello.txt", "Hello, World!");
    * ```
    */
   writeTextFileSync(path: string, data: string): void {
@@ -99,19 +101,58 @@ const Andromeda = {
   },
 
   /**
-   * The `createFileSync` function creates a file in the file system.
+   * The readFileSync function reads a file as binary data from the filesystem.
    *
    * @example
    * ```ts
-   * Andromeda.createFileSync("hello.txt");
+   * const data = Andromeda.readFileSync("image.png");
+   * console.log(data);
    * ```
    */
-  createFileSync(path: string): void {
+  readFileSync(path: string): Uint8Array {
+    return internal_read_file(path);
+  },
+
+  /**
+   * The writeFileSync function writes binary data to a file on the filesystem.
+   *
+   * @example
+   * ```ts
+   * const data = new Uint8Array([72, 101, 108, 108, 111]);
+   * Andromeda.writeFileSync("data.bin", data);
+   * ```
+   */
+  writeFileSync(path: string, data: Uint8Array): void {
+    internal_write_file(path, data);
+  },
+
+  /**
+   * The openSync function opens a file and returns a file descriptor.
+   *
+   * @example
+   * ```ts
+   * const fd = Andromeda.openSync("hello.txt", "r");
+   * console.log("File descriptor:", fd);
+   * ```
+   */
+  openSync(path: string, mode: string): number {
+    return internal_open_file(path, mode);
+  },
+
+  /**
+   * The createSync function creates a new file in the file system.
+   *
+   * @example
+   * ```ts
+   * Andromeda.createSync("hello.txt");
+   * ```
+   */
+  createSync(path: string): void {
     internal_create_file(path);
   },
 
   /**
-   * The `copyFileSync` function copies a file in the file system.
+   * The copyFileSync function copies a file in the file system.
    *
    * @example
    * ```ts
@@ -123,7 +164,82 @@ const Andromeda = {
   },
 
   /**
-   * The `mkdirSync` function creates a directory in the file system.
+   * The removeSync function removes a file from the file system.
+   *
+   * @example
+   * ```ts
+   * Andromeda.removeSync("hello.txt");
+   * ```
+   */
+  removeSync(path: string): void {
+    internal_remove(path);
+  },
+
+  /**
+   * The removeAllSync function recursively removes a file or directory from the file system.
+   *
+   * @example
+   * ```ts
+   * Andromeda.removeAllSync("my_directory");
+   * ```
+   */
+  removeAllSync(path: string): void {
+    internal_remove_all(path);
+  },
+
+  /**
+   * The renameSync function renames/moves a file or directory in the file system.
+   *
+   * @example
+   * ```ts
+   * Andromeda.renameSync("old_name.txt", "new_name.txt");
+   * ```
+   */
+  renameSync(oldPath: string, newPath: string): void {
+    internal_rename(oldPath, newPath);
+  },
+
+  /**
+   * The existsSync function checks if a file or directory exists in the file system.
+   *
+   * @example
+   * ```ts
+   * if (Andromeda.existsSync("hello.txt")) {
+   *   console.log("File exists!");
+   * }
+   * ```
+   */
+  existsSync(path: string): boolean {
+    return internal_exists(path);
+  },
+
+  /**
+   * The truncateSync function truncates a file to a specified length.
+   *
+   * @example
+   * ```ts
+   * Andromeda.truncateSync("hello.txt", 100);
+   * ```
+   */
+  truncateSync(path: string, length: number): void {
+    internal_truncate(path, length);
+  },
+
+  /**
+   * The chmodSync function changes the permissions of a file or directory.
+   *
+   * @example
+   * ```ts
+   * Andromeda.chmodSync("hello.txt", 0o644);
+   * ```
+   */
+  chmodSync(path: string, mode: number): void {
+    internal_chmod(path, mode);
+  },
+
+  // Directory operations
+  /**
+   * The mkdirSync function creates a directory in the file system.
    *
    * @example
    * ```ts
@@ -134,6 +250,44 @@ const Andromeda = {
     internal_mk_dir(path);
   },
 
+  // These filesystem functions are implemented in Rust but not yet exposed
+  // TODO: Uncomment when the internal functions are registered in the runtime
+  /*
+  readDirSync(path: string): Array<{name: string, isFile: boolean, isDirectory: boolean, isSymlink: boolean}> {
+    return internal_read_dir(path);
+  },
+
+  statSync(path: string): {
+    isFile: boolean,
+    isDirectory: boolean,
+    isSymlink: boolean,
+    size: number,
+    modified: number,
+    accessed: number,
+    created: number,
+    mode: number
+  } {
+    return internal_stat(path);
+  },
+
+  mkdirAllSync(path: string): void {
+    internal_mk_dir_all(path);
+  },
+
+  lstatSync(path: string): {
+    isFile: boolean,
+    isDirectory: boolean,
+    isSymlink: boolean,
+    size: number,
+    modified: number,
+    accessed: number,
+    created: number,
+    mode: number
+  } {
+    return internal_lstat(path);
+  },
+  */
+  // System operations
   /**
    * The `exit` function exits the program with an optional exit code.
    *
