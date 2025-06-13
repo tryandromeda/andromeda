@@ -307,7 +307,7 @@ impl ProcessExt {
             #[cfg(unix)]
             {
                 use signal_hook::iterator::Signals;
-                if let Ok(mut signals) = Signals::new(&[signal_num]) {
+                if let Ok(mut signals) = Signals::new([signal_num]) {
                     for _signal in signals.forever() {
                         eprintln!("Signal {} received", signal_num);
                         // TODO: Dispatch to JavaScript event loop
