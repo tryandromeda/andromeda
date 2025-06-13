@@ -2,7 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use std::{borrow::BorrowMut, fs::File};
+use std::{
+    borrow::BorrowMut,
+    fs::{File, Metadata},
+    path::Path,
+    time::SystemTime,
+};
 
 use nova_vm::{
     SmallInteger,
@@ -41,7 +46,22 @@ impl FsExt {
                 ExtensionOp::new("internal_create_file", Self::internal_create_file, 1),
                 ExtensionOp::new("internal_copy_file", Self::internal_copy_file, 2),
                 ExtensionOp::new("internal_mk_dir", Self::internal_mk_dir, 1),
+                ExtensionOp::new("internal_mk_dir_all", Self::internal_mk_dir_all, 1),
                 ExtensionOp::new("internal_open_file", Self::internal_open_file, 1),
+                ExtensionOp::new("internal_read_file", Self::internal_read_file, 1),
+                ExtensionOp::new("internal_write_file", Self::internal_write_file, 2),
+                ExtensionOp::new("internal_stat", Self::internal_stat, 1),
+                ExtensionOp::new("internal_lstat", Self::internal_lstat, 1),
+                ExtensionOp::new("internal_read_dir", Self::internal_read_dir, 1),
+                ExtensionOp::new("internal_remove", Self::internal_remove, 1),
+                ExtensionOp::new("internal_remove_all", Self::internal_remove_all, 1),
+                ExtensionOp::new("internal_rename", Self::internal_rename, 2),
+                ExtensionOp::new("internal_exists", Self::internal_exists, 1),
+                ExtensionOp::new("internal_truncate", Self::internal_truncate, 2),
+                ExtensionOp::new("internal_chmod", Self::internal_chmod, 2),
+                ExtensionOp::new("internal_symlink", Self::internal_symlink, 2),
+                ExtensionOp::new("internal_read_link", Self::internal_read_link, 1),
+                ExtensionOp::new("internal_real_path", Self::internal_real_path, 1),
             ],
             storage: Some(Box::new(|storage: &mut OpsStorage| {
                 storage.insert(FsExtResources {
@@ -168,6 +188,488 @@ impl FsExt {
             }
         }
     }
+    /// Create a directory recursively (mkdir -p equivalent).
+    pub fn internal_mk_dir_all<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path = binding.as_str(agent);
+
+        match std::fs::create_dir_all(path) {
+            Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "create_dir_all", path);
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
+        }
+    }
+
+    /// Read a file as bytes and return as a Uint8Array-like structure.
+    pub fn internal_read_file<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path = binding.as_str(agent);
+        match std::fs::read(path) {
+            Ok(content) => {
+                // For now, return the content as a hex encoded string
+                // In a full implementation, you'd want to return an actual Uint8Array
+                let hex_content = content.iter().fold(String::new(), |mut acc, b| {
+                    use std::fmt::Write;
+                    write!(&mut acc, "{:02x}", b).unwrap();
+                    acc
+                });
+                Ok(Value::from_string(agent, hex_content, gc.nogc()).unbind())
+            }
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "read_file", path);
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
+        }
+    }
+
+    /// Write bytes to a file.
+    pub fn internal_write_file<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_binding = args
+            .get(0)
+            .to_string(agent, gc.borrow_mut().reborrow())
+            .unbind()?;
+        let content_binding = args
+            .get(1)
+            .to_string(agent.borrow_mut(), gc.reborrow())
+            .unbind()?;
+
+        let path = path_binding.as_str(agent);
+        let content_str = content_binding.as_str(agent);
+
+        // For now, just write the string as bytes
+        // In a full implementation, you'd want to handle Uint8Array directly
+        let content = content_str.as_bytes();
+
+        match std::fs::write(path, content) {
+            Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "write_file", path);
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
+        }
+    }
+
+    /// Get file/directory statistics.
+    pub fn internal_stat<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path = binding.as_str(agent);
+
+        match std::fs::metadata(path) {
+            Ok(metadata) => {
+                let stat_info = Self::format_file_info(&metadata);
+                Ok(Value::from_string(agent, stat_info, gc.nogc()).unbind())
+            }
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "stat", path);
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
+        }
+    }
+
+    /// Get file/directory statistics without following symlinks.
+    pub fn internal_lstat<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path = binding.as_str(agent);
+
+        match std::fs::symlink_metadata(path) {
+            Ok(metadata) => {
+                let stat_info = Self::format_file_info(&metadata);
+                Ok(Value::from_string(agent, stat_info, gc.nogc()).unbind())
+            }
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "lstat", path);
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
+        }
+    }
+
+    /// Read directory contents.
+    pub fn internal_read_dir<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path = binding.as_str(agent);
+
+        match std::fs::read_dir(path) {
+            Ok(entries) => {
+                let mut result = String::from("[");
+                let mut first = true;
+
+                for entry in entries {
+                    match entry {
+                        Ok(entry) => {
+                            if !first {
+                                result.push(',');
+                            }
+                            first = false;
+
+                            let file_name = entry.file_name();
+                            let name = file_name.to_string_lossy();
+                            let is_dir = entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
+                            let is_file = entry.file_type().map(|ft| ft.is_file()).unwrap_or(false);
+                            let is_symlink =
+                                entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false);
+
+                            result.push_str(&format!(
+                                "{{\"name\":\"{}\",\"isFile\":{},\"isDirectory\":{},\"isSymlink\":{}}}",
+                                name, is_file, is_dir, is_symlink
+                            ));
+                        }
+                        Err(_) => continue,
+                    }
+                }
+                result.push(']');
+
+                Ok(Value::from_string(agent, result, gc.nogc()).unbind())
+            }
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "read_dir", path);
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
+        }
+    }
+
+    /// Remove a file or empty directory.
+    pub fn internal_remove<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path = binding.as_str(agent);
+
+        let result = if Path::new(path).is_dir() {
+            std::fs::remove_dir(path)
+        } else {
+            std::fs::remove_file(path)
+        };
+
+        match result {
+            Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "remove", path);
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
+        }
+    }
+
+    /// Remove a file or directory recursively.
+    pub fn internal_remove_all<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path = binding.as_str(agent);
+
+        let result = if Path::new(path).is_dir() {
+            std::fs::remove_dir_all(path)
+        } else {
+            std::fs::remove_file(path)
+        };
+
+        match result {
+            Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "remove_all", path);
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
+        }
+    }
+
+    /// Rename/move a file or directory.
+    pub fn internal_rename<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let from = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let to = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+
+        match std::fs::rename(from.as_str(agent), to.as_str(agent)) {
+            Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
+            Err(e) => {
+                let error = AndromedaError::fs_error(
+                    e,
+                    "rename",
+                    format!("{} -> {}", from.as_str(agent), to.as_str(agent)),
+                );
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
+        }
+    }
+
+    /// Check if a file or directory exists.
+    pub fn internal_exists<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path = binding.as_str(agent);
+
+        let exists = Path::new(path).exists();
+        Ok(Value::from_string(agent, exists.to_string(), gc.nogc()).unbind())
+    }
+    /// Truncate a file to a specific length.
+    pub fn internal_truncate<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_binding = args
+            .get(0)
+            .to_string(agent, gc.borrow_mut().reborrow())
+            .unbind()?;
+        let len_binding = args
+            .get(1)
+            .to_string(agent.borrow_mut(), gc.reborrow())
+            .unbind()?;
+
+        let path = path_binding.as_str(agent);
+        let len_str = len_binding.as_str(agent);
+
+        let len: u64 = match len_str.parse() {
+            Ok(l) => l,
+            Err(_) => {
+                return Ok(Value::from_string(
+                    agent,
+                    "Error: Invalid length parameter".to_string(),
+                    gc.nogc(),
+                )
+                .unbind());
+            }
+        };
+
+        let file = std::fs::OpenOptions::new().write(true).open(path);
+        match file {
+            Ok(f) => match f.set_len(len) {
+                Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
+                Err(e) => {
+                    let error = AndromedaError::fs_error(e, "truncate", path);
+                    let error_msg = ErrorReporter::format_error(&error);
+                    Ok(
+                        Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc())
+                            .unbind(),
+                    )
+                }
+            },
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "truncate", path);
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
+        }
+    }
+    /// Change file permissions (chmod).
+    pub fn internal_chmod<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_binding = args
+            .get(0)
+            .to_string(agent, gc.borrow_mut().reborrow())
+            .unbind()?;
+        let mode_binding = args
+            .get(1)
+            .to_string(agent.borrow_mut(), gc.reborrow())
+            .unbind()?;
+
+        let path = path_binding.as_str(agent);
+        let mode_str = mode_binding.as_str(agent);
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let mode: u32 = match u32::from_str_radix(mode_str, 8) {
+                Ok(m) => m,
+                Err(_) => {
+                    return Ok(Value::from_string(
+                        agent,
+                        "Error: Invalid mode parameter".to_string(),
+                        gc.nogc(),
+                    )
+                    .unbind());
+                }
+            };
+
+            let permissions = std::fs::Permissions::from_mode(mode);
+            match std::fs::set_permissions(path, permissions) {
+                Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
+                Err(e) => {
+                    let error = AndromedaError::fs_error(e, "chmod", path);
+                    let error_msg = ErrorReporter::format_error(&error);
+                    Ok(
+                        Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc())
+                            .unbind(),
+                    )
+                }
+            }
+        }
+
+        #[cfg(not(unix))]
+        {
+            let _ = path; // Use variables to avoid warnings
+            let _ = mode_str;
+            Ok(Value::from_string(
+                agent,
+                "Error: chmod not supported on this platform".to_string(),
+                gc.nogc(),
+            )
+            .unbind())
+        }
+    }
+
+    /// Create a symbolic link.
+    pub fn internal_symlink<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let target = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let link = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+
+        #[cfg(unix)]
+        {
+            match std::os::unix::fs::symlink(target.as_str(agent), link.as_str(agent)) {
+                Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
+                Err(e) => {
+                    let error = AndromedaError::fs_error(
+                        e,
+                        "symlink",
+                        format!("{} -> {}", target.as_str(agent), link.as_str(agent)),
+                    );
+                    let error_msg = ErrorReporter::format_error(&error);
+                    Ok(
+                        Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc())
+                            .unbind(),
+                    )
+                }
+            }
+        }
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs;
+            let target_path = Path::new(target.as_str(agent));
+            let result = if target_path.is_dir() {
+                fs::symlink_dir(target.as_str(agent), link.as_str(agent))
+            } else {
+                fs::symlink_file(target.as_str(agent), link.as_str(agent))
+            };
+
+            match result {
+                Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
+                Err(e) => {
+                    let error = AndromedaError::fs_error(
+                        e,
+                        "symlink",
+                        format!("{} -> {}", target.as_str(agent), link.as_str(agent)),
+                    );
+                    let error_msg = ErrorReporter::format_error(&error);
+                    Ok(
+                        Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc())
+                            .unbind(),
+                    )
+                }
+            }
+        }
+    }
+
+    /// Read the target of a symbolic link.
+    pub fn internal_read_link<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path = binding.as_str(agent);
+
+        match std::fs::read_link(path) {
+            Ok(target) => {
+                let target_str = target.to_string_lossy().to_string();
+                Ok(Value::from_string(agent, target_str, gc.nogc()).unbind())
+            }
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "read_link", path);
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
+        }
+    }
+
+    /// Get the real (canonical) path of a file/directory.
+    pub fn internal_real_path<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path = binding.as_str(agent);
+
+        match std::fs::canonicalize(path) {
+            Ok(real_path) => {
+                let path_str = real_path.to_string_lossy().to_string();
+                Ok(Value::from_string(agent, path_str, gc.nogc()).unbind())
+            }
+            Err(e) => {
+                let error = AndromedaError::fs_error(e, "real_path", path);
+                let error_msg = ErrorReporter::format_error(&error);
+                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+            }
+        }
+    }
+
     /// Open a file and return a Rid.
     pub fn internal_open_file<'gc>(
         agent: &mut Agent,
@@ -196,5 +698,45 @@ impl FsExt {
         let rid = resources.files.push(file);
 
         Ok(Value::Integer(SmallInteger::from(rid.index())))
+    }
+
+    /// Helper function to format file metadata as JSON string.
+    fn format_file_info(metadata: &Metadata) -> String {
+        let size = metadata.len();
+        let is_file = metadata.is_file();
+        let is_dir = metadata.is_dir();
+        let is_symlink = metadata.is_symlink();
+
+        let modified = metadata
+            .modified()
+            .map(|time| {
+                time.duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs()
+            })
+            .unwrap_or(0);
+
+        let accessed = metadata
+            .accessed()
+            .map(|time| {
+                time.duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs()
+            })
+            .unwrap_or(0);
+
+        let created = metadata
+            .created()
+            .map(|time| {
+                time.duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs()
+            })
+            .unwrap_or(0);
+
+        format!(
+            "{{\"size\":{},\"isFile\":{},\"isDirectory\":{},\"isSymlink\":{},\"modified\":{},\"accessed\":{},\"created\":{}}}",
+            size, is_file, is_dir, is_symlink, modified, accessed, created
+        )
     }
 }

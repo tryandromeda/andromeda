@@ -28,6 +28,101 @@ declare function internal_copy_file(source: string, destination: string): void;
 declare function internal_mk_dir(path: string): void;
 
 /**
+ * The `internal_mk_dir_all` function creates a directory and all its parent directories in the file system.
+ */
+declare function internal_mk_dir_all(path: string): void;
+
+/**
+ * The `internal_read_file` function reads a file as binary data from the file system.
+ */
+declare function internal_read_file(path: string): Uint8Array;
+
+/**
+ * The `internal_write_file` function writes binary data to a file in the file system.
+ */
+declare function internal_write_file(path: string, data: Uint8Array): void;
+
+/**
+ * The `internal_remove` function removes a file from the file system.
+ */
+declare function internal_remove(path: string): void;
+
+/**
+ * The `internal_remove_all` function recursively removes a file or directory from the file system.
+ */
+declare function internal_remove_all(path: string): void;
+
+/**
+ * The `internal_rename` function renames/moves a file or directory in the file system.
+ */
+declare function internal_rename(oldPath: string, newPath: string): void;
+
+/**
+ * The `internal_exists` function checks if a file or directory exists in the file system.
+ */
+declare function internal_exists(path: string): boolean;
+
+/**
+ * The `internal_truncate` function truncates a file to a specified length.
+ */
+declare function internal_truncate(path: string, length: number): void;
+
+/**
+ * The `internal_chmod` function changes the permissions of a file or directory.
+ */
+declare function internal_chmod(path: string, mode: number): void;
+
+/**
+ * The `internal_symlink` function creates a symbolic link.
+ */
+declare function internal_symlink(target: string, linkPath: string): void;
+
+/**
+ * The `internal_read_link` function reads the target of a symbolic link.
+ */
+declare function internal_read_link(path: string): string;
+
+/**
+ * The `internal_real_path` function resolves the absolute path of a file, resolving symbolic links.
+ */
+declare function internal_real_path(path: string): string;
+
+/**
+ * The `internal_read_dir` function reads the contents of a directory.
+ */
+declare function internal_read_dir(
+  path: string,
+): Array<{ name: string; isFile: boolean; isDirectory: boolean; isSymlink: boolean; }>;
+
+/**
+ * The `internal_stat` function gets information about a file or directory.
+ */
+declare function internal_stat(path: string): {
+  isFile: boolean;
+  isDirectory: boolean;
+  isSymlink: boolean;
+  size: number;
+  modified: number;
+  accessed: number;
+  created: number;
+  mode: number;
+};
+
+/**
+ * The `internal_lstat` function gets information about a file or directory without following symbolic links.
+ */
+declare function internal_lstat(path: string): {
+  isFile: boolean;
+  isDirectory: boolean;
+  isSymlink: boolean;
+  size: number;
+  modified: number;
+  accessed: number;
+  created: number;
+  mode: number;
+};
+
+/**
  * The `internal_exit` function exits the program with an optional exit code.
  */
 declare function internal_exit(code: number): void;
@@ -48,9 +143,9 @@ declare function internal_write(message: string): void;
 declare function internal_write_line(message: string): void;
 
 /**
- * The `internal_file_open` function opens a File and returns a Rid.
+ * The `internal_open_file` function opens a file and returns a file descriptor.
  */
-declare function internal_open_file(path: string): void;
+declare function internal_open_file(path: string, mode: string): number;
 
 /**
  * The `internal_sleep` function returns a Promise to be resolved after the specified time un milliseconds.
