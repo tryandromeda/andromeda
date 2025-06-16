@@ -25,7 +25,7 @@ indexmap = "2.9.0"
 image = "0.25.6"
 lazy_static = "1.5.0"
 libsui = "0.10.0"
-nova_vm = { git = "https://github.com/trynova/nova", rev = "7d1da0bd906ab7b8409878b41bd611f172789ce9", features = [
+nova_vm = { git = "https://github.com/trynova/nova", rev = "5ba850f45879e90a53026e83f191875df4747134", features = [
     "typescript"
 ] }
 nu-ansi-term = "0.50.1"
