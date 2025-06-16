@@ -16,7 +16,7 @@ use std::sync::{Arc, Mutex, RwLock};
 
 // Global storage for broadcast channels
 lazy_static::lazy_static! {
-    static ref BROADCAST_CHANNELS: Arc<RwLock<HashMap<String, Vec<BroadcastChannelHandle>>>> = 
+    static ref BROADCAST_CHANNELS: Arc<RwLock<HashMap<String, Vec<BroadcastChannelHandle>>>> =
         Arc::new(RwLock::new(HashMap::new()));
     static ref NEXT_RID: Arc<Mutex<u32>> = Arc::new(Mutex::new(1));
 }
@@ -35,14 +35,19 @@ impl BroadcastChannelExt {
             name: "broadcast_channel",
             ops: vec![
                 ExtensionOp::new("op_broadcast_subscribe", Self::op_broadcast_subscribe, 0),
-                ExtensionOp::new("op_broadcast_unsubscribe", Self::op_broadcast_unsubscribe, 1),
+                ExtensionOp::new(
+                    "op_broadcast_unsubscribe",
+                    Self::op_broadcast_unsubscribe,
+                    1,
+                ),
                 ExtensionOp::new("op_broadcast_send", Self::op_broadcast_send, 3),
                 ExtensionOp::new("op_broadcast_recv", Self::op_broadcast_recv, 1),
             ],
             storage: None,
             files: vec![include_str!("./broadcast_channel.ts")],
         }
-    }    /// Subscribe to broadcast channel and return a resource ID
+    }
+    /// Subscribe to broadcast channel and return a resource ID
     pub fn op_broadcast_subscribe<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -73,8 +78,9 @@ impl BroadcastChannelExt {
         for (_name, handles) in channels.iter_mut() {
             handles.retain(|handle| handle.rid != rid);
         }
-        
-        Ok(Value::Undefined)    }
+
+        Ok(Value::Undefined)
+    }
 
     /// Send a message to a broadcast channel
     pub fn op_broadcast_send<'gc>(
@@ -96,9 +102,10 @@ impl BroadcastChannelExt {
         // For now, this is a placeholder implementation
         // In a full implementation, this would serialize and send the message
         // to other processes/workers
-        
+
         Ok(Value::Undefined)
-    }    /// Receive a message from broadcast channel (async)
+    }
+    /// Receive a message from broadcast channel (async)
     pub fn op_broadcast_recv<'gc>(
         _agent: &mut Agent,
         _this: Value,
@@ -106,7 +113,7 @@ impl BroadcastChannelExt {
         _gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let _rid_arg = args.get(0);
-        
+
         // This is a placeholder for async message receiving
         // In a full implementation, this would be an async operation
         // that waits for messages and returns them
