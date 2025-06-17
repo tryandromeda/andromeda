@@ -10,6 +10,7 @@ readme = "../README.md"
 default = []
 canvas = ["dep:wgpu", "dep:image"]
 crypto = ["dep:ring", "dep:rand"]
+storage = ["dep:rusqlite"]
 
 [dependencies]
 andromeda-core.workspace = true
@@ -25,7 +26,7 @@ base64-simd.workspace = true
 image = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 ring = { workspace = true, optional = true }
-rusqlite.workspace = true
+rusqlite = { workspace = true, optional = true, features = ["bundled"] }
 signal-hook.workspace = true
 lazy_static.workspace = true
 thiserror.workspace = true

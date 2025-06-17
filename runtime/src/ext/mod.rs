@@ -9,6 +9,7 @@ mod console;
 mod crypto;
 mod fetch;
 mod fs;
+#[cfg(feature = "storage")]
 mod local_storage;
 mod process;
 mod time;
@@ -23,6 +24,7 @@ pub use console::*;
 pub use crypto::*;
 pub use fetch::*;
 pub use fs::*;
+#[cfg(feature = "storage")]
 pub use local_storage::*;
 pub use process::*;
 pub use time::*;
