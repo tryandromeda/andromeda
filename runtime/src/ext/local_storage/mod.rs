@@ -268,7 +268,7 @@ impl LocalStorageExt {
             Some(v) => v,
             None => return Ok(Value::Undefined),
         };
-        if let Err(_) = size_check(key.len() + value.len()) {
+        if size_check(key.len() + value.len()).is_err() {
             return Err(agent
                 .throw_exception_with_static_message(
                     nova_vm::ecmascript::execution::agent::ExceptionType::Error,
