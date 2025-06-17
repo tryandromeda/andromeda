@@ -28,3 +28,5 @@ ring = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 signal-hook.workspace = true
 lazy_static.workspace = true
+rusqlite = { version = "0.32.1", features = ["bundled"] }
+thiserror.workspace = true

@@ -6,8 +6,16 @@ use andromeda_core::{Extension, HostData};
 use nova_vm::ecmascript::execution::agent::{GcAgent, RealmRoot};
 
 use crate::{
-    BroadcastChannelExt, ConsoleExt, FsExt, HeadersExt, ProcessExt, RuntimeMacroTask, TimeExt,
-    URLExt, WebExt,
+    //BroadcastChannelExt,
+    ConsoleExt,
+    FsExt,
+    HeadersExt,
+    LocalStorageExt,
+    ProcessExt,
+    RuntimeMacroTask,
+    TimeExt,
+    URLExt,
+    WebExt,
 };
 
 pub fn recommended_extensions() -> Vec<Extension> {
@@ -19,7 +27,8 @@ pub fn recommended_extensions() -> Vec<Extension> {
         URLExt::new_extension(),
         WebExt::new_extension(),
         HeadersExt::new_extension(),
-        BroadcastChannelExt::new_extension(),
+        LocalStorageExt::new_extension(),
+        // BroadcastChannelExt::new_extension(),
         #[cfg(feature = "canvas")]
         crate::CanvasExt::new_extension(),
         #[cfg(feature = "crypto")]
