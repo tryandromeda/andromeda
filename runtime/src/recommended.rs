@@ -5,7 +5,10 @@
 use andromeda_core::{Extension, HostData};
 use nova_vm::ecmascript::execution::agent::{GcAgent, RealmRoot};
 
-use crate::{ConsoleExt, FsExt, HeadersExt, ProcessExt, RuntimeMacroTask, TimeExt, URLExt, WebExt};
+use crate::{
+    ConsoleExt, FsExt, HeadersExt, ProcessExt, RequestExt, RuntimeMacroTask, TimeExt, URLExt,
+    WebExt, WebIDLExt,
+};
 
 pub fn recommended_extensions() -> Vec<Extension> {
     vec![
@@ -16,6 +19,8 @@ pub fn recommended_extensions() -> Vec<Extension> {
         URLExt::new_extension(),
         WebExt::new_extension(),
         HeadersExt::new_extension(),
+        RequestExt::new_extension(),
+        WebIDLExt::new_extension(),
         #[cfg(feature = "canvas")]
         crate::CanvasExt::new_extension(),
     ]

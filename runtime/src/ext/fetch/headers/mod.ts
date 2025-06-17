@@ -136,3 +136,5 @@ function getHeader(list: [string, string][], name: string): string | null {
     return entries.join("\x2C\x20");
   }
 }
+
+export { fillHeaders };

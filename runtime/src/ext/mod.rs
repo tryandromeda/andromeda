@@ -10,6 +10,7 @@ mod process;
 mod time;
 mod url;
 mod web;
+mod webidl;
 
 #[cfg(feature = "canvas")]
 pub use canvas::*;
@@ -20,3 +21,4 @@ pub use process::*;
 pub use time::*;
 pub use url::*;
 pub use web::*;
+pub use webidl::*;

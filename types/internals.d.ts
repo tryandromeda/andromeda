@@ -235,7 +235,13 @@ declare function internal_canvas_stroke(rid: number): void;
 /**
  * The `internal_canvas_rect` function adds a rectangle to the current path.
  */
-declare function internal_canvas_rect(rid: number, x: number, y: number, width: number, height: number): void;
+declare function internal_canvas_rect(
+  rid: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void;
 
 /**
  * The `internal_canvas_set_line_width` function sets the line width for stroking on the canvas.
@@ -280,7 +286,7 @@ declare function internal_canvas_quadratic_curve_to(
   cpx: number,
   cpy: number,
   x: number,
-  y: number
+  y: number,
 ): void;
 
 /**
@@ -295,7 +301,7 @@ declare function internal_canvas_ellipse(
   rotation: number,
   startAngle: number,
   endAngle: number,
-  counterclockwise?: boolean
+  counterclockwise?: boolean,
 ): void;
 
 /**
@@ -307,7 +313,7 @@ declare function internal_canvas_round_rect(
   y: number,
   width: number,
   height: number,
-  radius: number
+  radius: number,
 ): void;
 
 /**
