@@ -11,7 +11,7 @@ version = "0.1.0-draft2"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
-andromeda-runtime = { path = "runtime", features = ["canvas", "crypto"] }
+andromeda-runtime = { path = "runtime", features = ["canvas", "crypto", "storage"] }
 anyhow = "1.0.98"
 anymap = "0.12.1"
 base64-simd = "0.8.0"
@@ -41,6 +41,7 @@ rand = "0.9.1"
 reedline = "0.40.0"
 regex = "1.11.1"
 ring = "0.17.8"
+rusqlite = { version = "0.36.0", features = ["bundled"] }
 serde = { version = "1.0.219", features = ["derive"] }
 signal-hook = "0.3.18"
 thiserror = "2.0.12"

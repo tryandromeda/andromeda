@@ -556,3 +556,85 @@ declare function internal_remove_signal_listener(
   signal: string,
   handler: () => void,
 ): string | void;
+
+// localStorage operations
+/**
+ * The `localStorage_length` function returns the number of items in localStorage.
+ */
+declare function localStorage_length(): number;
+
+/**
+ * The `localStorage_key` function returns the key at the specified index in localStorage.
+ */
+declare function localStorage_key(index: number): string | null;
+
+/**
+ * The `localStorage_getItem` function retrieves an item from localStorage by key.
+ */
+declare function localStorage_getItem(key: string): string | null;
+
+/**
+ * The `localStorage_setItem` function stores an item in localStorage with the specified key and value.
+ */
+declare function localStorage_setItem(key: string, value: string): void;
+
+/**
+ * The `localStorage_removeItem` function removes an item from localStorage by key.
+ */
+declare function localStorage_removeItem(key: string): void;
+
+/**
+ * The `localStorage_clear` function removes all items from localStorage.
+ */
+declare function localStorage_clear(): void;
+
+/**
+ * The `localStorage_keys` function returns an array of all keys in localStorage.
+ */
+declare function localStorage_keys(): string[];
+
+// sessionStorage operations
+/**
+ * The `sessionStorage_length` function returns the number of items in sessionStorage.
+ */
+declare function sessionStorage_length(): number;
+
+/**
+ * The `sessionStorage_key` function returns the key at the specified index in sessionStorage.
+ */
+declare function sessionStorage_key(index: number): string | null;
+
+/**
+ * The `sessionStorage_getItem` function retrieves an item from sessionStorage by key.
+ */
+declare function sessionStorage_getItem(key: string): string | null;
+
+/**
+ * The `sessionStorage_setItem` function stores an item in sessionStorage with the specified key and value.
+ */
+declare function sessionStorage_setItem(key: string, value: string): void;
+
+/**
+ * The `sessionStorage_removeItem` function removes an item from sessionStorage by key.
+ */
+declare function sessionStorage_removeItem(key: string): void;
+
+/**
+ * The `sessionStorage_clear` function removes all items from sessionStorage.
+ */
+declare function sessionStorage_clear(): void;
+
+/**
+ * The `sessionStorage_keys` function returns an array of all keys in sessionStorage.
+ */
+declare function sessionStorage_keys(): string[];
+
+// Declare the native functions provided by the Rust extension
+declare function storage_new(persistent: boolean): boolean;
+declare function storage_length(storageType: boolean): number;
+declare function storage_key(storageType: boolean, index: number): string | null;
+declare function storage_getItem(storageType: boolean, key: string): string | null;
+declare function storage_setItem(storageType: boolean, key: string, value: string): void;
+declare function storage_removeItem(storageType: boolean, key: string): void;
+declare function storage_clear(storageType: boolean): void;
+declare function storage_iterate_keys(storageType: boolean): string[];

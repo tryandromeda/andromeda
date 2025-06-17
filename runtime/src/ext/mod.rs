@@ -1,7 +1,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-mod broadcast_channel;
+// mod broadcast_channel;
 #[cfg(feature = "canvas")]
 mod canvas;
 mod console;
@@ -9,12 +9,14 @@ mod console;
 mod crypto;
 mod fetch;
 mod fs;
+#[cfg(feature = "storage")]
+mod local_storage;
 mod process;
 mod time;
 mod url;
 mod web;
 
-pub use broadcast_channel::*;
+// pub use broadcast_channel::*;
 #[cfg(feature = "canvas")]
 pub use canvas::*;
 pub use console::*;
@@ -22,6 +24,8 @@ pub use console::*;
 pub use crypto::*;
 pub use fetch::*;
 pub use fs::*;
+#[cfg(feature = "storage")]
+pub use local_storage::*;
 pub use process::*;
 pub use time::*;
 pub use url::*;
