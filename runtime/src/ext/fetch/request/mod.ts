@@ -96,7 +96,8 @@ class Request {
         null,
         true,
       );
-    } else { // 6.
+    } else {
+      // 6.
       if (!Object.prototype.isPrototypeOf.call(RequestPrototype, input)) {
         throw new TypeError("Unreachable");
       }
@@ -106,6 +107,17 @@ class Request {
       request.redirectCount = 0; // reset to 0 - cloneInnerRequest copies the value
       signal = input.#signal;
     }
+
+    // 7. Let origin be this’s relevant settings object’s origin.
+    // 8. Let traversableForUserPrompts be "client".
+    // 9. If request’s traversable for user prompts is an environment settings object and its origin is same origin with origin,
+    //    then set traversableForUserPrompts to request’s traversable for user prompts.
+    // 10. If init["window"] exists and is non-null, then throw a TypeError.
+    if (init.window != null) {
+      throw new TypeError(`'window' option '${window}' must be null`);
+    }
+
+    // 11. If init["window"] exists, then set traversableForUserPrompts to "no-traversable".
 
     // 12. is folded into the else statement of step 6 above.
 
@@ -117,9 +129,6 @@ class Request {
     // 25.
     if (init.method !== undefined) {
       const method = init.method;
-      // fast path: check for known methods
-      request.method = KNOWN_METHODS[method] ??
-        validateAndNormalizeMethod(method);
     }
 
     // 26.
@@ -331,4 +340,16 @@ function cloneInnerRequest(request: any, skipBody = false) {
       return this.urlListProcessed[currentIndex];
     },
   };
+}
+
+function validateAndNormalizeMethod(m: string): string {
+  // const upperCase = byteUpperCase(m);
+  // TODO: replace and uppercase
+  const upperCase = m;
+  if (
+    upperCase === "CONNECT" || upperCase === "TRACE" || upperCase === "TRACK"
+  ) {
+    throw new TypeError("Method is forbidden");
+  }
+  return upperCase;
 }
