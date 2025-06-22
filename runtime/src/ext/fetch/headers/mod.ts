@@ -3,15 +3,23 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // deno-lint-ignore-file no-unused-vars
 
+type Header = [string, string];
+
+type HeaderList = Header[];
+
 class Headers {
-  // TODO: Private properties
-  #guard: "none" | "immutable" = "none";
-  #headerList: [string, string][] = [];
+  #guard: "immutable" | "request" | "request-no-cors" | "response" | "none" = "none";
+  #headerList: HeaderList = [];
 
   // TODO: this is HeaderList type
   // https://fetch.spec.whatwg.org/#headers-class
   constructor(init = undefined) {
     fillHeaders(this, init);
+  }
+
+  clear() {
+    this.#headerList = [];
+    this.#guard = "none";
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-get
@@ -27,10 +35,37 @@ class Headers {
   get headerList() {
     return this.#headerList;
   }
+
   get guard() {
     return this.#guard;
   }
+
+  static getHeadersGuard(
+    o: Headers,
+    guard: "immutable" | "request" | "request-no-cors" | "response" | "none",
+  ) {
+    return o.#guard;
+  }
+
+  static setHeadersGuard(
+    o: Headers,
+    guard: "immutable" | "request" | "request-no-cors" | "response" | "none",
+  ) {
+    o.#guard = guard;
+  }
+
+  static getHeadersList(
+    target: Headers,
+  ) {
+    return target.#headerList;
+  }
+
+  static setHeadersList(target: Headers, list: HeaderList) {
+    target.#headerList = list;
+  }
 }
+
+const { setHeadersList, setHeadersGuard, getHeadersList, getHeadersGuard } = Headers;
 
 // deno-lint-ignore no-explicit-any
 function fillHeaders(headers: Headers, object: any) {
@@ -136,3 +171,13 @@ function getHeader(list: [string, string][], name: string): string | null {
     return entries.join("\x2C\x20");
   }
 }
+
+// TODO: comment in nova support module
+// export {
+//   fillHeaders,
+//   getHeadersGuard,
+//   getHeadersList,
+//   type HeaderList,
+//   setHeadersGuard,
+//   setHeadersList,
+// };
