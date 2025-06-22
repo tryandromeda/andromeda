@@ -15,7 +15,7 @@ test1();
 const test2 = () => {
   const request = new Request("https://example.com", {
     method: "POST",
-    body: '{"foo": "bar"}',
+    body: "{\"foo\": \"bar\"}",
   });
 
   const url = request.url;
