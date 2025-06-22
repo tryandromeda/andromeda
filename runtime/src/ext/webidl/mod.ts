@@ -44,4 +44,5 @@ function configureProperties(obj: any) {
   }
 }
 
-export { configureInterface };
+// TODO: comment in nova support module
+// export { configureInterface };

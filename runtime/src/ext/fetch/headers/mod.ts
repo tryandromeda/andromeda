@@ -18,6 +18,11 @@ class Headers {
     fillHeaders(this, init);
   }
 
+  clear() {
+    this.#headerList = [];
+    this.#guard = "none";
+  }
+
   // https://fetch.spec.whatwg.org/#dom-headers-get
   get(name: string) {
     return getHeader(this.#headerList, name);
@@ -36,6 +41,13 @@ class Headers {
     return this.#guard;
   }
 
+  static getHeadersGuard(
+    o: Headers,
+    guard: "immutable" | "request" | "request-no-cors" | "response" | "none",
+  ) {
+    return o.#guard;
+  }
+
   static setHeadersGuard(
     o: Headers,
     guard: "immutable" | "request" | "request-no-cors" | "response" | "none",
@@ -43,14 +55,19 @@ class Headers {
     o.#guard = guard;
   }
 
-  static getHeadersList(o: Headers) {
-    return o.#headerList;
+  static getHeadersList(
+    target: Headers,
+  ) {
+    return target.#headerList;
   }
 
   static setHeadersList(target: Headers, list: HeaderList) {
     target.#headerList = list;
   }
 }
+
+const { setHeadersList, setHeadersGuard, getHeadersList, getHeadersGuard } =
+  Headers;
 
 // deno-lint-ignore no-explicit-any
 function fillHeaders(headers: Headers, object: any) {
@@ -157,4 +174,12 @@ function getHeader(list: [string, string][], name: string): string | null {
   }
 }
 
-export { fillHeaders };
+// TODO: comment in nova support module
+// export {
+//   fillHeaders,
+//   getHeadersGuard,
+//   getHeadersList,
+//   type HeaderList,
+//   setHeadersGuard,
+//   setHeadersList,
+// };

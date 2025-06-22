@@ -2,10 +2,25 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { configureInterface } from "../../webidl/mod.ts";
-import { fillHeaders } from "../headers/mod.ts";
+type RequestInfo = Request;
 
-type RequestInfo = Request | string;
+// method => normalized method
+const KNOWN_METHODS = {
+  "DELETE": "DELETE",
+  "delete": "DELETE",
+  "GET": "GET",
+  "get": "GET",
+  "HEAD": "HEAD",
+  "head": "HEAD",
+  "OPTIONS": "OPTIONS",
+  "options": "OPTIONS",
+  "PATCH": "PATCH",
+  "patch": "PATCH",
+  "POST": "POST",
+  "post": "POST",
+  "PUT": "PUT",
+  "put": "PUT",
+};
 
 /** @category Fetch */
 interface RequestInit {
@@ -41,7 +56,7 @@ interface RequestInit {
   /**
    * A string to set request's method.
    */
-  method?: string;
+  method?: keyof typeof KNOWN_METHODS;
   /**
    * A string to indicate whether the request will use CORS, or will be
    * restricted to same-origin URLs. Sets request's mode.
@@ -74,9 +89,9 @@ interface RequestInit {
 
 class Request {
   #request;
-  #headersCache;
-  #getHeaders;
+  #headers;
   #signal;
+  #body;
 
   /** https://fetch.spec.whatwg.org/#dom-request */
   constructor(input: RequestInfo, init: RequestInit = { __proto__: null }) {
@@ -129,33 +144,33 @@ class Request {
     const initHasKey = Object.keys(init).length !== 0;
 
     // 13. If init is not empty, then:
-    if (initHasKey) {
-      // 1. If request’s mode is "navigate", then set it to "same-origin".
-      if (request.mode === "navigate") {
-        request.mode = "same-origin";
-      }
+    // if (initHasKey) {
+    //   // 1. If request’s mode is "navigate", then set it to "same-origin".
+    //   if (request.mode === "navigate") {
+    //     request.mode = "same-origin";
+    //   }
 
-      // 2. Unset request’s reload-navigation flag.
-      request.reloadNavigation = false;
+    //   // 2. Unset request’s reload-navigation flag.
+    //   request.reloadNavigation = false;
 
-      // 3. Unset request’s history-navigation flag.
-      request.historyNavigation = false;
+    //   // 3. Unset request’s history-navigation flag.
+    //   request.historyNavigation = false;
 
-      // 4. Set request’s origin to "client".
-      request.origin = "client";
+    //   // 4. Set request’s origin to "client".
+    //   request.origin = "client";
 
-      // 5. Set request’s referrer to "client"
-      request.referrer = "client";
+    //   // 5. Set request’s referrer to "client"
+    //   request.referrer = "client";
 
-      // 6. Set request’s referrer policy to the empty string.
-      request.referrerPolicy = "";
+    //   // 6. Set request’s referrer policy to the empty string.
+    //   request.referrerPolicy = "";
 
-      // 7. Set request’s URL to request’s current URL.
-      request.url = request.urlList[request.urlList.length - 1];
+    //   // 7. Set request’s URL to request’s current URL.
+    //   request.url = request.urlList[request.urlList.length - 1];
 
-      // 8. Set request’s URL list to « request’s URL ».
-      request.urlList = [request.url];
-    }
+    //   // 8. Set request’s URL list to « request’s URL ».
+    //   request.urlList = [request.url];
+    // }
 
     // 14. If init["referrer"] exists, then:
     if (init.referrer !== undefined) {
@@ -166,12 +181,11 @@ class Request {
       if (referrer === "") {
         request.referrer = "no-referrer";
       } else {
-        // 1. Let parsedReferrer be the result of parsing referrer with
-        // baseURL.
+        // 1. Let parsedReferrer be the result of parsing referrer with baseURL.
         // 2. If parsedReferrer is failure, then throw a TypeError.
         let parsedReferrer;
         try {
-          parsedReferrer = new URL(referrer, baseUrl);
+          parsedReferrer = new URL(referrer);
         } catch (err) {
           throw new TypeError(`Referrer "${referrer}" is not a valid URL.`, {
             cause: err,
@@ -182,20 +196,10 @@ class Request {
         // - parsedReferrer’s scheme is "about" and path is the string "client"
         // - parsedReferrer’s origin is not same origin with origin
         // then set request’s referrer to "client".
-        if (
-          (parsedReferrer.protocol === "about:" &&
-            parsedReferrer.hostname === "client") ||
-          (origin &&
-            !sameOrigin(
-              parsedReferrer,
-              environmentSettingsObject.settingsObject.baseUrl,
-            ))
-        ) {
-          request.referrer = "client";
-        } else {
-          // 4. Otherwise, set request’s referrer to parsedReferrer.
-          request.referrer = parsedReferrer;
-        }
+        // TODO: sameOrigin
+        //
+        // 4. Otherwise, set request’s referrer to parsedReferrer.
+        request.referrer = parsedReferrer;
       }
     }
 
@@ -259,48 +263,12 @@ class Request {
       request.keepalive = Boolean(init.keepalive);
     }
 
-    // 25. If init["method"] exists, then:
+    // 25.
     if (init.method !== undefined) {
-      // 1. Let method be init["method"].
-      let method = init.method;
-
-      const mayBeNormalized = normalizedMethodRecords[method];
-
-      if (mayBeNormalized !== undefined) {
-        // Note: Bypass validation DELETE, GET, HEAD, OPTIONS, POST, PUT, PATCH and these lowercase ones
-        request.method = mayBeNormalized;
-      } else {
-        // 2. If method is not a method or method is a forbidden method, then
-        // throw a TypeError.
-        if (!isValidHTTPToken(method)) {
-          throw new TypeError(`'${method}' is not a valid HTTP method.`);
-        }
-
-        const upperCase = method.toUpperCase();
-
-        if (forbiddenMethodsSet.has(upperCase)) {
-          throw new TypeError(`'${method}' HTTP method is unsupported.`);
-        }
-
-        // 3. Normalize method.
-        // https://fetch.spec.whatwg.org/#concept-method-normalize
-        // Note: must be in uppercase
-        method = normalizedMethodRecordsBase[upperCase] ?? method;
-
-        // 4. Set request’s method to method.
-        request.method = method;
-      }
-
-      if (!patchMethodWarning && request.method === "patch") {
-        process.emitWarning(
-          "Using `patch` is highly likely to result in a `405 Method Not Allowed`. `PATCH` is much more likely to succeed.",
-          {
-            code: "UNDICI-FETCH-patch",
-          },
-        );
-
-        patchMethodWarning = true;
-      }
+      const method = init.method;
+      // fast path: check for known methods
+      request.method = KNOWN_METHODS[method] ??
+        validateAndNormalizeMethod(method);
     }
 
     // 26. If init["signal"] exists, then set signal to it.
@@ -309,14 +277,14 @@ class Request {
     }
 
     // 27. Set this’s request to request.
-    this.#state = request;
+    this.#request = request;
 
     // // 28. Set this’s signal to a new AbortSignal object with this’s relevant
     //    // Realm.
     //    // TODO: could this be simplified with AbortSignal.any
     //    // (https://dom.spec.whatwg.org/#dom-abortsignal-any)
     //    const ac = new AbortController()
-    this.#signal = ac.signal;
+    // this.#signal = ac.signal;
 
     // 29 & 30.
     // TODO: AbortSignal
@@ -325,26 +293,44 @@ class Request {
     // }
 
     // 31.
-    this[_headers] = headersFromHeaderList(request.headerList, "request");
+    // TODO: removed nova support module
+    // setHeadersList(this.#headers, request.headersList);
+    // setHeadersGuard(this.#headers, "request");
+
+    // 32. If this’s request’s mode is "no-cors", then:
+    const corsSafeListedMethods = ["GET", "HEAD", "POST"] as const;
+    const corsSafeListedMethodsSet = new Set(corsSafeListedMethods);
+    if (request.mode === "no-cors") {
+      // 1. If this’s request’s method is not a CORS-safelisted method,
+      // then throw a TypeError.
+      if (!corsSafeListedMethodsSet.has(request.method)) {
+        throw new TypeError(
+          `'${request.method} is unsupported in no-cors mode.`,
+        );
+      }
+      // 2. Set this’s headers’s guard to "request-no-cors".
+      // TODO: removed nova support module
+      // setHeadersGuard(this.#headers, "request-no-cors");
+    }
 
     // 33.
-    if (init.headers || ObjectKeys(init).length > 0) {
-      const headerList = headerListFromHeaders(this[_headers]);
-      const headers = init.headers ?? ArrayPrototypeSlice(
-        headerList,
-        0,
-        headerList.length,
-      );
-      if (headerList.length !== 0) {
-        ArrayPrototypeSplice(headerList, 0, headerList.length);
-      }
-      fillHeaders(this[_headers], headers);
-    }
+    // TODO: removed nova support module
+    // if (init.headers || Object.keys(init).length > 0) {
+    //   const headerList = getHeadersList(this.#headers);
+    //   const headers = init.headers ?? headerList.slice(
+    //     0,
+    //     headerList.length,
+    //   );
+    //   if (headerList.length !== 0) {
+    //     headerList.splice(0, headerList.length);
+    //   }
+    //   fillHeaders(this.#headers, headers);
+    // }
 
     // 34.
     let inputBody = null;
-    if (ObjectPrototypeIsPrototypeOf(RequestPrototype, input)) {
-      inputBody = input[_body];
+    if (Object.prototype.isPrototypeOf.call(RequestPrototype, input)) {
+      inputBody = input.#body;
     }
 
     // 35.
@@ -359,14 +345,12 @@ class Request {
     // 36.
     let initBody = null;
 
-    // 37.
-    if (init.body !== undefined && init.body !== null) {
-      const res = extractBody(init.body);
-      initBody = res.body;
-      if (res.contentType !== null && !this[_headers].has("content-type")) {
-        this[_headers].append("Content-Type", res.contentType);
-      }
-    }
+    // 37. If init["body"] exists and is non-null, then:
+    // Let bodyWithType be the result of extracting init["body"], with keepalive set to request’s keepalive.
+    // Set initBody to bodyWithType’s body.
+    // Let type be bodyWithType’s type.
+    // If type is non-null and this’s headers’s header list does not contain `Content-Type`, then append (`Content-Type`, type) to this’s headers.
+    // TODO
 
     // 38.
     const inputOrInitBody = initBody ?? inputBody;
@@ -376,7 +360,7 @@ class Request {
 
     // 41.
     if (initBody === null && inputBody !== null) {
-      if (input[_body] && input[_body].unusable()) {
+      if (input.#body && input.#body.unusable()) {
         throw new TypeError("Input request's body is unusable");
       }
       finalBody = inputBody.createProxy();
@@ -393,7 +377,7 @@ function newInnerRequest(
   headerList: () => [string, string][],
   body: any,
   maybeBlob: any,
-) {
+): any {
   let blobUrlEntry = null;
   if (
     maybeBlob &&
@@ -462,7 +446,7 @@ const RequestPrototype = Request.prototype;
 // mixinBody(RequestPrototype, _body, _mimeType);
 
 /** https://fetch.spec.whatwg.org/#concept-request-clone */
-function cloneInnerRequest(request: any, skipBody = false) {
+function cloneInnerRequest(request: any, skipBody = false): any {
   const headerList = request.headerList.push(
     (x) => [x[0], x[1]],
   );
@@ -473,6 +457,7 @@ function cloneInnerRequest(request: any, skipBody = false) {
   }
 
   return {
+    mode: request.mode,
     method: request.method,
     headerList,
     body,
@@ -516,4 +501,51 @@ function validateAndNormalizeMethod(m: string): string {
     throw new TypeError("Method is forbidden");
   }
   return upperCase;
+}
+
+// TODO: removed nova support module
+function configureInterface(interface_: any) {
+  configureProperties(interface_);
+  configureProperties(interface_.prototype);
+  Object.defineProperty(interface_.prototype, Symbol.toStringTag, {
+    // @ts-ignore:
+    __proto__: null,
+    value: interface_.name,
+    enumerable: false,
+    configurable: true,
+    writable: false,
+  });
+}
+
+// TODO: removed nova support module
+// deno-lint-ignore no-explicit-any
+function configureProperties(obj: any) {
+  const descriptors = Object.getOwnPropertyDescriptors(obj);
+  for (const key in descriptors) {
+    if (!Object.hasOwn(descriptors, key)) {
+      continue;
+    }
+    if (key === "constructor") continue;
+    if (key === "prototype") continue;
+    const descriptor = descriptors[key];
+    if (
+      Reflect.has(descriptor, "value") &&
+      typeof descriptor.value === "function"
+    ) {
+      Object.defineProperty(obj, key, {
+        // @ts-ignore:
+        __proto__: null,
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
+    } else if (Reflect.has(descriptor, "get")) {
+      Object.defineProperty(obj, key, {
+        // @ts-ignore:
+        __proto__: null,
+        enumerable: true,
+        configurable: true,
+      });
+    }
+  }
 }
