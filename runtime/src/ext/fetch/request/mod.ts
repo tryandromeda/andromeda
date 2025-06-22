@@ -94,7 +94,7 @@ class Request {
   #signal;
   #body;
 
-  /** https://fetch.spec.whatwg.org/#dom-request */
+  /** https://fetch.spec.whatwg.org/#request-class */
   constructor(input: RequestInfo, init: RequestInit = { __proto__: null }) {
     // 1. Let request be null.
     let request = null;
