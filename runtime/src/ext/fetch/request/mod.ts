@@ -80,10 +80,16 @@ class Request {
 
   /** https://fetch.spec.whatwg.org/#dom-request */
   constructor(input: RequestInfo, init: RequestInit = { __proto__: null }) {
-    let request;
-    // const baseURL = getLocationHref();
+    // 1. Let request be null.
+    let request = null;
 
-    // 4.
+    // 2. Let fallbackMode be null.
+    let fallbackMode = null;
+
+    // 3. Let baseURL be this’s relevant settings object’s API base URL.
+    // const baseUrl = environmentSettingsObject.settingsObject.baseUrl
+
+    // 4. Let signal be null.
     let signal = null;
 
     // 5.
@@ -116,49 +122,207 @@ class Request {
     if (init.window != null) {
       throw new TypeError(`'window' option '${window}' must be null`);
     }
-
     // 11. If init["window"] exists, then set traversableForUserPrompts to "no-traversable".
 
     // 12. is folded into the else statement of step 6 above.
+
+    const initHasKey = Object.keys(init).length !== 0;
+
+    // 13. If init is not empty, then:
+    if (initHasKey) {
+      // 1. If request’s mode is "navigate", then set it to "same-origin".
+      if (request.mode === "navigate") {
+        request.mode = "same-origin";
+      }
+
+      // 2. Unset request’s reload-navigation flag.
+      request.reloadNavigation = false;
+
+      // 3. Unset request’s history-navigation flag.
+      request.historyNavigation = false;
+
+      // 4. Set request’s origin to "client".
+      request.origin = "client";
+
+      // 5. Set request’s referrer to "client"
+      request.referrer = "client";
+
+      // 6. Set request’s referrer policy to the empty string.
+      request.referrerPolicy = "";
+
+      // 7. Set request’s URL to request’s current URL.
+      request.url = request.urlList[request.urlList.length - 1];
+
+      // 8. Set request’s URL list to « request’s URL ».
+      request.urlList = [request.url];
+    }
+
+    // 14. If init["referrer"] exists, then:
+    if (init.referrer !== undefined) {
+      // 1. Let referrer be init["referrer"].
+      const referrer = init.referrer;
+
+      // 2. If referrer is the empty string, then set request’s referrer to "no-referrer".
+      if (referrer === "") {
+        request.referrer = "no-referrer";
+      } else {
+        // 1. Let parsedReferrer be the result of parsing referrer with
+        // baseURL.
+        // 2. If parsedReferrer is failure, then throw a TypeError.
+        let parsedReferrer;
+        try {
+          parsedReferrer = new URL(referrer, baseUrl);
+        } catch (err) {
+          throw new TypeError(`Referrer "${referrer}" is not a valid URL.`, {
+            cause: err,
+          });
+        }
+
+        // 3. If one of the following is true
+        // - parsedReferrer’s scheme is "about" and path is the string "client"
+        // - parsedReferrer’s origin is not same origin with origin
+        // then set request’s referrer to "client".
+        if (
+          (parsedReferrer.protocol === "about:" &&
+            parsedReferrer.hostname === "client") ||
+          (origin &&
+            !sameOrigin(
+              parsedReferrer,
+              environmentSettingsObject.settingsObject.baseUrl,
+            ))
+        ) {
+          request.referrer = "client";
+        } else {
+          // 4. Otherwise, set request’s referrer to parsedReferrer.
+          request.referrer = parsedReferrer;
+        }
+      }
+    }
+
+    // 15. If init["referrerPolicy"] exists, then set request’s referrer policy
+    // to it.
+    if (init.referrerPolicy !== undefined) {
+      request.referrerPolicy = init.referrerPolicy;
+    }
+
+    // 16. Let mode be init["mode"] if it exists, and fallbackMode otherwise.
+    let mode;
+    if (init.mode !== undefined) {
+      mode = init.mode;
+    } else {
+      mode = fallbackMode;
+    }
+
+    // 17. If mode is "navigate", then throw a TypeError.
+    if (mode === "navigate") {
+      throw new TypeError(
+        "Request constructor: invalid request mode navigate.",
+      );
+    }
+
+    // 18. If mode is non-null, set request’s mode to mode.
+    if (mode != null) {
+      request.mode = mode;
+    }
+
+    // 19. If init["credentials"] exists, then set request’s credentials mode
+    // to it.
+    if (init.credentials !== undefined) {
+      request.credentials = init.credentials;
+    }
+
+    // 18. If init["cache"] exists, then set request’s cache mode to it.
+    if (init.cache !== undefined) {
+      request.cache = init.cache;
+    }
+
+    // 21. If request’s cache mode is "only-if-cached" and request’s mode is
+    // not "same-origin", then throw a TypeError.
+    if (request.cache === "only-if-cached" && request.mode !== "same-origin") {
+      throw new TypeError(
+        "'only-if-cached' can be set only with 'same-origin' mode",
+      );
+    }
 
     // 22.
     if (init.redirect !== undefined) {
       request.redirectMode = init.redirect;
     }
 
-    // 25.
-    if (init.method !== undefined) {
-      const method = init.method;
+    // 23. If init["integrity"] exists, then set request’s integrity metadata to it.
+    if (init.integrity != null) {
+      request.integrity = String(init.integrity);
     }
 
-    // 26.
+    // 24. If init["keepalive"] exists, then set request’s keepalive to it.
+    if (init.keepalive !== undefined) {
+      request.keepalive = Boolean(init.keepalive);
+    }
+
+    // 25. If init["method"] exists, then:
+    if (init.method !== undefined) {
+      // 1. Let method be init["method"].
+      let method = init.method;
+
+      const mayBeNormalized = normalizedMethodRecords[method];
+
+      if (mayBeNormalized !== undefined) {
+        // Note: Bypass validation DELETE, GET, HEAD, OPTIONS, POST, PUT, PATCH and these lowercase ones
+        request.method = mayBeNormalized;
+      } else {
+        // 2. If method is not a method or method is a forbidden method, then
+        // throw a TypeError.
+        if (!isValidHTTPToken(method)) {
+          throw new TypeError(`'${method}' is not a valid HTTP method.`);
+        }
+
+        const upperCase = method.toUpperCase();
+
+        if (forbiddenMethodsSet.has(upperCase)) {
+          throw new TypeError(`'${method}' HTTP method is unsupported.`);
+        }
+
+        // 3. Normalize method.
+        // https://fetch.spec.whatwg.org/#concept-method-normalize
+        // Note: must be in uppercase
+        method = normalizedMethodRecordsBase[upperCase] ?? method;
+
+        // 4. Set request’s method to method.
+        request.method = method;
+      }
+
+      if (!patchMethodWarning && request.method === "patch") {
+        process.emitWarning(
+          "Using `patch` is highly likely to result in a `405 Method Not Allowed`. `PATCH` is much more likely to succeed.",
+          {
+            code: "UNDICI-FETCH-patch",
+          },
+        );
+
+        patchMethodWarning = true;
+      }
+    }
+
+    // 26. If init["signal"] exists, then set signal to it.
     if (init.signal !== undefined) {
       signal = init.signal;
     }
 
-    // NOTE: non standard extension. This handles Deno.HttpClient parameter
-    if (init.client !== undefined) {
-      if (
-        init.client !== null &&
-        !ObjectPrototypeIsPrototypeOf(HttpClientPrototype, init.client)
-      ) {
-        throw webidl.makeException(
-          TypeError,
-          "`client` must be a Deno.HttpClient",
-          prefix,
-          "Argument 2",
-        );
-      }
-      request.clientRid = init.client?.[internalRidSymbol] ?? null;
-    }
+    // 27. Set this’s request to request.
+    this.#state = request;
 
-    // 28.
-    this[_request] = request;
+    // // 28. Set this’s signal to a new AbortSignal object with this’s relevant
+    //    // Realm.
+    //    // TODO: could this be simplified with AbortSignal.any
+    //    // (https://dom.spec.whatwg.org/#dom-abortsignal-any)
+    //    const ac = new AbortController()
+    this.#signal = ac.signal;
 
     // 29 & 30.
-    if (signal !== null) {
-      this[_signalCache] = createDependentAbortSignal([signal], prefix);
-    }
+    // TODO: AbortSignal
+    // if (signal !== null) {
+    //   this[_signalCache] = createDependentAbortSignal([signal], prefix);
+    // }
 
     // 31.
     this[_headers] = headersFromHeaderList(request.headerList, "request");

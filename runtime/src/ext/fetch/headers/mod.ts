@@ -3,10 +3,14 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // deno-lint-ignore-file no-unused-vars
 
+type Header = [string, string];
+
+type HeaderList = Header[];
+
 class Headers {
-  // TODO: Private properties
-  #guard: "none" | "immutable" = "none";
-  #headerList: [string, string][] = [];
+  #guard: "immutable" | "request" | "request-no-cors" | "response" | "none" =
+    "none";
+  #headerList: HeaderList = [];
 
   // TODO: this is HeaderList type
   // https://fetch.spec.whatwg.org/#headers-class
@@ -27,8 +31,24 @@ class Headers {
   get headerList() {
     return this.#headerList;
   }
+
   get guard() {
     return this.#guard;
+  }
+
+  static setHeadersGuard(
+    o: Headers,
+    guard: "immutable" | "request" | "request-no-cors" | "response" | "none",
+  ) {
+    o.#guard = guard;
+  }
+
+  static getHeadersList(o: Headers) {
+    return o.#headerList;
+  }
+
+  static setHeadersList(target: Headers, list: HeaderList) {
+    target.#headerList = list;
   }
 }
 
