@@ -89,7 +89,8 @@ interface RequestInit {
 
 class Request {
   #request;
-  #headers;
+  // TODO: comment in nova support module
+  // #headers;
   #signal;
   #body;
 
@@ -107,18 +108,26 @@ class Request {
     // 4. Let signal be null.
     let signal = null;
 
-    // 5.
+    // 5. If input is a string, then:
     if (typeof input === "string") {
+      // 1. Let parsedURL be the result of parsing input with baseURL.
+      // 2. If parsedURL is failure, then throw a TypeError.
+      // 3. If parsedURL includes credentials, then throw a TypeError.
+      // 4. Set request to a new request whose URL is parsedURL.
+      // 5. Set fallbackMode to "cors"
       const parsedURL = new URL(input);
       request = newInnerRequest(
         "GET",
-        parsedURL.href,
+        parsedURL,
         () => [],
         null,
         true,
       );
     } else {
-      // 6.
+      // 6. Otherwise:
+      //  1. Assert: input is a Request object.
+      //  2. Set request to input’s request.
+      //  3. Set signal to input’s signal.
       if (!Object.prototype.isPrototypeOf.call(RequestPrototype, input)) {
         throw new TypeError("Unreachable");
       }
@@ -144,33 +153,33 @@ class Request {
     const initHasKey = Object.keys(init).length !== 0;
 
     // 13. If init is not empty, then:
-    // if (initHasKey) {
-    //   // 1. If request’s mode is "navigate", then set it to "same-origin".
-    //   if (request.mode === "navigate") {
-    //     request.mode = "same-origin";
-    //   }
+    if (initHasKey) {
+      // 1. If request’s mode is "navigate", then set it to "same-origin".
+      if (request.mode === "navigate") {
+        request.mode = "same-origin";
+      }
 
-    //   // 2. Unset request’s reload-navigation flag.
-    //   request.reloadNavigation = false;
+      // 2. Unset request’s reload-navigation flag.
+      request.reloadNavigation = false;
 
-    //   // 3. Unset request’s history-navigation flag.
-    //   request.historyNavigation = false;
+      // 3. Unset request’s history-navigation flag.
+      request.historyNavigation = false;
 
-    //   // 4. Set request’s origin to "client".
-    //   request.origin = "client";
+      // 4. Set request’s origin to "client".
+      request.origin = "client";
 
-    //   // 5. Set request’s referrer to "client"
-    //   request.referrer = "client";
+      // 5. Set request’s referrer to "client"
+      request.referrer = "client";
 
-    //   // 6. Set request’s referrer policy to the empty string.
-    //   request.referrerPolicy = "";
+      // 6. Set request’s referrer policy to the empty string.
+      request.referrerPolicy = "";
 
-    //   // 7. Set request’s URL to request’s current URL.
-    //   request.url = request.urlList[request.urlList.length - 1];
+      // 7. Set request’s URL to request’s current URL.
+      request.url = request.urlList[request.urlList.length - 1];
 
-    //   // 8. Set request’s URL list to « request’s URL ».
-    //   request.urlList = [request.url];
-    // }
+      // 8. Set request’s URL list to « request’s URL ».
+      request.urlList = [request.url];
+    }
 
     // 14. If init["referrer"] exists, then:
     if (init.referrer !== undefined) {
@@ -229,13 +238,12 @@ class Request {
       request.mode = mode;
     }
 
-    // 19. If init["credentials"] exists, then set request’s credentials mode
-    // to it.
+    // 19. If init["credentials"] exists, then set request’s credentials mode to it.
     if (init.credentials !== undefined) {
       request.credentials = init.credentials;
     }
 
-    // 18. If init["cache"] exists, then set request’s cache mode to it.
+    // 20. If init["cache"] exists, then set request’s cache mode to it.
     if (init.cache !== undefined) {
       request.cache = init.cache;
     }
@@ -248,7 +256,7 @@ class Request {
       );
     }
 
-    // 22.
+    // 22. If init["redirect"] exists, then set request’s redirect mode to it.
     if (init.redirect !== undefined) {
       request.redirectMode = init.redirect;
     }
@@ -263,10 +271,13 @@ class Request {
       request.keepalive = Boolean(init.keepalive);
     }
 
-    // 25.
+    // 25. If init["method"] exists, then:
     if (init.method !== undefined) {
+      // 1. Let method be init["method"].
+      // 2. If method is not a method or method is a forbidden method, then throw a TypeError.
+      // 3. Normalize method.
+      // 4. Set request’s method to method.
       const method = init.method;
-      // fast path: check for known methods
       request.method = KNOWN_METHODS[method] ??
         validateAndNormalizeMethod(method);
     }
@@ -292,7 +303,8 @@ class Request {
     //   this[_signalCache] = createDependentAbortSignal([signal], prefix);
     // }
 
-    // 31.
+    // 31. Set this’s headers to a new Headers object with this’s relevant realm,
+    //     whose header list is request’s header list and guard is "request".
     // TODO: removed nova support module
     // setHeadersList(this.#headers, request.headersList);
     // setHeadersGuard(this.#headers, "request");
@@ -327,13 +339,13 @@ class Request {
     //   fillHeaders(this.#headers, headers);
     // }
 
-    // 34.
+    // 34. Let inputBody be input’s request’s body if input is a Request object; otherwise null.
     let inputBody = null;
     if (Object.prototype.isPrototypeOf.call(RequestPrototype, input)) {
       inputBody = input.#body;
     }
 
-    // 35.
+    // 35. If either init["body"] exists and is non-null or inputBody is non-null, and request’s method is `GET` or `HEAD`, then throw a TypeError.
     if (
       (request.method === "GET" || request.method === "HEAD") &&
       ((init.body !== undefined && init.body !== null) ||
@@ -342,7 +354,7 @@ class Request {
       throw new TypeError("Request with GET/HEAD method cannot have body");
     }
 
-    // 36.
+    // 36. Let initBody be null.
     let initBody = null;
 
     // 37. If init["body"] exists and is non-null, then:
@@ -352,28 +364,158 @@ class Request {
     // If type is non-null and this’s headers’s header list does not contain `Content-Type`, then append (`Content-Type`, type) to this’s headers.
     // TODO
 
-    // 38.
+    // 38. Let inputOrInitBody be initBody if it is non-null; otherwise inputBody.
     const inputOrInitBody = initBody ?? inputBody;
 
-    // 40.
+    // 39. If inputOrInitBody is non-null and inputOrInitBody’s source is null, then:
+    // If initBody is non-null and init["duplex"] does not exist, then throw a TypeError.
+    // If this’s request’s mode is neither "same-origin" nor "cors", then throw a TypeError.
+    // Set this’s request’s use-CORS-preflight flag.
+
     let finalBody = inputOrInitBody;
 
-    // 41.
+    // 41. If initBody is null and inputBody is non-null, then:
     if (initBody === null && inputBody !== null) {
+      // 1. If input is unusable, then throw a TypeError.
       if (input.#body && input.#body.unusable()) {
         throw new TypeError("Input request's body is unusable");
       }
+      // 2. Set finalBody to the result of creating a proxy for inputBody.
       finalBody = inputBody.createProxy();
     }
 
-    // 42.
+    // 42. Set this’s request’s body to finalBody.
     request.body = finalBody;
+
+    const url = request.url;
+    console.log("url", url);
+    const method = request.method;
+    console.log("method", method);
+    const credentials = request.credentials;
+    console.log("credentials", credentials);
+
+    this.#request = request;
+  }
+
+  // Returns request’s HTTP method, which is "GET" by default.
+  get method() {
+    return this.#request.method;
+  }
+
+  // Returns the URL of request as a string.
+  get url() {
+    // The url getter steps are to return this’s request’s URL, serialized.
+    return this.#request.url;
+  }
+
+  // Returns a Headers object consisting of the headers associated with request.
+  // Note that headers added in the network layer by the user agent will not
+  // be accounted for in this object, e.g., the "Host" header.
+  // get headers() {
+  //   return this.#headers;
+  // }
+
+  // Returns the kind of resource requested by request, e.g., "document"
+  // or "script".
+  get destination() {
+    // The destination getter are to return this’s request’s destination.
+    return this.#request.destination;
+  }
+
+  // Returns the referrer of request. Its value can be a same-origin URL if
+  // explicitly set in init, the empty string to indicate no referrer, and
+  // "about:client" when defaulting to the global’s default. This is used
+  // during fetching to determine the value of the `Referer` header of the
+  // request being made.
+  get referrer() {
+    if (this.#request.referrer === "no-referrer") {
+      return "";
+    }
+
+    // 2. If this’s request’s referrer is "client", then return
+    // "about:client".
+    if (this.#request.referrer === "client") {
+      return "about:client";
+    }
+
+    // Return this’s request’s referrer, serialized.
+    return this.#request.referrer.toString();
+  }
+
+  // Returns the referrer policy associated with request.
+  // This is used during fetching to compute the value of the request’s
+  // referrer.
+  get referrerPolicy() {
+    return this.#request.referrerPolicy;
+  }
+
+  // Returns the mode associated with request, which is a string indicating
+  // whether the request will use CORS, or will be restricted to same-origin
+  // URLs.
+  get mode() {
+    return this.#request.mode;
+  }
+
+  // Returns the credentials mode associated with request,
+  // which is a string indicating whether credentials will be sent with the
+  // request always, never, or only when sent to a same-origin URL.
+  get credentials() {
+    return this.#request.credentials;
+  }
+
+  // Returns the cache mode associated with request,
+  // which is a string indicating how the request will
+  // interact with the browser’s cache when fetching.
+  get cache() {
+    return this.#request.cache;
+  }
+
+  // Returns the redirect mode associated with request,
+  // which is a string indicating how redirects for the
+  // request will be handled during fetching. A request
+  // will follow redirects by default.
+  get redirect() {
+    return this.redirect.redirect;
+  }
+
+  get integrity() {
+    return this.#request.integrity;
+  }
+
+  // Returns a boolean indicating whether or not request can outlive the
+  // global in which it was created.
+  get keepalive() {
+    return this.#request.keepalive;
+  }
+
+  get isReloadNavigation() {
+    return this.#request.reloadNavigation;
+  }
+
+  get isHistoryNavigation() {
+    return this.#request.historyNavigation;
+  }
+
+  get signal() {
+    return this.#signal;
+  }
+
+  get body() {
+    return this.#request.body ? this.#request.body.stream : null;
+  }
+
+  get bodyUsed() {
+    return !!this.#request.body;
+  }
+
+  get duplex() {
+    return "half";
   }
 }
 
 function newInnerRequest(
   method: string,
-  url: string | (() => string),
+  url: () => string,
   headerList: () => [string, string][],
   body: any,
   maybeBlob: any,
@@ -381,8 +523,8 @@ function newInnerRequest(
   let blobUrlEntry = null;
   if (
     maybeBlob &&
-    typeof url === "string" &&
-    url.startsWith("blob:")
+    typeof url === "string"
+    // url.startsWith("blob:")
   ) {
     // TODO: the blobFromObjectUrl is file api
     // blobUrlEntry = blobFromObjectUrl(url);
@@ -417,16 +559,7 @@ function newInnerRequest(
     urlListProcessed: [],
     clientRid: null,
     blobUrlEntry,
-    url() {
-      if (this.urlListProcessed[0] === undefined) {
-        try {
-          this.urlListProcessed[0] = this.urlList[0]();
-        } catch {
-          throw new TypeError("cannot read url: request closed");
-        }
-      }
-      return this.urlListProcessed[0];
-    },
+    url,
     currentUrl() {
       const currentIndex = this.urlList.length - 1;
       if (this.urlListProcessed[currentIndex] === undefined) {
