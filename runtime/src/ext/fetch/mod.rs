@@ -4,6 +4,8 @@
 
 mod headers;
 mod request;
+mod response;
 
 pub use headers::*;
 pub use request::*;
+pub use response::*;
