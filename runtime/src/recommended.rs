@@ -12,6 +12,7 @@ use crate::{
     HeadersExt,
     ProcessExt,
     RequestExt,
+    ResponseExt,
     RuntimeMacroTask,
     TimeExt,
     URLExt,
@@ -29,6 +30,7 @@ pub fn recommended_extensions() -> Vec<Extension> {
         HeadersExt::new_extension(),
         // BroadcastChannelExt::new_extension(),
         RequestExt::new_extension(),
+        ResponseExt::new_extension(),
         #[cfg(feature = "canvas")]
         crate::CanvasExt::new_extension(),
         #[cfg(feature = "crypto")]
