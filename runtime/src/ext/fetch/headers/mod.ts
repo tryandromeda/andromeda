@@ -172,7 +172,7 @@ function getHeader(list: [string, string][], name: string): string | null {
   }
 }
 
-// TODO: comment in nova support module
+// TODO: nova support module
 // export {
 //   fillHeaders,
 //   getHeadersGuard,

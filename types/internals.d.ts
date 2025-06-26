@@ -629,12 +629,47 @@ declare function sessionStorage_clear(): void;
  */
 declare function sessionStorage_keys(): string[];
 
-// Declare the native functions provided by the Rust extension
+/**
+ * Creates a new storage instance.
+ */
 declare function storage_new(persistent: boolean): boolean;
+
+/** 
+ * Deletes the storage instance.
+ */
+declare function storage_delete(storageType: boolean): boolean;
+
+/**
+ * Returns the number of items in the storage.
+ */
 declare function storage_length(storageType: boolean): number;
+
+/**
+ * Returns the key at the specified index in the storage.
+ */
 declare function storage_key(storageType: boolean, index: number): string | null;
+
+/**
+ * Retrieves an item from the storage.
+ */
 declare function storage_getItem(storageType: boolean, key: string): string | null;
+
+/**
+ * Stores an item in the storage.
+ */
 declare function storage_setItem(storageType: boolean, key: string, value: string): void;
+
+/**
+ * Removes an item from the storage.
+ */
 declare function storage_removeItem(storageType: boolean, key: string): void;
+
+/**
+ * Clears the storage.
+ */
 declare function storage_clear(storageType: boolean): void;
+
+/**
+ * Returns an array of all keys in the storage.
+ */
 declare function storage_iterate_keys(storageType: boolean): string[];

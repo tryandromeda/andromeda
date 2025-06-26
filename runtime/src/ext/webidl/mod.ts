@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-unused-vars
 // deno-lint-ignore no-explicit-any
 function configureInterface(interface_: any) {
   configureProperties(interface_);
