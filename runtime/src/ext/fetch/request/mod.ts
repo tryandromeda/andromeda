@@ -1,7 +1,9 @@
+// deno-lint-ignore-file no-explicit-any prefer-const no-unused-vars
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+// @ts-ignore deno lint stuff
 type RequestInfo = Request;
 
 // method => normalized method
@@ -56,6 +58,7 @@ interface RequestInit {
   /**
    * A string to set request's method.
    */
+  // @ts-ignore deno lint stuff
   method?: keyof typeof KNOWN_METHODS;
   /**
    * A string to indicate whether the request will use CORS, or will be
@@ -84,29 +87,34 @@ interface RequestInit {
   /**
    * Can only be null. Used to disassociate request from any Window.
    */
+  // @ts-ignore deno lint stuff
   window?: any;
 }
 
+const requestSymbol = Symbol("[[request]]");
+const signalSymbol = Symbol("[[signal]]");
+const bodySymbol = Symbol("[[body]]");
+// @ts-ignore deno lint stuff
 class Request {
-  #request;
+  [requestSymbol]: any;
   // TODO: comment in nova support module
   // #headers;
-  #signal;
-  #body;
+  [signalSymbol]: AbortSignal | null = null;
+  [bodySymbol]: any = null;
 
   /** https://fetch.spec.whatwg.org/#request-class */
-  constructor(input: RequestInfo, init: RequestInit = { __proto__: null }) {
+  constructor(input: RequestInfo, init: RequestInit = { __proto__: null } as any) {
     // 1. Let request be null.
-    let request = null;
+    let request: any = null;
 
     // 2. Let fallbackMode be null.
-    let fallbackMode = null;
+    let fallbackMode: any = null;
 
     // 3. Let baseURL be this’s relevant settings object’s API base URL.
     // const baseUrl = environmentSettingsObject.settingsObject.baseUrl
 
     // 4. Let signal be null.
-    let signal = null;
+    let signal: any = null;
 
     // 5. If input is a string, then:
     if (typeof input === "string") {
@@ -118,7 +126,7 @@ class Request {
       const parsedURL = new URL(input);
       request = newInnerRequest(
         "GET",
-        parsedURL,
+        parsedURL as any,
         () => [],
         null,
         true,
@@ -131,11 +139,12 @@ class Request {
       if (!Object.prototype.isPrototypeOf.call(RequestPrototype, input)) {
         throw new TypeError("Unreachable");
       }
-      const originalReq = input.#request;
+
+      const originalReq = input[requestSymbol];
       // fold in of step 12 from below
       request = cloneInnerRequest(originalReq, true);
       request.redirectCount = 0; // reset to 0 - cloneInnerRequest copies the value
-      signal = input.#signal;
+      signal = input[signalSymbol];
     }
 
     // 7. Let origin be this’s relevant settings object’s origin.
@@ -288,7 +297,7 @@ class Request {
     }
 
     // 27. Set this’s request to request.
-    this.#request = request;
+    this[requestSymbol] = request;
 
     // // 28. Set this’s signal to a new AbortSignal object with this’s relevant
     //    // Realm.
@@ -340,9 +349,9 @@ class Request {
     // }
 
     // 34. Let inputBody be input’s request’s body if input is a Request object; otherwise null.
-    let inputBody = null;
+    let inputBody: any = null;
     if (Object.prototype.isPrototypeOf.call(RequestPrototype, input)) {
-      inputBody = input.#body;
+      inputBody = input[bodySymbol];
     }
 
     // 35. If either init["body"] exists and is non-null or inputBody is non-null, and request’s method is `GET` or `HEAD`, then throw a TypeError.
@@ -377,11 +386,11 @@ class Request {
     // 41. If initBody is null and inputBody is non-null, then:
     if (initBody === null && inputBody !== null) {
       // 1. If input is unusable, then throw a TypeError.
-      if (input.#body && input.#body.unusable()) {
+      if (input[bodySymbol] && input[bodySymbol].unusable()) {
         throw new TypeError("Input request's body is unusable");
       }
       // 2. Set finalBody to the result of creating a proxy for inputBody.
-      finalBody = inputBody.createProxy();
+      finalBody = (inputBody as any).createProxy();
     }
 
     // 42. Set this’s request’s body to finalBody.
@@ -394,18 +403,18 @@ class Request {
     const credentials = request.credentials;
     console.log("credentials", credentials);
 
-    this.#request = request;
+    this[requestSymbol] = request;
   }
 
   // Returns request’s HTTP method, which is "GET" by default.
   get method() {
-    return this.#request.method;
+    return this[requestSymbol].method;
   }
 
   // Returns the URL of request as a string.
   get url() {
     // The url getter steps are to return this’s request’s URL, serialized.
-    return this.#request.url;
+    return this[requestSymbol].url;
   }
 
   // Returns a Headers object consisting of the headers associated with request.
@@ -419,7 +428,7 @@ class Request {
   // or "script".
   get destination() {
     // The destination getter are to return this’s request’s destination.
-    return this.#request.destination;
+    return this[requestSymbol].destination;
   }
 
   // Returns the referrer of request. Its value can be a same-origin URL if
@@ -428,46 +437,46 @@ class Request {
   // during fetching to determine the value of the `Referer` header of the
   // request being made.
   get referrer() {
-    if (this.#request.referrer === "no-referrer") {
+    if (this[requestSymbol].referrer === "no-referrer") {
       return "";
     }
 
     // 2. If this’s request’s referrer is "client", then return
     // "about:client".
-    if (this.#request.referrer === "client") {
+    if (this[requestSymbol].referrer === "client") {
       return "about:client";
     }
 
     // Return this’s request’s referrer, serialized.
-    return this.#request.referrer.toString();
+    return this[requestSymbol].referrer.toString();
   }
 
   // Returns the referrer policy associated with request.
   // This is used during fetching to compute the value of the request’s
   // referrer.
   get referrerPolicy() {
-    return this.#request.referrerPolicy;
+    return this[requestSymbol].referrerPolicy;
   }
 
   // Returns the mode associated with request, which is a string indicating
   // whether the request will use CORS, or will be restricted to same-origin
   // URLs.
   get mode() {
-    return this.#request.mode;
+    return this[requestSymbol].mode;
   }
 
   // Returns the credentials mode associated with request,
   // which is a string indicating whether credentials will be sent with the
   // request always, never, or only when sent to a same-origin URL.
   get credentials() {
-    return this.#request.credentials;
+    return this[requestSymbol].credentials;
   }
 
   // Returns the cache mode associated with request,
   // which is a string indicating how the request will
   // interact with the browser’s cache when fetching.
   get cache() {
-    return this.#request.cache;
+    return this[requestSymbol].cache;
   }
 
   // Returns the redirect mode associated with request,
@@ -475,37 +484,37 @@ class Request {
   // request will be handled during fetching. A request
   // will follow redirects by default.
   get redirect() {
-    return this.redirect.redirect;
+    return this[requestSymbol].redirect;
   }
 
   get integrity() {
-    return this.#request.integrity;
+    return this[requestSymbol].integrity;
   }
 
   // Returns a boolean indicating whether or not request can outlive the
   // global in which it was created.
   get keepalive() {
-    return this.#request.keepalive;
+    return this[requestSymbol].keepalive;
   }
 
   get isReloadNavigation() {
-    return this.#request.reloadNavigation;
+    return this[requestSymbol].reloadNavigation;
   }
 
   get isHistoryNavigation() {
-    return this.#request.historyNavigation;
+    return this[requestSymbol].historyNavigation;
   }
 
   get signal() {
-    return this.#signal;
+    return this[signalSymbol];
   }
 
   get body() {
-    return this.#request.body ? this.#request.body.stream : null;
+    return this[requestSymbol].body ? this[requestSymbol].body.stream : null;
   }
 
   get bodyUsed() {
-    return !!this.#request.body;
+    return !!this[requestSymbol].body;
   }
 
   get duplex() {
@@ -581,7 +590,7 @@ const RequestPrototype = Request.prototype;
 /** https://fetch.spec.whatwg.org/#concept-request-clone */
 function cloneInnerRequest(request: any, skipBody = false): any {
   const headerList = request.headerList.push(
-    (x) => [x[0], x[1]],
+    (x: any) => [x[0], x[1]],
   );
 
   let body = null;
@@ -651,7 +660,6 @@ function configureInterface(interface_: any) {
 }
 
 // TODO: removed nova support module
-// deno-lint-ignore no-explicit-any
 function configureProperties(obj: any) {
   const descriptors = Object.getOwnPropertyDescriptors(obj);
   for (const key in descriptors) {

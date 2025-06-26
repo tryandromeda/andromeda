@@ -1,8 +1,10 @@
+// deno-lint-ignore-file no-explicit-any
 interface ResponseInit {
   headers?: HeadersInit;
   status?: number;
   statusText?: string;
 }
+
 
 class Response {
   #response;
@@ -12,11 +14,11 @@ class Response {
    * @see https://fetch.spec.whatwg.org/#dom-response
    */
   constructor(body: any, init: ResponseInit) {
-    // 1. Set this’s response to a new response.
+    // 1. Set this's response to a new response.
     this.#response = makeResponse(init);
 
     // TODO: implement module
-    // 2. Set this’s headers to a new Headers object with this’s relevant realm, whose header list is this’s response’s header list and guard is "response".
+    // 2. Set this's headers to a new Headers object with this's relevant realm, whose header list is this's response's header list and guard is "response".
 
     // 3. Let bodyWithType be null.
     let bodyWithType = null;
@@ -34,41 +36,43 @@ class Response {
     return response.#response;
   }
 
-  /** The type getter steps are to return this’s response’s type. */
   get type() {
     return this.#response.type;
   }
 
   /**
-   * The url getter steps are to return the empty string if this’s response’s URL is null;
-   * otherwise this’s response’s URL, serialized with exclude fragment set to true.
+   * The url getter steps are to return this's response's URL.
    */
   get url() {
     return this.#response.url;
   }
 
-  /** The redirected getter steps are to return true if this’s response’s URL list’s size is greater than 1; otherwise false. */
+  /** 
+   * Returns true if the response is the result of a redirect; otherwise false.
+   */
   get redirected() {
     return this.#response.url.length > 1;
   }
 
-  /** The status getter steps are to return this’s response’s status. */
+  /** The status getter steps are to return this's response's status. */
   get status() {
     return this.#response.status;
   }
 
-  /** The ok getter steps are to return true if this’s response’s status is an ok status; otherwise false. */
+  /** The ok getter steps are to return true if this's response's status is an ok status; otherwise false. */
   get ok() {
     const status = this.#response.status;
     return status >= 200 && status <= 299;
   }
 
-  /** The statusText getter steps are to return this’s response’s status message. */
+  /** The statusText getter steps are to return this's response's status message. */
   get statusText() {
     return this.#response.statusText;
   }
 
-  /** The headers getter steps are to return this’s headers. */
+  /** 
+   * Gets the headers.
+   */
   get headers() {
     return this.#headers;
   }
@@ -126,17 +130,17 @@ function initializeAResponse(
     );
   }
 
-  // 3. Set response’s response’s status to init["status"].
+  // 3. Set response's response's status to init["status"].
   if (init.status != null) {
     getResponse(response).status = init.status;
   }
 
-  // 4. Set response’s response’s status message to init["statusText"].
+  // 4. Set response's response's status message to init["statusText"].
   if (init.statusText != null) {
     getResponse(response).statusText = init.statusText;
   }
 
-  // 5. If init["headers"] exists, then fill response’s headers with init["headers"].
+  // 5. If init["headers"] exists, then fill response's headers with init["headers"].
   if (init.headers != null) {
     // TODO: get headerlist
     getResponse(response).headers = init.headers;
@@ -144,47 +148,50 @@ function initializeAResponse(
 
   // 6. If body is non-null, then:
   if (body != null) {
-    // 1. If response’s status is a null body status, then throw a TypeError.
+    // 1. If response's status is a null body status, then throw a TypeError.
     // NOTE: 101 and 103 are included in null body status due to their use elsewhere. They do not affect this step.
     if (nullBodyStatus(response.status)) {
       throw new TypeError(
-        "Response with null body status cannot have body",
+        `Response with status ${response.status} cannot have a body.`,
       );
     }
-    // 2. Set response’s body to body’s body.
+    // 2. Set response's body to body's body.
     getResponse(response).body = body.body;
-    // 3. If body’s type is non-null and response’s header list does not contain `Content-Type`, then append (`Content-Type`, body’s type) to response’s header list.
+    // 3. If body's type is non-null and response's header list does not contain `Content-Type`, then append (`Content-Type`, body's type) to response's header list.
   }
 }
 
 /**
- * TODO: when implemented module, move to ext/fetch/body
- * To extract a body with type from a byte sequence or BodyInit object object,
+ * TODO: when module is implemented, move to ext/fetch/body
+ * To extract a body with type from a byte sequence or BodyInit object,
  * with an optional boolean keepalive (default false)
  * @see https://fetch.spec.whatwg.org/#concept-bodyinit-extract
  */
 function extractBody(object: any, _keepalive = false) {
   // 1. Let stream be null.
+  // deno-lint-ignore prefer-const
   let stream = null;
   // 2. If object is a ReadableStream object, then set stream to object.
   // TODO: implement ReadableStream
-  // 3. Otherwise, if object is a Blob object, set stream to the result of running object’s get stream.
+  // 3. Otherwise, if object is a Blob object, set stream to the result of running object's get stream.
   // 4. Otherwise, set stream to a new ReadableStream object, and set up stream with byte reading support.
   // 5. Assert: stream is a ReadableStream object.
 
-  // 6, Let action be null.
+  // 6. Let action be null.
+  // deno-lint-ignore prefer-const
   let _action = null;
 
   // 7. Let source be null.
   let source = null;
 
   // 8. Let length be null.
+  // deno-lint-ignore prefer-const
   let length = null;
 
-  // Let type be null.
+  // 9. Let type be null.
   let type = null;
 
-  // Switch on object:
+  // 10. Switch on object:
   if (typeof object == "string") {
     // scalar value string:
     // Set source to the UTF-8 encoding of object.
@@ -192,11 +199,11 @@ function extractBody(object: any, _keepalive = false) {
     source = object;
     type = "text/plain;charset=UTF-8";
   } else {
-    console.error("TODO: these doesn't yet supported");
+    console.error("TODO: these are not yet supported");
     // Blob
     // Set source to object.
-    // Set length to object’s size.
-    // If object’s type attribute is not the empty byte sequence, set type to its value.
+    // Set length to object's size.
+    // If object's type attribute is not the empty byte sequence, set type to its value.
 
     // byte sequence:
     // Set source to object.
@@ -205,7 +212,7 @@ function extractBody(object: any, _keepalive = false) {
     // Set source to a copy of the bytes held by object.
 
     // FormData:
-    // Set action to this step: run the multipart/form-data encoding algorithm, with object’s entry list and UTF-8.
+    // Set action to this step: run the multipart/form-data encoding algorithm, with object's entry list and UTF-8.
 
     // Set source to object.
 
@@ -214,7 +221,7 @@ function extractBody(object: any, _keepalive = false) {
     // Set type to `multipart/form-data; boundary=`, followed by the multipart/form-data boundary string generated by the multipart/form-data encoding algorithm.
 
     // URLSearchParams:
-    // Set source to the result of running the application/x-www-form-urlencoded serializer with object’s list.
+    // Set source to the result of running the application/x-www-form-urlencoded serializer with object's list.
 
     // Set type to `application/x-www-form-urlencoded;charset=UTF-8`.
 
@@ -223,7 +230,7 @@ function extractBody(object: any, _keepalive = false) {
     // If object is disturbed or locked, then throw a TypeError.
   }
 
-  // 11. If source is a byte sequence, then set action to a step that returns source and length to source’s length.
+  // 11. If source is a byte sequence, then set action to a step that returns source and length to source's length.
 
   // 12. If action is non-null, then run these steps in parallel:
   //   1. Run action.
