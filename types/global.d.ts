@@ -1336,3 +1336,218 @@ interface Navigator {
  * Global clientInformation instance (alias for navigator)
  */
 declare const clientInformation: Navigator;
+
+// SQLite Extension Types
+// Matching the Deno/Node.js SQLite API
+
+/** Type for SQLite input values (parameters) */
+type SQLInputValue = null | number | bigint | string | Uint8Array | boolean;
+
+/** Type for SQLite output values (results) */
+type SQLOutputValue = null | number | bigint | string | Uint8Array | boolean;
+
+/** Options for opening a SQLite database */
+interface DatabaseSyncOptions {
+  readonly open?: boolean;
+  readonly readOnly?: boolean;
+  readonly allowExtension?: boolean;
+  readonly enableForeignKeyConstraints?: boolean;
+  readonly enableDoubleQuotedStringLiterals?: boolean;
+}
+
+/** Options for creating custom SQLite functions */
+interface FunctionOptions {
+  readonly varargs?: boolean;
+  readonly deterministic?: boolean;
+  readonly directOnly?: boolean;
+  readonly useBigIntArguments?: boolean;
+}
+
+/** Result type for SQLite operations that modify data */
+interface StatementResultingChanges {
+  readonly changes: number;
+  readonly lastInsertRowid: number | bigint;
+}
+
+/** Options for applying changesets */
+interface ApplyChangesetOptions {
+  readonly filter?: (tableName: string) => boolean;
+  readonly onConflict?: number;
+}
+
+/** Options for creating sessions */
+interface CreateSessionOptions {
+  readonly db?: string;
+  readonly table?: string;
+}
+
+/** SQLite session interface */
+interface Session {
+  changeset(): Uint8Array;
+  patchset(): Uint8Array;
+  close(): void;
+}
+
+/** Type for custom SQLite functions */
+type SqliteFunction = (...args: SQLInputValue[]) => SQLOutputValue;
+
+/**
+ * SQLite prepared statement class
+ * Provides methods for executing SQL statements with parameters
+ */
+declare class StatementSync {
+  constructor(stmtId: number, dbId: number);
+
+  /**
+   * Execute the statement and return all results
+   * @param params Parameters to bind to the statement
+   * @returns Array of result objects
+   */
+  all(...params: SQLInputValue[]): unknown[];
+
+  /**
+   * Get the expanded SQL with parameters substituted
+   */
+  get expandedSQL(): string;
+
+  /**
+   * Execute the statement and return the first result
+   * @param params Parameters to bind to the statement
+   * @returns First result object or undefined
+   */
+  get(...params: SQLInputValue[]): unknown;
+
+  /**
+   * Execute the statement and return an iterator over results
+   * @param params Parameters to bind to the statement
+   * @returns Iterator over result objects
+   */
+  iterate(...params: SQLInputValue[]): IterableIterator<unknown>;
+
+  /**
+   * Execute the statement and return change information
+   * @param params Parameters to bind to the statement
+   * @returns Information about changes made
+   */
+  run(...params: SQLInputValue[]): StatementResultingChanges;
+
+  /**
+   * Set whether to allow bare named parameters
+   * @param allowBare Whether to allow bare parameters
+   * @returns This statement for chaining
+   */
+  setAllowBareNamedParameters(allowBare: boolean): this;
+
+  /**
+   * Set whether to read big integers
+   * @param readBigInts Whether to read as big integers
+   * @returns This statement for chaining
+   */
+  setReadBigInts(readBigInts: boolean): this;
+
+  /**
+   * Get the original SQL source
+   */
+  get sourceSQL(): string;
+
+  /**
+   * Finalize the statement and free resources
+   */
+  finalize(): void;
+}
+
+/**
+ * SQLite database class
+ * Provides methods for managing SQLite databases
+ */
+declare class DatabaseSync {
+  constructor(filename: string, options?: DatabaseSyncOptions);
+
+  /**
+   * Apply a changeset to the database
+   * @param changeset The changeset to apply
+   * @param options Options for applying the changeset
+   */
+  applyChangeset(changeset: Uint8Array, options?: ApplyChangesetOptions): void;
+
+  /**
+   * Close the database connection
+   */
+  close(): void;
+
+  /**
+   * Create a session for tracking changes
+   * @param options Options for the session
+   * @returns A new session object
+   */
+  createSession(options?: CreateSessionOptions): Session;
+
+  /**
+   * Enable or disable loading extensions
+   * @param enabled Whether to enable extension loading
+   */
+  enableLoadExtension(enabled: boolean): void;
+
+  /**
+   * Execute SQL statements without returning results
+   * @param sql The SQL to execute
+   */
+  exec(sql: string): void;
+
+  /**
+   * Register a custom function
+   * @param name The function name
+   * @param fn The function implementation
+   * @param options Function options
+   */
+  function(name: string, fn: SqliteFunction, options?: FunctionOptions): void;
+
+  /**
+   * Load an extension
+   * @param path Path to the extension
+   * @param entryPoint Optional entry point name
+   */
+  loadExtension(path: string, entryPoint?: string): void;
+
+  /**
+   * Open a database file
+   * @param filename The database filename
+   * @param options Options for opening
+   */
+  open(filename: string, options?: DatabaseSyncOptions): void;
+
+  /**
+   * Prepare a SQL statement
+   * @param sql The SQL statement to prepare
+   * @returns A prepared statement
+   */
+  prepare(sql: string): StatementSync;
+}
+
+/**
+ * Database constructor alias for compatibility
+ */
+declare const Database: typeof DatabaseSync;
+
+/**
+ * SQLite constants matching the Deno API
+ */
+declare const constants: {
+  readonly SQLITE_CHANGESET_ABORT: 2;
+  readonly SQLITE_CHANGESET_CONFLICT: 3;
+  readonly SQLITE_CHANGESET_DATA: 4;
+  readonly SQLITE_CHANGESET_FOREIGN_KEY: 5;
+  readonly SQLITE_CHANGESET_NOTFOUND: 1;
+  readonly SQLITE_CHANGESET_OMIT: 0;
+  readonly SQLITE_CHANGESET_REPLACE: 1;
+};
+
+/**
+ * SQLite module containing all SQLite functionality
+ */
+declare const sqlite: {
+  DatabaseSync: typeof DatabaseSync;
+  StatementSync: typeof StatementSync;
+  Database: typeof DatabaseSync;
+  constants: typeof constants;
+};

@@ -5,7 +5,6 @@ interface ResponseInit {
   statusText?: string;
 }
 
-
 class Response {
   #response;
   #headers: any;
@@ -47,7 +46,7 @@ class Response {
     return this.#response.url;
   }
 
-  /** 
+  /**
    * Returns true if the response is the result of a redirect; otherwise false.
    */
   get redirected() {
@@ -70,7 +69,7 @@ class Response {
     return this.#response.statusText;
   }
 
-  /** 
+  /**
    * Gets the headers.
    */
   get headers() {

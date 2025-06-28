@@ -92,7 +92,9 @@ declare function internal_real_path(path: string): string;
  */
 declare function internal_read_dir(
   path: string,
-): Array<{ name: string; isFile: boolean; isDirectory: boolean; isSymlink: boolean; }>;
+): Array<
+  { name: string; isFile: boolean; isDirectory: boolean; isSymlink: boolean; }
+>;
 
 /**
  * The `internal_stat` function gets information about a file or directory.
@@ -546,7 +548,10 @@ declare function internal_navigator_user_agent(): string;
  * The `internal_add_signal_listener` function adds a signal listener for the specified signal.
  * The signal can be a string like "SIGINT", "SIGTERM", etc.
  */
-declare function internal_add_signal_listener(signal: string, handler: () => void): string | void;
+declare function internal_add_signal_listener(
+  signal: string,
+  handler: () => void,
+): string | void;
 
 /**
  * The `internal_remove_signal_listener` function removes a signal listener for the specified signal.
@@ -634,7 +639,7 @@ declare function sessionStorage_keys(): string[];
  */
 declare function storage_new(persistent: boolean): boolean;
 
-/** 
+/**
  * Deletes the storage instance.
  */
 declare function storage_delete(storageType: boolean): boolean;
@@ -647,17 +652,27 @@ declare function storage_length(storageType: boolean): number;
 /**
  * Returns the key at the specified index in the storage.
  */
-declare function storage_key(storageType: boolean, index: number): string | null;
+declare function storage_key(
+  storageType: boolean,
+  index: number,
+): string | null;
 
 /**
  * Retrieves an item from the storage.
  */
-declare function storage_getItem(storageType: boolean, key: string): string | null;
+declare function storage_getItem(
+  storageType: boolean,
+  key: string,
+): string | null;
 
 /**
  * Stores an item in the storage.
  */
-declare function storage_setItem(storageType: boolean, key: string, value: string): void;
+declare function storage_setItem(
+  storageType: boolean,
+  key: string,
+  value: string,
+): void;
 
 /**
  * Removes an item from the storage.
@@ -673,3 +688,133 @@ declare function storage_clear(storageType: boolean): void;
  * Returns an array of all keys in the storage.
  */
 declare function storage_iterate_keys(storageType: boolean): string[];
+
+/**
+ * The `sqlite_database_sync_constructor` function initializes a new SQLite database.
+ */
+declare function sqlite_database_sync_constructor(
+  filename: string,
+  options?: DatabaseSyncOptions,
+): number;
+
+/**
+ * The `sqlite_database_sync_close` function closes a SQLite database.
+ */
+declare function sqlite_database_sync_close(dbId: number): void;
+
+/**
+ * The `sqlite_database_sync_enable_load_extension` function enables or disables extension loading.
+ */
+declare function sqlite_database_sync_enable_load_extension(
+  dbId: number,
+  enabled: boolean,
+): void;
+
+/**
+ * The `sqlite_database_sync_exec` function executes SQL on a database.
+ */
+declare function sqlite_database_sync_exec(dbId: number, sql: string): void;
+
+/**
+ * The `sqlite_database_sync_function` function registers a custom function with SQLite.
+ */
+declare function sqlite_database_sync_function(
+  dbId: number,
+  name: string,
+  // deno-lint-ignore no-explicit-any
+  fn: any,
+  options?: FunctionOptions,
+): void;
+
+/**
+ * The `sqlite_database_sync_load_extension` function loads an extension into SQLite.
+ */
+declare function sqlite_database_sync_load_extension(
+  dbId: number,
+  path: string,
+  entryPoint?: string,
+): void;
+
+/**
+ * The `sqlite_database_sync_open` function opens a SQLite database.
+ */
+declare function sqlite_database_sync_open(
+  dbId: number,
+  filename: string,
+  options?: DatabaseSyncOptions,
+): void;
+
+/**
+ * The `sqlite_database_sync_prepare` function prepares a SQL statement.
+ */
+declare function sqlite_database_sync_prepare(
+  dbId: number,
+  sql: string,
+): number;
+
+/**
+ * The `sqlite_statement_sync_all` function executes a statement and returns all rows.
+ */
+declare function sqlite_statement_sync_all(
+  dbId: number,
+  stmtId: number,
+  ...params: SQLInputValue[]
+): unknown[];
+
+/**
+ * The `sqlite_statement_sync_expanded_sql` function returns the expanded SQL of a prepared statement.
+ */
+declare function sqlite_statement_sync_expanded_sql(stmtId: number): string;
+
+/**
+ * The `sqlite_statement_sync_get` function executes a statement and returns the first row.
+ */
+declare function sqlite_statement_sync_get(
+  dbId: number,
+  stmtId: number,
+  ...params: SQLInputValue[]
+): unknown;
+
+/**
+ * The `sqlite_statement_sync_iterate` function executes a statement and returns an iterator of rows.
+ */
+declare function sqlite_statement_sync_iterate(
+  dbId: number,
+  stmtId: number,
+  ...params: SQLInputValue[]
+): unknown[];
+
+/**
+ * The `sqlite_statement_sync_run` function executes a statement that modifies the database.
+ */
+declare function sqlite_statement_sync_run(
+  dbId: number,
+  stmtId: number,
+  ...params: SQLInputValue[]
+): unknown;
+
+/**
+ * The `sqlite_statement_sync_set_allow_bare_named_parameters` function configures named parameter handling.
+ */
+declare function sqlite_statement_sync_set_allow_bare_named_parameters(
+  stmtId: number,
+  allowBare: boolean,
+): void;
+
+/**
+ * The `sqlite_statement_sync_set_read_bigints` function configures bigint return handling.
+ */
+declare function sqlite_statement_sync_set_read_bigints(
+  stmtId: number,
+  readBigInts: boolean,
+): void;
+
+/**
+ * The `sqlite_statement_sync_source_sql` function returns the original SQL of a prepared statement.
+ */
+declare function sqlite_statement_sync_source_sql(stmtId: number): string;
+
+/**
+ * The `sqlite_statement_sync_finalize` function finalizes a prepared statement.
+ */
+declare function sqlite_statement_sync_finalize(stmtId: number): void;
