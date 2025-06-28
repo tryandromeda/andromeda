@@ -8,6 +8,7 @@ use nova_vm::ecmascript::execution::agent::{GcAgent, RealmRoot};
 use crate::{
     //BroadcastChannelExt,
     ConsoleExt,
+    FetchExt,
     FsExt,
     HeadersExt,
     ProcessExt,
@@ -31,6 +32,7 @@ pub fn recommended_extensions() -> Vec<Extension> {
         // BroadcastChannelExt::new_extension(),
         RequestExt::new_extension(),
         ResponseExt::new_extension(),
+        FetchExt::new_extension(),
         #[cfg(feature = "canvas")]
         crate::CanvasExt::new_extension(),
         #[cfg(feature = "crypto")]
