@@ -1,23 +1,27 @@
 # Andromeda 🌌
 
-<a href="https://github.com/load1n9/andromeda"><img align="right" src="./assets/andromeda.svg" alt="Andromeda" width="150"/></a>
+<a href="https://github.com/tryandromeda/andromeda"><img align="right" src="./assets/andromeda.svg" alt="Andromeda" width="150"/></a>
 
 [![Discord Server](https://img.shields.io/discord/1264947585882259599.svg?logo=discord&style=flat-square)](https://discord.gg/tgjAnX2Ny3)
 
 **A modern, fast, and secure JavaScript & TypeScript runtime** built from the ground up in [Rust 🦀](https://www.rust-lang.org/) and powered by [Nova Engine](https://trynova.dev/).
 
-Andromeda provides **zero-config TypeScript support**, **rich Web APIs**, and **native performance** - making it perfect for scripts, utilities, and applications that need to run fast without the complexity of traditional Node.js setups.
+[Andromeda](https://github.com/tryandromeda/andromeda) provides **zero-config TypeScript support**, **rich Web APIs**, and **native performance** - making it perfect for scripts, utilities, and applications that need to run fast without the complexity of traditional Node.js setups.
 
 ## ✨ Key Features
 
 - 🚀 **Zero-configuration TypeScript** - Run `.ts` files directly, no transpilation needed
-- 🎨 **Canvas & Graphics** - Full 2D Canvas API with PNG export capabilities  
+- 🎨 **GPU-Accelerated Canvas** - Hardware-accelerated 2D Canvas API with WGPU backend and PNG export
 - 🔐 **Web Crypto API** - Industry-standard cryptographic primitives
+- 📒 **SQLite Support** - Built-in support for SQLite databases
 - 📁 **File System Access** - Simple APIs for reading/writing files
+- 💾 **Web Storage** - localStorage and sessionStorage APIs for data persistence
 - ⚡ **Native Performance** - Rust-powered execution with Nova's optimized JS engine
 - 🛠️ **Developer Tools** - Interactive REPL, code formatter, and single-file compilation
 - 🌐 **Web Standards** - TextEncoder/Decoder, Performance API, and more
 - 🔧 **Extensible** - Modular architecture with optional features
+- 🔧 **Self-Updating** - Built-in upgrade system to stay current with latest releases
+- 🔧 **Shell Integration** - Auto-completion support for bash, zsh, fish, and PowerShell
 
 ## 🎯 Standards & Compatibility
 
@@ -100,6 +104,19 @@ ctx.fillRect(0, 0, 800, 600);
 canvas.saveAsPng("artwork.png");
 ```
 
+### Web Storage
+
+```typescript
+// localStorage and sessionStorage APIs
+localStorage.setItem("user-preference", "dark-mode");
+const preference = localStorage.getItem("user-preference");
+console.log("Stored items:", localStorage.length);
+
+// Session storage for temporary data
+sessionStorage.setItem("session-id", crypto.randomUUID());
+const sessionId = sessionStorage.getItem("session-id");
+```
+
 ### Cryptography
 
 ```typescript
@@ -127,6 +144,20 @@ performance.mark("operation-end");
 performance.measure("total-time", "operation-start", "operation-end");
 ```
 
+### Database Operations
+
+```typescript
+const db = new Database(":memory:");
+
+const stmt = db.prepare("INSERT INTO users (name, email) VALUES (?, ?)");
+stmt.run("Alice", "alice@example.com");
+
+const users = db.prepare("SELECT * FROM users").all();
+console.log(users);
+
+db.close();
+```
+
 ## 🎯 Developer Experience
 
 ### Interactive REPL
@@ -143,11 +174,12 @@ andromeda repl --print-internals --expose-internals --disable-gc
 
 **✨ REPL Features:**
 
-- **Smart Multiline Input** - Automatic detection of incomplete syntax
-- **Syntax Highlighting** - Type-aware output coloring  
+- **Advanced Syntax Highlighting** - TypeScript-aware coloring with keyword recognition
+- **Smart Multiline Input** - Automatic detection of incomplete syntax (functions, objects, etc.)
 - **Performance Metrics** - Execution timing for every evaluation
-- **Command History** - Navigate through previous commands
+- **Command History** - Navigate through previous commands with arrow keys
 - **Built-in Commands** - `help`, `history`, `clear`, `gc`, `exit`
+- **Auto-completion** - Context-aware suggestions for JavaScript/TypeScript
 
 ### Code Formatting
 
@@ -176,6 +208,39 @@ andromeda compile my-script.ts my-app.exe
 ./my-app.exe
 ```
 
+### Shell Integration
+
+Generate completion scripts for your shell:
+
+```bash
+# Auto-detect shell and generate completions
+andromeda completions
+
+# Generate for specific shells
+andromeda completions bash > /etc/bash_completion.d/andromeda
+andromeda completions zsh > ~/.zsh/completions/_andromeda
+andromeda completions fish > ~/.config/fish/completions/andromeda.fish
+andromeda completions powershell > $PROFILE/andromeda.ps1
+```
+
+### Self-Updating
+
+Keep Andromeda up to date with the built-in upgrade system:
+
+```bash
+# Upgrade to latest version
+andromeda upgrade
+
+# Force reinstall current version
+andromeda upgrade --force
+
+# Upgrade to specific version
+andromeda upgrade --version v0.1.2
+
+# Preview what would be upgraded
+andromeda upgrade --dry-run
+```
+
 ## 🏗️ Architecture & Extensions
 
 Andromeda is built with a modular architecture, allowing features to be enabled or disabled as needed:
@@ -184,15 +249,25 @@ Andromeda is built with a modular architecture, allowing features to be enabled 
 
 | Extension | Description | APIs Provided |
 |-----------|-------------|---------------|
-| **Canvas** | 2D graphics rendering | `OffscreenCanvas`, `CanvasRenderingContext2D`, `ImageBitmap` |
+| **Canvas** | GPU-accelerated 2D graphics | `OffscreenCanvas`, `CanvasRenderingContext2D`, `ImageBitmap` with WGPU backend |
 | **Crypto** | Web Crypto API implementation | `crypto.subtle`, `crypto.randomUUID()`, `crypto.getRandomValues()` |
 | **Console** | Enhanced console output | `console.log()`, `console.error()`, `console.warn()` |
 | **Fetch** | HTTP client capabilities | `fetch()`, `Request`, `Response`, `Headers` |
-| **File System** | File I/O operations | `Andromeda.readTextFileSync()`, `Andromeda.writeTextFileSync()` |
+| **File System** | File I/O operations | `Andromeda.readTextFileSync()`, `Andromeda.writeTextFileSync()`, directory ops |
+| **Local Storage** | Web storage APIs | `localStorage`, `sessionStorage` with persistence |
 | **Process** | System interaction | `Andromeda.args`, `Andromeda.env`, `Andromeda.exit()` |
-| **Time** | Timing utilities | `performance.now()`, `Andromeda.sleep()` |
+| **SQLite** | Database operations | `Database`, prepared statements, transactions |
+| **Time** | Timing utilities | `performance.now()`, `setTimeout()`, `setInterval()`, `Andromeda.sleep()` |
 | **URL** | URL parsing and manipulation | `URL`, `URLSearchParams` |
-| **Web** | Web standards | `TextEncoder`, `TextDecoder`, `prompt()`, `confirm()` |
+| **Web** | Web standards | `TextEncoder`, `TextDecoder`, `navigator`, `queueMicrotask()` |
+
+### Advanced Features
+
+- **Microtask Scheduling** - `queueMicrotask()` for proper async execution order
+- **Navigator API** - Complete `navigator.userAgent` and platform detection
+- **Structured Clone** - Web platform structured clone algorithm for object serialization
+- **Performance Timing** - High-precision timing with marks and measurements
+- **Hardware Acceleration** - WGPU-based GPU rendering for Canvas operations
 
 ## Crates
 
