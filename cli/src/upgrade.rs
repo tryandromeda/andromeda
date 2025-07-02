@@ -163,13 +163,14 @@ fn get_latest_release() -> Result<GitHubRelease> {
     );
 
     let response = ureq::get(&url)
-        .set("User-Agent", &format!("andromeda-cli/{}", CURRENT_VERSION))
+        .header("User-Agent", &format!("andromeda-cli/{}", CURRENT_VERSION))
         .call();
 
     match response {
-        Ok(response) => {
+        Ok(mut response) => {
             let release: GitHubRelease = response
-                .into_json()
+                .body_mut()
+                .read_json()
                 .context("Failed to parse release information")?;
             Ok(release)
         }
@@ -187,13 +188,14 @@ fn get_most_recent_release() -> Result<GitHubRelease> {
         REPO_OWNER, REPO_NAME
     );
 
-    let response = ureq::get(&url)
-        .set("User-Agent", &format!("andromeda-cli/{}", CURRENT_VERSION))
+    let mut response = ureq::get(&url)
+        .header("User-Agent", &format!("andromeda-cli/{}", CURRENT_VERSION))
         .call()
         .context("Failed to fetch releases")?;
 
     let releases: Vec<GitHubRelease> = response
-        .into_json()
+        .body_mut()
+        .read_json()
         .context("Failed to parse releases information")?;
 
     releases
@@ -209,13 +211,14 @@ fn get_release_by_tag(tag: &str) -> Result<GitHubRelease> {
         REPO_OWNER, REPO_NAME, tag
     );
 
-    let response = ureq::get(&url)
-        .set("User-Agent", &format!("andromeda-cli/{}", CURRENT_VERSION))
+    let mut response = ureq::get(&url)
+        .header("User-Agent", &format!("andromeda-cli/{}", CURRENT_VERSION))
         .call()
         .context("Failed to fetch release information")?;
 
     let release: GitHubRelease = response
-        .into_json()
+        .body_mut()
+        .read_json()
         .context("Failed to parse release information")?;
 
     Ok(release)
@@ -223,14 +226,15 @@ fn get_release_by_tag(tag: &str) -> Result<GitHubRelease> {
 
 /// Download an asset from the given URL
 fn download_asset(url: &str) -> Result<Vec<u8>> {
-    let response = ureq::get(url)
-        .set("User-Agent", &format!("andromeda-cli/{}", CURRENT_VERSION))
+    let mut response = ureq::get(url)
+        .header("User-Agent", &format!("andromeda-cli/{}", CURRENT_VERSION))
         .call()
         .context("Failed to download asset")?;
 
     let mut buffer = Vec::new();
     response
-        .into_reader()
+        .body_mut()
+        .as_reader()
         .read_to_end(&mut buffer)
         .context("Failed to read downloaded asset")?;
 
