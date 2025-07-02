@@ -256,6 +256,7 @@ impl SqliteExt {
     ) -> JsResult<'gc, Value<'gc>> {
         let filename = match args.get(0) {
             Value::String(s) => s.as_str(agent).to_string(),
+            Value::SmallString(s) => s.as_str().to_string(),
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
@@ -342,6 +343,7 @@ impl SqliteExt {
 
         let sql = match args.get(1) {
             Value::String(s) => s.as_str(agent).to_string(),
+            Value::SmallString(s) => s.as_str().to_string(),
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
@@ -386,6 +388,7 @@ impl SqliteExt {
 
         let sql = match args.get(1) {
             Value::String(s) => s.as_str(agent).to_string(),
+            Value::SmallString(s) => s.as_str().to_string(),
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
