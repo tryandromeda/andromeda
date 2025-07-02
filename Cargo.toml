@@ -25,18 +25,18 @@ indexmap = "2.10.0"
 image = "0.25.6"
 lazy_static = "1.5.0"
 libsui = "0.10.0"
-nova_vm = { git = "https://github.com/trynova/nova", rev = "5ba850f45879e90a53026e83f191875df4747134", features = [
+nova_vm = { git = "https://github.com/trynova/nova", rev = "58451921b0d350572a90cf63e8c6d476fd5c6855", features = [
     "typescript"
 ] }
 nu-ansi-term = "0.50.1"
 owo-colors = "4.2.2"
-oxc_ast = "0.72.0"
-oxc_allocator = "0.72.0"
-oxc_diagnostics = "0.72.0"
-oxc-miette = { version = "2.3.0", features = ["fancy"] }
-oxc_parser = "0.72.0"
-oxc_semantic = "0.72.0"
-oxc_span = "0.72.0"
+oxc_ast = "0.75.0"
+oxc_allocator = "0.75.0"
+oxc_diagnostics = "0.75.0"
+oxc-miette = { version = "2.3.1", features = ["fancy"] }
+oxc_parser = "0.75.0"
+oxc_semantic = "0.75.0"
+oxc_span = "0.75.0"
 rand = "0.9.1"
 reedline = "0.40.0"
 regex = "1.11.1"
