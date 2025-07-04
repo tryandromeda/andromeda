@@ -1300,6 +1300,51 @@ interface AddEventListenerOptions extends EventListenerOptions {
 }
 
 /**
+ * Brand information for User-Agent Client Hints
+ */
+interface UADataValues {
+  brand: string;
+  version: string;
+}
+
+/**
+ * High entropy values for User-Agent Client Hints
+ */
+interface UAHighEntropyValues {
+  architecture?: string;
+  bitness?: string;
+  brands?: UADataValues[];
+  fullVersionList?: UADataValues[];
+  mobile?: boolean;
+  model?: string;
+  platform?: string;
+  platformVersion?: string;
+  wow64?: boolean;
+  formFactor?: string;
+}
+
+/**
+ * NavigatorUAData interface for User-Agent Client Hints
+ * https://developer.mozilla.org/en-US/docs/Web/API/NavigatorUAData
+ */
+interface NavigatorUAData {
+  /** Returns an array of brand information containing the browser name and version */
+  readonly brands: UADataValues[];
+
+  /** Returns true if the user-agent is running on a mobile device */
+  readonly mobile: boolean;
+
+  /** Returns the platform brand the user-agent is running on */
+  readonly platform: string;
+
+  /** Returns a Promise that resolves with high entropy values */
+  getHighEntropyValues(hints: string[]): Promise<UAHighEntropyValues>;
+
+  /** Returns a JSON representation of the low entropy properties */
+  toJSON(): { brands: UADataValues[]; mobile: boolean; platform: string; };
+}
+
+/**
  * Navigator interface following the HTML specification
  * https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
  */
@@ -1330,6 +1375,9 @@ interface Navigator {
 
   /** Returns the vendor sub-version */
   readonly vendorSub: string;
+
+  /** Returns a NavigatorUAData object for User-Agent Client Hints */
+  readonly userAgentData: NavigatorUAData;
 }
 
 /**
