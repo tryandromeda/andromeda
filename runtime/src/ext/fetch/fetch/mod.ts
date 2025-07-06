@@ -30,24 +30,24 @@ const fetch = (input: RequestInfo, init = undefined) => {
   }
 
   // 4. If requestObject’s signal is aborted, then:
-  if (request.signal.aborted) {
-    // 1. Abort the fetch() call with p, request, null, and
-    // requestObject’s signal’s abort reason.
-    //
-    // TODO: abortFetch
-    //
-    // 2. Return p.
-    return p.promise;
-  }
+  // if (request.signal.aborted) {
+  // 1. Abort the fetch() call with p, request, null, and
+  // requestObject’s signal’s abort reason.
+  //
+  // TODO: abortFetch
+  //
+  // 2. Return p.
+  // return p.promise;
+  // }
 
   // 5. Let globalObject be request’s client’s global object.
-  const globalObject = request.client.globalObject;
+  // const globalObject = request.client.globalObject;
 
   // 6. If globalObject is a ServiceWorkerGlobalScope object,
   // then set request’s service-workers mode to "none".
-  if (globalObject?.constructor?.name === "ServiceWorkerGlobalScope") {
-    request.serviceWorkers = "none";
-  }
+  // if (globalObject?.constructor?.name === "ServiceWorkerGlobalScope") {
+  //   request.serviceWorkers = "none";
+  // }
 
   // 7. Let responseObject be null.
   let responseObject = null;
@@ -71,7 +71,7 @@ const fetch = (input: RequestInfo, init = undefined) => {
   //     and requestObject’s signal’s abort reason.
 
   // 12. Set controller to the result of calling fetch given request
-  // and processResponse given response being these steps:
+  //     and processResponse given response being these steps:
   //  1. If locallyAborted is true, then abort these steps.
   //  2. If response’s aborted flag is set, then:
   //    1. Let deserializedError be the result of deserialize a serialized abort reason given controller’s serialized abort reason and relevantRealm.
