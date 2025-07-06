@@ -6,6 +6,21 @@ mod headers;
 mod request;
 mod response;
 
+use andromeda_core::Extension;
 pub use headers::*;
 pub use request::*;
 pub use response::*;
+
+#[derive(Default)]
+pub struct FetchExt;
+
+impl FetchExt {
+    pub fn new_extension() -> Extension {
+        Extension {
+            name: "fetch",
+            ops: vec![],
+            storage: None,
+            files: vec![include_str!("./fetch/mod.ts")],
+        }
+    }
+}

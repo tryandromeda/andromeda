@@ -103,7 +103,10 @@ class Request {
   [bodySymbol]: any = null;
 
   /** https://fetch.spec.whatwg.org/#request-class */
-  constructor(input: RequestInfo, init: RequestInit = { __proto__: null } as any) {
+  constructor(
+    input: RequestInfo,
+    init: RequestInit = { __proto__: null } as any,
+  ) {
     // 1. Let request be null.
     let request: any = null;
 
@@ -395,13 +398,6 @@ class Request {
 
     // 42. Set this’s request’s body to finalBody.
     request.body = finalBody;
-
-    const url = request.url;
-    console.log("url", url);
-    const method = request.method;
-    console.log("method", method);
-    const credentials = request.credentials;
-    console.log("credentials", credentials);
 
     this[requestSymbol] = request;
   }

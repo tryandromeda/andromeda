@@ -131,7 +131,7 @@ impl LocalStorageExt {
         args: ArgumentsList,
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        let persistent = if args.len() > 0 {
+        let persistent = if !args.is_empty() {
             match args.get(0) {
                 Value::Boolean(b) => b,
                 _ => true, // default to localStorage
