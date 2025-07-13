@@ -7,7 +7,7 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.0-draft3"
+version = "0.1.0-draft4"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
@@ -15,8 +15,8 @@ andromeda-runtime = { path = "runtime", features = ["canvas", "crypto", "storage
 anyhow = "1.0.98"
 anymap = "0.12.1"
 base64-simd = "0.8.0"
-clap = { version = "4.5.40", features = ["derive"] }
-clap_complete = "4.5.54"
+clap = { version = "4.5.41", features = ["derive"] }
+clap_complete = "4.5.55"
 console = "0.16.0"
 dprint-core = "0.67.4"
 dprint-plugin-typescript = "0.95.8"
@@ -45,7 +45,7 @@ rusqlite = { version = "0.37.0", features = ["bundled"] }
 serde = { version = "1.0.219", features = ["derive"] }
 signal-hook = "0.3.18"
 thiserror = "2.0.12"
-tokio = { version = "1.46.0", features = ["rt", "sync", "time"] }
+tokio = { version = "1.46.1", features = ["rt", "sync", "time"] }
 ureq = { version = "3.0.12", features = ["json"] }
 url = { version = "2.5.4", features = ["serde", "expose_internals"] }
 wgpu = { version = "26.0.1", features = ["wgsl", "webgpu"] }
