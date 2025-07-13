@@ -579,7 +579,7 @@ impl FsExt {
                     let error = AndromedaError::fs_error(e, "chmod", path);
                     let error_msg = ErrorReporter::format_error(&error);
                     Ok(
-                        Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc())
+                        Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc())
                             .unbind(),
                     )
                 }
@@ -628,7 +628,7 @@ impl FsExt {
                     );
                     let error_msg = ErrorReporter::format_error(&error);
                     Ok(
-                        Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc())
+                        Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc())
                             .unbind(),
                     )
                 }

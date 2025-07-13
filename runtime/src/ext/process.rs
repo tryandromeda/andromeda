@@ -225,12 +225,12 @@ impl ProcessExt {
                 }
                 #[cfg(unix)]
                 {
-                    let error_msg = format!("Unsupported signal: {}", signal_name_str);
+                    let error_msg = format!("Unsupported signal: {signal_name_str}");
                     let error = AndromedaError::runtime_error(error_msg);
                     let error_formatted = ErrorReporter::format_error(&error);
                     return Ok(Value::from_string(
                         agent,
-                        format!("Error: {}", error_formatted),
+                        format!("Error: {error_formatted}"),
                         gc.nogc(),
                     )
                     .unbind());
@@ -312,7 +312,7 @@ impl ProcessExt {
                 use signal_hook::iterator::Signals;
                 if let Ok(mut signals) = Signals::new([signal_num]) {
                     for _signal in signals.forever() {
-                        eprintln!("Signal {} received", signal_num);
+                        eprintln!("Signal {signal_num} received");
                         // TODO: Dispatch to JavaScript event loop
                     }
                 }
