@@ -862,7 +862,9 @@ pub fn internal_canvas_set_stroke_style<'gc>(
     let mut data = res.canvases.get_mut(rid).unwrap();
 
     if let Some(style_str_obj) = style_string {
-        let style_str = style_str_obj.as_str(agent);
+        let style_str = style_str_obj
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
         if let Ok(parsed_style) =
             FillStyle::from_css_color(style_str).map_err(|_| "Invalid color format")
         {

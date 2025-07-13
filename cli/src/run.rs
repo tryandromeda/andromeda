@@ -56,7 +56,7 @@ pub fn run(verbose: bool, no_strict: bool, files: Vec<RuntimeFile>) -> Result<()
     match runtime_output.result {
         Ok(result) => {
             if verbose {
-                println!("✅ Execution completed successfully: {:?}", result);
+                println!("✅ Execution completed successfully: {result:?}");
             }
             Ok(())
         }
@@ -70,6 +70,7 @@ pub fn run(verbose: bool, no_strict: bool, files: Vec<RuntimeFile>) -> Result<()
                             .value()
                             .string_repr(agent, gc)
                             .as_str(agent)
+                            .expect("String is not valid UTF-8")
                             .to_string()
                     });
 

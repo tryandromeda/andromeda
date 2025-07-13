@@ -162,14 +162,14 @@ fn run_main() -> Result<()> {
             Command::Compile { path, out } => {
                 compile(out.as_path(), path.as_path()).map_err(|e| {
                     AndromedaError::compile_error(
-                        format!("Compilation failed: {}", e),
+                        format!("Compilation failed: {e}"),
                         path.clone(),
                         out.clone(),
                         Some(e),
                     )
                 })?;
 
-                println!("✅ Successfully created the output binary at {:?}", out);
+                println!("✅ Successfully created the output binary at {out:?}");
                 Ok(())
             }
             Command::Repl {
@@ -177,7 +177,7 @@ fn run_main() -> Result<()> {
                 print_internals,
                 disable_gc,
             } => run_repl(expose_internals, print_internals, disable_gc)
-                .map_err(|e| AndromedaError::repl_error(format!("REPL failed: {}", e), Some(e))),
+                .map_err(|e| AndromedaError::repl_error(format!("REPL failed: {e}"), Some(e))),
             Command::Fmt { paths } => {
                 let files_to_format = find_formattable_files(&paths)?;
 
@@ -202,7 +202,7 @@ fn run_main() -> Result<()> {
                 dry_run,
             } => upgrade::run_upgrade(force, version, dry_run).map_err(|e| {
                 AndromedaError::runtime_error(
-                    format!("Upgrade failed: {}", e),
+                    format!("Upgrade failed: {e}"),
                     None,
                     None,
                     None,

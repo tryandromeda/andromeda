@@ -93,7 +93,9 @@ impl SubtleCrypto {
         gc: GcScope<'_, '_>,
     ) -> Result<CryptoAlgorithm, String> {
         if let Ok(algorithm_str) = algo_value.to_string(agent, gc) {
-            let algorithm_name = algorithm_str.as_str(agent);
+            let algorithm_name = algorithm_str
+                .as_str(agent)
+                .expect("String is not valid UTF-8");
 
             match algorithm_name {
                 "SHA-1" => Ok(CryptoAlgorithm::Sha1),
@@ -195,7 +197,9 @@ impl SubtleCrypto {
                     .unbind());
             }
         };
-        let algorithm_name = algorithm_str.as_str(agent);
+        let algorithm_name = algorithm_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
 
         let rng = rand::SystemRandom::new();
 

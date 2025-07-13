@@ -45,6 +45,7 @@ impl ConsoleExt {
                 .to_string(agent, gc.reborrow())
                 .unbind()?
                 .as_str(agent)
+                .expect("String is not valid UTF-8")
                 .as_bytes(),
         ) {
             let error = AndromedaError::runtime_error(format!("Failed to write to stdout: {}", e));
@@ -117,7 +118,10 @@ impl ConsoleExt {
         for arg in args.iter() {
             print!(
                 "{}",
-                arg.to_string(agent, gc.reborrow()).unbind()?.as_str(agent)
+                arg.to_string(agent, gc.reborrow())
+                    .unbind()?
+                    .as_str(agent)
+                    .expect("String is not valid UTF-8")
             );
         }
         Ok(Value::Undefined)
@@ -133,7 +137,10 @@ impl ConsoleExt {
         for arg in args.iter() {
             print!(
                 "{}",
-                arg.to_string(agent, gc.reborrow()).unbind()?.as_str(agent)
+                arg.to_string(agent, gc.reborrow())
+                    .unbind()?
+                    .as_str(agent)
+                    .expect("String is not valid UTF-8")
             );
         }
         println!();

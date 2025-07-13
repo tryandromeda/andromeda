@@ -89,7 +89,7 @@ impl ProcessExt {
     ) -> JsResult<'gc, Value<'gc>> {
         let key = args.get(0);
         let key = key.to_string(agent, gc.reborrow()).unbind()?;
-        let key_str = key.as_str(agent);
+        let key_str = key.as_str(agent).expect("String is not valid UTF-8");
 
         match env::var(key_str) {
             Ok(value) => {
@@ -133,7 +133,10 @@ impl ProcessExt {
         let value = value.to_string(agent, gc.reborrow()).unbind().unbind()?;
 
         unsafe {
-            env::set_var(key.as_str(agent), value.as_str(agent));
+            env::set_var(
+                key.as_str(agent).expect("String is not valid UTF-8"),
+                value.as_str(agent).expect("String is not valid UTF-8"),
+            );
         }
 
         Ok(Value::Undefined)
@@ -149,7 +152,7 @@ impl ProcessExt {
         let key = key.to_string(agent, gc.reborrow()).unbind()?;
 
         unsafe {
-            env::remove_var(key.as_str(agent));
+            env::remove_var(key.as_str(agent).expect("String is not valid UTF-8"));
         }
 
         Ok(Value::Undefined)
@@ -179,7 +182,9 @@ impl ProcessExt {
     ) -> JsResult<'gc, Value<'gc>> {
         let signal_name = args.get(0);
         let signal_name = signal_name.to_string(agent, gc.reborrow()).unbind()?;
-        let signal_name_str = signal_name.as_str(agent);
+        let signal_name_str = signal_name
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
         let callback = args.get(1);
         if !callback.is_function() {
             let error = AndromedaError::runtime_error("Callback must be a function");
@@ -256,7 +261,9 @@ impl ProcessExt {
     ) -> JsResult<'gc, Value<'gc>> {
         let signal_name = args.get(0);
         let signal_name = signal_name.to_string(agent, gc.reborrow()).unbind()?;
-        let signal_name_str = signal_name.as_str(agent);
+        let signal_name_str = signal_name
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
 
         let signal_num = match signal_name_str {
             #[cfg(unix)]

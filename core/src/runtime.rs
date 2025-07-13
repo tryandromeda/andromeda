@@ -265,9 +265,13 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                     gc.nogc(),
                 ) {
                     Ok(script) => script,
-                    Err(errors) => {
-                        exit_with_parse_errors(errors, file.get_path(), source_text.as_str(agent))
-                    }
+                    Err(errors) => exit_with_parse_errors(
+                        errors,
+                        file.get_path(),
+                        source_text
+                            .as_str(agent)
+                            .expect("String is not valid UTF-8"),
+                    ),
                 };
 
                 script_evaluation(agent, script.unbind(), gc.reborrow()).unbind()

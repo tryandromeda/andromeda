@@ -45,14 +45,15 @@ impl URLExt {
 
         let base_href = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
 
-        let base_url = match Url::parse(base_href.as_str(agent)) {
+        let base_url = match Url::parse(base_href.as_str(agent).expect("String is not valid UTF-8"))
+        {
             Ok(url) => url,
             Err(e) => {
                 return Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind());
             }
         };
 
-        let url = match base_url.join(url.as_str(agent)) {
+        let url = match base_url.join(url.as_str(agent).expect("String is not valid UTF-8")) {
             Ok(url) => url,
             Err(e) => {
                 return Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind());
@@ -70,7 +71,7 @@ impl URLExt {
     ) -> JsResult<'gc, Value<'gc>> {
         let url = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
 
-        let url = match Url::parse(url.as_str(agent)) {
+        let url = match Url::parse(url.as_str(agent).expect("String is not valid UTF-8")) {
             Ok(url) => url,
             Err(e) => {
                 return Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind());
