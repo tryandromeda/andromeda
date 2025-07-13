@@ -23,7 +23,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: x86_64-apple-darwin
     steps:
       - uses: actions/checkout@v4
       - name: Set up cargo cache
@@ -32,7 +38,11 @@ jobs:
         with:
           prefix-key: "andromeda-${{ runner.os }}"
       - name: Install the rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.88.0
+          targets: ${{ matrix.target }}
+          components: rustfmt, clippy
       - name: Test
         run: cargo test
         timeout-minutes: 20
