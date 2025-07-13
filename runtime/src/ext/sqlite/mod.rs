@@ -227,11 +227,17 @@ impl SqliteExt {
                         }
                         Err(_) => Box::new(0i64),
                     },
-                    Value::String(s) => Box::new(s.as_str(agent).to_string()),
-                    Value::SmallString(s) => Box::new(s.as_str().to_string()),
+                    Value::String(s) => Box::new(
+                        s.as_str(agent)
+                            .expect("String is not valid UTF-8")
+                            .to_string(),
+                    ),
+                    Value::SmallString(s) => {
+                        Box::new(s.as_str().expect("String is not valid UTF-8").to_string())
+                    }
                     Value::BigInt(_b) => match value.to_string(agent, gc.reborrow()) {
                         Ok(s) => {
-                            let str_val = s.as_str(agent);
+                            let str_val = s.as_str(agent).expect("String is not valid UTF-8");
                             match str_val.parse::<i64>() {
                                 Ok(i) => Box::new(i),
                                 Err(_) => Box::new(str_val.to_string()),
@@ -240,7 +246,11 @@ impl SqliteExt {
                         Err(_) => Box::new(String::from("0")),
                     },
                     _ => match value.to_string(agent, gc.reborrow()) {
-                        Ok(s) => Box::new(s.as_str(agent).to_string()),
+                        Ok(s) => Box::new(
+                            s.as_str(agent)
+                                .expect("String is not valid UTF-8")
+                                .to_string(),
+                        ),
                         Err(_) => Box::new(String::from("[object Object]")),
                     },
                 }
@@ -255,8 +265,11 @@ impl SqliteExt {
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let filename = match args.get(0) {
-            Value::String(s) => s.as_str(agent).to_string(),
-            Value::SmallString(s) => s.as_str().to_string(),
+            Value::String(s) => s
+                .as_str(agent)
+                .expect("String is not valid UTF-8")
+                .to_string(),
+            Value::SmallString(s) => s.as_str().expect("String is not valid UTF-8").to_string(),
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
@@ -342,8 +355,11 @@ impl SqliteExt {
         };
 
         let sql = match args.get(1) {
-            Value::String(s) => s.as_str(agent).to_string(),
-            Value::SmallString(s) => s.as_str().to_string(),
+            Value::String(s) => s
+                .as_str(agent)
+                .expect("String is not valid UTF-8")
+                .to_string(),
+            Value::SmallString(s) => s.as_str().expect("String is not valid UTF-8").to_string(),
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
@@ -387,8 +403,11 @@ impl SqliteExt {
         };
 
         let sql = match args.get(1) {
-            Value::String(s) => s.as_str(agent).to_string(),
-            Value::SmallString(s) => s.as_str().to_string(),
+            Value::String(s) => s
+                .as_str(agent)
+                .expect("String is not valid UTF-8")
+                .to_string(),
+            Value::SmallString(s) => s.as_str().expect("String is not valid UTF-8").to_string(),
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
@@ -539,7 +558,7 @@ impl SqliteExt {
                             "{{{}}}",
                             row_map
                                 .iter()
-                                .map(|(k, v)| format!("\"{}\": {}", k, v))
+                                .map(|(k, v)| format!("\"{k}\": {v}"))
                                 .collect::<Vec<_>>()
                                 .join(", ")
                         );
@@ -648,7 +667,7 @@ impl SqliteExt {
                     "{{{}}}",
                     result
                         .iter()
-                        .map(|(k, v)| format!("\"{}\": {}", k, v))
+                        .map(|(k, v)| format!("\"{k}\": {v}"))
                         .collect::<Vec<_>>()
                         .join(", ")
                 );
@@ -725,10 +744,8 @@ impl SqliteExt {
             Ok((affected_rows, last_insert_rowid))
         }) {
             Ok((changes, last_insert_rowid)) => {
-                let result_json = format!(
-                    r#"{{"changes": {}, "lastInsertRowid": {}}}"#,
-                    changes, last_insert_rowid
-                );
+                let result_json =
+                    format!(r#"{{"changes": {changes}, "lastInsertRowid": {last_insert_rowid}}}"#);
                 Ok(Value::from_string(agent, result_json, gc.nogc()).unbind())
             }
             Err(_) => {
@@ -869,7 +886,7 @@ impl SqliteExt {
                             "{{{}}}",
                             row_map
                                 .iter()
-                                .map(|(k, v)| format!("\"{}\": {}", k, v))
+                                .map(|(k, v)| format!("\"{k}\": {v}"))
                                 .collect::<Vec<_>>()
                                 .join(", ")
                         );

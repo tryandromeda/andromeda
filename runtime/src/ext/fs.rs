@@ -79,14 +79,14 @@ impl FsExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let path = binding.as_str(agent);
+        let path = binding.as_str(agent).expect("String is not valid UTF-8");
 
         match std::fs::read_to_string(path) {
             Ok(content) => Ok(Value::from_string(agent, content, gc.nogc()).unbind()),
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "read_text_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     } // /// Write a text file with the content of the second argument.
@@ -105,12 +105,19 @@ impl FsExt {
             .to_string(agent.borrow_mut(), gc.reborrow())
             .unbind()?;
 
-        match std::fs::write(binding.as_str(agent), content.as_str(agent)) {
+        match std::fs::write(
+            binding.as_str(agent).expect("String is not valid UTF-8"),
+            content.as_str(agent).expect("String is not valid UTF-8"),
+        ) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "write_text_file", binding.as_str(agent));
+                let error = AndromedaError::fs_error(
+                    e,
+                    "write_text_file",
+                    binding.as_str(agent).expect("String is not valid UTF-8"),
+                );
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -122,7 +129,7 @@ impl FsExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let path = binding.as_str(agent);
+        let path = binding.as_str(agent).expect("String is not valid UTF-8");
 
         let file = match File::create(path) {
             Ok(file) => file,
@@ -130,7 +137,7 @@ impl FsExt {
                 let error = AndromedaError::fs_error(e, "create_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
-                    Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind(),
+                    Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
                 );
             }
         };
@@ -156,16 +163,23 @@ impl FsExt {
             .to_string(agent, gc.borrow_mut().reborrow())
             .unbind()?;
 
-        match std::fs::copy(from.as_str(agent), to.as_str(agent)) {
+        match std::fs::copy(
+            from.as_str(agent).expect("String is not valid UTF-8"),
+            to.as_str(agent).expect("String is not valid UTF-8"),
+        ) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
             Err(e) => {
                 let error = AndromedaError::fs_error(
                     e,
                     "copy_file",
-                    format!("{} -> {}", from.as_str(agent), to.as_str(agent)),
+                    format!(
+                        "{} -> {}",
+                        from.as_str(agent).expect("String is not valid UTF-8"),
+                        to.as_str(agent).expect("String is not valid UTF-8")
+                    ),
                 );
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -177,14 +191,14 @@ impl FsExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let path = binding.as_str(agent);
+        let path = binding.as_str(agent).expect("String is not valid UTF-8");
 
         match std::fs::create_dir(path) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "create_directory", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -196,14 +210,14 @@ impl FsExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let path = binding.as_str(agent);
+        let path = binding.as_str(agent).expect("String is not valid UTF-8");
 
         match std::fs::create_dir_all(path) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "create_dir_all", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -216,14 +230,14 @@ impl FsExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let path = binding.as_str(agent);
+        let path = binding.as_str(agent).expect("String is not valid UTF-8");
         match std::fs::read(path) {
             Ok(content) => {
                 // For now, return the content as a hex encoded string
                 // In a full implementation, you'd want to return an actual Uint8Array
                 let hex_content = content.iter().fold(String::new(), |mut acc, b| {
                     use std::fmt::Write;
-                    write!(&mut acc, "{:02x}", b).unwrap();
+                    write!(&mut acc, "{b:02x}").unwrap();
                     acc
                 });
                 Ok(Value::from_string(agent, hex_content, gc.nogc()).unbind())
@@ -231,7 +245,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "read_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -252,8 +266,12 @@ impl FsExt {
             .to_string(agent.borrow_mut(), gc.reborrow())
             .unbind()?;
 
-        let path = path_binding.as_str(agent);
-        let content_str = content_binding.as_str(agent);
+        let path = path_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+        let content_str = content_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
 
         // For now, just write the string as bytes
         // In a full implementation, you'd want to handle Uint8Array directly
@@ -264,7 +282,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "write_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -277,7 +295,7 @@ impl FsExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let path = binding.as_str(agent);
+        let path = binding.as_str(agent).expect("String is not valid UTF-8");
 
         match std::fs::metadata(path) {
             Ok(metadata) => {
@@ -287,7 +305,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "stat", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -300,7 +318,7 @@ impl FsExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let path = binding.as_str(agent);
+        let path = binding.as_str(agent).expect("String is not valid UTF-8");
 
         match std::fs::symlink_metadata(path) {
             Ok(metadata) => {
@@ -310,7 +328,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "lstat", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -323,7 +341,7 @@ impl FsExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let path = binding.as_str(agent);
+        let path = binding.as_str(agent).expect("String is not valid UTF-8");
 
         match std::fs::read_dir(path) {
             Ok(entries) => {
@@ -346,8 +364,7 @@ impl FsExt {
                                 entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false);
 
                             result.push_str(&format!(
-                                "{{\"name\":\"{}\",\"isFile\":{},\"isDirectory\":{},\"isSymlink\":{}}}",
-                                name, is_file, is_dir, is_symlink
+                                "{{\"name\":\"{name}\",\"isFile\":{is_file},\"isDirectory\":{is_dir},\"isSymlink\":{is_symlink}}}"
                             ));
                         }
                         Err(_) => continue,
@@ -360,7 +377,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "read_dir", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -373,7 +390,7 @@ impl FsExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let path = binding.as_str(agent);
+        let path = binding.as_str(agent).expect("String is not valid UTF-8");
 
         let result = if Path::new(path).is_dir() {
             std::fs::remove_dir(path)
@@ -386,7 +403,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "remove", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -399,7 +416,7 @@ impl FsExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let path = binding.as_str(agent);
+        let path = binding.as_str(agent).expect("String is not valid UTF-8");
 
         let result = if Path::new(path).is_dir() {
             std::fs::remove_dir_all(path)
@@ -412,7 +429,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "remove_all", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -427,16 +444,23 @@ impl FsExt {
         let from = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
         let to = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
 
-        match std::fs::rename(from.as_str(agent), to.as_str(agent)) {
+        match std::fs::rename(
+            from.as_str(agent).expect("String is not valid UTF-8"),
+            to.as_str(agent).expect("String is not valid UTF-8"),
+        ) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
             Err(e) => {
                 let error = AndromedaError::fs_error(
                     e,
                     "rename",
-                    format!("{} -> {}", from.as_str(agent), to.as_str(agent)),
+                    format!(
+                        "{} -> {}",
+                        from.as_str(agent).expect("String is not valid UTF-8"),
+                        to.as_str(agent).expect("String is not valid UTF-8")
+                    ),
                 );
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -449,7 +473,7 @@ impl FsExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let path = binding.as_str(agent);
+        let path = binding.as_str(agent).expect("String is not valid UTF-8");
 
         let exists = Path::new(path).exists();
         Ok(Value::from_string(agent, exists.to_string(), gc.nogc()).unbind())
@@ -470,8 +494,12 @@ impl FsExt {
             .to_string(agent.borrow_mut(), gc.reborrow())
             .unbind()?;
 
-        let path = path_binding.as_str(agent);
-        let len_str = len_binding.as_str(agent);
+        let path = path_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+        let len_str = len_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
 
         let len: u64 = match len_str.parse() {
             Ok(l) => l,
@@ -493,7 +521,7 @@ impl FsExt {
                     let error = AndromedaError::fs_error(e, "truncate", path);
                     let error_msg = ErrorReporter::format_error(&error);
                     Ok(
-                        Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc())
+                        Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc())
                             .unbind(),
                     )
                 }
@@ -501,7 +529,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "truncate", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -521,8 +549,12 @@ impl FsExt {
             .to_string(agent.borrow_mut(), gc.reborrow())
             .unbind()?;
 
-        let path = path_binding.as_str(agent);
-        let mode_str = mode_binding.as_str(agent);
+        let path = path_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+        let mode_str = mode_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
 
         #[cfg(unix)]
         {
@@ -547,7 +579,7 @@ impl FsExt {
                     let error = AndromedaError::fs_error(e, "chmod", path);
                     let error_msg = ErrorReporter::format_error(&error);
                     Ok(
-                        Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc())
+                        Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc())
                             .unbind(),
                     )
                 }
@@ -579,17 +611,24 @@ impl FsExt {
 
         #[cfg(unix)]
         {
-            match std::os::unix::fs::symlink(target.as_str(agent), link.as_str(agent)) {
+            match std::os::unix::fs::symlink(
+                target.as_str(agent).expect("String is not valid UTF-8"),
+                link.as_str(agent).expect("String is not valid UTF-8"),
+            ) {
                 Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
                 Err(e) => {
                     let error = AndromedaError::fs_error(
                         e,
                         "symlink",
-                        format!("{} -> {}", target.as_str(agent), link.as_str(agent)),
+                        format!(
+                            "{} -> {}",
+                            target.as_str(agent).expect("String is not valid UTF-8"),
+                            link.as_str(agent).expect("String is not valid UTF-8")
+                        ),
                     );
                     let error_msg = ErrorReporter::format_error(&error);
                     Ok(
-                        Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc())
+                        Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc())
                             .unbind(),
                     )
                 }
@@ -599,11 +638,17 @@ impl FsExt {
         #[cfg(windows)]
         {
             use std::os::windows::fs;
-            let target_path = Path::new(target.as_str(agent));
+            let target_path = Path::new(target.as_str(agent).expect("String is not valid UTF-8"));
             let result = if target_path.is_dir() {
-                fs::symlink_dir(target.as_str(agent), link.as_str(agent))
+                fs::symlink_dir(
+                    target.as_str(agent).expect("String is not valid UTF-8"),
+                    link.as_str(agent).expect("String is not valid UTF-8"),
+                )
             } else {
-                fs::symlink_file(target.as_str(agent), link.as_str(agent))
+                fs::symlink_file(
+                    target.as_str(agent).expect("String is not valid UTF-8"),
+                    link.as_str(agent).expect("String is not valid UTF-8"),
+                )
             };
 
             match result {
@@ -612,11 +657,15 @@ impl FsExt {
                     let error = AndromedaError::fs_error(
                         e,
                         "symlink",
-                        format!("{} -> {}", target.as_str(agent), link.as_str(agent)),
+                        format!(
+                            "{} -> {}",
+                            target.as_str(agent).expect("String is not valid UTF-8"),
+                            link.as_str(agent).expect("String is not valid UTF-8")
+                        ),
                     );
                     let error_msg = ErrorReporter::format_error(&error);
                     Ok(
-                        Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc())
+                        Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc())
                             .unbind(),
                     )
                 }
@@ -632,7 +681,7 @@ impl FsExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let path = binding.as_str(agent);
+        let path = binding.as_str(agent).expect("String is not valid UTF-8");
 
         match std::fs::read_link(path) {
             Ok(target) => {
@@ -642,7 +691,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "read_link", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -655,7 +704,7 @@ impl FsExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let path = binding.as_str(agent);
+        let path = binding.as_str(agent).expect("String is not valid UTF-8");
 
         match std::fs::canonicalize(path) {
             Ok(real_path) => {
@@ -665,7 +714,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "real_path", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -678,7 +727,7 @@ impl FsExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let path = binding.as_str(agent);
+        let path = binding.as_str(agent).expect("String is not valid UTF-8");
 
         let file = match File::open(path) {
             Ok(file) => file,
@@ -686,7 +735,7 @@ impl FsExt {
                 let error = AndromedaError::fs_error(e, "open_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
-                    Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind(),
+                    Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
                 );
             }
         };
@@ -735,8 +784,7 @@ impl FsExt {
             .unwrap_or(0);
 
         format!(
-            "{{\"size\":{},\"isFile\":{},\"isDirectory\":{},\"isSymlink\":{},\"modified\":{},\"accessed\":{},\"created\":{}}}",
-            size, is_file, is_dir, is_symlink, modified, accessed, created
+            "{{\"size\":{size},\"isFile\":{is_file},\"isDirectory\":{is_dir},\"isSymlink\":{is_symlink},\"modified\":{modified},\"accessed\":{accessed},\"created\":{created}}}"
         )
     }
 }

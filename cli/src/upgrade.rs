@@ -44,7 +44,7 @@ struct PlatformInfo {
 /// Run the upgrade process
 pub fn run_upgrade(force: bool, target_version: Option<String>, dry_run: bool) -> Result<()> {
     println!("🚀 Andromeda Upgrade Tool");
-    println!("Current version: {}", CURRENT_VERSION);
+    println!("Current version: {CURRENT_VERSION}");
     println!();
 
     let platform = detect_platform()?;
@@ -64,10 +64,7 @@ pub fn run_upgrade(force: bool, target_version: Option<String>, dry_run: bool) -
     }
 
     if release.tag_name == CURRENT_VERSION && !force {
-        println!(
-            "ℹ️  You are already on version {}. Use --force to reinstall.",
-            CURRENT_VERSION
-        );
+        println!("ℹ️  You are already on version {CURRENT_VERSION}. Use --force to reinstall.");
         return Ok(());
     }
 
@@ -143,9 +140,9 @@ fn detect_platform() -> Result<PlatformInfo> {
     };
 
     let asset_name = if os == "windows" {
-        format!("andromeda-{}-{}.exe", os, arch)
+        format!("andromeda-{os}-{arch}.exe")
     } else {
-        format!("andromeda-{}-{}", os, arch)
+        format!("andromeda-{os}-{arch}")
     };
 
     Ok(PlatformInfo {
@@ -157,13 +154,10 @@ fn detect_platform() -> Result<PlatformInfo> {
 
 /// Get the latest release from GitHub
 fn get_latest_release() -> Result<GitHubRelease> {
-    let url = format!(
-        "https://api.github.com/repos/{}/{}/releases/latest",
-        REPO_OWNER, REPO_NAME
-    );
+    let url = format!("https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/latest");
 
     let response = ureq::get(&url)
-        .header("User-Agent", &format!("andromeda-cli/{}", CURRENT_VERSION))
+        .header("User-Agent", &format!("andromeda-cli/{CURRENT_VERSION}"))
         .call();
 
     match response {
@@ -183,13 +177,10 @@ fn get_latest_release() -> Result<GitHubRelease> {
 
 /// Get the most recent release (including drafts and prereleases)
 fn get_most_recent_release() -> Result<GitHubRelease> {
-    let url = format!(
-        "https://api.github.com/repos/{}/{}/releases",
-        REPO_OWNER, REPO_NAME
-    );
+    let url = format!("https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases");
 
     let mut response = ureq::get(&url)
-        .header("User-Agent", &format!("andromeda-cli/{}", CURRENT_VERSION))
+        .header("User-Agent", &format!("andromeda-cli/{CURRENT_VERSION}"))
         .call()
         .context("Failed to fetch releases")?;
 
@@ -206,13 +197,10 @@ fn get_most_recent_release() -> Result<GitHubRelease> {
 
 /// Get a specific release by tag
 fn get_release_by_tag(tag: &str) -> Result<GitHubRelease> {
-    let url = format!(
-        "https://api.github.com/repos/{}/{}/releases/tags/{}",
-        REPO_OWNER, REPO_NAME, tag
-    );
+    let url = format!("https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/tags/{tag}");
 
     let mut response = ureq::get(&url)
-        .header("User-Agent", &format!("andromeda-cli/{}", CURRENT_VERSION))
+        .header("User-Agent", &format!("andromeda-cli/{CURRENT_VERSION}"))
         .call()
         .context("Failed to fetch release information")?;
 
@@ -227,7 +215,7 @@ fn get_release_by_tag(tag: &str) -> Result<GitHubRelease> {
 /// Download an asset from the given URL
 fn download_asset(url: &str) -> Result<Vec<u8>> {
     let mut response = ureq::get(url)
-        .header("User-Agent", &format!("andromeda-cli/{}", CURRENT_VERSION))
+        .header("User-Agent", &format!("andromeda-cli/{CURRENT_VERSION}"))
         .call()
         .context("Failed to download asset")?;
 

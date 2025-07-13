@@ -89,7 +89,7 @@ impl ProcessExt {
     ) -> JsResult<'gc, Value<'gc>> {
         let key = args.get(0);
         let key = key.to_string(agent, gc.reborrow()).unbind()?;
-        let key_str = key.as_str(agent);
+        let key_str = key.as_str(agent).expect("String is not valid UTF-8");
 
         match env::var(key_str) {
             Ok(value) => {
@@ -103,15 +103,12 @@ impl ProcessExt {
             Err(env::VarError::NotUnicode(_)) => {
                 let error = AndromedaError::encoding_error(
                     "UTF-8",
-                    format!(
-                        "Environment variable '{}' contains invalid Unicode",
-                        key_str
-                    ),
+                    format!("Environment variable '{key_str}' contains invalid Unicode"),
                 );
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(nova_vm::ecmascript::types::String::from_string(
                     agent,
-                    format!("Error: {}", error_msg),
+                    format!("Error: {error_msg}"),
                     gc.nogc(),
                 )
                 .unbind()
@@ -133,7 +130,10 @@ impl ProcessExt {
         let value = value.to_string(agent, gc.reborrow()).unbind().unbind()?;
 
         unsafe {
-            env::set_var(key.as_str(agent), value.as_str(agent));
+            env::set_var(
+                key.as_str(agent).expect("String is not valid UTF-8"),
+                value.as_str(agent).expect("String is not valid UTF-8"),
+            );
         }
 
         Ok(Value::Undefined)
@@ -149,7 +149,7 @@ impl ProcessExt {
         let key = key.to_string(agent, gc.reborrow()).unbind()?;
 
         unsafe {
-            env::remove_var(key.as_str(agent));
+            env::remove_var(key.as_str(agent).expect("String is not valid UTF-8"));
         }
 
         Ok(Value::Undefined)
@@ -179,13 +179,15 @@ impl ProcessExt {
     ) -> JsResult<'gc, Value<'gc>> {
         let signal_name = args.get(0);
         let signal_name = signal_name.to_string(agent, gc.reborrow()).unbind()?;
-        let signal_name_str = signal_name.as_str(agent);
+        let signal_name_str = signal_name
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
         let callback = args.get(1);
         if !callback.is_function() {
             let error = AndromedaError::runtime_error("Callback must be a function");
             let error_msg = ErrorReporter::format_error(&error);
             return Ok(
-                Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind(),
+                Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
             );
         }
 
@@ -210,26 +212,25 @@ impl ProcessExt {
                 #[cfg(windows)]
                 {
                     let error_msg = format!(
-                        "Signal '{}' is not supported on Windows. Only SIGINT and SIGBREAK are supported.",
-                        signal_name_str
+                        "Signal '{signal_name_str}' is not supported on Windows. Only SIGINT and SIGBREAK are supported."
                     );
                     let error = AndromedaError::runtime_error(error_msg);
                     let error_formatted = ErrorReporter::format_error(&error);
                     return Ok(Value::from_string(
                         agent,
-                        format!("Error: {}", error_formatted),
+                        format!("Error: {error_formatted}"),
                         gc.nogc(),
                     )
                     .unbind());
                 }
                 #[cfg(unix)]
                 {
-                    let error_msg = format!("Unsupported signal: {}", signal_name_str);
+                    let error_msg = format!("Unsupported signal: {signal_name_str}");
                     let error = AndromedaError::runtime_error(error_msg);
                     let error_formatted = ErrorReporter::format_error(&error);
                     return Ok(Value::from_string(
                         agent,
-                        format!("Error: {}", error_formatted),
+                        format!("Error: {error_formatted}"),
                         gc.nogc(),
                     )
                     .unbind());
@@ -256,7 +257,9 @@ impl ProcessExt {
     ) -> JsResult<'gc, Value<'gc>> {
         let signal_name = args.get(0);
         let signal_name = signal_name.to_string(agent, gc.reborrow()).unbind()?;
-        let signal_name_str = signal_name.as_str(agent);
+        let signal_name_str = signal_name
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
 
         let signal_num = match signal_name_str {
             #[cfg(unix)]
@@ -309,14 +312,14 @@ impl ProcessExt {
                 use signal_hook::iterator::Signals;
                 if let Ok(mut signals) = Signals::new([signal_num]) {
                     for _signal in signals.forever() {
-                        eprintln!("Signal {} received", signal_num);
+                        eprintln!("Signal {signal_num} received");
                         // TODO: Dispatch to JavaScript event loop
                     }
                 }
             }
             #[cfg(windows)]
             {
-                eprintln!("Signal handler registered for signal {}", signal_num);
+                eprintln!("Signal handler registered for signal {signal_num}");
             }
         });
     }

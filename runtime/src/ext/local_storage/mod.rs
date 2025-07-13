@@ -32,8 +32,12 @@ struct SessionStorage(Connection);
 
 fn extract_string(agent: &Agent, value: Value) -> Option<String> {
     match value {
-        Value::String(s) => Some(s.as_str(agent).to_string()),
-        Value::SmallString(s) => Some(s.as_str().to_string()),
+        Value::String(s) => Some(
+            s.as_str(agent)
+                .expect("String is not valid UTF-8")
+                .to_string(),
+        ),
+        Value::SmallString(s) => Some(s.as_str().expect("String is not valid UTF-8").to_string()),
         _ => None,
     }
 }

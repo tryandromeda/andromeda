@@ -94,7 +94,7 @@ fn get_file_info(path: &std::path::Path) -> Result<FileType> {
         "js" | "jsx" | "mjs" | "cjs" => Ok(FileType::JavaScript),
         "json" | "jsonc" => Ok(FileType::Json),
         _ => Err(AndromedaError::format_error(
-            format!("Unsupported file type: .{}", extension),
+            format!("Unsupported file type: .{extension}"),
             None::<std::io::Error>,
         )),
     }
@@ -150,11 +150,11 @@ fn format_ts_js_file(
         let error_msg = resolved_config
             .diagnostics
             .iter()
-            .map(|d| format!("{}", d))
+            .map(|d| format!("{d}"))
             .collect::<Vec<_>>()
             .join(", ");
         return Err(AndromedaError::format_error(
-            format!("Failed to resolve dprint TS configuration: {}", error_msg),
+            format!("Failed to resolve dprint TS configuration: {error_msg}"),
             None::<std::io::Error>,
         ));
     }
@@ -190,11 +190,11 @@ fn format_json_file(
         let error_msg = resolved_config
             .diagnostics
             .iter()
-            .map(|d| format!("{}", d))
+            .map(|d| format!("{d}"))
             .collect::<Vec<_>>()
             .join(", ");
         return Err(AndromedaError::format_error(
-            format!("Failed to resolve dprint JSON configuration: {}", error_msg),
+            format!("Failed to resolve dprint JSON configuration: {error_msg}"),
             None::<std::io::Error>,
         ));
     }

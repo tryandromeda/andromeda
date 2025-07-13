@@ -7,7 +7,7 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.0-draft3"
+version = "0.1.0-draft4"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
@@ -15,8 +15,8 @@ andromeda-runtime = { path = "runtime", features = ["canvas", "crypto", "storage
 anyhow = "1.0.98"
 anymap = "0.12.1"
 base64-simd = "0.8.0"
-clap = { version = "4.5.40", features = ["derive"] }
-clap_complete = "4.5.54"
+clap = { version = "4.5.41", features = ["derive"] }
+clap_complete = "4.5.55"
 console = "0.16.0"
 dprint-core = "0.67.4"
 dprint-plugin-typescript = "0.95.8"
@@ -25,30 +25,30 @@ indexmap = "2.10.0"
 image = "0.25.6"
 lazy_static = "1.5.0"
 libsui = "0.10.0"
-nova_vm = { git = "https://github.com/trynova/nova", rev = "58451921b0d350572a90cf63e8c6d476fd5c6855", features = [
+nova_vm = { git = "https://github.com/trynova/nova", rev = "508168f9db71082294c3d536c455dae166f5bfbe", features = [
     "typescript"
 ] }
 nu-ansi-term = "0.50.1"
 owo-colors = "4.2.2"
-oxc_ast = "0.75.0"
-oxc_allocator = "0.75.0"
-oxc_diagnostics = "0.75.0"
+oxc_ast = "0.77.0"
+oxc_allocator = "0.77.0"
+oxc_diagnostics = "0.77.0"
 oxc-miette = { version = "2.3.1", features = ["fancy"] }
-oxc_parser = "0.75.0"
-oxc_semantic = "0.75.0"
-oxc_span = "0.75.0"
+oxc_parser = "0.77.0"
+oxc_semantic = "0.77.0"
+oxc_span = "0.77.0"
 rand = "0.9.1"
 reedline = "0.40.0"
 regex = "1.11.1"
 ring = "0.17.14"
-rusqlite = { version = "0.36.0", features = ["bundled"] }
+rusqlite = { version = "0.37.0", features = ["bundled"] }
 serde = { version = "1.0.219", features = ["derive"] }
 signal-hook = "0.3.18"
 thiserror = "2.0.12"
-tokio = { version = "1.46.0", features = ["rt", "sync", "time"] }
+tokio = { version = "1.46.1", features = ["rt", "sync", "time"] }
 ureq = { version = "3.0.12", features = ["json"] }
 url = { version = "2.5.4", features = ["serde", "expose_internals"] }
-wgpu = { version = "25.0.2", features = ["wgsl", "webgpu"] }
+wgpu = { version = "26.0.1", features = ["wgsl", "webgpu"] }
 
 [profile.release]
 lto = true

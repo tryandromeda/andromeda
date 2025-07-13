@@ -968,7 +968,7 @@ impl FillStyle {
                 b: 0.196,
                 a: 1.0,
             }),
-            _ => Err(format!("Unknown color name: {}", name)),
+            _ => Err(format!("Unknown color name: {name}")),
         }
     }
 
