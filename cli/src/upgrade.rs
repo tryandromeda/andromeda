@@ -64,9 +64,7 @@ pub fn run_upgrade(force: bool, target_version: Option<String>, dry_run: bool) -
     }
 
     if release.tag_name == CURRENT_VERSION && !force {
-        println!(
-            "ℹ️  You are already on version {CURRENT_VERSION}. Use --force to reinstall."
-        );
+        println!("ℹ️  You are already on version {CURRENT_VERSION}. Use --force to reinstall.");
         return Ok(());
     }
 
@@ -156,9 +154,7 @@ fn detect_platform() -> Result<PlatformInfo> {
 
 /// Get the latest release from GitHub
 fn get_latest_release() -> Result<GitHubRelease> {
-    let url = format!(
-        "https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/latest"
-    );
+    let url = format!("https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/latest");
 
     let response = ureq::get(&url)
         .header("User-Agent", &format!("andromeda-cli/{CURRENT_VERSION}"))
@@ -181,9 +177,7 @@ fn get_latest_release() -> Result<GitHubRelease> {
 
 /// Get the most recent release (including drafts and prereleases)
 fn get_most_recent_release() -> Result<GitHubRelease> {
-    let url = format!(
-        "https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases"
-    );
+    let url = format!("https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases");
 
     let mut response = ureq::get(&url)
         .header("User-Agent", &format!("andromeda-cli/{CURRENT_VERSION}"))
@@ -203,9 +197,7 @@ fn get_most_recent_release() -> Result<GitHubRelease> {
 
 /// Get a specific release by tag
 fn get_release_by_tag(tag: &str) -> Result<GitHubRelease> {
-    let url = format!(
-        "https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/tags/{tag}"
-    );
+    let url = format!("https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/tags/{tag}");
 
     let mut response = ureq::get(&url)
         .header("User-Agent", &format!("andromeda-cli/{CURRENT_VERSION}"))

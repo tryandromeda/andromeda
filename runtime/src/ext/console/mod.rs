@@ -48,11 +48,11 @@ impl ConsoleExt {
                 .expect("String is not valid UTF-8")
                 .as_bytes(),
         ) {
-            let error = AndromedaError::runtime_error(format!("Failed to write to stdout: {}", e));
+            let error = AndromedaError::runtime_error(format!("Failed to write to stdout: {e}"));
             ErrorReporter::print_error(&error);
         }
         if let Err(e) = stdout().flush() {
-            let error = AndromedaError::runtime_error(format!("Failed to flush stdout: {}", e));
+            let error = AndromedaError::runtime_error(format!("Failed to flush stdout: {e}"));
             ErrorReporter::print_error(&error);
         }
         Ok(Value::Undefined)
@@ -81,9 +81,9 @@ impl ConsoleExt {
             }
             Err(e) => {
                 let error =
-                    AndromedaError::runtime_error(format!("Failed to read from stdin: {}", e));
+                    AndromedaError::runtime_error(format!("Failed to read from stdin: {e}"));
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -101,9 +101,9 @@ impl ConsoleExt {
             }
             Err(e) => {
                 let error =
-                    AndromedaError::runtime_error(format!("Failed to read line from stdin: {}", e));
+                    AndromedaError::runtime_error(format!("Failed to read line from stdin: {e}"));
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }

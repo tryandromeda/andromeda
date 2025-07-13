@@ -35,7 +35,7 @@ pub fn create_parse_error_report(
     source: &str,
 ) -> String {
     let mut output = String::new();
-    output.push_str(&format!(" Parse Error in {}:\n", source_path));
+    output.push_str(&format!(" Parse Error in {source_path}:\n"));
     output.push_str("────────────────────────────────────────────────\n");
     let source_owned = source.to_string();
     let source_path_owned = source_path.to_string();
@@ -47,7 +47,7 @@ pub fn create_parse_error_report(
             output.push_str(&format!("\n Error {} of {}:\n", index + 1, errors.len()));
         }
         let report = error.clone().with_source_code(named_source.clone());
-        output.push_str(&format!("{}\n", report));
+        output.push_str(&format!("{report}\n"));
     }
 
     output

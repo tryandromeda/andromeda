@@ -86,7 +86,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "read_text_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     } // /// Write a text file with the content of the second argument.
@@ -117,7 +117,7 @@ impl FsExt {
                     binding.as_str(agent).expect("String is not valid UTF-8"),
                 );
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -137,7 +137,7 @@ impl FsExt {
                 let error = AndromedaError::fs_error(e, "create_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
-                    Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind(),
+                    Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
                 );
             }
         };
@@ -179,7 +179,7 @@ impl FsExt {
                     ),
                 );
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -198,7 +198,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "create_directory", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -217,7 +217,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "create_dir_all", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -237,7 +237,7 @@ impl FsExt {
                 // In a full implementation, you'd want to return an actual Uint8Array
                 let hex_content = content.iter().fold(String::new(), |mut acc, b| {
                     use std::fmt::Write;
-                    write!(&mut acc, "{:02x}", b).unwrap();
+                    write!(&mut acc, "{b:02x}").unwrap();
                     acc
                 });
                 Ok(Value::from_string(agent, hex_content, gc.nogc()).unbind())
@@ -245,7 +245,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "read_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -282,7 +282,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "write_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -305,7 +305,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "stat", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -328,7 +328,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "lstat", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -364,8 +364,7 @@ impl FsExt {
                                 entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false);
 
                             result.push_str(&format!(
-                                "{{\"name\":\"{}\",\"isFile\":{},\"isDirectory\":{},\"isSymlink\":{}}}",
-                                name, is_file, is_dir, is_symlink
+                                "{{\"name\":\"{name}\",\"isFile\":{is_file},\"isDirectory\":{is_dir},\"isSymlink\":{is_symlink}}}"
                             ));
                         }
                         Err(_) => continue,
@@ -378,7 +377,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "read_dir", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -404,7 +403,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "remove", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -430,7 +429,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "remove_all", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -461,7 +460,7 @@ impl FsExt {
                     ),
                 );
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -522,7 +521,7 @@ impl FsExt {
                     let error = AndromedaError::fs_error(e, "truncate", path);
                     let error_msg = ErrorReporter::format_error(&error);
                     Ok(
-                        Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc())
+                        Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc())
                             .unbind(),
                     )
                 }
@@ -530,7 +529,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "truncate", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -666,7 +665,7 @@ impl FsExt {
                     );
                     let error_msg = ErrorReporter::format_error(&error);
                     Ok(
-                        Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc())
+                        Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc())
                             .unbind(),
                     )
                 }
@@ -692,7 +691,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "read_link", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -715,7 +714,7 @@ impl FsExt {
             Err(e) => {
                 let error = AndromedaError::fs_error(e, "real_path", path);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind())
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -736,7 +735,7 @@ impl FsExt {
                 let error = AndromedaError::fs_error(e, "open_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
-                    Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind(),
+                    Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
                 );
             }
         };
@@ -785,8 +784,7 @@ impl FsExt {
             .unwrap_or(0);
 
         format!(
-            "{{\"size\":{},\"isFile\":{},\"isDirectory\":{},\"isSymlink\":{},\"modified\":{},\"accessed\":{},\"created\":{}}}",
-            size, is_file, is_dir, is_symlink, modified, accessed, created
+            "{{\"size\":{size},\"isFile\":{is_file},\"isDirectory\":{is_dir},\"isSymlink\":{is_symlink},\"modified\":{modified},\"accessed\":{accessed},\"created\":{created}}}"
         )
     }
 }

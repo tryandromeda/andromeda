@@ -216,42 +216,38 @@ impl fmt::Display for AndromedaError {
             AndromedaError::FsError {
                 operation, path, ..
             } => {
-                write!(f, "File system error during {}: {}", operation, path)
+                write!(f, "File system error during {operation}: {path}")
             }
             AndromedaError::ParseError { source_path, .. } => {
-                write!(f, "Parse error in {}", source_path)
+                write!(f, "Parse error in {source_path}")
             }
             AndromedaError::RuntimeError { message, .. } => {
-                write!(f, "Runtime error: {}", message)
+                write!(f, "Runtime error: {message}")
             }
             AndromedaError::ExtensionError {
                 extension_name,
                 message,
             } => {
-                write!(f, "Extension '{}' error: {}", extension_name, message)
+                write!(f, "Extension '{extension_name}' error: {message}")
             }
             AndromedaError::ResourceError {
                 rid,
                 operation,
                 message,
             } => {
-                write!(
-                    f,
-                    "Resource {} error during {}: {}",
-                    rid, operation, message
-                )
+                write!(f, "Resource {rid} error during {operation}: {message}")
             }
             AndromedaError::TaskError { task_id, message } => {
-                write!(f, "Task {} error: {}", task_id, message)
+                write!(f, "Task {task_id} error: {message}")
             }
             AndromedaError::NetworkError { url, operation, .. } => {
-                write!(f, "Network error during {} for {}", operation, url)
+                write!(f, "Network error during {operation} for {url}")
             }
             AndromedaError::EncodingError { format, message } => {
-                write!(f, "Encoding error ({}): {}", format, message)
+                write!(f, "Encoding error ({format}): {message}")
             }
             AndromedaError::ConfigError { field, message } => {
-                write!(f, "Configuration error in field '{}': {}", field, message)
+                write!(f, "Configuration error in field '{field}': {message}")
             }
         }
     }
@@ -277,7 +273,7 @@ impl ErrorReporter {
         eprintln!("{}", "─".repeat(50).red());
 
         // Use Display instead of miette for now to avoid trait issues
-        eprintln!("{}", error);
+        eprintln!("{error}");
     }
 
     /// Print multiple errors
@@ -302,7 +298,7 @@ impl ErrorReporter {
                     errors.len().to_string().bright_cyan()
                 );
             }
-            eprintln!("{}", error);
+            eprintln!("{error}");
         }
     }
 

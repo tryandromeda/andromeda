@@ -558,7 +558,7 @@ impl SqliteExt {
                             "{{{}}}",
                             row_map
                                 .iter()
-                                .map(|(k, v)| format!("\"{}\": {}", k, v))
+                                .map(|(k, v)| format!("\"{k}\": {v}"))
                                 .collect::<Vec<_>>()
                                 .join(", ")
                         );
@@ -667,7 +667,7 @@ impl SqliteExt {
                     "{{{}}}",
                     result
                         .iter()
-                        .map(|(k, v)| format!("\"{}\": {}", k, v))
+                        .map(|(k, v)| format!("\"{k}\": {v}"))
                         .collect::<Vec<_>>()
                         .join(", ")
                 );
@@ -744,10 +744,8 @@ impl SqliteExt {
             Ok((affected_rows, last_insert_rowid))
         }) {
             Ok((changes, last_insert_rowid)) => {
-                let result_json = format!(
-                    r#"{{"changes": {}, "lastInsertRowid": {}}}"#,
-                    changes, last_insert_rowid
-                );
+                let result_json =
+                    format!(r#"{{"changes": {changes}, "lastInsertRowid": {last_insert_rowid}}}"#);
                 Ok(Value::from_string(agent, result_json, gc.nogc()).unbind())
             }
             Err(_) => {
@@ -888,7 +886,7 @@ impl SqliteExt {
                             "{{{}}}",
                             row_map
                                 .iter()
-                                .map(|(k, v)| format!("\"{}\": {}", k, v))
+                                .map(|(k, v)| format!("\"{k}\": {v}"))
                                 .collect::<Vec<_>>()
                                 .join(", ")
                         );

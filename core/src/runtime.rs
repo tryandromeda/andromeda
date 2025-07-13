@@ -111,7 +111,7 @@ impl RuntimeFile {
                     return Err(AndromedaError::fs_error(
                         std::io::Error::new(
                             std::io::ErrorKind::NotFound,
-                            format!("File not found: {}", path),
+                            format!("File not found: {path}"),
                         ),
                         "validate",
                         path,
@@ -121,7 +121,7 @@ impl RuntimeFile {
                     return Err(AndromedaError::fs_error(
                         std::io::Error::new(
                             std::io::ErrorKind::InvalidInput,
-                            format!("Path is not a file: {}", path),
+                            format!("Path is not a file: {path}"),
                         ),
                         "validate",
                         path,

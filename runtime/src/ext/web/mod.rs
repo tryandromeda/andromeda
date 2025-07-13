@@ -81,8 +81,7 @@ impl WebExt {
                 // TODO: Returning an InvalidCharacterError is the correct behavior.
                 // ref: https://html.spec.whatwg.org/multipage/webappapis.html#atob
                 return Err(agent.throw_exception(ExceptionType::Error, format!(
-                    "InvalidCharacterError: The string to be encoded contains characters outside of the Latin1 range. Found: '{}'",
-                    c
+                    "InvalidCharacterError: The string to be encoded contains characters outside of the Latin1 range. Found: '{c}'"
                 ), gc).unbind());
             }
         }
@@ -110,8 +109,7 @@ impl WebExt {
                 // TODO: Returning an InvalidCharacterError is the correct behavior.
                 // ref: https://html.spec.whatwg.org/multipage/webappapis.html#atob
                 return Err(agent.throw_exception(ExceptionType::Error, format!(
-                    "InvalidCharacterError: The string to be encoded contains characters outside of the Latin1 range. Found: '{}'",
-                    c
+                    "InvalidCharacterError: The string to be encoded contains characters outside of the Latin1 range. Found: '{c}'"
                 ), gc).unbind());
             }
         }
@@ -331,7 +329,7 @@ impl WebExt {
                     return Err(agent
                         .throw_exception(
                             ExceptionType::RangeError,
-                            format!("The encoding '{}' is not supported", encoding),
+                            format!("The encoding '{encoding}' is not supported"),
                             gc_no,
                         )
                         .unbind());
@@ -411,7 +409,7 @@ impl WebExt {
             .collect::<Vec<_>>()
             .join(",");
 
-        let result = format!("{}:{}:{}", result_bytes_str, chars_read, bytes_processed);
+        let result = format!("{result_bytes_str}:{chars_read}:{bytes_processed}");
 
         Ok(Value::from_string(agent, result, gc_no).unbind())
     }

@@ -103,15 +103,12 @@ impl ProcessExt {
             Err(env::VarError::NotUnicode(_)) => {
                 let error = AndromedaError::encoding_error(
                     "UTF-8",
-                    format!(
-                        "Environment variable '{}' contains invalid Unicode",
-                        key_str
-                    ),
+                    format!("Environment variable '{key_str}' contains invalid Unicode"),
                 );
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(nova_vm::ecmascript::types::String::from_string(
                     agent,
-                    format!("Error: {}", error_msg),
+                    format!("Error: {error_msg}"),
                     gc.nogc(),
                 )
                 .unbind()
@@ -190,7 +187,7 @@ impl ProcessExt {
             let error = AndromedaError::runtime_error("Callback must be a function");
             let error_msg = ErrorReporter::format_error(&error);
             return Ok(
-                Value::from_string(agent, format!("Error: {}", error_msg), gc.nogc()).unbind(),
+                Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
             );
         }
 
@@ -215,14 +212,13 @@ impl ProcessExt {
                 #[cfg(windows)]
                 {
                     let error_msg = format!(
-                        "Signal '{}' is not supported on Windows. Only SIGINT and SIGBREAK are supported.",
-                        signal_name_str
+                        "Signal '{signal_name_str}' is not supported on Windows. Only SIGINT and SIGBREAK are supported."
                     );
                     let error = AndromedaError::runtime_error(error_msg);
                     let error_formatted = ErrorReporter::format_error(&error);
                     return Ok(Value::from_string(
                         agent,
-                        format!("Error: {}", error_formatted),
+                        format!("Error: {error_formatted}"),
                         gc.nogc(),
                     )
                     .unbind());
@@ -323,7 +319,7 @@ impl ProcessExt {
             }
             #[cfg(windows)]
             {
-                eprintln!("Signal handler registered for signal {}", signal_num);
+                eprintln!("Signal handler registered for signal {signal_num}");
             }
         });
     }

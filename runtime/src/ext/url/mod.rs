@@ -49,14 +49,14 @@ impl URLExt {
         {
             Ok(url) => url,
             Err(e) => {
-                return Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind());
+                return Ok(Value::from_string(agent, format!("Error: {e}"), gc.nogc()).unbind());
             }
         };
 
         let url = match base_url.join(url.as_str(agent).expect("String is not valid UTF-8")) {
             Ok(url) => url,
             Err(e) => {
-                return Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind());
+                return Ok(Value::from_string(agent, format!("Error: {e}"), gc.nogc()).unbind());
             }
         };
 
@@ -74,7 +74,7 @@ impl URLExt {
         let url = match Url::parse(url.as_str(agent).expect("String is not valid UTF-8")) {
             Ok(url) => url,
             Err(e) => {
-                return Ok(Value::from_string(agent, format!("Error: {}", e), gc.nogc()).unbind());
+                return Ok(Value::from_string(agent, format!("Error: {e}"), gc.nogc()).unbind());
             }
         };
 

@@ -102,7 +102,7 @@ impl SubtleCrypto {
                 "SHA-256" => Ok(CryptoAlgorithm::Sha256),
                 "SHA-384" => Ok(CryptoAlgorithm::Sha384),
                 "SHA-512" => Ok(CryptoAlgorithm::Sha512),
-                _ => Err(format!("Unsupported algorithm: {}", algorithm_name)),
+                _ => Err(format!("Unsupported algorithm: {algorithm_name}")),
             }
         } else {
             // TODO: Handle algorithm objects (e.g., { name: "SHA-256" })
@@ -165,7 +165,7 @@ impl SubtleCrypto {
         let result_bytes = digest_result.as_ref();
         let hex_string = result_bytes.iter().fold(String::new(), |mut acc, b| {
             use std::fmt::Write;
-            write!(&mut acc, "{:02x}", b).unwrap();
+            write!(&mut acc, "{b:02x}").unwrap();
             acc
         });
 
@@ -221,13 +221,12 @@ impl SubtleCrypto {
                 // Return a simple representation of the key
                 let hex_key = key_bytes.iter().fold(String::new(), |mut acc, b| {
                     use std::fmt::Write;
-                    write!(&mut acc, "{:02x}", b).unwrap();
+                    write!(&mut acc, "{b:02x}").unwrap();
                     acc
                 });
 
                 let key_info = format!(
-                    "{{\"type\":\"secret\",\"algorithm\":\"{}\",\"extractable\":true,\"keyData\":\"{}\"}}",
-                    algorithm_name, hex_key
+                    "{{\"type\":\"secret\",\"algorithm\":\"{algorithm_name}\",\"extractable\":true,\"keyData\":\"{hex_key}\"}}"
                 );
 
                 Ok(
@@ -252,13 +251,12 @@ impl SubtleCrypto {
 
                 let hex_key = key_bytes.iter().fold(String::new(), |mut acc, b| {
                     use std::fmt::Write;
-                    write!(&mut acc, "{:02x}", b).unwrap();
+                    write!(&mut acc, "{b:02x}").unwrap();
                     acc
                 });
 
                 let key_info = format!(
-                    "{{\"type\":\"secret\",\"algorithm\":\"HMAC\",\"extractable\":true,\"keyData\":\"{}\"}}",
-                    hex_key
+                    "{{\"type\":\"secret\",\"algorithm\":\"HMAC\",\"extractable\":true,\"keyData\":\"{hex_key}\"}}"
                 );
 
                 Ok(
