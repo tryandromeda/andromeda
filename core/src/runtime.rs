@@ -89,9 +89,8 @@ impl RuntimeFile {
             RuntimeFile::Embedded { path: _, content } => {
                 Ok(String::from_utf8_lossy(content).into_owned())
             }
-            RuntimeFile::Local { path } => {
-                std::fs::read_to_string(path).map_err(|e| AndromedaError::fs_error(e, "read", path))
-            }
+            RuntimeFile::Local { path } => std::fs::read_to_string(path)
+                .map_err(|e| Box::new(AndromedaError::fs_error(e, "read", path))),
         }
     }
 
@@ -108,24 +107,24 @@ impl RuntimeFile {
             RuntimeFile::Local { path } => {
                 let path_obj = std::path::Path::new(path);
                 if !path_obj.exists() {
-                    return Err(AndromedaError::fs_error(
+                    return Err(Box::new(AndromedaError::fs_error(
                         std::io::Error::new(
                             std::io::ErrorKind::NotFound,
                             format!("File not found: {path}"),
                         ),
                         "validate",
                         path,
-                    ));
+                    )));
                 }
                 if !path_obj.is_file() {
-                    return Err(AndromedaError::fs_error(
+                    return Err(Box::new(AndromedaError::fs_error(
                         std::io::Error::new(
                             std::io::ErrorKind::InvalidInput,
                             format!("Path is not a file: {path}"),
                         ),
                         "validate",
                         path,
-                    ));
+                    )));
                 }
                 std::fs::File::open(path)
                     .map_err(|e| AndromedaError::fs_error(e, "validate", path))?;
