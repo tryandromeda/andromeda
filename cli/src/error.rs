@@ -322,24 +322,3 @@ pub fn read_file_with_context(path: &std::path::Path) -> Result<String> {
         _ => AndromedaError::file_read_error(path.to_path_buf(), e),
     })
 }
-
-/// Extract meaningful error information from Nova VM errors
-pub fn extract_runtime_error_info(
-    error_string: &str,
-    _file_path: Option<String>,
-) -> (String, Option<u32>, Option<u32>) {
-    for part in error_string.split_whitespace() {
-        if let Some(colon_pos) = part.rfind(':') {
-            if let Some(second_colon) = part[..colon_pos].rfind(':') {
-                let line_str = &part[second_colon + 1..colon_pos];
-                let col_str = &part[colon_pos + 1..];
-
-                if let (Ok(line), Ok(col)) = (line_str.parse::<u32>(), col_str.parse::<u32>()) {
-                    return (error_string.to_string(), Some(line), Some(col));
-                }
-            }
-        }
-    }
-
-    (error_string.to_string(), None, None)
-}

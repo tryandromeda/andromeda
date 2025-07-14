@@ -2,10 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use miette::NamedSource;
 use oxc_diagnostics::OxcDiagnostic;
 
 use crate::{AndromedaError, ErrorReporter};
+
+/// Initialize enhanced error reporting system
+pub fn init_error_system() {
+    ErrorReporter::init();
+}
 
 /// Exit the program with enhanced parse errors using oxc-miette with beautiful colors.
 pub fn exit_with_parse_errors(errors: Vec<OxcDiagnostic>, source_path: &str, source: &str) -> ! {
@@ -28,27 +32,27 @@ pub fn exit_with_errors(errors: Vec<AndromedaError>) -> ! {
     std::process::exit(1);
 }
 
-/// Create a detailed parse error report without exiting, with syntax highlighting
+/// Create a detailed parse error report without exiting, with syntax highlighting and enhanced context
 pub fn create_parse_error_report(
     errors: Vec<OxcDiagnostic>,
     source_path: &str,
     source: &str,
 ) -> String {
-    let mut output = String::new();
-    output.push_str(&format!(" Parse Error in {source_path}:\n"));
-    output.push_str("────────────────────────────────────────────────\n");
-    let source_owned = source.to_string();
-    let source_path_owned = source_path.to_string();
+    let parse_error = AndromedaError::parse_error(errors, source_path, source);
+    ErrorReporter::create_detailed_report(&parse_error)
+}
 
-    let named_source = NamedSource::new(source_path_owned, source_owned);
+/// Create a comprehensive error report with full miette integration
+pub fn create_comprehensive_error_report(error: &AndromedaError) -> String {
+    ErrorReporter::create_detailed_report(error)
+}
 
-    for (index, error) in errors.iter().enumerate() {
-        if errors.len() > 1 {
-            output.push_str(&format!("\n Error {} of {}:\n", index + 1, errors.len()));
-        }
-        let report = error.clone().with_source_code(named_source.clone());
-        output.push_str(&format!("{report}\n"));
-    }
+/// Print an error with enhanced formatting and context
+pub fn print_enhanced_error(error: &AndromedaError) {
+    ErrorReporter::print_error(error);
+}
 
-    output
+/// Format an error as a string with full miette reporting
+pub fn format_enhanced_error(error: &AndromedaError) -> String {
+    ErrorReporter::format_error(error)
 }
