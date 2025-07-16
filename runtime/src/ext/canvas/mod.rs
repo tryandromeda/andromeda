@@ -334,7 +334,7 @@ impl CanvasExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let _path = binding.as_str(agent);
+        let _path = binding.as_str(agent).expect("String is not valid UTF-8");
         // For now, stub with zero dimensions
         let host_data = agent
             .get_host_data()
@@ -491,7 +491,10 @@ impl CanvasExt {
         let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
         let rid = Rid::from_index(rid_val);
         let path_str = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
-        let path_owned = path_str.as_str(agent).to_owned();
+        let path_owned = path_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_owned();
 
         let host_data = agent
             .get_host_data()
@@ -592,7 +595,10 @@ impl CanvasExt {
             fill_rid = style_val.to_uint32(agent, gc).unwrap();
         } else {
             let style_string = style_val.to_string(agent, gc.reborrow()).unbind().unwrap();
-            style_str = style_string.as_str(agent).to_string();
+            style_str = style_string
+                .as_str(agent)
+                .expect("String is not valid UTF-8")
+                .to_string();
         }
 
         let host_data = agent

@@ -17,7 +17,7 @@ mod run;
 mod styles;
 use run::run;
 mod error;
-use error::{AndromedaError, Result, init_error_reporting, print_error};
+use error::{Result, init_error_reporting, print_error};
 mod format;
 use format::format_file;
 mod helper;
@@ -108,8 +108,11 @@ enum Command {
 }
 
 fn main() {
-    // Initialize beautiful error reporting
+    // Initialize beautiful error reporting from CLI
     init_error_reporting();
+    // Also initialize the enhanced error reporting from core
+    andromeda_core::ErrorReporter::init();
+
     if let Err(error) = run_main() {
         print_error(error);
         std::process::exit(1);
@@ -137,7 +140,7 @@ fn run_main() -> Result<()> {
         .enable_time()
         .build()
         .map_err(|e| {
-            AndromedaError::config_error(
+            error::AndromedaError::config_error(
                 "Failed to initialize async runtime".to_string(),
                 None,
                 Some(Box::new(e)),
@@ -161,23 +164,24 @@ fn run_main() -> Result<()> {
             }
             Command::Compile { path, out } => {
                 compile(out.as_path(), path.as_path()).map_err(|e| {
-                    AndromedaError::compile_error(
-                        format!("Compilation failed: {}", e),
+                    error::AndromedaError::compile_error(
+                        format!("Compilation failed: {e}"),
                         path.clone(),
                         out.clone(),
                         Some(e),
                     )
                 })?;
 
-                println!("✅ Successfully created the output binary at {:?}", out);
+                println!("✅ Successfully created the output binary at {out:?}");
                 Ok(())
             }
             Command::Repl {
                 expose_internals,
                 print_internals,
                 disable_gc,
-            } => run_repl(expose_internals, print_internals, disable_gc)
-                .map_err(|e| AndromedaError::repl_error(format!("REPL failed: {}", e), Some(e))),
+            } => run_repl(expose_internals, print_internals, disable_gc).map_err(|e| {
+                error::AndromedaError::repl_error(format!("REPL failed: {e}"), Some(e))
+            }),
             Command::Fmt { paths } => {
                 let files_to_format = find_formattable_files(&paths)?;
 
@@ -201,8 +205,8 @@ fn run_main() -> Result<()> {
                 version,
                 dry_run,
             } => upgrade::run_upgrade(force, version, dry_run).map_err(|e| {
-                AndromedaError::runtime_error(
-                    format!("Upgrade failed: {}", e),
+                error::AndromedaError::runtime_error(
+                    format!("Upgrade failed: {e}"),
                     None,
                     None,
                     None,
@@ -213,7 +217,7 @@ fn run_main() -> Result<()> {
     });
     match rt.block_on(nova_thread) {
         Ok(result) => result,
-        Err(e) => Err(AndromedaError::config_error(
+        Err(e) => Err(error::AndromedaError::config_error(
             "Runtime execution failed".to_string(),
             None,
             Some(Box::new(e)),

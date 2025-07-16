@@ -668,7 +668,7 @@ pub fn run_repl(expose_internals: bool, print_internals: bool, disable_gc: bool)
                 std::process::exit(0);
             }
             Err(err) => {
-                println!("Error reading input: {}", err);
+                println!("Error reading input: {err}");
                 continue;
             }
         };
@@ -735,7 +735,7 @@ pub fn run_repl(expose_internals: bool, print_internals: bool, disable_gc: bool)
                         let result_style = Style::new().green();
                         let time_style = Style::new().dim();
                         let type_style = Style::new().dim().italic();
-                        let output = val.as_str(agent);
+                        let output = val.as_str(agent).expect("String is not valid UTF-8");
 
                         if !output.is_empty() && output != "undefined" {
                             let (formatted_value, value_type) = format_js_value(output);
@@ -743,7 +743,7 @@ pub fn run_repl(expose_internals: bool, print_internals: bool, disable_gc: bool)
                                 "{} {} {}",
                                 result_style.apply_to("←"),
                                 formatted_value,
-                                type_style.apply_to(format!("({})", value_type))
+                                type_style.apply_to(format!("({value_type})"))
                             );
                         } else if output == "undefined" {
                             let (formatted_value, _) = format_js_value(output);
@@ -768,6 +768,7 @@ pub fn run_repl(expose_internals: bool, print_internals: bool, disable_gc: bool)
                     let error_message = error_value
                         .string_repr(agent, gc.reborrow())
                         .as_str(agent)
+                        .expect("String is not valid UTF-8")
                         .to_string();
                     handle_runtime_error_with_message(error_message);
                 }

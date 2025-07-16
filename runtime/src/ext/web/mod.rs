@@ -71,15 +71,17 @@ impl WebExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let input = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let rust_string = input.as_str(agent).to_string();
+        let rust_string = input
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
         let gc = gc.into_nogc();
         for c in rust_string.chars() {
             if c as u32 > 0xFF {
                 // TODO: Returning an InvalidCharacterError is the correct behavior.
                 // ref: https://html.spec.whatwg.org/multipage/webappapis.html#atob
                 return Err(agent.throw_exception(ExceptionType::Error, format!(
-                    "InvalidCharacterError: The string to be encoded contains characters outside of the Latin1 range. Found: '{}'",
-                    c
+                    "InvalidCharacterError: The string to be encoded contains characters outside of the Latin1 range. Found: '{c}'"
                 ), gc).unbind());
             }
         }
@@ -97,15 +99,17 @@ impl WebExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let input = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let rust_string = input.as_str(agent).to_string();
+        let rust_string = input
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
         let gc = gc.into_nogc();
         for c in rust_string.chars() {
             if c as u32 > 0xFF {
                 // TODO: Returning an InvalidCharacterError is the correct behavior.
                 // ref: https://html.spec.whatwg.org/multipage/webappapis.html#atob
                 return Err(agent.throw_exception(ExceptionType::Error, format!(
-                    "InvalidCharacterError: The string to be encoded contains characters outside of the Latin1 range. Found: '{}'",
-                    c
+                    "InvalidCharacterError: The string to be encoded contains characters outside of the Latin1 range. Found: '{c}'"
                 ), gc).unbind());
             }
         }
@@ -156,7 +160,10 @@ impl WebExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let input = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let rust_string = input.as_str(agent).to_string();
+        let rust_string = input
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
         let gc = gc.into_nogc();
 
         // TextEncoder always uses UTF-8 encoding
@@ -188,12 +195,18 @@ impl WebExt {
             "utf-8".to_string()
         } else {
             let enc_str = encoding_arg.to_string(agent, gc.reborrow()).unbind()?;
-            enc_str.as_str(agent).to_string()
+            enc_str
+                .as_str(agent)
+                .expect("String is not valid UTF-8")
+                .to_string()
         };
 
         // Parse bytes from comma-separated string format
         let bytes_str = bytes_arg.to_string(agent, gc.reborrow()).unbind()?;
-        let bytes_string = bytes_str.as_str(agent).to_string();
+        let bytes_string = bytes_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
 
         let gc_no = gc.into_nogc();
 
@@ -316,7 +329,7 @@ impl WebExt {
                     return Err(agent
                         .throw_exception(
                             ExceptionType::RangeError,
-                            format!("The encoding '{}' is not supported", encoding),
+                            format!("The encoding '{encoding}' is not supported"),
                             gc_no,
                         )
                         .unbind());
@@ -341,10 +354,16 @@ impl WebExt {
         let dest_len_arg = args.get(2);
 
         let source_str = source_arg.to_string(agent, gc.reborrow()).unbind()?;
-        let source_string = source_str.as_str(agent).to_string();
+        let source_string = source_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
 
         let dest_str = dest_arg.to_string(agent, gc.reborrow()).unbind()?;
-        let dest_string = dest_str.as_str(agent).to_string();
+        let dest_string = dest_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
 
         let dest_len_number = dest_len_arg.to_number(agent, gc.reborrow()).unbind()?;
         let dest_len = dest_len_number.into_f64(agent) as usize;
@@ -390,7 +409,7 @@ impl WebExt {
             .collect::<Vec<_>>()
             .join(",");
 
-        let result = format!("{}:{}:{}", result_bytes_str, chars_read, bytes_processed);
+        let result = format!("{result_bytes_str}:{chars_read}:{bytes_processed}");
 
         Ok(Value::from_string(agent, result, gc_no).unbind())
     }
