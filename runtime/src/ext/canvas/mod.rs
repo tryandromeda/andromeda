@@ -440,7 +440,8 @@ impl CanvasExt {
         let res: &CanvasResources = storage.get().unwrap();
         let mut data = res.fill_styles.get_mut(rid).unwrap();
         if let FillStyle::LinearGradient(gradient) = data.deref_mut() {
-            let fill_style = FillStyle::from_css_color(color.as_str(agent)).unwrap();
+            let color_str = color.as_str(agent).expect("String is not valid UTF-8");
+            let fill_style = FillStyle::from_css_color(color_str).unwrap();
             if let FillStyle::Color { r, g, b, a } = fill_style {
                 gradient.color_stops.push(ColorStop {
                     color: [r, g, b, a],
