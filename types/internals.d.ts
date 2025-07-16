@@ -304,7 +304,7 @@ declare function internal_canvas_save_as_png(
  * The `internal_canvas_get_fill_style` function gets the current fill style of the canvas context.
  * Returns the fill style as a CSS color string.
  */
-declare function internal_canvas_get_fill_style(rid: number): string;
+declare function internal_canvas_get_fill_style(rid: number): string | number;
 
 /**
  * The `internal_canvas_set_fill_style` function sets the fill style of the canvas context.
@@ -312,7 +312,7 @@ declare function internal_canvas_get_fill_style(rid: number): string;
  */
 declare function internal_canvas_set_fill_style(
   rid: number,
-  style: string,
+  style: string | number,
 ): void;
 
 /**
@@ -457,6 +457,21 @@ declare function internal_canvas_get_stroke_style(rid: number): string;
  * Returns the line width as a number.
  */
 declare function internal_canvas_get_line_width(rid: number): number;
+
+/**
+ * The `internal_canvas_get_line_width` function creates a gradient along the line connecting two given coordinates.
+ */
+declare function internal_canvas_create_linear_gradient(
+  x0: number, 
+  y0: number, 
+  x1: number, 
+  y1: number
+): number;
+
+/**
+ * The `internal_canvas_gradient_add_color_stop` adds a new color stop to a given canvas gradient.
+ */
+declare function internal_canvas_gradient_add_color_stop(rid: number, offset: number, color: string)
 
 /**
  * The `internal_text_encode` function encodes a string into a byte sequence.
