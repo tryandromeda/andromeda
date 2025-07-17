@@ -16,6 +16,8 @@ struct Uniforms {
     gradient_end: vec2f,
     fill_style: u32,
     global_alpha: f32,
+    radius_start: f32,
+    radius_end: f32,
 };
 
 struct VertexOutput {
@@ -43,8 +45,17 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     } else {
         var pos_vec = in.position.xy - uniforms.gradient_start;
         var grad_vec = uniforms.gradient_end - uniforms.gradient_start;
-	  	var ratio = dot(pos_vec, grad_vec) / pow(length(grad_vec), 2);
 	  	var color = gradient[0].color;
+        var ratio = 0f;
+        if(uniforms.fill_style == 1) {
+            ratio = dot(pos_vec, grad_vec) / pow(length(grad_vec), 2);
+        } else {
+            var b = -2 * dot(pos_vec, grad_vec) / length(pos_vec);
+            var c = pow(length(grad_vec), 2) - pow(uniforms.radius_end, 2);
+            var total_length = (-b + sqrt(b * b - 4 * c)) / 2;
+            ratio = (length(pos_vec) - uniforms.radius_start) 
+                / (total_length - uniforms.radius_start);
+        }
 	  	for(var i = 0u; i < arrayLength(&gradient) - 1; i++) {
 		  color = mix(
 			color, 
@@ -93,6 +104,8 @@ pub struct Uniforms {
     pub gradient_end: Coordinate,
     pub fill_style: u32,
     pub global_alpha: f32,
+    pub radius_start: f32,
+    pub radius_end: f32,
 }
 
 pub trait EncodeGPU {
@@ -156,6 +169,8 @@ impl EncodeGPU for Uniforms {
             self.gradient_end.encode_gpu(),
             self.fill_style.to_ne_bytes().to_vec(),
             self.global_alpha.to_ne_bytes().to_vec(),
+            self.radius_start.to_ne_bytes().to_vec(),
+            self.radius_end.to_ne_bytes().to_vec(),
         ]
         .concat()
     }

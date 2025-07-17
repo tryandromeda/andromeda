@@ -12,7 +12,7 @@ pub enum FillStyle {
     /// Linear gradient (placeholder for future implementation)
     LinearGradient(LinearGradient),
     /// Radial gradient (placeholder for future implementation)
-    RadialGradient,
+    RadialGradient(RadialGradient),
     /// Pattern (placeholder for future implementation)
     Pattern,
 }
@@ -21,6 +21,16 @@ pub enum FillStyle {
 pub struct LinearGradient {
     pub start: Coordinate,
     pub end: Coordinate,
+    pub color_stops: Vec<ColorStop>,
+    pub rid: u32,
+}
+
+#[derive(Clone, Debug)]
+pub struct RadialGradient {
+    pub start: Coordinate,
+    pub end: Coordinate,
+    pub start_radius: f32,
+    pub end_radius: f32,
     pub color_stops: Vec<ColorStop>,
     pub rid: u32,
 }

@@ -311,21 +311,35 @@ impl Renderer {
                     gradient_end: (0.0, 0.0),
                     fill_style: 0,
                     global_alpha: render_state.global_alpha,
+                    radius_start: 0.0,
+                    radius_end: 0.0,
                 },
                 gradient: vec![],
             },
-            FillStyle::LinearGradient(gradient) => {
-                FillData {
-                    uniforms: Uniforms {
-                        color: [0.0, 0.0, 0.0, 0.0],
-                        gradient_start: gradient.start,
-                        gradient_end: gradient.end,
-                        fill_style: 1,
-                        global_alpha: render_state.global_alpha,
-                    },
-                    gradient: gradient.color_stops.clone(),
-                }
-            }
+            FillStyle::LinearGradient(gradient) => FillData {
+                uniforms: Uniforms {
+                    color: [0.0, 0.0, 0.0, 0.0],
+                    gradient_start: gradient.start,
+                    gradient_end: gradient.end,
+                    fill_style: 1,
+                    global_alpha: render_state.global_alpha,
+                    radius_start: 0.0,
+                    radius_end: 0.0,
+                },
+                gradient: gradient.color_stops.clone(),
+            },
+            FillStyle::RadialGradient(gradient) => FillData {
+                uniforms: Uniforms {
+                    color: [0.0, 0.0, 0.0, 0.0],
+                    gradient_start: gradient.start,
+                    gradient_end: gradient.end,
+                    fill_style: 2,
+                    global_alpha: render_state.global_alpha,
+                    radius_start: gradient.start_radius,
+                    radius_end: gradient.end_radius,
+                },
+                gradient: gradient.color_stops.clone(),
+            },
             _ => unimplemented!(),
         }
     }

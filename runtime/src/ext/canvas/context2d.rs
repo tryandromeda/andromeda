@@ -1319,7 +1319,7 @@ pub fn process_all_commands<'gc>(
                         current_path.clone(),
                         &RenderState {
                             fill_style: fill_style.clone(),
-                            global_alpha: global_alpha,
+                            global_alpha,
                         },
                     );
                 }
@@ -1330,7 +1330,7 @@ pub fn process_all_commands<'gc>(
                         current_path.clone(),
                         &RenderState {
                             fill_style: stroke_style.clone(),
-                            global_alpha: global_alpha,
+                            global_alpha,
                         },
                         line_width,
                     );
@@ -1358,7 +1358,7 @@ pub fn process_all_commands<'gc>(
                     rect,
                     &RenderState {
                         fill_style: fill_style.clone(),
-                        global_alpha: global_alpha,
+                        global_alpha,
                     },
                 );
             }
@@ -1394,7 +1394,7 @@ pub fn process_all_commands<'gc>(
                     rect_path,
                     &RenderState {
                         fill_style: stroke_style.clone(),
-                        global_alpha: global_alpha,
+                        global_alpha,
                     },
                     line_width,
                 );

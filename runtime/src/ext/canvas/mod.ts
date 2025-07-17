@@ -188,6 +188,14 @@ class CanvasRenderingContext2D {
   }
 
   /**
+   * Creates a radial gradient using the size and coordinates of two circles.
+   */
+  createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): CanvasGradient {
+    const rid = internal_canvas_create_radial_gradient(x0, y0, r0, x1, y1, r1);
+    return new CanvasGradient(rid);
+  }
+
+  /**
    * Closes the current path on the canvas.
    */
   closePath(): void {

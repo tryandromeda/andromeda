@@ -1,4 +1,4 @@
-const canvas = new OffscreenCanvas(500, 500);
+const canvas = new OffscreenCanvas(400, 400);
 const ctx = canvas.getContext("2d");
 
 if (!ctx) {
@@ -6,12 +6,26 @@ if (!ctx) {
   throw new Error("Canvas context not available");
 }
 
-const gradient = ctx.createLinearGradient(0, 0, 500, 500)
-gradient.addColorStop(0, "red")
-gradient.addColorStop(1, "blue")
+const linearGradient = ctx.createLinearGradient(0, 0, 200, 200)
+linearGradient.addColorStop(0, "red")
+linearGradient.addColorStop(1, "blue")
 
-ctx.fillStyle = gradient
-ctx.fillRect(0, 0, 500, 500)
+ctx.fillStyle = linearGradient
+ctx.fillRect(0, 0, 200, 200)
+
+const radialGradiant1 = ctx.createRadialGradient(250, 100, 50, 300, 100, 100)
+radialGradiant1.addColorStop(0, "red")
+radialGradiant1.addColorStop(1, "blue")
+
+ctx.fillStyle = radialGradiant1
+ctx.fillRect(200, 0, 200, 200)
+
+const radialGradiant2 = ctx.createRadialGradient(100, 300, 50, 100, 300, 100)
+radialGradiant2.addColorStop(0, "red")
+radialGradiant2.addColorStop(1, "blue")
+
+ctx.fillStyle = radialGradiant2
+ctx.fillRect(0, 200, 200, 200)
 
 const saved = canvas.saveAsPng("test.demo.png");
 console.log(`Canvas save result: ${saved}`);

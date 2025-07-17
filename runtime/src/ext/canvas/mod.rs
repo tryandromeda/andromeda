@@ -14,7 +14,7 @@ use std::thread;
 use crate::ext::canvas::context2d::{
     internal_canvas_begin_path, internal_canvas_bezier_curve_to, internal_canvas_close_path,
 };
-use crate::ext::canvas::fill_style::LinearGradient;
+use crate::ext::canvas::fill_style::{LinearGradient, RadialGradient};
 use crate::ext::canvas::renderer::ColorStop;
 pub use fill_style::FillStyle;
 
@@ -179,6 +179,11 @@ impl CanvasExt {
                     "internal_canvas_create_linear_gradient",
                     Self::internal_canvas_create_linear_gradient,
                     4,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_create_radial_gradient",
+                    Self::internal_canvas_create_radial_gradient,
+                    6,
                 ),
                 ExtensionOp::new(
                     "internal_canvas_gradient_add_color_stop",
@@ -420,6 +425,43 @@ impl CanvasExt {
         Ok(Value::Integer(SmallInteger::from(rid.index() as i32)))
     }
 
+    fn internal_canvas_create_radial_gradient<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let x0 = args.get(0).to_number(agent, gc.reborrow()).unbind();
+        let y0 = args.get(1).to_number(agent, gc.reborrow()).unbind();
+        let r0 = args.get(2).to_number(agent, gc.reborrow()).unbind();
+        let x1 = args.get(3).to_number(agent, gc.reborrow()).unbind();
+        let y1 = args.get(4).to_number(agent, gc.reborrow()).unbind();
+        let r1 = args.get(5).to_number(agent, gc.reborrow()).unbind();
+
+        // For now, stub with zero dimensions
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+        let rid = res
+            .fill_styles
+            .push(FillStyle::RadialGradient(RadialGradient {
+                start: (x0.unwrap().into_f32(agent), y0.unwrap().into_f32(agent)),
+                end: (x1.unwrap().into_f32(agent), y1.unwrap().into_f32(agent)),
+                start_radius: r0.unwrap().into_f32(agent),
+                end_radius: r1.unwrap().into_f32(agent),
+                color_stops: vec![],
+                rid: 0,
+            }));
+        let mut fill_style = res.fill_styles.get_mut(rid).unwrap();
+        if let FillStyle::RadialGradient(gradient) = fill_style.deref_mut() {
+            gradient.rid = rid.index();
+        }
+        Ok(Value::Integer(SmallInteger::from(rid.index() as i32)))
+    }
+
     fn internal_canvas_gradient_add_color_stop<'gc>(
         agent: &mut Agent,
         _this: Value<'_>,
@@ -439,15 +481,18 @@ impl CanvasExt {
         let storage = host_data.storage.borrow();
         let res: &CanvasResources = storage.get().unwrap();
         let mut data = res.fill_styles.get_mut(rid).unwrap();
-        if let FillStyle::LinearGradient(gradient) = data.deref_mut() {
-            let color_str = color.as_str(agent).expect("String is not valid UTF-8");
-            let fill_style = FillStyle::from_css_color(color_str).unwrap();
-            if let FillStyle::Color { r, g, b, a } = fill_style {
-                gradient.color_stops.push(ColorStop {
-                    color: [r, g, b, a],
-                    offset,
-                })
-            }
+        let color_stops = match data.deref_mut() {
+            FillStyle::LinearGradient(gradient) => &mut gradient.color_stops,
+            FillStyle::RadialGradient(gradient) => &mut gradient.color_stops,
+            _ => unreachable!(),
+        };
+        let color_str = color.as_str(agent).expect("String is not valid UTF-8");
+        let fill_style = FillStyle::from_css_color(color_str).unwrap();
+        if let FillStyle::Color { r, g, b, a } = fill_style {
+            color_stops.push(ColorStop {
+                color: [r, g, b, a],
+                offset,
+            })
         }
         Ok(Value::Undefined)
     }
@@ -574,6 +619,9 @@ impl CanvasExt {
                 Ok(Value::from_string(agent, css_string, gc.nogc()).unbind())
             }
             FillStyle::LinearGradient(gradient) => {
+                Ok(Value::from_i64(agent, gradient.rid as i64, gc.nogc()).unbind())
+            }
+            FillStyle::RadialGradient(gradient) => {
                 Ok(Value::from_i64(agent, gradient.rid as i64, gc.nogc()).unbind())
             }
             _ => unimplemented!(),
