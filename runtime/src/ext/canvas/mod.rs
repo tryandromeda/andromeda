@@ -14,7 +14,7 @@ use std::thread;
 use crate::ext::canvas::context2d::{
     internal_canvas_begin_path, internal_canvas_bezier_curve_to, internal_canvas_close_path,
 };
-use crate::ext::canvas::fill_style::{LinearGradient, RadialGradient};
+use crate::ext::canvas::fill_style::{ConicGradient, LinearGradient, RadialGradient};
 use crate::ext::canvas::renderer::ColorStop;
 pub use fill_style::FillStyle;
 
@@ -184,6 +184,11 @@ impl CanvasExt {
                     "internal_canvas_create_radial_gradient",
                     Self::internal_canvas_create_radial_gradient,
                     6,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_create_conic_gradient",
+                    Self::internal_canvas_create_conic_gradient,
+                    3,
                 ),
                 ExtensionOp::new(
                     "internal_canvas_gradient_add_color_stop",
@@ -462,6 +467,38 @@ impl CanvasExt {
         Ok(Value::Integer(SmallInteger::from(rid.index() as i32)))
     }
 
+    fn internal_canvas_create_conic_gradient<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let start_angle = args.get(0).to_number(agent, gc.reborrow()).unbind();
+        let x = args.get(1).to_number(agent, gc.reborrow()).unbind();
+        let y = args.get(2).to_number(agent, gc.reborrow()).unbind();
+
+        // For now, stub with zero dimensions
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+        let rid = res
+            .fill_styles
+            .push(FillStyle::ConicGradient(ConicGradient {
+                center: (x.unwrap().into_f32(agent), y.unwrap().into_f32(agent)),
+                start_angle: start_angle.unwrap().into_f32(agent),
+                color_stops: vec![],
+                rid: 0,
+            }));
+        let mut fill_style = res.fill_styles.get_mut(rid).unwrap();
+        if let FillStyle::ConicGradient(gradient) = fill_style.deref_mut() {
+            gradient.rid = rid.index();
+        }
+        Ok(Value::Integer(SmallInteger::from(rid.index() as i32)))
+    }
+
     fn internal_canvas_gradient_add_color_stop<'gc>(
         agent: &mut Agent,
         _this: Value<'_>,
@@ -484,6 +521,7 @@ impl CanvasExt {
         let color_stops = match data.deref_mut() {
             FillStyle::LinearGradient(gradient) => &mut gradient.color_stops,
             FillStyle::RadialGradient(gradient) => &mut gradient.color_stops,
+            FillStyle::ConicGradient(gradient) => &mut gradient.color_stops,
             _ => unreachable!(),
         };
         let color_str = color.as_str(agent).expect("String is not valid UTF-8");
@@ -622,6 +660,9 @@ impl CanvasExt {
                 Ok(Value::from_i64(agent, gradient.rid as i64, gc.nogc()).unbind())
             }
             FillStyle::RadialGradient(gradient) => {
+                Ok(Value::from_i64(agent, gradient.rid as i64, gc.nogc()).unbind())
+            }
+            FillStyle::ConicGradient(gradient) => {
                 Ok(Value::from_i64(agent, gradient.rid as i64, gc.nogc()).unbind())
             }
             _ => unimplemented!(),

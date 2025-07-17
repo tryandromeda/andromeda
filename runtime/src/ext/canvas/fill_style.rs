@@ -8,11 +8,15 @@ use crate::ext::canvas::renderer::{ColorStop, Coordinate};
 #[derive(Clone, Debug)]
 pub enum FillStyle {
     /// Solid color specified as RGBA values (0.0-1.0)
-    Color { r: f32, g: f32, b: f32, a: f32 },
-    /// Linear gradient (placeholder for future implementation)
+    Color {
+        r: f32,
+        g: f32,
+        b: f32,
+        a: f32,
+    },
     LinearGradient(LinearGradient),
-    /// Radial gradient (placeholder for future implementation)
     RadialGradient(RadialGradient),
+    ConicGradient(ConicGradient),
     /// Pattern (placeholder for future implementation)
     Pattern,
 }
@@ -31,6 +35,14 @@ pub struct RadialGradient {
     pub end: Coordinate,
     pub start_radius: f32,
     pub end_radius: f32,
+    pub color_stops: Vec<ColorStop>,
+    pub rid: u32,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConicGradient {
+    pub center: Coordinate,
+    pub start_angle: f32,
     pub color_stops: Vec<ColorStop>,
     pub rid: u32,
 }

@@ -43,18 +43,28 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         color.w *= uniforms.global_alpha;
         return color;
     } else {
-        var pos_vec = in.position.xy - uniforms.gradient_start;
-        var grad_vec = uniforms.gradient_end - uniforms.gradient_start;
 	  	var color = gradient[0].color;
         var ratio = 0f;
         if(uniforms.fill_style == 1) {
+            var pos_vec = in.position.xy - uniforms.gradient_start;
+            var grad_vec = uniforms.gradient_end - uniforms.gradient_start;
             ratio = dot(pos_vec, grad_vec) / pow(length(grad_vec), 2);
-        } else {
+        } else if(uniforms.fill_style == 2) {
+            var pos_vec = in.position.xy - uniforms.gradient_start;
+            var grad_vec = uniforms.gradient_end - uniforms.gradient_start;
             var b = -2 * dot(pos_vec, grad_vec) / length(pos_vec);
             var c = pow(length(grad_vec), 2) - pow(uniforms.radius_end, 2);
             var total_length = (-b + sqrt(b * b - 4 * c)) / 2;
             ratio = (length(pos_vec) - uniforms.radius_start) 
                 / (total_length - uniforms.radius_start);
+        } else {
+            var pos_vec = in.position.xy - uniforms.gradient_start;
+            var start_angle = uniforms.radius_start - radians(90);
+            var start_vec = vec2f(cos(start_angle), sin(start_angle));
+            ratio = atan2(
+                dot(pos_vec, start_vec), 
+                determinant(mat2x2f(pos_vec, start_vec))
+            ) / radians(360) + 0.5;
         }
 	  	for(var i = 0u; i < arrayLength(&gradient) - 1; i++) {
 		  color = mix(

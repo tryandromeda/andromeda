@@ -195,6 +195,14 @@ class CanvasRenderingContext2D {
     return new CanvasGradient(rid);
   }
 
+  /** 
+   * Creates a gradient around a point with given coordinates. 
+   */
+  createConicGradient(startAngle: number, x: number, y: number): CanvasGradient {
+    const rid = internal_canvas_create_conic_gradient(startAngle, x, y);
+    return new CanvasGradient(rid);
+  }
+
   /**
    * Closes the current path on the canvas.
    */

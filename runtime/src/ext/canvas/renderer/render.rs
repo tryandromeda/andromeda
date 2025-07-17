@@ -340,6 +340,18 @@ impl Renderer {
                 },
                 gradient: gradient.color_stops.clone(),
             },
+            FillStyle::ConicGradient(gradient) => FillData {
+                uniforms: Uniforms {
+                    color: [0.0, 0.0, 0.0, 0.0],
+                    gradient_start: gradient.center,
+                    gradient_end: (0.0, 0.0),
+                    fill_style: 3,
+                    global_alpha: render_state.global_alpha,
+                    radius_start: gradient.start_angle,
+                    radius_end: 0.0,
+                },
+                gradient: gradient.color_stops.clone(),
+            },
             _ => unimplemented!(),
         }
     }

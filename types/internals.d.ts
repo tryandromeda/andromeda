@@ -481,6 +481,11 @@ declare function internal_canvas_create_radial_gradient(
 ): number;
 
 /**
+ * The `internal_canvas_get_line_width` function creates a gradient around a point with given coordinates. 
+ */
+declare function internal_canvas_create_conic_gradient(startAngle: number, x: number, y: number): number;
+
+/**
  * The `internal_canvas_gradient_add_color_stop` adds a new color stop to a given canvas gradient.
  */
 declare function internal_canvas_gradient_add_color_stop(rid: number, offset: number, color: string)
