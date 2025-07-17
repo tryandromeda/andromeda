@@ -7,6 +7,7 @@ use super::FillStyle;
 use super::Rid;
 use super::renderer::{Point, Rect};
 use crate::RuntimeMacroTask;
+use crate::ext::canvas::renderer::RenderState;
 use andromeda_core::HostData;
 use nova_vm::ecmascript::types::Number;
 use nova_vm::{
@@ -445,8 +446,18 @@ pub fn internal_canvas_clear_rect<'gc>(
 
         // TODO: Implement proper clear operation in renderer
         // For now, render a transparent rectangle
-        let transparent_color = [0.0, 0.0, 0.0, 0.0]; // Transparent black
-        renderer.render_rect(clear_rect, transparent_color);
+        renderer.render_rect(
+            clear_rect,
+            &RenderState {
+                fill_style: FillStyle::Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 0.0,
+                },
+                global_alpha: 1.0,
+            },
+        );
     } else {
         // Fallback to command buffering if no renderer
         let mut data = res.canvases.get_mut(rid).unwrap();
@@ -541,13 +552,13 @@ pub fn internal_canvas_fill_rect<'gc>(
 
         // Get the current fill style color
         let data = res.canvases.get(rid).unwrap();
-        // Apply globalAlpha to fill color
-        let color = match &data.fill_style {
-            super::FillStyle::Color { r, g, b, a } => [*r, *g, *b, *a * data.global_alpha],
-            _ => [0.0, 0.0, 0.0, data.global_alpha], // Default black with alpha
-        };
-
-        res.renderers.get_mut(rid).unwrap().render_rect(rect, color);
+        res.renderers.get_mut(rid).unwrap().render_rect(
+            rect,
+            &RenderState {
+                fill_style: data.fill_style,
+                global_alpha: data.global_alpha,
+            },
+        );
     } else {
         // Fallback to command storage if no renderer
         let mut data = res.canvases.get_mut(rid).unwrap();
@@ -670,16 +681,16 @@ pub fn internal_canvas_fill<'gc>(
     if let Some(mut renderer) = res.renderers.get_mut(rid) {
         let data = res.canvases.get(rid).unwrap();
 
-        if data.current_path.len() >= 3 {
-            // Get the current fill style color
-            // Apply globalAlpha to fill color
-            let color = match &data.fill_style {
-                super::FillStyle::Color { r, g, b, a } => [*r, *g, *b, *a * data.global_alpha],
-                _ => [0.0, 0.0, 0.0, data.global_alpha], // Default black with alpha
-            };
+        // data;
 
-            // Render the polygon using the GPU renderer
-            renderer.render_polygon(data.current_path.clone(), color);
+        if data.current_path.len() >= 3 {
+            renderer.render_polygon(
+                data.current_path.clone(),
+                &RenderState {
+                    fill_style: data.fill_style,
+                    global_alpha: data.global_alpha,
+                },
+            );
         }
     } else {
         // Fallback to command storage if no renderer
@@ -712,18 +723,17 @@ pub fn internal_canvas_stroke<'gc>(
         let data = res.canvases.get(rid).unwrap();
 
         if data.current_path.len() >= 2 {
-            // Get the current stroke style color
-            // Apply globalAlpha to stroke color
-            let color = match &data.stroke_style {
-                super::FillStyle::Color { r, g, b, a } => [*r, *g, *b, *a * data.global_alpha],
-                _ => [0.0, 0.0, 0.0, data.global_alpha], // Default black with alpha
-            };
-
             // Convert path to stroke polygon using line width
             let stroke_path = generate_stroke_path(&data.current_path, data.line_width);
 
             // Render the stroke as a polygon using the GPU renderer
-            renderer.render_polygon(stroke_path, color);
+            renderer.render_polygon(
+                stroke_path,
+                &RenderState {
+                    fill_style: data.stroke_style,
+                    global_alpha: data.global_alpha,
+                },
+            );
         }
     } else {
         // Fallback to command storage if no renderer
@@ -1305,24 +1315,25 @@ pub fn process_all_commands<'gc>(
             }
             CanvasCommand::Fill => {
                 if !current_path.is_empty() {
-                    let color = match fill_style {
-                        crate::ext::canvas::FillStyle::Color { r, g, b, a } => {
-                            [*r, *g, *b, *a * global_alpha]
-                        }
-                        _ => [0.0, 0.0, 0.0, global_alpha], // Default to black
-                    };
-                    renderer.render_polygon(current_path.clone(), color);
+                    renderer.render_polygon(
+                        current_path.clone(),
+                        &RenderState {
+                            fill_style: fill_style.clone(),
+                            global_alpha,
+                        },
+                    );
                 }
             }
             CanvasCommand::Stroke => {
                 if !current_path.is_empty() {
-                    let color = match stroke_style {
-                        crate::ext::canvas::FillStyle::Color { r, g, b, a } => {
-                            [*r, *g, *b, *a * global_alpha]
-                        }
-                        _ => [0.0, 0.0, 0.0, global_alpha], // Default to black
-                    };
-                    renderer.render_polyline(current_path.clone(), color, line_width);
+                    renderer.render_polyline(
+                        current_path.clone(),
+                        &RenderState {
+                            fill_style: stroke_style.clone(),
+                            global_alpha,
+                        },
+                        line_width,
+                    );
                 }
             }
             CanvasCommand::FillRect {
@@ -1336,13 +1347,6 @@ pub fn process_all_commands<'gc>(
                 let width_f64 = width.into_f64(agent);
                 let height_f64 = height.into_f64(agent);
 
-                let color = match fill_style {
-                    crate::ext::canvas::FillStyle::Color { r, g, b, a } => {
-                        [*r, *g, *b, *a * global_alpha]
-                    }
-                    _ => [0.0, 0.0, 0.0, global_alpha], // Default to black
-                };
-
                 let rect = crate::ext::canvas::renderer::Rect {
                     start: crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 },
                     end: crate::ext::canvas::renderer::Point {
@@ -1350,7 +1354,13 @@ pub fn process_all_commands<'gc>(
                         y: y_f64 + height_f64,
                     },
                 };
-                renderer.render_rect(rect, color);
+                renderer.render_rect(
+                    rect,
+                    &RenderState {
+                        fill_style: fill_style.clone(),
+                        global_alpha,
+                    },
+                );
             }
             CanvasCommand::StrokeRect {
                 x,
@@ -1362,13 +1372,6 @@ pub fn process_all_commands<'gc>(
                 let y_f64 = y.into_f64(agent);
                 let width_f64 = width.into_f64(agent);
                 let height_f64 = height.into_f64(agent);
-
-                let color = match stroke_style {
-                    crate::ext::canvas::FillStyle::Color { r, g, b, a } => {
-                        [*r, *g, *b, *a * global_alpha]
-                    }
-                    _ => [0.0, 0.0, 0.0, global_alpha], // Default to black
-                };
 
                 // Create rectangle outline as polyline
                 let rect_path = vec![
@@ -1387,7 +1390,14 @@ pub fn process_all_commands<'gc>(
                     },
                     crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 }, // Close the rectangle
                 ];
-                renderer.render_polyline(rect_path, color, line_width);
+                renderer.render_polyline(
+                    rect_path,
+                    &RenderState {
+                        fill_style: stroke_style.clone(),
+                        global_alpha,
+                    },
+                    line_width,
+                );
             }
             CanvasCommand::ClearRect {
                 x,
@@ -1408,7 +1418,18 @@ pub fn process_all_commands<'gc>(
                         y: y_f64 + height_f64,
                     },
                 };
-                renderer.render_rect(rect, [1.0, 1.0, 1.0, 1.0]); // White background
+                renderer.render_rect(
+                    rect,
+                    &RenderState {
+                        fill_style: FillStyle::Color {
+                            r: 1.0,
+                            g: 1.0,
+                            b: 1.0,
+                            a: 1.0,
+                        },
+                        global_alpha: 1.0,
+                    },
+                ); // White background
             }
             // Handle other commands that don't directly affect rendering
             CanvasCommand::Arc { .. }

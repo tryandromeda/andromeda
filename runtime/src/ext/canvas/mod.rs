@@ -7,12 +7,15 @@ mod fill_style;
 mod renderer;
 mod state;
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable, Rid};
+use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
 use crate::ext::canvas::context2d::{
     internal_canvas_begin_path, internal_canvas_bezier_curve_to, internal_canvas_close_path,
 };
+use crate::ext::canvas::fill_style::{ConicGradient, LinearGradient, RadialGradient};
+use crate::ext::canvas::renderer::ColorStop;
 pub use fill_style::FillStyle;
 
 use crate::ext::canvas::context2d::{
@@ -54,6 +57,7 @@ struct CanvasResources<'gc> {
     canvases: ResourceTable<CanvasData<'gc>>,
     images: ResourceTable<ImageData>,
     renderers: ResourceTable<renderer::Renderer>,
+    fill_styles: ResourceTable<FillStyle>,
 }
 
 /// Stored image dimensions
@@ -171,12 +175,33 @@ impl CanvasExt {
                     Self::internal_image_bitmap_get_height,
                     1,
                 ),
+                ExtensionOp::new(
+                    "internal_canvas_create_linear_gradient",
+                    Self::internal_canvas_create_linear_gradient,
+                    4,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_create_radial_gradient",
+                    Self::internal_canvas_create_radial_gradient,
+                    6,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_create_conic_gradient",
+                    Self::internal_canvas_create_conic_gradient,
+                    3,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_gradient_add_color_stop",
+                    Self::internal_canvas_gradient_add_color_stop,
+                    2,
+                ),
             ],
             storage: Some(Box::new(|storage: &mut OpsStorage| {
                 storage.insert(CanvasResources {
                     canvases: ResourceTable::new(),
                     images: ResourceTable::new(),
                     renderers: ResourceTable::new(),
+                    fill_styles: ResourceTable::new(),
                 });
             })),
             files: vec![include_str!("./mod.ts"), include_str!("./image.ts")],
@@ -372,6 +397,144 @@ impl CanvasExt {
         Ok(Value::Integer(SmallInteger::from(data.height as i32)))
     }
 
+    fn internal_canvas_create_linear_gradient<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let x0 = args.get(0).to_number(agent, gc.reborrow()).unbind();
+        let y0 = args.get(1).to_number(agent, gc.reborrow()).unbind();
+        let x1 = args.get(2).to_number(agent, gc.reborrow()).unbind();
+        let y1 = args.get(3).to_number(agent, gc.reborrow()).unbind();
+
+        // For now, stub with zero dimensions
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+        let rid = res
+            .fill_styles
+            .push(FillStyle::LinearGradient(LinearGradient {
+                start: (x0.unwrap().into_f32(agent), y0.unwrap().into_f32(agent)),
+                end: (x1.unwrap().into_f32(agent), y1.unwrap().into_f32(agent)),
+                color_stops: vec![],
+                rid: 0,
+            }));
+        let mut fill_style = res.fill_styles.get_mut(rid).unwrap();
+        if let FillStyle::LinearGradient(gradient) = fill_style.deref_mut() {
+            gradient.rid = rid.index();
+        }
+        Ok(Value::Integer(SmallInteger::from(rid.index() as i32)))
+    }
+
+    fn internal_canvas_create_radial_gradient<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let x0 = args.get(0).to_number(agent, gc.reborrow()).unbind();
+        let y0 = args.get(1).to_number(agent, gc.reborrow()).unbind();
+        let r0 = args.get(2).to_number(agent, gc.reborrow()).unbind();
+        let x1 = args.get(3).to_number(agent, gc.reborrow()).unbind();
+        let y1 = args.get(4).to_number(agent, gc.reborrow()).unbind();
+        let r1 = args.get(5).to_number(agent, gc.reborrow()).unbind();
+
+        // For now, stub with zero dimensions
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+        let rid = res
+            .fill_styles
+            .push(FillStyle::RadialGradient(RadialGradient {
+                start: (x0.unwrap().into_f32(agent), y0.unwrap().into_f32(agent)),
+                end: (x1.unwrap().into_f32(agent), y1.unwrap().into_f32(agent)),
+                start_radius: r0.unwrap().into_f32(agent),
+                end_radius: r1.unwrap().into_f32(agent),
+                color_stops: vec![],
+                rid: 0,
+            }));
+        let mut fill_style = res.fill_styles.get_mut(rid).unwrap();
+        if let FillStyle::RadialGradient(gradient) = fill_style.deref_mut() {
+            gradient.rid = rid.index();
+        }
+        Ok(Value::Integer(SmallInteger::from(rid.index() as i32)))
+    }
+
+    fn internal_canvas_create_conic_gradient<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let start_angle = args.get(0).to_number(agent, gc.reborrow()).unbind();
+        let x = args.get(1).to_number(agent, gc.reborrow()).unbind();
+        let y = args.get(2).to_number(agent, gc.reborrow()).unbind();
+
+        // For now, stub with zero dimensions
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+        let rid = res
+            .fill_styles
+            .push(FillStyle::ConicGradient(ConicGradient {
+                center: (x.unwrap().into_f32(agent), y.unwrap().into_f32(agent)),
+                start_angle: start_angle.unwrap().into_f32(agent),
+                color_stops: vec![],
+                rid: 0,
+            }));
+        let mut fill_style = res.fill_styles.get_mut(rid).unwrap();
+        if let FillStyle::ConicGradient(gradient) = fill_style.deref_mut() {
+            gradient.rid = rid.index();
+        }
+        Ok(Value::Integer(SmallInteger::from(rid.index() as i32)))
+    }
+
+    fn internal_canvas_gradient_add_color_stop<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let offset_val = args.get(1).to_number(agent, gc.reborrow()).unbind()?;
+        let rid = Rid::from_index(rid_val);
+        let offset = offset_val.into_f32(agent);
+        let color = args.get(2).to_string(agent, gc.reborrow()).unbind()?;
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let mut data = res.fill_styles.get_mut(rid).unwrap();
+        let color_stops = match data.deref_mut() {
+            FillStyle::LinearGradient(gradient) => &mut gradient.color_stops,
+            FillStyle::RadialGradient(gradient) => &mut gradient.color_stops,
+            FillStyle::ConicGradient(gradient) => &mut gradient.color_stops,
+            _ => unreachable!(),
+        };
+        let color_str = color.as_str(agent).expect("String is not valid UTF-8");
+        let fill_style = FillStyle::from_css_color(color_str).unwrap();
+        if let FillStyle::Color { r, g, b, a } = fill_style {
+            color_stops.push(ColorStop {
+                color: [r, g, b, a],
+                offset,
+            })
+        }
+        Ok(Value::Undefined)
+    }
+
     /// Internal op to render canvas to pixels (snapshot GPU canvas)
     fn internal_canvas_render<'gc>(
         agent: &mut Agent,
@@ -466,11 +629,14 @@ impl CanvasExt {
         let storage = host_data.storage.borrow();
         let res: &CanvasResources = storage.get().unwrap();
         let data = res.canvases.get(rid).unwrap();
+        let fill_style = data.fill_style.clone();
 
-        // Convert fill style back to CSS string representation
-        let css_string = match &data.fill_style {
+        // Drop storage borrow before creating string
+        drop(storage);
+
+        match &fill_style {
             FillStyle::Color { r, g, b, a } => {
-                if *a == 1.0 {
+                let css_string = if *a == 1.0 {
                     // RGB format for opaque colors
                     format!(
                         "rgb({}, {}, {})",
@@ -487,15 +653,20 @@ impl CanvasExt {
                         (*b * 255.0) as u8,
                         a
                     )
-                }
+                };
+                Ok(Value::from_string(agent, css_string, gc.nogc()).unbind())
             }
-            _ => "rgb(0, 0, 0)".to_string(), // Default fallback
-        };
-
-        // Drop storage borrow before creating string
-        drop(storage);
-
-        Ok(Value::from_string(agent, css_string, gc.nogc()).unbind())
+            FillStyle::LinearGradient(gradient) => {
+                Ok(Value::from_i64(agent, gradient.rid as i64, gc.nogc()).unbind())
+            }
+            FillStyle::RadialGradient(gradient) => {
+                Ok(Value::from_i64(agent, gradient.rid as i64, gc.nogc()).unbind())
+            }
+            FillStyle::ConicGradient(gradient) => {
+                Ok(Value::from_i64(agent, gradient.rid as i64, gc.nogc()).unbind())
+            }
+            _ => unimplemented!(),
+        }
     }
 
     /// Internal op to set the fill style of a canvas context
@@ -508,10 +679,17 @@ impl CanvasExt {
         let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
         let rid = Rid::from_index(rid_val);
         let style_val = args.get(1);
-
-        // Convert the JavaScript value to a string
-        let style_str = style_val.to_string(agent, gc.reborrow()).unbind().unwrap();
-        let style_string = style_str.as_str(agent).expect("String is not valid UTF-8");
+        let mut fill_rid = 0;
+        let mut style_str = String::new();
+        if style_val.is_number() {
+            fill_rid = style_val.to_uint32(agent, gc).unwrap();
+        } else {
+            let style_string = style_val.to_string(agent, gc.reborrow()).unbind().unwrap();
+            style_str = style_string
+                .as_str(agent)
+                .expect("String is not valid UTF-8")
+                .to_string();
+        }
 
         let host_data = agent
             .get_host_data()
@@ -519,16 +697,19 @@ impl CanvasExt {
             .unwrap();
         let mut storage = host_data.storage.borrow_mut();
         let res: &mut CanvasResources = storage.get_mut().unwrap();
-        let mut data = res.canvases.get_mut(rid).unwrap(); // Parse the CSS color and update fill style
-        match FillStyle::from_css_color(style_string) {
-            Ok(fill_style) => {
+        let fill_style = if style_val.is_number() {
+            res.fill_styles.get(Rid::from_index(fill_rid))
+        } else {
+            FillStyle::from_css_color(style_str.as_str()).ok()
+        };
+
+        let mut data = res.canvases.get_mut(rid).unwrap();
+        match fill_style {
+            Some(fill_style) => {
                 data.fill_style = fill_style;
                 Ok(Value::Boolean(true))
             }
-            Err(_) => {
-                // Invalid color, keep current style
-                Ok(Value::Boolean(false))
-            }
+            None => Ok(Value::Boolean(false)),
         }
     }
 

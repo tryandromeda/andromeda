@@ -80,12 +80,21 @@ class CanvasRenderingContext2D {
    * Gets or sets the current fill style for drawing operations.
    * Accepts CSS color strings like '#ff0000', 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'red', etc.
    */
-  get fillStyle(): string {
-    return internal_canvas_get_fill_style(this.#rid);
+  get fillStyle(): string | CanvasGradient {
+    const fillStyle = internal_canvas_get_fill_style(this.#rid);
+    if (typeof fillStyle == "number") {
+      return new CanvasGradient(fillStyle)
+    } else {
+      return fillStyle
+    }
   }
 
-  set fillStyle(value: string) {
-    internal_canvas_set_fill_style(this.#rid, value);
+  set fillStyle(value: string | CanvasGradient) {
+    if (typeof value == "string") {
+      internal_canvas_set_fill_style(this.#rid, value);
+    } else {
+      internal_canvas_set_fill_style(this.#rid, value[_fillId]);
+    }
   }
   /**
    * Gets or sets the current stroke style for drawing operations.
@@ -168,6 +177,30 @@ class CanvasRenderingContext2D {
    */
   clearRect(x: number, y: number, width: number, height: number): void {
     internal_canvas_clear_rect(this.#rid, x, y, width, height);
+  }
+
+  /**
+   * Creates a gradient along the line connecting two given coordinates.
+   */
+  createLinearGradient(x0: number, y0: number, x1: number, y1: number): CanvasGradient {
+    const rid = internal_canvas_create_linear_gradient(x0, y0, x1, y1);
+    return new CanvasGradient(rid);
+  }
+
+  /**
+   * Creates a radial gradient using the size and coordinates of two circles.
+   */
+  createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): CanvasGradient {
+    const rid = internal_canvas_create_radial_gradient(x0, y0, r0, x1, y1, r1);
+    return new CanvasGradient(rid);
+  }
+
+  /** 
+   * Creates a gradient around a point with given coordinates. 
+   */
+  createConicGradient(startAngle: number, x: number, y: number): CanvasGradient {
+    const rid = internal_canvas_create_conic_gradient(startAngle, x, y);
+    return new CanvasGradient(rid);
   }
 
   /**
@@ -276,5 +309,21 @@ class CanvasRenderingContext2D {
    */
   restore(): void {
     internal_canvas_restore(this.#rid);
+  }
+}
+
+const _fillId = Symbol("[[fillId]]");
+
+class CanvasGradient {
+  [_fillId]: number;
+
+  constructor(rid: number) {
+    this[_fillId] = rid
+  }
+  /**
+   * Adds a new color stop to a given canvas gradient.
+   */
+  addColorStop(offset: number, color: string) {
+    internal_canvas_gradient_add_color_stop(this[_fillId], offset, color)
   }
 }

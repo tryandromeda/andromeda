@@ -2,17 +2,49 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use crate::ext::canvas::renderer::{ColorStop, Coordinate};
+
 /// Represents different fill styles for Canvas 2D operations
 #[derive(Clone, Debug)]
 pub enum FillStyle {
     /// Solid color specified as RGBA values (0.0-1.0)
-    Color { r: f32, g: f32, b: f32, a: f32 },
-    /// Linear gradient (placeholder for future implementation)
-    LinearGradient,
-    /// Radial gradient (placeholder for future implementation)
-    RadialGradient,
+    Color {
+        r: f32,
+        g: f32,
+        b: f32,
+        a: f32,
+    },
+    LinearGradient(LinearGradient),
+    RadialGradient(RadialGradient),
+    ConicGradient(ConicGradient),
     /// Pattern (placeholder for future implementation)
     Pattern,
+}
+
+#[derive(Clone, Debug)]
+pub struct LinearGradient {
+    pub start: Coordinate,
+    pub end: Coordinate,
+    pub color_stops: Vec<ColorStop>,
+    pub rid: u32,
+}
+
+#[derive(Clone, Debug)]
+pub struct RadialGradient {
+    pub start: Coordinate,
+    pub end: Coordinate,
+    pub start_radius: f32,
+    pub end_radius: f32,
+    pub color_stops: Vec<ColorStop>,
+    pub rid: u32,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConicGradient {
+    pub center: Coordinate,
+    pub start_angle: f32,
+    pub color_stops: Vec<ColorStop>,
+    pub rid: u32,
 }
 
 impl Default for FillStyle {

@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use crate::FillStyle;
+
 #[derive(Clone, Debug)]
 pub struct Dimensions {
     pub height: u32,
@@ -23,3 +25,8 @@ pub struct Rect {
 
 #[allow(dead_code)]
 pub type Color = [f32; 4];
+
+pub struct RenderState {
+    pub fill_style: FillStyle,
+    pub global_alpha: f32,
+}
