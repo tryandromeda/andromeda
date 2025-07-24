@@ -10,6 +10,16 @@
 
 type RequestInfo = Request | URL;
 
+class Fetch {
+  // TODO: Event
+  constructor() {
+    (this as any).dispatcher = {};
+    (this as any).connection = null;
+    (this as any).dump = false;
+    (this as any).state = "ongoing";
+  }
+}
+
 /** The fetch(input, init) method steps are: */
 const fetch = (input: RequestInfo, init = undefined) => {
   // 1. Let p be a new promise.
@@ -80,9 +90,12 @@ const fetch = (input: RequestInfo, init = undefined) => {
   //  3. If response is a network error, then reject p with a TypeError and abort these steps.
   //  4. Set responseObject to the result of creating a Response object, given response, "immutable", and relevantRealm.
   //  5. Resolve p with responseObject.
+  controller = fetching({
+    request,
+  });
 
   // 13. Return p.
-  return p;
+  return p.promise;
 };
 
 (globalThis as unknown as { fetch: typeof fetch }).fetch = fetch;
@@ -123,21 +136,19 @@ const fetching = (
     processResponseEndOfBody,
     processResponseConsumeBody,
     processEarlyHintsResponse,
-    useParallelQueue = false,
   }: {
     request: any;
-    processRequestBodyChunkLength: any;
-    processRequestEndOfBody: any;
-    processResponse: any;
-    processResponseEndOfBody: any;
-    processResponseConsumeBody: any;
-    processEarlyHintsResponse: any;
-    useParallelQueue?: boolean;
+    processRequestBodyChunkLength?: any;
+    processRequestEndOfBody?: any;
+    processResponse?: any;
+    processResponseEndOfBody?: any;
+    processResponseConsumeBody?: any;
+    processEarlyHintsResponse?: any;
   },
 ) => {
   // 1. Assert: request’s mode is "navigate" or processEarlyHintsResponse is null.
   // NOTE: Processing of early hints (responses whose status is 103) is only vetted for navigations.
-  if (request.mode === "navigate" || processEarlyHintsResponse == null) {
+  if (request.mode === "navigate") {
     throw new Error("error");
   }
 
@@ -148,20 +159,49 @@ const fetching = (
   let crossOriginIsolatedCapability = false;
 
   // 4. Populate request from client given request.
-  populateRequest();
+  // populateRequest();
+
   // 5. If request’s client is non-null, then:
-  //  1. Set taskDestination to request’s client’s global object.
-  //  2. Set crossOriginIsolatedCapability to request’s client’s cross-origin isolated capability.
+  if (request.client != null) {
+    //  1. Set taskDestination to request’s client’s global object.
+    taskDestination = request.client.globalObject;
+    //  2. Set crossOriginIsolatedCapability to request’s client’s cross-origin isolated capability.
+    crossOriginIsolatedCapability =
+      request.client.crossOriginIsolatedCapability;
+  }
+
+  // TODO
   // 6. If useParallelQueue is true, then set taskDestination to the result of starting a new parallel queue.
+
+  // TODO
   // 7. Let timingInfo be a new fetch timing info whose start time and post-redirect start time are
   //    the coarsened shared current time given crossOriginIsolatedCapability,
   //    and render-blocking is set to request’s render-blocking.
-  // 8. Let fetchParams be a new fetch params whose request is request, timing info is timingInfo,
-  //    process request body chunk length is processRequestBodyChunkLength, process request end-of-body
-  //    is processRequestEndOfBody, process early hints response is processEarlyHintsResponse,
-  //    process response is processResponse, process response consume body is processResponseConsumeBody,
-  //    process response end-of-body is processResponseEndOfBody, task destination is taskDestination,
+  let timingInfo = 0;
+
+  // 8. Let fetchParams be a new fetch params whose
+  //    request is request, timing info is timingInfo,
+  //    process request body chunk length is processRequestBodyChunkLength,
+  //    process request end-of-body is processRequestEndOfBody,
+  //    process early hints response is processEarlyHintsResponse,
+  //    process response is processResponse,
+  //    process response consume body is processResponseConsumeBody,
+  //    process response end-of-body is processResponseEndOfBody,
+  //    task destination is taskDestination,
   //    and cross-origin isolated capability is crossOriginIsolatedCapability.
+  const fetchParams = {
+    controller: new Fetch(),
+    timingInfo, // TODO
+    processRequestBodyChunkLength,
+    processRequestEndOfBody,
+    processResponse,
+    processResponseConsumeBody,
+    processResponseEndOfBody,
+    taskDestination,
+    crossOriginIsolatedCapability,
+  };
+
+  // TODO: step9, 10
   // 9. If request’s body is a byte sequence, then set request’s body to request’s body as a body.
   // 10. If all of the following conditions are true:
   //      - request’s URL’s scheme is an HTTP(S) scheme
@@ -177,8 +217,13 @@ const fetching = (
   //         given request’s URL, request’s destination, request’s mode, request’s credentials mode, request’s integrity metadata,
   //         and onPreloadedResponseAvailable.
   //      4. If foundPreloadedResource is true and fetchParams’s preloaded response candidate is null, then set fetchParams’s preloaded response candidate to "pending".
+
   // 11. If request’s header list does not contain `Accept`, then:
+  // if (!request.headersList.contains("accept", true)) {
   //  1. Let value be `*/*`.
+  // const value = "*/*";
+
+  // TODO
   //  2. If request’s initiator is "prefetch", then set value to the document `Accept` header value.
   //  3. Otherwise, the user agent should set value to the first matching statement, if any, switching on request’s destination:
   //    ↪︎ "document"
@@ -191,19 +236,36 @@ const fetching = (
   //        `application/json,*/*;q=0.5`
   //    ↪︎ "style"
   //        `text/css,*/*;q=0.1`
+
   //  4. Append (`Accept`, value) to request’s header list.
-  // 12. If request’s header list does not contain `Accept-Language`, then user agents should append (`Accept-Language, an appropriate header value) to request’s header list.
-  // 13. If request’s internal priority is null, then use request’s priority, initiator, destination, and render-blocking
-  //     in an implementation-defined manner to set request’s internal priority to an implementation-defined object.
+  // request.headersList.append("accept", value, true);
+  // }
+
+  // 12. If request’s header list does not contain `Accept-Language`,
+  //     then user agents should append
+  //     (`Accept-Language, an appropriate header value)
+  //     to request’s header list.
+  // if (!request.headersList.contains("accept-language", true)) {
+  //   request.headersList.append("accept-language", "*", true);
+  // }
+
+  // TODO
+  // 13. If request’s internal priority is null, then use request’s priority,
+  //     initiator, destination, and render-blocking in an implementation-defined
+  //     manner to set request’s internal priority to an implementation-defined object.
+
   // NOTE: The implementation-defined object could encompass stream weight and dependency for HTTP/2, priorities used
   //       in Extensible Prioritization Scheme for HTTP for transports where it applies (including HTTP/3),
   //       and equivalent information used to prioritize dispatch and processing of HTTP/1 fetches. [RFC9218]
   // 14. If request is a subresource request, then:
   //  1. Let record be a new fetch record whose request is request and controller is fetchParams’s controller.
   //  2. Append record to request’s client’s fetch group list of fetch records.
+
   // 15. Run main fetch given fetchParams.
-  // 16. Return fetchParams’s controller.
   mainFetch(fetchParams);
+
+  // 16. Return fetchParams’s controller.
+  return fetchParams.controller;
 };
 
 /**
@@ -229,5 +291,5 @@ const populateRequest = () => {
  * @see https://fetch.spec.whatwg.org/#main-fetch
  */
 const mainFetch = (fetchParams: any) => {
-  throw new Error("TODO");
+  console.log(fetchParams);
 };
