@@ -55,6 +55,7 @@ impl WebExt {
             storage: None,
             files: vec![
                 include_str!("./event.ts"),
+                include_str!("./dom_exception.ts"),
                 include_str!("./text_encoding.ts"),
                 include_str!("./performance.ts"),
                 include_str!("./queueMicrotask.ts"),

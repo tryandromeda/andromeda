@@ -29,12 +29,9 @@ interface Transferable {
 /**
  * Create a DataCloneError DOMException
  */
-function createDataCloneError(message: string): Error {
-  const error = new Error(message);
-  error.name = "DataCloneError";
-  // Set DOMException code for DataCloneError (25)
-  (error as any).code = 25;
-  return error;
+function createDataCloneError(message: string) {
+  // @ts-ignore createDOMException is defined in dom_exception.ts
+  return createDOMException(message, "DataCloneError");
 }
 
 /**

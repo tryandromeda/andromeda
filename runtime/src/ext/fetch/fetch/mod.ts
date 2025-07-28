@@ -98,7 +98,7 @@ const fetch = (input: RequestInfo, init = undefined) => {
   return p.promise;
 };
 
-(globalThis as unknown as { fetch: typeof fetch }).fetch = fetch;
+(globalThis as unknown as { fetch: typeof fetch; }).fetch = fetch;
 
 function createDeferredPromise() {
   let res: any;
@@ -166,8 +166,7 @@ const fetching = (
     //  1. Set taskDestination to request’s client’s global object.
     taskDestination = request.client.globalObject;
     //  2. Set crossOriginIsolatedCapability to request’s client’s cross-origin isolated capability.
-    crossOriginIsolatedCapability =
-      request.client.crossOriginIsolatedCapability;
+    crossOriginIsolatedCapability = request.client.crossOriginIsolatedCapability;
   }
 
   // TODO

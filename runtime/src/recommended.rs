@@ -6,7 +6,7 @@ use andromeda_core::{Extension, HostData};
 use nova_vm::ecmascript::execution::agent::{GcAgent, RealmRoot};
 
 use crate::{
-    //BroadcastChannelExt,
+    BroadcastChannelExt,
     ConsoleExt,
     FetchExt,
     FsExt,
@@ -29,7 +29,7 @@ pub fn recommended_extensions() -> Vec<Extension> {
         URLExt::new_extension(),
         WebExt::new_extension(),
         HeadersExt::new_extension(),
-        // BroadcastChannelExt::new_extension(),
+        BroadcastChannelExt::new_extension(),
         RequestExt::new_extension(),
         ResponseExt::new_extension(),
         FetchExt::new_extension(),

@@ -462,33 +462,41 @@ declare function internal_canvas_get_line_width(rid: number): number;
  * The `internal_canvas_get_line_width` function creates a gradient along the line connecting two given coordinates.
  */
 declare function internal_canvas_create_linear_gradient(
-  x0: number, 
-  y0: number, 
-  x1: number, 
-  y1: number
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
 ): number;
 
 /**
  * The `internal_canvas_get_line_width` function creates a radial gradient using the size and coordinates of two circles.
  */
 declare function internal_canvas_create_radial_gradient(
-  x0: number, 
-  y0: number, 
-  r0: number, 
-  x1: number, 
+  x0: number,
+  y0: number,
+  r0: number,
+  x1: number,
   y1: number,
-  r1: number
+  r1: number,
 ): number;
 
 /**
- * The `internal_canvas_get_line_width` function creates a gradient around a point with given coordinates. 
+ * The `internal_canvas_get_line_width` function creates a gradient around a point with given coordinates.
  */
-declare function internal_canvas_create_conic_gradient(startAngle: number, x: number, y: number): number;
+declare function internal_canvas_create_conic_gradient(
+  startAngle: number,
+  x: number,
+  y: number,
+): number;
 
 /**
  * The `internal_canvas_gradient_add_color_stop` adds a new color stop to a given canvas gradient.
  */
-declare function internal_canvas_gradient_add_color_stop(rid: number, offset: number, color: string)
+declare function internal_canvas_gradient_add_color_stop(
+  rid: number,
+  offset: number,
+  color: string,
+);
 
 /**
  * The `internal_text_encode` function encodes a string into a byte sequence.

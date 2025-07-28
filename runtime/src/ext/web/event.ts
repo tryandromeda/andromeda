@@ -870,7 +870,10 @@ class EventTarget {
           if (listenerList) {
             for (let i = 0; i < listenerList.length; i++) {
               const listener = listenerList[i];
-              if (listener.callback === callback && listener.options === processedOptions) {
+              if (
+                listener.callback === callback &&
+                listener.options === processedOptions
+              ) {
                 listenerList.splice(i, 1);
                 break;
               }
@@ -934,6 +937,7 @@ class EventTarget {
 
     // Per spec: Check if event is currently being dispatched
     if (getDispatched(event)) {
+      // @ts-ignore createDOMException is defined in dom_exception.ts
       throw createDOMException(
         "Failed to execute 'dispatchEvent' on 'EventTarget': The event is already being dispatched.",
         "InvalidStateError",
@@ -942,6 +946,7 @@ class EventTarget {
 
     // Per spec: Check if event's initialized flag is not set
     if (event.eventPhase !== Event.NONE) {
+      // @ts-ignore createDOMException is defined in dom_exception.ts
       throw createDOMException(
         "Failed to execute 'dispatchEvent' on 'EventTarget': The event's phase is not NONE.",
         "InvalidStateError",
@@ -1240,6 +1245,7 @@ class AbortSignal extends EventTarget {
     (signal as any)[_aborted] = true;
     (signal as any)[_abortReason] = reason !== undefined ?
       reason :
+      // @ts-ignore createDOMException is defined in dom_exception.ts
       createDOMException("signal is aborted without reason", "AbortError");
     return signal;
   }
@@ -1251,12 +1257,17 @@ class AbortSignal extends EventTarget {
     const signal = new AbortSignal();
     if (milliseconds === 0) {
       (signal as any)[_aborted] = true;
-      (signal as any)[_abortReason] = createDOMException("signal timed out", "TimeoutError");
+      // @ts-ignore createDOMException is defined in dom_exception.ts
+      (signal as any)[_abortReason] = createDOMException(
+        "signal timed out",
+        "TimeoutError",
+      );
     } else {
       const timeoutCallback = function() {
         if (!(signal as any)[_aborted]) {
           signalAbort(
             signal,
+            // @ts-ignore createDOMException is defined in dom_exception.ts
             createDOMException("signal timed out", "TimeoutError"),
           );
         }
@@ -1308,6 +1319,7 @@ class AbortController {
       this.#signal,
       reason !== undefined ?
         reason :
+        // @ts-ignore createDOMException is defined in dom_exception.ts
         createDOMException("signal is aborted without reason", "AbortError"),
     );
   }
@@ -1340,34 +1352,3 @@ function signalAbort(signal: AbortSignal, reason: any): void {
 }
 
 // DOMException implementation for abort-related errors
-function createDOMException(message?: string, name: string = "Error"): Error {
-  const error = new Error(message);
-  error.name = name;
-
-  // Add code property for DOMException compatibility
-  const codes: Record<string, number> = {
-    "IndexSizeError": 1,
-    "HierarchyRequestError": 3,
-    "WrongDocumentError": 4,
-    "InvalidCharacterError": 5,
-    "NoModificationAllowedError": 7,
-    "NotFoundError": 8,
-    "NotSupportedError": 9,
-    "InvalidStateError": 11,
-    "SyntaxError": 12,
-    "InvalidModificationError": 13,
-    "NamespaceError": 14,
-    "InvalidAccessError": 15,
-    "SecurityError": 18,
-    "NetworkError": 19,
-    "AbortError": 20,
-    "URLMismatchError": 21,
-    "QuotaExceededError": 22,
-    "TimeoutError": 23,
-    "InvalidNodeTypeError": 24,
-    "DataCloneError": 25,
-  };
-
-  (error as any).code = codes[name] || 0;
-  return error;
-}

@@ -491,11 +491,18 @@ declare class CanvasRenderingContext2D {
   /** Clears the specified rectangular area, making it fully transparent. */
   clearRect(x: number, y: number, width: number, height: number): void;
   /** Creates a gradient along the line connecting two given coordinates. */
-  createLinearGradient(x0: number, y0: number, x1: number, y1: number): CanvasGradient
+  createLinearGradient(x0: number, y0: number, x1: number, y1: number): CanvasGradient;
   /** Creates a radial gradient using the size and coordinates of two circles. */
-  createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): CanvasGradient
+  createRadialGradient(
+    x0: number,
+    y0: number,
+    r0: number,
+    x1: number,
+    y1: number,
+    r1: number,
+  ): CanvasGradient;
   /** Creates a gradient around a point with given coordinates. */
-  createConicGradient(startAngle: number, x: number, y: number): CanvasGradient
+  createConicGradient(startAngle: number, x: number, y: number): CanvasGradient;
   /** Closes the current path on the canvas context. */
   closePath(): void;
   /** Draws a filled rectangle whose starting corner is at (x, y). */
@@ -540,7 +547,7 @@ declare class CanvasRenderingContext2D {
 
 declare class CanvasGradient {
   /** Adds a new color stop to a given canvas gradient. */
-  addColorStop(offset: number, color: string): void
+  addColorStop(offset: number, color: string): void;
 }
 
 /**
