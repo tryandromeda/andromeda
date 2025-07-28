@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // mod broadcast_channel;
+mod broadcast_channel;
 #[cfg(feature = "canvas")]
 mod canvas;
 mod console;
@@ -18,7 +19,7 @@ mod time;
 mod url;
 mod web;
 
-// pub use broadcast_channel::*;
+pub use broadcast_channel::*;
 #[cfg(feature = "canvas")]
 pub use canvas::*;
 pub use console::*;

@@ -4,19 +4,6 @@
 
 // deno-lint-ignore-file no-explicit-any no-unused-vars
 
-function createDOMException(message?: string, name: string = "Error"): Error {
-  const error = new Error(message);
-  error.name = name;
-
-  const codes: Record<string, number> = {
-    "InvalidStateError": 11,
-    "DataCloneError": 25,
-  };
-
-  (error as any).code = codes[name] || 0;
-  return error;
-}
-
 const channels: BroadcastChannel[] = [];
 let rid: number | null = null;
 
@@ -214,6 +201,7 @@ class BroadcastChannel {
    */
   postMessage(message: unknown): void {
     if (this._closed) {
+      // @ts-ignore createDOMException is defined in dom_exception.ts
       throw createDOMException(
         "BroadcastChannel is closed",
         "InvalidStateError",
@@ -228,6 +216,7 @@ class BroadcastChannel {
       if (error instanceof Error && error.name === "DataCloneError") {
         throw error;
       }
+      // @ts-ignore createDOMException is defined in dom_exception.ts
       throw createDOMException(
         "Failed to clone message",
         "DataCloneError",
@@ -247,6 +236,7 @@ class BroadcastChannel {
         } catch (_e) {
           this.dispatchEvent(
             new ErrorEvent("messageerror", {
+              // @ts-ignore createDOMException is defined in dom_exception.ts
               error: createDOMException("Failed to send message", "DataCloneError"),
             }),
           );

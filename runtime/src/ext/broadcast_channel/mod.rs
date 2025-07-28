@@ -97,7 +97,10 @@ impl BroadcastChannelExt {
         let _rid = rid.into_f64(agent) as u32;
 
         let name = name_arg.to_string(agent, gc.reborrow()).unbind()?;
-        let _name_str = name.as_str(agent).expect("String is not valid UTF-8").to_string();
+        let _name_str = name
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
 
         // For now, this is a placeholder implementation
         // In a full implementation, this would serialize and send the message
