@@ -195,6 +195,51 @@ declare function internal_url_parse(url: string, base: string): string;
 declare function internal_url_parse_no_base(url: string): string;
 
 /**
+ * The `internal_url_get_protocol` function returns the protocol (scheme) of a URL string.
+ */
+declare function internal_url_get_protocol(url: string): string;
+
+/**
+ * The `internal_url_get_username` function returns the username of a URL string.
+ */
+declare function internal_url_get_username(url: string): string;
+
+/**
+ * The `internal_url_get_password` function returns the password of a URL string.
+ */
+declare function internal_url_get_password(url: string): string;
+
+/**
+ * The `internal_url_get_host` function returns the host of a URL string.
+ */
+declare function internal_url_get_host(url: string): string;
+
+/**
+ * The `internal_url_get_hostname` function returns the hostname of a URL string.
+ */
+declare function internal_url_get_hostname(url: string): string;
+
+/**
+ * The `internal_url_get_port` function returns the port of a URL string.
+ */
+declare function internal_url_get_port(url: string): string;
+
+/**
+ * The `internal_url_get_pathname` function returns the pathname of a URL string.
+ */
+declare function internal_url_get_pathname(url: string): string;
+
+/**
+ * The `internal_url_get_search` function returns the search of a URL string.
+ */
+declare function internal_url_get_search(url: string): string;
+
+/**
+ * The `internal_url_get_hash` function returns the hash of a URL string.
+ */
+declare function internal_url_get_hash(url: string): string;
+
+/**
  * The `internal_btoa` function encodes a string in base64.
  */
 declare function internal_btoa(input: string): string;
@@ -496,7 +541,7 @@ declare function internal_canvas_gradient_add_color_stop(
   rid: number,
   offset: number,
   color: string,
-);
+): void;
 
 /**
  * The `internal_text_encode` function encodes a string into a byte sequence.
