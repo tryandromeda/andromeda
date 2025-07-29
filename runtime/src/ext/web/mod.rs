@@ -58,7 +58,7 @@ impl WebExt {
                 include_str!("./dom_exception.ts"),
                 include_str!("./text_encoding.ts"),
                 include_str!("./performance.ts"),
-                include_str!("./queueMicrotask.ts"),
+                include_str!("./queue_microtask.ts"),
                 include_str!("./structured_clone.ts"),
                 include_str!("./navigator.ts"),
             ],

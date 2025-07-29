@@ -7,7 +7,6 @@ class URL {
   url: string;
   base?: string;
   serialized: string;
-  // TODO: Need to return a URL object.
   constructor(url: string, base?: string) {
     this.url = url;
     this.base = base;
@@ -17,11 +16,46 @@ class URL {
   }
 
   toString() {
-    // @ts-ignore - this is a hack to make the URL object work
     return this.serialized;
   }
 
   static parse(url: string, base?: string) {
     return new this(url, base);
+  }
+
+  get protocol(): string {
+    return internal_url_get_protocol(this.serialized);
+  }
+
+  get username(): string {
+    return internal_url_get_username(this.serialized);
+  }
+
+  get password(): string {
+    return internal_url_get_password(this.serialized);
+  }
+
+  get host(): string {
+    return internal_url_get_host(this.serialized);
+  }
+
+  get hostname(): string {
+    return internal_url_get_hostname(this.serialized);
+  }
+
+  get port(): string {
+    return internal_url_get_port(this.serialized);
+  }
+
+  get pathname(): string {
+    return internal_url_get_pathname(this.serialized);
+  }
+
+  get search(): string {
+    return internal_url_get_search(this.serialized);
+  }
+
+  get hash(): string {
+    return internal_url_get_hash(this.serialized);
   }
 }
