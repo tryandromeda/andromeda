@@ -73,20 +73,20 @@ pub fn lint_file(path: &PathBuf) -> Result<()> {
             SymbolFlags::BlockScopedVariable
                 | SymbolFlags::ConstVariable
                 | SymbolFlags::FunctionScopedVariable,
-        )
-            && scoping.symbol_is_unused(symbol_id) {
-                let name = scoping.symbol_name(symbol_id);
-                if !name.starts_with('_') {
-                    let span = scoping.symbol_span(symbol_id);
-                    let warning = Style::new().yellow().bold().apply_to("Lint warning:");
-                    let msg = Style::new().white().apply_to("Unused variable");
-                    let var = Style::new().green().apply_to(name);
-                    let file = Style::new().cyan().apply_to(path.display());
-                    let line = Style::new().magenta().apply_to(span.start.to_string());
-                    println!("{warning} {msg} '{var}' in {file} at line {line}");
-                    has_issues = true;
-                }
+        ) && scoping.symbol_is_unused(symbol_id)
+        {
+            let name = scoping.symbol_name(symbol_id);
+            if !name.starts_with('_') {
+                let span = scoping.symbol_span(symbol_id);
+                let warning = Style::new().yellow().bold().apply_to("Lint warning:");
+                let msg = Style::new().white().apply_to("Unused variable");
+                let var = Style::new().green().apply_to(name);
+                let file = Style::new().cyan().apply_to(path.display());
+                let line = Style::new().magenta().apply_to(span.start.to_string());
+                println!("{warning} {msg} '{var}' in {file} at line {line}");
+                has_issues = true;
             }
+        }
     }
 
     if !has_issues {
