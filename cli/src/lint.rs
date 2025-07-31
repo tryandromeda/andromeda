@@ -13,6 +13,7 @@ use std::fs;
 use std::path::PathBuf;
 
 /// Lint a single JS/TS file
+#[allow(clippy::result_large_err)]
 pub fn lint_file(path: &PathBuf) -> Result<()> {
     let content =
         fs::read_to_string(path).map_err(|e| AndromedaError::file_read_error(path.clone(), e))?;
