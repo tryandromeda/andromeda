@@ -260,7 +260,10 @@ fn run_main() -> Result<()> {
                 if had_issues {
                     Err(error::AndromedaError::runtime_error(
                         "Linting completed with errors".to_string(),
-                        None, None, None, None,
+                        None,
+                        None,
+                        None,
+                        None,
                     ))
                 } else {
                     Ok(())
