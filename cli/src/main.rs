@@ -24,6 +24,8 @@ mod format;
 use format::format_file;
 mod helper;
 use helper::find_formattable_files;
+mod lint;
+use lint::lint_file;
 mod upgrade;
 
 /// A JavaScript runtime
@@ -117,6 +119,13 @@ enum Command {
         #[arg(required = true)]
         output: PathBuf,
     },
+
+    /// Lint JavaScript/TypeScript files
+    Lint {
+        /// The file(s) or directory(ies) to lint
+        #[arg(required = false)]
+        paths: Vec<PathBuf>,
+    },
 }
 
 fn main() {
@@ -171,7 +180,6 @@ fn run_main() -> Result<()> {
                     .into_iter()
                     .map(|path| RuntimeFile::Local { path })
                     .collect();
-
                 run(verbose, no_strict, runtime_files)
             }
             Command::Compile { path, out } => {
@@ -183,7 +191,6 @@ fn run_main() -> Result<()> {
                         Some(e),
                     )
                 })?;
-
                 println!("✅ Successfully created the output binary at {out:?}");
                 Ok(())
             }
@@ -196,12 +203,10 @@ fn run_main() -> Result<()> {
             }),
             Command::Fmt { paths } => {
                 let files_to_format = find_formattable_files(&paths)?;
-
                 if files_to_format.is_empty() {
                     println!("No formattable files found.");
                     return Ok(());
                 }
-
                 println!("Found {} file(s) to format:", files_to_format.len());
                 for path in &files_to_format {
                     format_file(path)?;
@@ -237,6 +242,32 @@ fn run_main() -> Result<()> {
                 })?;
                 println!("✅ Successfully bundled and minified to {output:?}");
                 Ok(())
+            }
+            Command::Lint { paths } => {
+                let files_to_lint = find_formattable_files(&paths)?;
+                if files_to_lint.is_empty() {
+                    println!("No lintable files found.");
+                    return Ok(());
+                }
+                println!("Found {} file(s) to lint:", files_to_lint.len());
+                let mut had_issues = false;
+                for path in &files_to_lint {
+                    if let Err(e) = lint_file(path) {
+                        print_error(e);
+                        had_issues = true;
+                    }
+                }
+                if had_issues {
+                    Err(error::AndromedaError::runtime_error(
+                        "Linting completed with errors".to_string(),
+                        None,
+                        None,
+                        None,
+                        None,
+                    ))
+                } else {
+                    Ok(())
+                }
             }
         }
     });
