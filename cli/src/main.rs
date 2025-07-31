@@ -9,6 +9,8 @@ use libsui::find_section;
 use std::io;
 use std::path::PathBuf;
 
+mod bundle;
+use bundle::bundle;
 mod compile;
 use compile::{ANDROMEDA_JS_CODE_SECTION, compile};
 mod repl;
@@ -104,6 +106,16 @@ enum Command {
         /// Show what would be upgraded without actually upgrading
         #[arg(long)]
         dry_run: bool,
+    },
+    /// Bundle and minify a JavaScript/TypeScript file
+    Bundle {
+        /// The input file to bundle
+        #[arg(required = true)]
+        input: PathBuf,
+
+        /// The output file to write the bundled code
+        #[arg(required = true)]
+        output: PathBuf,
     },
 }
 
@@ -213,6 +225,19 @@ fn run_main() -> Result<()> {
                     None,
                 )
             }),
+            Command::Bundle { input, output } => {
+                bundle(input.to_str().unwrap(), output.to_str().unwrap()).map_err(|e| {
+                    error::AndromedaError::runtime_error(
+                        format!("Bundle failed: {e}"),
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                })?;
+                println!("✅ Successfully bundled and minified to {output:?}");
+                Ok(())
+            }
         }
     });
     match rt.block_on(nova_thread) {
