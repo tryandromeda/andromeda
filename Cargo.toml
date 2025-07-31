@@ -31,7 +31,7 @@ nova_vm = { git = "https://github.com/trynova/nova", rev = "508168f9db71082294c3
 nu-ansi-term = "0.50.1"
 oxc_codegen = "0.77.0"
 owo-colors = "4.2.2"
-oxc_ast = "0.78.0"
+oxc_ast = "0.77.0"
 oxc_minifier = "0.77.0"
 oxc_mangler = "0.77.0"
 oxc_allocator = "0.77.0"
