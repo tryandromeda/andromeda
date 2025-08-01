@@ -3,15 +3,16 @@
 
 use crate::error::{AndromedaError, Result};
 use console::Style;
+use miette as oxc_miette;
+use owo_colors::OwoColorize;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::Statement;
+use oxc_miette::{Diagnostic, NamedSource, SourceSpan};
 use oxc_parser::Parser;
 use oxc_semantic::SemanticBuilder;
 use oxc_semantic::SymbolFlags;
-use oxc_span::{SourceType, GetSpan};
-use miette as oxc_miette;
-use oxc_miette::{Diagnostic, NamedSource, SourceSpan};
-use owo_colors::OwoColorize;
+use oxc_span::{GetSpan, SourceType};
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
@@ -72,20 +73,387 @@ pub enum LintError {
         source_code: NamedSource<String>,
         variable_name: String,
     },
+
+    /// Variable could be const
+    #[diagnostic(
+        code(andromeda::lint::prefer_const),
+        help("🔍 Use 'const' instead of 'let' for variables that are never reassigned.\n💡 'const' prevents accidental reassignment and makes intent clearer.\n📖 Save 'let' for variables that will be modified."),
+        url("https://eslint.org/docs/latest/rules/prefer-const")
+    )]
+    PreferConst {
+        #[label("Variable '{variable_name}' is never reassigned, use 'const'")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+        variable_name: String,
+    },
+
+    /// Magic number usage
+    #[diagnostic(
+        code(andromeda::lint::no_magic_numbers),
+        help("🔍 Replace magic numbers with named constants.\n💡 Magic numbers make code harder to understand and maintain.\n📝 Create a const variable with a descriptive name."),
+        url("https://eslint.org/docs/latest/rules/no-magic-numbers")
+    )]
+    NoMagicNumbers {
+        #[label("Magic number '{number}' found")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+        number: String,
+    },
 }
 
 impl std::fmt::Display for LintError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LintError::EmptyStatement { .. } => write!(f, "Empty statement found"),
-            LintError::VarUsage { variable_name, .. } => write!(f, "Usage of 'var' for variable '{}'", variable_name),
-            LintError::EmptyFunction { function_name, .. } => write!(f, "Function '{}' has empty body", function_name),
-            LintError::UnusedVariable { variable_name, .. } => write!(f, "Unused variable '{}'", variable_name),
+            LintError::VarUsage { variable_name, .. } => {
+                write!(f, "Usage of 'var' for variable '{}'", variable_name)
+            }
+            LintError::EmptyFunction { function_name, .. } => {
+                write!(f, "Function '{}' has empty body", function_name)
+            }
+            LintError::UnusedVariable { variable_name, .. } => {
+                write!(f, "Unused variable '{}'", variable_name)
+            }
+            LintError::PreferConst { variable_name, .. } => {
+                write!(f, "Variable '{}' could be const", variable_name)
+            }
+            LintError::NoMagicNumbers { number, .. } => {
+                write!(f, "Magic number '{}' found", number)
+            }
         }
     }
 }
 
 impl std::error::Error for LintError {}
+
+/// Helper function to recursively check expressions for lint issues
+fn check_expression_for_issues(
+    expr: &oxc_ast::ast::Expression,
+    source_code: &str,
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+) {
+    use oxc_ast::ast::Expression;
+
+    match expr {
+        Expression::CallExpression(call) => {
+            // Recursively check arguments
+            for arg in &call.arguments {
+                if let Some(expr) = arg.as_expression() {
+                    check_expression_for_issues(expr, source_code, named_source, lint_errors);
+                }
+            }
+        }
+        Expression::NumericLiteral(num) => {
+            // Check for magic numbers (excluding common values like 0, 1, -1)
+            let value = num.value;
+            if !matches!(value, 0.0 | 1.0 | -1.0) && value.fract() == 0.0 && value.abs() > 1.0 {
+                let span =
+                    SourceSpan::new((num.span.start as usize).into(), num.span.size() as usize);
+                lint_errors.push(LintError::NoMagicNumbers {
+                    span,
+                    source_code: named_source.clone(),
+                    number: value.to_string(),
+                });
+            }
+        }
+        // Add more expression checks here as needed
+        _ => {}
+    }
+}
+
+/// Helper function to check statements for expressions that need linting
+fn check_statement_for_expressions(
+    stmt: &Statement,
+    source_code: &str,
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+) {
+    use oxc_ast::ast::Statement;
+
+    match stmt {
+        Statement::ExpressionStatement(expr_stmt) => {
+            check_expression_for_issues(
+                &expr_stmt.expression,
+                source_code,
+                named_source,
+                lint_errors,
+            );
+        }
+        Statement::VariableDeclaration(var_decl) => {
+            for declarator in &var_decl.declarations {
+                if let Some(init) = &declarator.init {
+                    check_expression_for_issues(init, source_code, named_source, lint_errors);
+                }
+            }
+        }
+        Statement::IfStatement(if_stmt) => {
+            check_expression_for_issues(&if_stmt.test, source_code, named_source, lint_errors);
+            check_statement_for_expressions(
+                &if_stmt.consequent,
+                source_code,
+                named_source,
+                lint_errors,
+            );
+            if let Some(alternate) = &if_stmt.alternate {
+                check_statement_for_expressions(alternate, source_code, named_source, lint_errors);
+            }
+        }
+        Statement::BlockStatement(block) => {
+            for stmt in &block.body {
+                check_statement_for_expressions(stmt, source_code, named_source, lint_errors);
+            }
+        }
+        Statement::ReturnStatement(ret_stmt) => {
+            if let Some(arg) = &ret_stmt.argument {
+                check_expression_for_issues(arg, source_code, named_source, lint_errors);
+            }
+        }
+        // Add more statement types as needed
+        _ => {}
+    }
+}
+
+/// Helper function to check for variables that could be const
+fn check_prefer_const(
+    statements: &[Statement],
+    source_code: &str,
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+) {
+    // First pass: collect all let variables
+    let mut let_variables = std::collections::HashSet::new();
+    for stmt in statements {
+        collect_let_variables(stmt, &mut let_variables);
+    }
+
+    // Second pass: check for reassignments
+    let mut reassigned_variables = HashSet::new();
+    for stmt in statements {
+        check_for_reassignments(stmt, &mut reassigned_variables);
+    }
+
+    // Third pass: report variables that could be const
+    for stmt in statements {
+        report_prefer_const_violations(
+            stmt,
+            &let_variables,
+            &reassigned_variables,
+            source_code,
+            named_source,
+            lint_errors,
+        );
+    }
+}
+
+/// Recursively collect all let variable declarations
+fn collect_let_variables(stmt: &Statement, let_variables: &mut HashSet<String>) {
+    use oxc_ast::ast::{Statement, VariableDeclarationKind};
+
+    match stmt {
+        Statement::VariableDeclaration(decl) => {
+            if matches!(decl.kind, VariableDeclarationKind::Let) {
+                for declarator in &decl.declarations {
+                    if let Some(id) = declarator.id.get_binding_identifier() {
+                        let_variables.insert(id.name.to_string());
+                    }
+                }
+            }
+        }
+        Statement::BlockStatement(block) => {
+            for stmt in &block.body {
+                collect_let_variables(stmt, let_variables);
+            }
+        }
+        Statement::IfStatement(if_stmt) => {
+            collect_let_variables(&if_stmt.consequent, let_variables);
+            if let Some(alternate) = &if_stmt.alternate {
+                collect_let_variables(alternate, let_variables);
+            }
+        }
+        Statement::ForStatement(for_stmt) => {
+            if let Some(init) = &for_stmt.init {
+                if let oxc_ast::ast::ForStatementInit::VariableDeclaration(decl) = init {
+                    if matches!(decl.kind, VariableDeclarationKind::Let) {
+                        for declarator in &decl.declarations {
+                            if let Some(id) = declarator.id.get_binding_identifier() {
+                                let_variables.insert(id.name.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+            collect_let_variables(&for_stmt.body, let_variables);
+        }
+        Statement::WhileStatement(while_stmt) => {
+            collect_let_variables(&while_stmt.body, let_variables);
+        }
+        Statement::FunctionDeclaration(func) => {
+            if let Some(body) = &func.body {
+                for stmt in &body.statements {
+                    collect_let_variables(stmt, let_variables);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Recursively check for reassignments to variables
+fn check_for_reassignments(stmt: &Statement, reassigned_variables: &mut HashSet<String>) {
+    match stmt {
+        Statement::ExpressionStatement(expr_stmt) => {
+            check_expression_for_reassignments(&expr_stmt.expression, reassigned_variables);
+        }
+        Statement::BlockStatement(block) => {
+            for stmt in &block.body {
+                check_for_reassignments(stmt, reassigned_variables);
+            }
+        }
+        Statement::IfStatement(if_stmt) => {
+            check_for_reassignments(&if_stmt.consequent, reassigned_variables);
+            if let Some(alternate) = &if_stmt.alternate {
+                check_for_reassignments(alternate, reassigned_variables);
+            }
+        }
+        Statement::ForStatement(for_stmt) => {
+            check_for_reassignments(&for_stmt.body, reassigned_variables);
+        }
+        Statement::WhileStatement(while_stmt) => {
+            check_for_reassignments(&while_stmt.body, reassigned_variables);
+        }
+        Statement::FunctionDeclaration(func) => {
+            if let Some(body) = &func.body {
+                for stmt in &body.statements {
+                    check_for_reassignments(stmt, reassigned_variables);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Check expressions for variable reassignments
+fn check_expression_for_reassignments(
+    expr: &oxc_ast::ast::Expression,
+    reassigned_variables: &mut HashSet<String>,
+) {
+    use oxc_ast::ast::{AssignmentTarget, Expression};
+
+    match expr {
+        Expression::AssignmentExpression(assign) => {
+            // Check if we're assigning to a simple identifier
+            if let AssignmentTarget::AssignmentTargetIdentifier(id) = &assign.left {
+                reassigned_variables.insert(id.name.to_string());
+            }
+        }
+        Expression::UpdateExpression(update) => {
+            // Check for ++ and -- operators
+            if let oxc_ast::ast::SimpleAssignmentTarget::AssignmentTargetIdentifier(id) =
+                &update.argument
+            {
+                reassigned_variables.insert(id.name.to_string());
+            }
+        }
+        // Recursively check other expressions
+        Expression::CallExpression(call) => {
+            for arg in &call.arguments {
+                if let Some(expr) = arg.as_expression() {
+                    check_expression_for_reassignments(expr, reassigned_variables);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Report prefer-const violations
+fn report_prefer_const_violations(
+    stmt: &Statement,
+    let_variables: &HashSet<String>,
+    reassigned_variables: &HashSet<String>,
+    source_code: &str,
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+) {
+    use oxc_ast::ast::{Statement, VariableDeclarationKind};
+
+    match stmt {
+        Statement::VariableDeclaration(decl) => {
+            if matches!(decl.kind, VariableDeclarationKind::Let) {
+                for declarator in &decl.declarations {
+                    if let Some(id) = declarator.id.get_binding_identifier() {
+                        let var_name = id.name.to_string();
+                        // If it's a let variable that's never reassigned, suggest const
+                        if let_variables.contains(&var_name)
+                            && !reassigned_variables.contains(&var_name)
+                        {
+                            let span = SourceSpan::new(
+                                (id.span.start as usize).into(),
+                                id.span.size() as usize,
+                            );
+
+                            lint_errors.push(LintError::PreferConst {
+                                span,
+                                source_code: named_source.clone(),
+                                variable_name: var_name,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        Statement::BlockStatement(block) => {
+            for stmt in &block.body {
+                report_prefer_const_violations(
+                    stmt,
+                    let_variables,
+                    reassigned_variables,
+                    source_code,
+                    named_source,
+                    lint_errors,
+                );
+            }
+        }
+        Statement::IfStatement(if_stmt) => {
+            report_prefer_const_violations(
+                &if_stmt.consequent,
+                let_variables,
+                reassigned_variables,
+                source_code,
+                named_source,
+                lint_errors,
+            );
+            if let Some(alternate) = &if_stmt.alternate {
+                report_prefer_const_violations(
+                    alternate,
+                    let_variables,
+                    reassigned_variables,
+                    source_code,
+                    named_source,
+                    lint_errors,
+                );
+            }
+        }
+        Statement::FunctionDeclaration(func) => {
+            if let Some(body) = &func.body {
+                for stmt in &body.statements {
+                    report_prefer_const_violations(
+                        stmt,
+                        let_variables,
+                        reassigned_variables,
+                        source_code,
+                        named_source,
+                        lint_errors,
+                    );
+                }
+            }
+        }
+        _ => {}
+    }
+}
 
 /// Lint a single JS/TS file
 #[allow(clippy::result_large_err)]
@@ -104,6 +472,9 @@ pub fn lint_file(path: &PathBuf) -> Result<()> {
 
     // Check for various lint issues
     for stmt in &program.body {
+        // Check for expression-based issues in any expressions within the statement
+        check_statement_for_expressions(stmt, &content, &named_source, &mut lint_errors);
+
         match stmt {
             Statement::EmptyStatement(empty_stmt) => {
                 let span = SourceSpan::new(
@@ -128,7 +499,7 @@ pub fn lint_file(path: &PathBuf) -> Result<()> {
                         .map(|id| id.name.as_str())
                         .unwrap_or("<unknown>")
                         .to_string();
-                    
+
                     lint_errors.push(LintError::VarUsage {
                         span,
                         source_code: named_source.clone(),
@@ -149,7 +520,7 @@ pub fn lint_file(path: &PathBuf) -> Result<()> {
                             .map(|id| id.name.as_str())
                             .unwrap_or("<anonymous>")
                             .to_string();
-                        
+
                         lint_errors.push(LintError::EmptyFunction {
                             span,
                             source_code: named_source.clone(),
@@ -162,25 +533,30 @@ pub fn lint_file(path: &PathBuf) -> Result<()> {
         }
     }
 
-    // Check for unused variables using semantic analysis
+    // Check for prefer-const by analyzing variable declarations
+    check_prefer_const(&program.body, &content, &named_source, &mut lint_errors);
+
+    // Check for unused variables and prefer-const using semantic analysis
     let semantic = SemanticBuilder::new().build(program);
     let scoping = semantic.semantic.scoping();
     for symbol_id in scoping.symbol_ids() {
         let flags = scoping.symbol_flags(symbol_id);
+        let name = scoping.symbol_name(symbol_id);
+        let symbol_span = scoping.symbol_span(symbol_id);
+
+        // Check for unused variables
         if flags.intersects(
             SymbolFlags::BlockScopedVariable
                 | SymbolFlags::ConstVariable
                 | SymbolFlags::FunctionScopedVariable,
         ) && scoping.symbol_is_unused(symbol_id)
         {
-            let name = scoping.symbol_name(symbol_id);
             if !name.starts_with('_') {
-                let symbol_span = scoping.symbol_span(symbol_id);
                 let span = SourceSpan::new(
                     (symbol_span.start as usize).into(),
                     symbol_span.size() as usize,
                 );
-                
+
                 lint_errors.push(LintError::UnusedVariable {
                     span,
                     source_code: named_source.clone(),
@@ -201,7 +577,7 @@ pub fn lint_file(path: &PathBuf) -> Result<()> {
             if lint_errors.len() == 1 { "" } else { "s" }
         );
         println!("{}", "─".repeat(60).yellow());
-        
+
         for (i, error) in lint_errors.iter().enumerate() {
             if lint_errors.len() > 1 {
                 println!();
@@ -222,6 +598,6 @@ pub fn lint_file(path: &PathBuf) -> Result<()> {
         let msg = Style::new().white().dim().apply_to("No lint issues found.");
         println!("{ok} {file}: {msg}");
     }
-    
+
     Ok(())
 }
