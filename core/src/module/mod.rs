@@ -685,7 +685,8 @@ impl ModuleSystem {
             ModuleType::Json => {
                 // JSON modules have a single default export
                 module.exports.push(ModuleExport {
-                    name: None, // default export
+                    // default export
+                    name: None,
                     is_reexport: false,
                     source_module: None,
                     source_name: None,
@@ -765,7 +766,8 @@ impl ModuleSystem {
             }
             _ => SourceType::mjs(),
         }
-        .with_module(true) // Always treat as ES modules
+        // Always treat as ES modules
+        .with_module(true)
     }
 
     /// Resolve a module specifier to an absolute path/URL
@@ -788,7 +790,8 @@ impl ModuleSystem {
                 return ModuleType::from_extension(ext_str);
             }
         }
-        ModuleType::JavaScript // default
+        // default
+        ModuleType::JavaScript
     }
 
     /// Get a module by ID
@@ -849,7 +852,7 @@ impl ModuleVisitor {
                 ast::Statement::ExportNamedDeclaration(decl) => {
                     self.handle_export_named_declaration(decl);
                 }
-                _ => {} // Ignore other statements
+                _ => {}
             }
         }
     }
@@ -906,7 +909,8 @@ impl ModuleVisitor {
     fn handle_export_default_declaration(&mut self, _decl: &ast::ExportDefaultDeclaration) {
         // export default ...
         self.exports.push(ModuleExport {
-            name: None, // None indicates default export
+            // None indicates default export
+            name: None,
             is_reexport: false,
             source_module: None,
             source_name: None,
