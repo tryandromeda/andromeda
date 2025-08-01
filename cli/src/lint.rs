@@ -279,6 +279,13 @@ fn collect_let_variables(stmt: &Statement, let_variables: &mut HashSet<String>) 
                 collect_let_variables(alternate, let_variables);
             }
         }
+        Statement::SwitchStatement(switch_stmt) => {
+            for case in &switch_stmt.cases {
+                for stmt in &case.consequent {
+                    collect_let_variables(stmt, let_variables);
+                }
+            }
+        }
         Statement::ForStatement(for_stmt) => {
             if let Some(oxc_ast::ast::ForStatementInit::VariableDeclaration(decl)) = &for_stmt.init
             {
@@ -321,6 +328,13 @@ fn check_for_reassignments(stmt: &Statement, reassigned_variables: &mut HashSet<
             check_for_reassignments(&if_stmt.consequent, reassigned_variables);
             if let Some(alternate) = &if_stmt.alternate {
                 check_for_reassignments(alternate, reassigned_variables);
+            }
+        }
+        Statement::SwitchStatement(switch_stmt) => {
+            for case in &switch_stmt.cases {
+                for stmt in &case.consequent {
+                    check_for_reassignments(stmt, reassigned_variables);
+                }
             }
         }
         Statement::ForStatement(for_stmt) => {
@@ -436,6 +450,20 @@ fn report_prefer_const_violations(
                     named_source,
                     lint_errors,
                 );
+            }
+        }
+        Statement::SwitchStatement(switch_stmt) => {
+            for case in &switch_stmt.cases {
+                for stmt in &case.consequent {
+                    report_prefer_const_violations(
+                        stmt,
+                        let_variables,
+                        reassigned_variables,
+                        _source_code,
+                        named_source,
+                        lint_errors,
+                    );
+                }
             }
         }
         Statement::FunctionDeclaration(func) => {
