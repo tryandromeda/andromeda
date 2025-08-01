@@ -22,7 +22,9 @@ pub enum LintError {
     /// Empty statement found
     #[diagnostic(
         code(andromeda::lint::empty_statement),
-        help("🔍 Remove unnecessary semicolons that create empty statements.\n💡 Empty statements can make code harder to read and may indicate errors."),
+        help(
+            "🔍 Remove unnecessary semicolons that create empty statements.\n💡 Empty statements can make code harder to read and may indicate errors."
+        ),
         url("https://eslint.org/docs/latest/rules/no-empty-statement")
     )]
     EmptyStatement {
@@ -35,7 +37,9 @@ pub enum LintError {
     /// Usage of 'var' keyword
     #[diagnostic(
         code(andromeda::lint::var_usage),
-        help("🔍 Replace 'var' with 'let' or 'const' for better scoping.\n💡 'var' has function-level scoping which can lead to unexpected behavior.\n📖 Use 'let' for variables that will be reassigned, 'const' for constants."),
+        help(
+            "🔍 Replace 'var' with 'let' or 'const' for better scoping.\n💡 'var' has function-level scoping which can lead to unexpected behavior.\n📖 Use 'let' for variables that will be reassigned, 'const' for constants."
+        ),
         url("https://eslint.org/docs/latest/rules/no-var")
     )]
     VarUsage {
@@ -49,7 +53,9 @@ pub enum LintError {
     /// Function with empty body
     #[diagnostic(
         code(andromeda::lint::empty_function),
-        help("🔍 Add implementation to the function or mark it as intentionally empty.\n💡 Empty functions may indicate incomplete implementation.\n📝 Consider adding a comment if the function is intentionally empty."),
+        help(
+            "🔍 Add implementation to the function or mark it as intentionally empty.\n💡 Empty functions may indicate incomplete implementation.\n📝 Consider adding a comment if the function is intentionally empty."
+        ),
         url("https://eslint.org/docs/latest/rules/no-empty-function")
     )]
     EmptyFunction {
@@ -63,7 +69,9 @@ pub enum LintError {
     /// Unused variable
     #[diagnostic(
         code(andromeda::lint::unused_variable),
-        help("🔍 Remove the unused variable or prefix it with '_' if intentionally unused.\n💡 Unused variables can indicate dead code or typos in variable names.\n🧹 Removing unused variables helps keep code clean and maintainable."),
+        help(
+            "🔍 Remove the unused variable or prefix it with '_' if intentionally unused.\n💡 Unused variables can indicate dead code or typos in variable names.\n🧹 Removing unused variables helps keep code clean and maintainable."
+        ),
         url("https://eslint.org/docs/latest/rules/no-unused-vars")
     )]
     UnusedVariable {
@@ -77,7 +85,9 @@ pub enum LintError {
     /// Variable could be const
     #[diagnostic(
         code(andromeda::lint::prefer_const),
-        help("🔍 Use 'const' instead of 'let' for variables that are never reassigned.\n💡 'const' prevents accidental reassignment and makes intent clearer.\n📖 Save 'let' for variables that will be modified."),
+        help(
+            "🔍 Use 'const' instead of 'let' for variables that are never reassigned.\n💡 'const' prevents accidental reassignment and makes intent clearer.\n📖 Save 'let' for variables that will be modified."
+        ),
         url("https://eslint.org/docs/latest/rules/prefer-const")
     )]
     PreferConst {
@@ -91,7 +101,9 @@ pub enum LintError {
     /// Magic number usage
     #[diagnostic(
         code(andromeda::lint::no_magic_numbers),
-        help("🔍 Replace magic numbers with named constants.\n💡 Magic numbers make code harder to understand and maintain.\n📝 Create a const variable with a descriptive name."),
+        help(
+            "🔍 Replace magic numbers with named constants.\n💡 Magic numbers make code harder to understand and maintain.\n📝 Create a const variable with a descriptive name."
+        ),
         url("https://eslint.org/docs/latest/rules/no-magic-numbers")
     )]
     NoMagicNumbers {
@@ -108,19 +120,19 @@ impl std::fmt::Display for LintError {
         match self {
             LintError::EmptyStatement { .. } => write!(f, "Empty statement found"),
             LintError::VarUsage { variable_name, .. } => {
-                write!(f, "Usage of 'var' for variable '{}'", variable_name)
+                write!(f, "Usage of 'var' for variable '{variable_name}'")
             }
             LintError::EmptyFunction { function_name, .. } => {
-                write!(f, "Function '{}' has empty body", function_name)
+                write!(f, "Function '{function_name}' has empty body")
             }
             LintError::UnusedVariable { variable_name, .. } => {
-                write!(f, "Unused variable '{}'", variable_name)
+                write!(f, "Unused variable '{variable_name}'")
             }
             LintError::PreferConst { variable_name, .. } => {
-                write!(f, "Variable '{}' could be const", variable_name)
+                write!(f, "Variable '{variable_name}' could be const")
             }
             LintError::NoMagicNumbers { number, .. } => {
-                write!(f, "Magic number '{}' found", number)
+                write!(f, "Magic number '{number}' found")
             }
         }
     }
@@ -131,7 +143,7 @@ impl std::error::Error for LintError {}
 /// Helper function to recursively check expressions for lint issues
 fn check_expression_for_issues(
     expr: &oxc_ast::ast::Expression,
-    source_code: &str,
+    _source_code: &str,
     named_source: &NamedSource<String>,
     lint_errors: &mut Vec<LintError>,
 ) {
@@ -139,15 +151,13 @@ fn check_expression_for_issues(
 
     match expr {
         Expression::CallExpression(call) => {
-            // Recursively check arguments
             for arg in &call.arguments {
                 if let Some(expr) = arg.as_expression() {
-                    check_expression_for_issues(expr, source_code, named_source, lint_errors);
+                    check_expression_for_issues(expr, _source_code, named_source, lint_errors);
                 }
             }
         }
         Expression::NumericLiteral(num) => {
-            // Check for magic numbers (excluding common values like 0, 1, -1)
             let value = num.value;
             if !matches!(value, 0.0 | 1.0 | -1.0) && value.fract() == 0.0 && value.abs() > 1.0 {
                 let span =
@@ -159,7 +169,6 @@ fn check_expression_for_issues(
                 });
             }
         }
-        // Add more expression checks here as needed
         _ => {}
     }
 }
@@ -223,19 +232,16 @@ fn check_prefer_const(
     named_source: &NamedSource<String>,
     lint_errors: &mut Vec<LintError>,
 ) {
-    // First pass: collect all let variables
     let mut let_variables = std::collections::HashSet::new();
     for stmt in statements {
         collect_let_variables(stmt, &mut let_variables);
     }
 
-    // Second pass: check for reassignments
     let mut reassigned_variables = HashSet::new();
     for stmt in statements {
         check_for_reassignments(stmt, &mut reassigned_variables);
     }
 
-    // Third pass: report variables that could be const
     for stmt in statements {
         report_prefer_const_violations(
             stmt,
@@ -274,13 +280,12 @@ fn collect_let_variables(stmt: &Statement, let_variables: &mut HashSet<String>) 
             }
         }
         Statement::ForStatement(for_stmt) => {
-            if let Some(init) = &for_stmt.init {
-                if let oxc_ast::ast::ForStatementInit::VariableDeclaration(decl) = init {
-                    if matches!(decl.kind, VariableDeclarationKind::Let) {
-                        for declarator in &decl.declarations {
-                            if let Some(id) = declarator.id.get_binding_identifier() {
-                                let_variables.insert(id.name.to_string());
-                            }
+            if let Some(oxc_ast::ast::ForStatementInit::VariableDeclaration(decl)) = &for_stmt.init
+            {
+                if matches!(decl.kind, VariableDeclarationKind::Let) {
+                    for declarator in &decl.declarations {
+                        if let Some(id) = declarator.id.get_binding_identifier() {
+                            let_variables.insert(id.name.to_string());
                         }
                     }
                 }
@@ -344,20 +349,17 @@ fn check_expression_for_reassignments(
 
     match expr {
         Expression::AssignmentExpression(assign) => {
-            // Check if we're assigning to a simple identifier
             if let AssignmentTarget::AssignmentTargetIdentifier(id) = &assign.left {
                 reassigned_variables.insert(id.name.to_string());
             }
         }
         Expression::UpdateExpression(update) => {
-            // Check for ++ and -- operators
             if let oxc_ast::ast::SimpleAssignmentTarget::AssignmentTargetIdentifier(id) =
                 &update.argument
             {
                 reassigned_variables.insert(id.name.to_string());
             }
         }
-        // Recursively check other expressions
         Expression::CallExpression(call) => {
             for arg in &call.arguments {
                 if let Some(expr) = arg.as_expression() {
@@ -374,7 +376,7 @@ fn report_prefer_const_violations(
     stmt: &Statement,
     let_variables: &HashSet<String>,
     reassigned_variables: &HashSet<String>,
-    source_code: &str,
+    _source_code: &str,
     named_source: &NamedSource<String>,
     lint_errors: &mut Vec<LintError>,
 ) {
@@ -386,7 +388,6 @@ fn report_prefer_const_violations(
                 for declarator in &decl.declarations {
                     if let Some(id) = declarator.id.get_binding_identifier() {
                         let var_name = id.name.to_string();
-                        // If it's a let variable that's never reassigned, suggest const
                         if let_variables.contains(&var_name)
                             && !reassigned_variables.contains(&var_name)
                         {
@@ -411,7 +412,7 @@ fn report_prefer_const_violations(
                     stmt,
                     let_variables,
                     reassigned_variables,
-                    source_code,
+                    _source_code,
                     named_source,
                     lint_errors,
                 );
@@ -422,7 +423,7 @@ fn report_prefer_const_violations(
                 &if_stmt.consequent,
                 let_variables,
                 reassigned_variables,
-                source_code,
+                _source_code,
                 named_source,
                 lint_errors,
             );
@@ -431,7 +432,7 @@ fn report_prefer_const_violations(
                     alternate,
                     let_variables,
                     reassigned_variables,
-                    source_code,
+                    _source_code,
                     named_source,
                     lint_errors,
                 );
@@ -444,7 +445,7 @@ fn report_prefer_const_violations(
                         stmt,
                         let_variables,
                         reassigned_variables,
-                        source_code,
+                        _source_code,
                         named_source,
                         lint_errors,
                     );
@@ -466,13 +467,10 @@ pub fn lint_file(path: &PathBuf) -> Result<()> {
     let program = &ret.program;
     let mut lint_errors = Vec::new();
 
-    // Create named source for error reporting
     let source_name = path.display().to_string();
     let named_source = NamedSource::new(source_name.clone(), content.clone());
 
-    // Check for various lint issues
     for stmt in &program.body {
-        // Check for expression-based issues in any expressions within the statement
         check_statement_for_expressions(stmt, &content, &named_source, &mut lint_errors);
 
         match stmt {
@@ -533,10 +531,8 @@ pub fn lint_file(path: &PathBuf) -> Result<()> {
         }
     }
 
-    // Check for prefer-const by analyzing variable declarations
     check_prefer_const(&program.body, &content, &named_source, &mut lint_errors);
 
-    // Check for unused variables and prefer-const using semantic analysis
     let semantic = SemanticBuilder::new().build(program);
     let scoping = semantic.semantic.scoping();
     for symbol_id in scoping.symbol_ids() {
@@ -544,29 +540,26 @@ pub fn lint_file(path: &PathBuf) -> Result<()> {
         let name = scoping.symbol_name(symbol_id);
         let symbol_span = scoping.symbol_span(symbol_id);
 
-        // Check for unused variables
         if flags.intersects(
             SymbolFlags::BlockScopedVariable
                 | SymbolFlags::ConstVariable
                 | SymbolFlags::FunctionScopedVariable,
         ) && scoping.symbol_is_unused(symbol_id)
+            && !name.starts_with('_')
         {
-            if !name.starts_with('_') {
-                let span = SourceSpan::new(
-                    (symbol_span.start as usize).into(),
-                    symbol_span.size() as usize,
-                );
+            let span = SourceSpan::new(
+                (symbol_span.start as usize).into(),
+                symbol_span.size() as usize,
+            );
 
-                lint_errors.push(LintError::UnusedVariable {
-                    span,
-                    source_code: named_source.clone(),
-                    variable_name: name.to_string(),
-                });
-            }
+            lint_errors.push(LintError::UnusedVariable {
+                span,
+                source_code: named_source.clone(),
+                variable_name: name.to_string(),
+            });
         }
     }
 
-    // Report all lint errors using miette
     if !lint_errors.is_empty() {
         println!();
         println!(
