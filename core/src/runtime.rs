@@ -157,7 +157,7 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
                 // Module not found error
                 let error = agent.throw_exception(
                     ExceptionType::TypeError,
-                    format!("Module not found: {}", specifier_str),
+                    format!("Module not found: {specifier_str}"),
                     gc,
                 );
                 finish_loading_imported_module(
@@ -209,7 +209,7 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
         // Handle JSON modules specially
         let final_source = if is_json {
             // For JSON modules, wrap the JSON in a JavaScript module that exports it as default
-            format!("export default {};", source_text)
+            format!("export default {source_text};")
         } else {
             source_text
         };
