@@ -14,7 +14,7 @@ use oxc_semantic::SymbolFlags;
 use oxc_span::{GetSpan, SourceType};
 use std::collections::HashSet;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Lint error types with enhanced diagnostics
 #[derive(Diagnostic, Debug, Clone)]
@@ -455,17 +455,30 @@ fn report_prefer_const_violations(
 pub fn lint_file(path: &PathBuf) -> Result<()> {
     let content =
         fs::read_to_string(path).map_err(|e| AndromedaError::file_read_error(path.clone(), e))?;
+
+    match lint_file_content(path, &content) {
+        Ok(lint_errors) => {
+            display_lint_results(path, &lint_errors);
+            Ok(())
+        }
+        Err(e) => Err(e),
+    }
+}
+
+/// Lint file content directly (useful for LSP)
+#[allow(clippy::result_large_err)]
+pub fn lint_file_content(path: &PathBuf, content: &str) -> Result<Vec<LintError>> {
     let allocator = Allocator::default();
     let source_type = SourceType::from_path(path).unwrap_or_default();
-    let ret = Parser::new(&allocator, &content, source_type).parse();
+    let ret = Parser::new(&allocator, content, source_type).parse();
     let program = &ret.program;
     let mut lint_errors = Vec::new();
 
     let source_name = path.display().to_string();
-    let named_source = NamedSource::new(source_name.clone(), content.clone());
+    let named_source = NamedSource::new(source_name.clone(), content.to_string());
 
     for stmt in &program.body {
-        check_statement_for_expressions(stmt, &content, &named_source, &mut lint_errors);
+        check_statement_for_expressions(stmt, content, &named_source, &mut lint_errors);
 
         match stmt {
             Statement::EmptyStatement(empty_stmt) => {
@@ -525,7 +538,7 @@ pub fn lint_file(path: &PathBuf) -> Result<()> {
         }
     }
 
-    check_prefer_const(&program.body, &content, &named_source, &mut lint_errors);
+    check_prefer_const(&program.body, content, &named_source, &mut lint_errors);
 
     let semantic = SemanticBuilder::new().build(program);
     let scoping = semantic.semantic.scoping();
@@ -554,6 +567,11 @@ pub fn lint_file(path: &PathBuf) -> Result<()> {
         }
     }
 
+    Ok(lint_errors)
+}
+
+/// Display lint results to the console
+fn display_lint_results(path: &Path, lint_errors: &[LintError]) {
     if !lint_errors.is_empty() {
         println!();
         println!(
@@ -585,6 +603,4 @@ pub fn lint_file(path: &PathBuf) -> Result<()> {
         let msg = Style::new().white().dim().apply_to("No lint issues found.");
         println!("{ok} {file}: {msg}");
     }
-
-    Ok(())
 }

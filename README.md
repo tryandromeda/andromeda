@@ -208,6 +208,30 @@ andromeda compile my-script.ts my-app.exe
 ./my-app.exe
 ```
 
+### Language Server Protocol (LSP)
+
+Andromeda includes a built-in Language Server that provides real-time diagnostics and linting capabilities for JavaScript and TypeScript files in your editor:
+
+```bash
+# Start the Language Server (typically called by your editor)
+andromeda lsp
+```
+
+**✨ LSP Features:**
+
+- **Real-time Diagnostics** - Live error reporting as you type
+- **Comprehensive Linting** - 5 built-in rules for code quality:
+  - Empty function detection
+  - Empty statement detection  
+  - Variable usage validation
+  - Unreachable code detection
+  - Invalid syntax highlighting
+- **Multi-file Support** - Workspace-wide analysis
+- **Rich Error Messages** - Detailed explanations with code context
+- **Editor Integration** - Works with VS Code, Neovim, and other LSP-compatible editors
+
+Configure your editor to use `andromeda lsp` as the language server for JavaScript and TypeScript files to get instant feedback on code quality.
+
 ### Shell Integration
 
 Generate completion scripts for your shell:

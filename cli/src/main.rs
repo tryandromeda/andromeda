@@ -26,7 +26,9 @@ mod helper;
 use helper::find_formattable_files;
 mod lint;
 use lint::lint_file;
+mod lsp;
 mod upgrade;
+use lsp::run_lsp_server;
 
 /// A JavaScript runtime
 #[derive(Debug, ClapParser)]
@@ -126,6 +128,9 @@ enum Command {
         #[arg(required = false)]
         paths: Vec<PathBuf>,
     },
+
+    /// Start Language Server Protocol (LSP) server
+    Lsp,
 }
 
 fn main() {
@@ -268,6 +273,18 @@ fn run_main() -> Result<()> {
                 } else {
                     Ok(())
                 }
+            }
+            Command::Lsp => {
+                run_lsp_server().map_err(|e| {
+                    error::AndromedaError::runtime_error(
+                        format!("LSP server failed: {e}"),
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                })?;
+                Ok(())
             }
         }
     });
