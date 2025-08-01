@@ -8,6 +8,11 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use oxc_allocator::Allocator;
+use oxc_ast::ast;
+use oxc_parser::{Parser, ParserReturn};
+use oxc_span::SourceType;
+
 /// Error type for module-related operations
 #[derive(Debug, thiserror::Error)]
 pub enum ModuleError {
@@ -702,108 +707,65 @@ impl ModuleSystem {
         Ok(())
     }
 
-    /// Simple parser for JavaScript/TypeScript imports and exports
+    /// Parse JavaScript/TypeScript using proper AST parser
     fn parse_js_ts_module(&self, module: &mut ModuleRecord) -> ModuleResult<()> {
         let source = &module.source;
+        let source_type = self.determine_source_type(&module.specifier, &module.module_type);
 
-        // This is a simplified parser - in a production system you'd use a proper AST parser
-        for line in source.lines() {
-            let trimmed = line.trim();
+        // Create allocator for the parser
+        let allocator = Allocator::default();
 
-            // Parse import statements
-            if let Some(import) = self.parse_import_statement(trimmed) {
-                module.imports.push(import);
-            }
+        // Parse the source code into an AST
+        let ParserReturn {
+            program, errors, ..
+        } = Parser::new(&allocator, source, source_type).parse();
 
-            // Parse export statements
-            if let Some(export) = self.parse_export_statement(trimmed) {
-                module.exports.push(export);
-            }
+        // Check for parse errors
+        if !errors.is_empty() {
+            let error_messages: Vec<String> = errors.iter().map(|e| format!("{e:?}")).collect();
+            return Err(ModuleError::ParseError {
+                path: module.specifier.clone(),
+                message: format!("Parse errors: {}", error_messages.join(", ")),
+            });
         }
+
+        // Create an AST visitor to extract imports and exports
+        let mut visitor = ModuleVisitor::new();
+        visitor.analyze_program(&program);
+
+        // Extract the results
+        module.imports = visitor.imports;
+        module.exports = visitor.exports;
 
         Ok(())
     }
 
-    /// Parse a single import statement (simplified)
-    fn parse_import_statement(&self, line: &str) -> Option<ModuleImport> {
-        if line.starts_with("import ") && line.contains(" from ") {
-            // Extract specifier
-            if let Some(from_pos) = line.rfind(" from ") {
-                let specifier_part = line[from_pos + 6..].trim();
-                let specifier = specifier_part.trim_matches(|c| c == '"' || c == '\'' || c == ';');
+    /// Determine the source type for the OXC parser
+    fn determine_source_type(&self, specifier: &str, module_type: &ModuleType) -> SourceType {
+        let path = Path::new(specifier);
+        let extension = path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("js");
 
-                let import_part = line[6..from_pos].trim();
-
-                let mut import = ModuleImport {
-                    specifier: specifier.to_string(),
-                    imports: None,
-                    default_import: None,
-                    namespace_import: None,
-                };
-
-                // Parse different import patterns
-                if import_part.starts_with('*') {
-                    // namespace import: import * as name from 'module'
-                    if let Some(as_pos) = import_part.find(" as ") {
-                        import.namespace_import =
-                            Some(import_part[as_pos + 4..].trim().to_string());
-                    }
-                } else if import_part.starts_with('{') && import_part.ends_with('}') {
-                    // named imports: import { a, b } from 'module'
-                    let names = import_part[1..import_part.len() - 1]
-                        .split(',')
-                        .map(|s| s.trim().to_string())
-                        .collect();
-                    import.imports = Some(names);
+        match module_type {
+            ModuleType::TypeScript => {
+                if extension == "tsx" {
+                    SourceType::tsx()
                 } else {
-                    // default import: import name from 'module'
-                    import.default_import = Some(import_part.to_string());
+                    SourceType::ts()
                 }
-
-                return Some(import);
             }
-        }
-
-        None
-    }
-
-    /// Parse a single export statement (simplified)
-    fn parse_export_statement(&self, line: &str) -> Option<ModuleExport> {
-        if line.starts_with("export ") {
-            if line.contains("default") {
-                // default export
-                return Some(ModuleExport {
-                    name: None,
-                    is_reexport: false,
-                    source_module: None,
-                    source_name: None,
-                });
-            } else if line.contains(" from ") {
-                // re-export
-                if let Some(from_pos) = line.rfind(" from ") {
-                    let source_module = line[from_pos + 6..]
-                        .trim()
-                        .trim_matches(|c| c == '"' || c == '\'' || c == ';');
-
-                    return Some(ModuleExport {
-                        name: Some("*".to_string()), // simplified
-                        is_reexport: true,
-                        source_module: Some(source_module.to_string()),
-                        source_name: None,
-                    });
+            ModuleType::JavaScript => {
+                if extension == "jsx" {
+                    SourceType::jsx()
+                } else {
+                    SourceType::mjs()
                 }
-            } else {
-                // named export
-                return Some(ModuleExport {
-                    name: Some("export".to_string()), // simplified
-                    is_reexport: false,
-                    source_module: None,
-                    source_name: None,
-                });
             }
+            _ => SourceType::mjs(),
         }
-
-        None
+        .with_module(true) // Always treat as ES modules
     }
 
     /// Resolve a module specifier to an absolute path/URL
@@ -855,5 +817,155 @@ impl ModuleSystem {
 impl Default for ModuleSystem {
     fn default() -> Self {
         Self::new(Box::new(CompositeModuleLoader::default_loaders()))
+    }
+}
+
+/// AST visitor for extracting imports and exports from JavaScript/TypeScript modules
+struct ModuleVisitor {
+    imports: Vec<ModuleImport>,
+    exports: Vec<ModuleExport>,
+}
+
+impl ModuleVisitor {
+    fn new() -> Self {
+        Self {
+            imports: Vec::new(),
+            exports: Vec::new(),
+        }
+    }
+
+    fn analyze_program(&mut self, program: &ast::Program) {
+        for stmt in &program.body {
+            match stmt {
+                ast::Statement::ImportDeclaration(decl) => {
+                    self.handle_import_declaration(decl);
+                }
+                ast::Statement::ExportAllDeclaration(decl) => {
+                    self.handle_export_all_declaration(decl);
+                }
+                ast::Statement::ExportDefaultDeclaration(decl) => {
+                    self.handle_export_default_declaration(decl);
+                }
+                ast::Statement::ExportNamedDeclaration(decl) => {
+                    self.handle_export_named_declaration(decl);
+                }
+                _ => {} // Ignore other statements
+            }
+        }
+    }
+
+    fn handle_import_declaration(&mut self, decl: &ast::ImportDeclaration) {
+        let specifier = decl.source.value.to_string();
+
+        let mut import = ModuleImport {
+            specifier,
+            imports: None,
+            default_import: None,
+            namespace_import: None,
+        };
+
+        // Parse import specifiers
+        if let Some(specifiers) = &decl.specifiers {
+            let mut named_imports = Vec::new();
+
+            for spec in specifiers {
+                match spec {
+                    ast::ImportDeclarationSpecifier::ImportSpecifier(spec) => {
+                        // Named import: import { name } from 'module'
+                        named_imports.push(spec.local.name.to_string());
+                    }
+                    ast::ImportDeclarationSpecifier::ImportDefaultSpecifier(spec) => {
+                        // Default import: import name from 'module'
+                        import.default_import = Some(spec.local.name.to_string());
+                    }
+                    ast::ImportDeclarationSpecifier::ImportNamespaceSpecifier(spec) => {
+                        // Namespace import: import * as name from 'module'
+                        import.namespace_import = Some(spec.local.name.to_string());
+                    }
+                }
+            }
+
+            if !named_imports.is_empty() {
+                import.imports = Some(named_imports);
+            }
+        }
+
+        self.imports.push(import);
+    }
+
+    fn handle_export_all_declaration(&mut self, decl: &ast::ExportAllDeclaration) {
+        // export * from 'module'
+        self.exports.push(ModuleExport {
+            name: Some("*".to_string()),
+            is_reexport: true,
+            source_module: Some(decl.source.value.to_string()),
+            source_name: None,
+        });
+    }
+
+    fn handle_export_default_declaration(&mut self, _decl: &ast::ExportDefaultDeclaration) {
+        // export default ...
+        self.exports.push(ModuleExport {
+            name: None, // None indicates default export
+            is_reexport: false,
+            source_module: None,
+            source_name: None,
+        });
+    }
+
+    fn handle_export_named_declaration(&mut self, decl: &ast::ExportNamedDeclaration) {
+        if let Some(source) = &decl.source {
+            // Re-export from another module: export { name } from 'module'
+            if !decl.specifiers.is_empty() {
+                for spec in &decl.specifiers {
+                    let export_name = match &spec.exported {
+                        ast::ModuleExportName::IdentifierName(name) => name.name.to_string(),
+                        ast::ModuleExportName::IdentifierReference(name) => name.name.to_string(),
+                        ast::ModuleExportName::StringLiteral(lit) => lit.value.to_string(),
+                    };
+
+                    let source_name = match &spec.local {
+                        ast::ModuleExportName::IdentifierName(name) => name.name.to_string(),
+                        ast::ModuleExportName::IdentifierReference(name) => name.name.to_string(),
+                        ast::ModuleExportName::StringLiteral(lit) => lit.value.to_string(),
+                    };
+
+                    self.exports.push(ModuleExport {
+                        name: Some(export_name),
+                        is_reexport: true,
+                        source_module: Some(source.value.to_string()),
+                        source_name: Some(source_name),
+                    });
+                }
+            }
+        } else {
+            // Direct export: export { name } or export const name = ...
+            if !decl.specifiers.is_empty() {
+                for spec in &decl.specifiers {
+                    let export_name = match &spec.exported {
+                        ast::ModuleExportName::IdentifierName(name) => name.name.to_string(),
+                        ast::ModuleExportName::IdentifierReference(name) => name.name.to_string(),
+                        ast::ModuleExportName::StringLiteral(lit) => lit.value.to_string(),
+                    };
+
+                    self.exports.push(ModuleExport {
+                        name: Some(export_name),
+                        is_reexport: false,
+                        source_module: None,
+                        source_name: None,
+                    });
+                }
+            } else if let Some(_declaration) = &decl.declaration {
+                // export const/let/var/function/class declarations
+                // For now, we'll mark these as generic exports
+                // TODO: extract the actual names
+                self.exports.push(ModuleExport {
+                    name: Some("declaration".to_string()),
+                    is_reexport: false,
+                    source_module: None,
+                    source_name: None,
+                });
+            }
+        }
     }
 }
