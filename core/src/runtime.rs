@@ -7,6 +7,7 @@ use std::{
     borrow::BorrowMut,
     cell::RefCell,
     collections::VecDeque,
+    path::{Path, PathBuf},
     str,
     sync::{atomic::Ordering, mpsc::Receiver},
 };
@@ -16,12 +17,21 @@ use nova_vm::{
         builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
         execution::{
             Agent, JsResult,
-            agent::{GcAgent, HostHooks, Job, Options, RealmRoot},
+            agent::{ExceptionType, GcAgent, HostHooks, Job, Options, RealmRoot},
         },
-        scripts_and_modules::script::{parse_script, script_evaluation},
-        types::{self, Object, Value},
+        scripts_and_modules::{
+            module::module_semantics::{
+                ModuleRequest, Referrer,
+                abstract_module_records::AbstractModule,
+                cyclic_module_records::GraphLoadingStateRecord,
+                finish_loading_imported_module,
+                source_text_module_records::{SourceTextModule, parse_module},
+            },
+            script::{HostDefined, parse_script, script_evaluation},
+        },
+        types::{self, Object, PropertyKey, String as NovaString, Value},
     },
-    engine::context::{Bindable, GcScope},
+    engine::context::{Bindable, GcScope, NoGcScope},
 };
 
 use crate::{
@@ -31,6 +41,7 @@ use crate::{
 pub struct RuntimeHostHooks<UserMacroTask> {
     pub(crate) promise_job_queue: RefCell<VecDeque<Job>>,
     pub(crate) host_data: HostData<UserMacroTask>,
+    pub(crate) base_path: PathBuf,
 }
 
 impl<UserMacroTask> std::fmt::Debug for RuntimeHostHooks<UserMacroTask> {
@@ -44,6 +55,15 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
         Self {
             promise_job_queue: RefCell::default(),
             host_data,
+            base_path: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+        }
+    }
+
+    pub fn with_base_path(host_data: HostData<UserMacroTask>, base_path: PathBuf) -> Self {
+        Self {
+            promise_job_queue: RefCell::default(),
+            host_data,
+            base_path,
         }
     }
 
@@ -54,6 +74,53 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
     pub fn any_pending_macro_tasks(&self) -> bool {
         self.host_data.macro_task_count.load(Ordering::Relaxed) > 0
     }
+
+    /// Resolve a module specifier relative to a referrer path
+    fn resolve_module_specifier(&self, specifier: &str, referrer_path: &Path) -> PathBuf {
+        if specifier.starts_with("./") || specifier.starts_with("../") {
+            // Relative import
+            let referrer_dir = referrer_path.parent().unwrap_or(&self.base_path);
+            referrer_dir.join(specifier)
+        } else if specifier.starts_with("/") {
+            // Absolute import
+            PathBuf::from(specifier)
+        } else {
+            // Relative to base path or bare specifier
+            self.base_path.join(specifier)
+        }
+    }
+
+    /// Resolve module file with proper extension handling
+    fn resolve_extensions(&self, path: PathBuf) -> Option<PathBuf> {
+        // First try the path as-is
+        if path.exists() {
+            return Some(path);
+        }
+
+        // Get the base path without extension for trying alternatives
+        let path_stem = path.with_extension("");
+
+        // Try different extensions in order of preference
+        for ext in &["ts", "js", "mjs", "json"] {
+            let candidate = path_stem.with_extension(ext);
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+
+        // If the original import had an extension but we didn't find it,
+        // try the path without extension (for cases like './math' -> './math.ts')
+        if path.extension().is_none() {
+            for ext in &["ts", "js", "mjs", "json"] {
+                let candidate = path.with_extension(ext);
+                if candidate.exists() {
+                    return Some(candidate);
+                }
+            }
+        }
+
+        None
+    }
 }
 
 impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
@@ -63,6 +130,149 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
 
     fn get_host_data(&self) -> &dyn Any {
         &self.host_data
+    }
+
+    fn load_imported_module<'gc>(
+        &self,
+        agent: &mut Agent,
+        referrer: Referrer<'gc>,
+        module_request: ModuleRequest<'gc>,
+        _host_defined: Option<HostDefined>,
+        payload: &mut GraphLoadingStateRecord<'gc>,
+        gc: NoGcScope<'gc, '_>,
+    ) {
+        // Get the module specifier from the module request
+        let specifier = module_request.specifier(agent);
+        let specifier_str = specifier.to_string_lossy(agent);
+
+        // For now, let's use the base_path as the referrer directory for relative imports
+        // TODO: Properly extract referrer path from host_defined when needed
+        let referrer_path = self.base_path.join("script.js");
+
+        // Resolve the module specifier
+        let resolved_path = self.resolve_module_specifier(&specifier_str, &referrer_path);
+        let resolved_path = match self.resolve_extensions(resolved_path) {
+            Some(path) => path,
+            None => {
+                // Module not found error
+                let error = agent.throw_exception(
+                    ExceptionType::TypeError,
+                    format!("Module not found: {specifier_str}"),
+                    gc,
+                );
+                finish_loading_imported_module(
+                    agent,
+                    referrer,
+                    module_request,
+                    payload,
+                    Err(error),
+                    gc,
+                );
+                return;
+            }
+        };
+
+        // Check if module is already loaded - let Nova VM handle caching internally
+
+        // Check if this is a JSON module
+        let is_json = resolved_path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext == "json")
+            .unwrap_or(false);
+
+        // Read the module source
+        let source_text = match std::fs::read_to_string(&resolved_path) {
+            Ok(content) => content,
+            Err(error) => {
+                let error = agent.throw_exception(
+                    ExceptionType::TypeError,
+                    format!(
+                        "Failed to read module {}: {}",
+                        resolved_path.display(),
+                        error
+                    ),
+                    gc,
+                );
+                finish_loading_imported_module(
+                    agent,
+                    referrer,
+                    module_request,
+                    payload,
+                    Err(error),
+                    gc,
+                );
+                return;
+            }
+        };
+
+        // Handle JSON modules specially
+        let final_source = if is_json {
+            // For JSON modules, wrap the JSON in a JavaScript module that exports it as default
+            format!("export default {source_text};")
+        } else {
+            source_text
+        };
+
+        // Convert to Nova string
+        let source_string = NovaString::from_string(agent, final_source, gc);
+
+        // Get the realm from the referrer
+        let realm = agent.current_realm(gc);
+
+        // Parse the module
+        let module_host_defined = Some(std::rc::Rc::new(resolved_path.clone()) as HostDefined);
+        match parse_module(agent, source_string, realm, module_host_defined, gc) {
+            Ok(module) => {
+                let abstract_module = AbstractModule::from(module);
+                finish_loading_imported_module(
+                    agent,
+                    referrer,
+                    module_request,
+                    payload,
+                    Ok(abstract_module),
+                    gc,
+                );
+            }
+            Err(errors) => {
+                // Parse error
+                let error_msg = format!(
+                    "Parse error in module {}: {:?}",
+                    resolved_path.display(),
+                    errors
+                );
+                let error = agent.throw_exception(ExceptionType::SyntaxError, error_msg, gc);
+                finish_loading_imported_module(
+                    agent,
+                    referrer,
+                    module_request,
+                    payload,
+                    Err(error),
+                    gc,
+                );
+            }
+        }
+    }
+
+    fn get_import_meta_properties<'gc>(
+        &self,
+        _agent: &mut Agent,
+        _module_record: SourceTextModule,
+        _gc: NoGcScope<'gc, '_>,
+    ) -> Vec<(PropertyKey<'gc>, Value<'gc>)> {
+        // TODO: Implement import.meta.url when we can properly access host_defined
+        // For now, return empty properties
+        Vec::new()
+    }
+
+    fn finalize_import_meta<'gc>(
+        &self,
+        _agent: &mut Agent,
+        _import_meta: types::OrdinaryObject<'gc>,
+        _module_record: SourceTextModule<'gc>,
+        _gc: NoGcScope<'gc, '_>,
+    ) {
+        // Default implementation - no additional processing needed
     }
 }
 
@@ -164,7 +374,20 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
         mut config: RuntimeConfig<UserMacroTask>,
         host_data: HostData<UserMacroTask>,
     ) -> Self {
-        let host_hooks = RuntimeHostHooks::new(host_data);
+        // Determine base path from the first file
+        let base_path = config
+            .files
+            .first()
+            .and_then(|file| {
+                if let RuntimeFile::Local { path } = file {
+                    Some(std::path::Path::new(path).parent()?.to_path_buf())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+
+        let host_hooks = RuntimeHostHooks::with_base_path(host_data, base_path);
 
         let host_hooks: &RuntimeHostHooks<UserMacroTask> = &*Box::leak(Box::new(host_hooks));
         let mut agent = GcAgent::new(
