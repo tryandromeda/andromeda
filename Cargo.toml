@@ -7,7 +7,7 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.0-draft6"
+version = "0.1.0-draft7"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
@@ -15,41 +15,49 @@ andromeda-runtime = { path = "runtime", features = ["canvas", "crypto", "storage
 anyhow = "1.0.98"
 anymap = "0.12.1"
 base64-simd = "0.8.0"
-clap = { version = "4.5.41", features = ["derive"] }
+clap = { version = "4.5.42", features = ["derive"] }
 clap_complete = "4.5.55"
 console = "0.16.0"
 dprint-core = "0.67.4"
-dprint-plugin-typescript = "0.95.8"
+dprint-plugin-typescript = "0.95.9"
 dprint-plugin-json = "0.20.0"
+env_logger = "0.11.5"
+futures = "0.3.31"
 indexmap = "2.10.0"
 image = "0.25.6"
 lazy_static = "1.5.0"
 libsui = "0.10.0"
-nova_vm = { git = "https://github.com/trynova/nova", rev = "508168f9db71082294c3d536c455dae166f5bfbe", features = [
+log = "0.4.22"
+lsp-types = "0.97.0"
+nova_vm = { git = "https://github.com/trynova/nova", rev = "3308e0517a95515592f46d045b8f9b2d4fdd71d4", features = [
     "typescript"
 ] }
 nu-ansi-term = "0.50.1"
-oxc_codegen = "0.77.0"
+oxc_codegen = "0.79.1"
 owo-colors = "4.2.2"
-oxc_ast = "0.77.0"
-oxc_minifier = "0.77.0"
-oxc_mangler = "0.77.0"
-oxc_allocator = "0.77.0"
-oxc_diagnostics = "0.77.0"
-oxc-miette = { version = "2.3.1", features = ["fancy"] }
-oxc_parser = "0.77.0"
-oxc_semantic = "0.77.0"
-oxc_span = "0.77.0"
-oxc_transformer = "0.77.0"
-rand = "0.9.1"
-reedline = "0.40.0"
+oxc_ast = "0.79.1"
+oxc_minifier = "0.79.1"
+oxc_mangler = "0.79.1"
+oxc_allocator = "0.79.1"
+oxc_diagnostics = "0.79.1"
+oxc-miette = { version = "2.4.0", features = ["fancy"] }
+oxc_parser = "0.79.1"
+oxc_semantic = "0.79.1"
+oxc_span = "0.79.1"
+oxc_transformer = "0.79.1"
+rand = "0.9.2"
+reedline = "0.41.0"
 regex = "1.11.1"
 ring = "0.17.14"
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.142"
 signal-hook = "0.3.18"
 thiserror = "2.0.12"
+tempfile = "3.13.0"
 tokio = { version = "1.46.1", features = ["rt", "sync", "time"] }
+tokio-test = "0.4.4"
+tower-lsp = "0.20.0"
 ureq = { version = "3.0.12", features = ["json"] }
 url = { version = "2.5.4", features = ["serde", "expose_internals"] }
 wgpu = { version = "26.0.1", features = ["wgsl", "webgpu"] }
