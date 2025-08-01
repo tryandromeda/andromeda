@@ -14,3 +14,6 @@ tokio.workspace = true
 oxc-miette.workspace = true
 oxc_diagnostics.workspace = true
 owo-colors.workspace = true
+thiserror.workspace = true
+url.workspace = true
+ureq.workspace = true

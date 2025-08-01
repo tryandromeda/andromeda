@@ -68,7 +68,7 @@ dependencies = [
 
 [[package]]
 name = "andromeda"
-version = "0.1.0-draft5"
+version = "0.1.0-draft6"
 dependencies = [
  "andromeda-core",
  "andromeda-runtime",
@@ -106,7 +106,7 @@ dependencies = [
 
 [[package]]
 name = "andromeda-core"
-version = "0.1.0-draft5"
+version = "0.1.0-draft6"
 dependencies = [
  "anyhow",
  "anymap",
@@ -114,12 +114,15 @@ dependencies = [
  "owo-colors",
  "oxc-miette",
  "oxc_diagnostics",
+ "thiserror 2.0.12",
  "tokio",
+ "ureq",
+ "url",
 ]
 
 [[package]]
 name = "andromeda-runtime"
-version = "0.1.0-draft5"
+version = "0.1.0-draft6"
 dependencies = [
  "andromeda-core",
  "anyhow",
