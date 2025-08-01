@@ -160,7 +160,34 @@ fn run_main() -> Result<()> {
         );
     }
 
-    let args = Cli::parse();
+    use std::env;
+    let mut raw_args: Vec<String> = env::args().collect();
+
+    if !raw_args.is_empty() {
+        raw_args.remove(0);
+    }
+
+    // If no arguments, alias to `repl`
+    let args = if raw_args.is_empty() {
+        Cli {
+            command: Command::Repl {
+                expose_internals: false,
+                print_internals: false,
+                disable_gc: false,
+            },
+        }
+    } else if raw_args.len() == 1 && raw_args[0].ends_with(".ts") {
+        // If a single .ts file is provided, alias to `run file.ts`
+        Cli {
+            command: Command::Run {
+                verbose: false,
+                no_strict: false,
+                paths: vec![raw_args[0].clone()],
+            },
+        }
+    } else {
+        Cli::parse()
+    };
 
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_time()
