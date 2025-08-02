@@ -30,4 +30,5 @@ rusqlite = { workspace = true, optional = true, features = ["bundled"] }
 signal-hook.workspace = true
 lazy_static.workspace = true
 thiserror.workspace = true
+uuid.workspace = true
 wgpu = { workspace = true, optional = true }

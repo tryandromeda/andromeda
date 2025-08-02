@@ -93,7 +93,7 @@ declare function internal_real_path(path: string): string;
 declare function internal_read_dir(
   path: string,
 ): Array<
-  { name: string; isFile: boolean; isDirectory: boolean; isSymlink: boolean; }
+  { name: string; isFile: boolean; isDirectory: boolean; isSymlink: boolean }
 >;
 
 /**
@@ -903,3 +903,54 @@ declare function sqlite_statement_sync_source_sql(stmtId: number): string;
  * The `sqlite_statement_sync_finalize` function finalizes a prepared statement.
  */
 declare function sqlite_statement_sync_finalize(stmtId: number): void;
+
+declare const internal_blob_create: (parts: string, options: string) => string;
+declare const internal_blob_slice: (
+  blobId: string,
+  start: number,
+  end: number,
+  contentType: string,
+) => string;
+declare const internal_blob_get_data: (blobId: string) => string;
+declare const internal_blob_get_size: (blobId: string) => number;
+declare const internal_blob_get_type: (blobId: string) => string;
+declare const internal_blob_stream: (blobId: string) => string;
+declare const internal_blob_array_buffer: (blobId: string) => string;
+declare const internal_blob_text: (blobId: string) => string;
+
+declare const internal_formdata_create: () => string;
+declare const internal_formdata_append: (
+  formDataId: string,
+  name: string,
+  value: string,
+) => string;
+declare const internal_formdata_delete: (
+  formDataId: string,
+  name: string,
+) => string;
+declare const internal_formdata_get: (
+  formDataId: string,
+  name: string,
+) => string;
+declare const internal_formdata_get_all: (
+  formDataId: string,
+  name: string,
+) => string;
+declare const internal_formdata_has: (
+  formDataId: string,
+  name: string,
+) => number;
+declare const internal_formdata_set: (
+  formDataId: string,
+  name: string,
+  value: string,
+) => string;
+declare const internal_formdata_keys: (formDataId: string) => string;
+declare const internal_formdata_values: (formDataId: string) => string;
+declare const internal_formdata_entries: (formDataId: string) => string;
+declare const internal_file_create: (
+  parts: string,
+  name: string,
+  options: string,
+  lastModified: number,
+) => string;

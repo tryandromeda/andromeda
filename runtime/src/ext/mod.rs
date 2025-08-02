@@ -9,6 +9,7 @@ mod console;
 #[cfg(feature = "crypto")]
 mod crypto;
 mod fetch;
+mod file;
 mod fs;
 #[cfg(feature = "storage")]
 mod local_storage;
@@ -26,6 +27,7 @@ pub use console::*;
 #[cfg(feature = "crypto")]
 pub use crypto::*;
 pub use fetch::*;
+pub use file::*;
 pub use fs::*;
 #[cfg(feature = "storage")]
 pub use local_storage::*;

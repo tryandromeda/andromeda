@@ -60,6 +60,7 @@ tokio-test = "0.4.4"
 tower-lsp = "0.20.0"
 ureq = { version = "3.0.12", features = ["json"] }
 url = { version = "2.5.4", features = ["serde", "expose_internals"] }
+uuid = { version = "1.17.0", features = ["v4"] }
 wgpu = { version = "26.0.1", features = ["wgsl", "webgpu"] }
 
 [profile.release]
