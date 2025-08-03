@@ -478,15 +478,14 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                 let source_text = types::String::from_string(agent, file_content, gc.nogc());
                 let realm = agent.current_realm(gc.nogc());
 
-                let script = match parse_script(
+                let module = match parse_module(
                     agent,
                     source_text,
                     realm,
-                    !self.config.no_strict,
-                    None,
+                    Some(std::rc::Rc::new(file.get_path().to_string()) as HostDefined),
                     gc.nogc(),
                 ) {
-                    Ok(script) => script,
+                    Ok(module) => module,
                     Err(errors) => exit_with_parse_errors(
                         errors,
                         file.get_path(),
@@ -496,7 +495,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                     ),
                 };
 
-                script_evaluation(agent, script.unbind(), gc.reborrow()).unbind()
+                agent.run_parsed_module(module.unbind(), None, gc.reborrow()).unbind().map(|_| Value::Null)
             });
         }
 
