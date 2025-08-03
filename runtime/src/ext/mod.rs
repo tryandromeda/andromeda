@@ -16,6 +16,7 @@ mod local_storage;
 mod process;
 #[cfg(feature = "storage")]
 mod sqlite;
+mod streams;
 mod time;
 mod url;
 mod web;
@@ -34,6 +35,7 @@ pub use local_storage::*;
 pub use process::*;
 #[cfg(feature = "storage")]
 pub use sqlite::*;
+pub use streams::*;
 pub use time::*;
 pub use url::*;
 pub use web::*;

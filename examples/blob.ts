@@ -5,8 +5,8 @@ const sliced = blob.slice(0, 5);
 console.log("   Sliced size:", sliced.size);
 
 const file = new File(["File content here"], "document.txt", {
-    type: "text/plain",
-    lastModified: Date.now() - 10000,
+  type: "text/plain",
+  lastModified: Date.now() - 10000,
 });
 console.log("   File name:", file.name);
 console.log("   File size:", file.size);
@@ -28,5 +28,5 @@ console.log("   FormData has blob:", formData.has("blob"));
 
 console.log("   FormData keys:");
 for (const key of formData.keys()) {
-    console.log("     -", key);
+  console.log("     -", key);
 }

@@ -1,10 +1,10 @@
 {
-    "name": "test-package",
-    "version": "1.0.0",
-    "description": "A test JSON module",
-    "features": ["json-import", "module-loading"],
-    "config": {
-        "debug": true,
-        "timeout": 5000
-    }
+  "name": "test-package",
+  "version": "1.0.0",
+  "description": "A test JSON module",
+  "features": ["json-import", "module-loading"],
+  "config": {
+    "debug": true,
+    "timeout": 5000
+  }
 }

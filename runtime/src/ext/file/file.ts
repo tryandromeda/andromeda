@@ -24,7 +24,7 @@ class File {
   constructor(fileBits: BlobPart[], fileName: string, options: FilePropertyBag = {}) {
     // Create the underlying blob
     this.#blob = new Blob(fileBits, { type: options.type || "" });
-    
+
     // Set file-specific properties
     this.#name = fileName;
     this.#lastModified = options.lastModified ?? Date.now();
