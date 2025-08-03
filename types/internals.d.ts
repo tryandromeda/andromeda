@@ -93,7 +93,7 @@ declare function internal_real_path(path: string): string;
 declare function internal_read_dir(
   path: string,
 ): Array<
-  { name: string; isFile: boolean; isDirectory: boolean; isSymlink: boolean }
+  { name: string; isFile: boolean; isDirectory: boolean; isSymlink: boolean; }
 >;
 
 /**

@@ -1624,7 +1624,7 @@ interface QueuingStrategy<T = any> {
  */
 declare class CountQueuingStrategy implements QueuingStrategy {
   readonly highWaterMark: number;
-  constructor(init: { highWaterMark: number });
+  constructor(init: { highWaterMark: number; });
   size(chunk?: any): number;
 }
 
@@ -1634,7 +1634,7 @@ declare class CountQueuingStrategy implements QueuingStrategy {
  */
 declare class ByteLengthQueuingStrategy implements QueuingStrategy {
   readonly highWaterMark: number;
-  constructor(init: { highWaterMark: number });
+  constructor(init: { highWaterMark: number; });
   size(chunk?: any): number;
 }
 
@@ -1692,15 +1692,15 @@ interface PipeOptions {
 declare class ReadableStream<R = any> {
   constructor(
     underlyingSource?: ReadableStreamUnderlyingSource<R>,
-    strategy?: QueuingStrategy<R>
+    strategy?: QueuingStrategy<R>,
   );
-  
+
   readonly locked: boolean;
   cancel(reason?: any): Promise<void>;
   getReader(): ReadableStreamDefaultReader<R>;
   pipeThrough<T>(
-    transform: { readable: ReadableStream<T>; writable: WritableStream<R> },
-    options?: PipeOptions
+    transform: { readable: ReadableStream<T>; writable: WritableStream<R>; },
+    options?: PipeOptions,
   ): ReadableStream<T>;
   pipeTo(destination: WritableStream<R>, options?: PipeOptions): Promise<void>;
   tee(): [ReadableStream<R>, ReadableStream<R>];
@@ -1744,9 +1744,9 @@ interface WritableStreamUnderlyingSink<W = any> {
 declare class WritableStream<W = any> {
   constructor(
     underlyingSink?: WritableStreamUnderlyingSink<W>,
-    strategy?: QueuingStrategy<W>
+    strategy?: QueuingStrategy<W>,
   );
-  
+
   readonly locked: boolean;
   abort(reason?: any): Promise<void>;
   close(): Promise<void>;
@@ -1781,9 +1781,9 @@ declare class TransformStream<I = any, O = any> {
   constructor(
     transformer?: Transformer<I, O>,
     writableStrategy?: QueuingStrategy<I>,
-    readableStrategy?: QueuingStrategy<O>
+    readableStrategy?: QueuingStrategy<O>,
   );
-  
+
   readonly readable: ReadableStream<O>;
   readonly writable: WritableStream<I>;
 }

@@ -27,9 +27,11 @@ class FormData {
     // For WinterTC compliance, we ignore the form parameter as there's no DOM
     // Per the spec: Node.js and Deno throw if the first parameter is not undefined
     if (form !== undefined) {
-      throw new TypeError("FormData constructor: form parameter is not supported in non-DOM environments");
+      throw new TypeError(
+        "FormData constructor: form parameter is not supported in non-DOM environments",
+      );
     }
-    
+
     this.#formDataId = internal_formdata_create();
     this.#entries = new Map();
   }
@@ -40,7 +42,7 @@ class FormData {
    */
   append(name: string, value: FormDataEntryValue, filename?: string): void {
     const normalizedName = String(name);
-    
+
     let normalizedValue: FormDataEntryValue;
     if (value instanceof File) {
       normalizedValue = value;
@@ -60,9 +62,9 @@ class FormData {
     this.#entries.get(normalizedName)!.push(normalizedValue);
 
     // Call native implementation
-    const valueStr = normalizedValue instanceof File 
-      ? `file:${normalizedValue.name}:${normalizedValue.type}:${normalizedValue.size}`
-      : String(normalizedValue);
+    const valueStr = normalizedValue instanceof File ?
+      `file:${normalizedValue.name}:${normalizedValue.type}:${normalizedValue.size}` :
+      String(normalizedValue);
     internal_formdata_append(this.#formDataId, normalizedName, valueStr);
   }
 
@@ -107,7 +109,7 @@ class FormData {
    */
   set(name: string, value: FormDataEntryValue, filename?: string): void {
     const normalizedName = String(name);
-    
+
     let normalizedValue: FormDataEntryValue;
     if (value instanceof File) {
       normalizedValue = value;
@@ -124,9 +126,9 @@ class FormData {
     this.#entries.set(normalizedName, [normalizedValue]);
 
     // Call native implementation
-    const valueStr = normalizedValue instanceof File 
-      ? `file:${normalizedValue.name}:${normalizedValue.type}:${normalizedValue.size}`
-      : String(normalizedValue);
+    const valueStr = normalizedValue instanceof File ?
+      `file:${normalizedValue.name}:${normalizedValue.type}:${normalizedValue.size}` :
+      String(normalizedValue);
     internal_formdata_set(this.#formDataId, normalizedName, valueStr);
   }
 
@@ -166,7 +168,7 @@ class FormData {
    */
   forEach(
     callback: (value: FormDataEntryValue, key: string, parent: FormData) => void,
-    thisArg?: unknown
+    thisArg?: unknown,
   ): void {
     for (const [key, value] of this) {
       callback.call(thisArg, value, key, this);
