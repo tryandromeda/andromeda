@@ -495,7 +495,10 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                     ),
                 };
 
-                agent.run_parsed_module(module.unbind(), None, gc.reborrow()).unbind().map(|_| Value::Null)
+                agent
+                    .run_parsed_module(module.unbind(), None, gc.reborrow())
+                    .unbind()
+                    .map(|_| Value::Null)
             });
         }
 

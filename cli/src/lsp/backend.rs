@@ -11,7 +11,10 @@ use tokio::sync::{Mutex, RwLock};
 use tower_lsp::{Client, LanguageServer, jsonrpc::Result, lsp_types::*};
 
 use super::capabilities::create_server_capabilities;
-use super::completions::{AndromedaCompletionProvider, get_console_completions, get_env_completions, create_completion_item};
+use super::completions::{
+    AndromedaCompletionProvider, create_completion_item, get_console_completions,
+    get_env_completions,
+};
 use super::diagnostic_converter::{lint_error_to_diagnostic, position_to_offset};
 use super::options::{Options, RunMode, WorkspaceOptions};
 
@@ -27,7 +30,7 @@ fn get_canvas_context_completions() -> Vec<CompletionItem> {
             Some("🎨"),
         ),
         create_completion_item(
-            "strokeStyle", 
+            "strokeStyle",
             CompletionItemKind::PROPERTY,
             "strokeStyle: string",
             "🖌️ Sets or returns the color, gradient, or pattern used for strokes.",
@@ -45,7 +48,7 @@ fn get_canvas_context_completions() -> Vec<CompletionItem> {
         create_completion_item(
             "strokeRect",
             CompletionItemKind::FUNCTION,
-            "strokeRect(x: number, y: number, width: number, height: number): void", 
+            "strokeRect(x: number, y: number, width: number, height: number): void",
             "▭ Draws a rectangle outline.",
             "strokeRect(${1:x}, ${2:y}, ${3:width}, ${4:height})",
             Some("▭"),
@@ -318,7 +321,9 @@ fn get_context_specific_completions(text_before_cursor: &str) -> Option<Vec<Comp
         Some(get_crypto_subtle_completions())
     } else if text_before_cursor.contains("performance.") {
         Some(get_performance_completions())
-    } else if text_before_cursor.contains("localStorage.") || text_before_cursor.contains("sessionStorage.") {
+    } else if text_before_cursor.contains("localStorage.")
+        || text_before_cursor.contains("sessionStorage.")
+    {
         Some(get_storage_completions())
     } else if text_before_cursor.contains("db.") {
         Some(get_database_completions())
@@ -368,11 +373,14 @@ impl AndromedaBackend {
     /// Update document content in the tracker
     async fn update_document(&self, uri: Url, content: String, version: i32, language_id: String) {
         let mut documents = self.document_tracker.write().await;
-        documents.insert(uri, DocumentInfo {
-            content,
-            version,
-            language_id,
-        });
+        documents.insert(
+            uri,
+            DocumentInfo {
+                content,
+                version,
+                language_id,
+            },
+        );
     }
 
     /// Remove document from the tracker
@@ -382,15 +390,23 @@ impl AndromedaBackend {
     }
 
     /// Apply text changes to a document
-    async fn apply_text_changes(&self, uri: &Url, changes: &[TextDocumentContentChangeEvent]) -> Option<String> {
+    async fn apply_text_changes(
+        &self,
+        uri: &Url,
+        changes: &[TextDocumentContentChangeEvent],
+    ) -> Option<String> {
         let mut documents = self.document_tracker.write().await;
         let document = documents.get_mut(uri)?;
-        
+
         for change in changes {
             if let Some(range) = change.range {
                 // Handle range-based changes
-                if let Some(start_offset) = self.position_to_offset_sync(&document.content, range.start) {
-                    if let Some(end_offset) = self.position_to_offset_sync(&document.content, range.end) {
+                if let Some(start_offset) =
+                    self.position_to_offset_sync(&document.content, range.start)
+                {
+                    if let Some(end_offset) =
+                        self.position_to_offset_sync(&document.content, range.end)
+                    {
                         let mut content_chars: Vec<char> = document.content.chars().collect();
                         content_chars.splice(start_offset..end_offset, change.text.chars());
                         document.content = content_chars.into_iter().collect();
@@ -401,7 +417,7 @@ impl AndromedaBackend {
                 document.content = change.text.clone();
             }
         }
-        
+
         Some(document.content.clone())
     }
 
@@ -499,14 +515,15 @@ impl AndromedaBackend {
         if text_before_cursor.ends_with("Andromeda.env.") {
             return Some(get_env_completions());
         }
-        
+
         // Check for console completions
         if text_before_cursor.ends_with("console.") {
             return Some(get_console_completions());
         }
 
         // Check for canvas context completions
-        if text_before_cursor.contains("getContext(\"2d\")") || text_before_cursor.ends_with("ctx.") {
+        if text_before_cursor.contains("getContext(\"2d\")") || text_before_cursor.ends_with("ctx.")
+        {
             return Some(get_canvas_context_completions());
         }
 
@@ -521,7 +538,9 @@ impl AndromedaBackend {
         }
 
         // Check for localStorage/sessionStorage completions
-        if text_before_cursor.ends_with("localStorage.") || text_before_cursor.ends_with("sessionStorage.") {
+        if text_before_cursor.ends_with("localStorage.")
+            || text_before_cursor.ends_with("sessionStorage.")
+        {
             return Some(get_storage_completions());
         }
 
@@ -611,7 +630,8 @@ impl LanguageServer for AndromedaBackend {
             params.text_document.text.clone(),
             params.text_document.version,
             params.text_document.language_id.clone(),
-        ).await;
+        )
+        .await;
 
         if self.should_run_diagnostics(DiagnosticTrigger::Open).await {
             let diagnostics = self
@@ -626,7 +646,10 @@ impl LanguageServer for AndromedaBackend {
         debug!("Document changed: {}", params.text_document.uri);
 
         // Apply text changes to the tracked document
-        if let Some(updated_content) = self.apply_text_changes(&params.text_document.uri, &params.content_changes).await {
+        if let Some(updated_content) = self
+            .apply_text_changes(&params.text_document.uri, &params.content_changes)
+            .await
+        {
             if self.should_run_diagnostics(DiagnosticTrigger::Change).await {
                 let diagnostics = self
                     .run_diagnostics(params.text_document.uri.clone(), &updated_content)
@@ -644,18 +667,26 @@ impl LanguageServer for AndromedaBackend {
             // Use tracked content or provided text
             let content = if let Some(text) = params.text {
                 // Update tracker with saved content if provided
-                if let Some(doc_info) = self.document_tracker.read().await.get(&params.text_document.uri) {
+                if let Some(doc_info) = self
+                    .document_tracker
+                    .read()
+                    .await
+                    .get(&params.text_document.uri)
+                {
                     self.update_document(
                         params.text_document.uri.clone(),
                         text.clone(),
                         doc_info.version + 1,
                         doc_info.language_id.clone(),
-                    ).await;
+                    )
+                    .await;
                 }
                 text
             } else {
                 // Use tracked content
-                self.get_document_content(&params.text_document.uri).await.unwrap_or_default()
+                self.get_document_content(&params.text_document.uri)
+                    .await
+                    .unwrap_or_default()
             };
 
             let diagnostics = self
@@ -668,10 +699,10 @@ impl LanguageServer for AndromedaBackend {
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         debug!("Document closed: {}", params.text_document.uri);
-        
+
         // Remove document from tracker
         self.remove_document(&params.text_document.uri).await;
-        
+
         // Clear diagnostics for closed document
         self.publish_diagnostics(params.text_document.uri, Vec::new())
             .await;
@@ -683,32 +714,41 @@ impl LanguageServer for AndromedaBackend {
         let mut completions = Vec::new();
 
         // Get document content from the tracker
-        let content = self.get_document_content(&params.text_document_position.text_document.uri)
+        let content = self
+            .get_document_content(&params.text_document_position.text_document.uri)
             .await
             .unwrap_or_default();
-        
+
         let offset = position_to_offset(params.text_document_position.position, &content);
 
         // Get text before cursor for context detection
         let text_before_cursor = content.chars().take(offset).collect::<String>();
 
-        debug!("Text before cursor: '{}'", text_before_cursor.chars().rev().take(50).collect::<String>().chars().rev().collect::<String>());
+        debug!(
+            "Text before cursor: '{}'",
+            text_before_cursor
+                .chars()
+                .rev()
+                .take(50)
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect::<String>()
+        );
 
         // Get context-specific completions
-        if let Some(context_completions) = self.get_context_specific_completions(
-            &text_before_cursor,
-            &params.context,
-        ).await {
+        if let Some(context_completions) = self
+            .get_context_specific_completions(&text_before_cursor, &params.context)
+            .await
+        {
             completions.extend(context_completions);
         }
-        
+
         // Add general Andromeda API completions
         let context_ref = params.context.as_ref();
-        let general_completions = self.completion_provider.get_completions(
-            context_ref,
-            &content,
-            offset,
-        );
+        let general_completions =
+            self.completion_provider
+                .get_completions(context_ref, &content, offset);
         completions.extend(general_completions);
 
         debug!("Returning {} completions", completions.len());
@@ -717,7 +757,10 @@ impl LanguageServer for AndromedaBackend {
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
-        debug!("Hover request at: {:?}", params.text_document_position_params);
+        debug!(
+            "Hover request at: {:?}",
+            params.text_document_position_params
+        );
 
         // TODO: Implement hover information
         // This could provide:

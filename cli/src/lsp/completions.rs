@@ -65,7 +65,7 @@ impl AndromedaCompletionProvider {
         ));
 
         items.push(create_completion_item(
-            "writeTextFileSync", 
+            "writeTextFileSync",
             CompletionItemKind::FUNCTION,
             "writeTextFileSync(path: string, data: string): void",
             "Writes a text file to the file system synchronously.",
@@ -118,7 +118,7 @@ impl AndromedaCompletionProvider {
             Some("📁"),
         ));
 
-        // Environment operations  
+        // Environment operations
         items.push(create_completion_item(
             "env",
             CompletionItemKind::MODULE,
@@ -419,7 +419,7 @@ impl AndromedaCompletionProvider {
         items.push(create_completion_item(
             "sessionStorage",
             CompletionItemKind::MODULE,
-            "sessionStorage: Storage", 
+            "sessionStorage: Storage",
             "Session storage for temporary data.",
             "sessionStorage",
             Some("🗃️"),
@@ -441,11 +441,17 @@ impl AndromedaCompletionProvider {
             Some("⚡"),
         ));
 
-        self.api_completions.insert("performance".to_string(), items);
+        self.api_completions
+            .insert("performance".to_string(), items);
     }
 
     /// Get completions for a specific context
-    pub fn get_completions(&self, context: Option<&CompletionContext>, text: &str, position: usize) -> Vec<CompletionItem> {
+    pub fn get_completions(
+        &self,
+        context: Option<&CompletionContext>,
+        text: &str,
+        position: usize,
+    ) -> Vec<CompletionItem> {
         let mut completions = Vec::new();
 
         // Check if we're in an Andromeda namespace context
@@ -460,7 +466,9 @@ impl AndromedaCompletionProvider {
 
         // Sort by relevance
         completions.sort_by(|a, b| {
-            a.sort_text.as_ref().unwrap_or(&a.label)
+            a.sort_text
+                .as_ref()
+                .unwrap_or(&a.label)
                 .cmp(b.sort_text.as_ref().unwrap_or(&b.label))
         });
 
@@ -468,7 +476,12 @@ impl AndromedaCompletionProvider {
     }
 
     /// Get global API completions
-    fn get_global_completions(&self, _context: Option<&CompletionContext>, text: &str, _position: usize) -> Vec<CompletionItem> {
+    fn get_global_completions(
+        &self,
+        _context: Option<&CompletionContext>,
+        text: &str,
+        _position: usize,
+    ) -> Vec<CompletionItem> {
         let mut completions = Vec::new();
 
         // Add web API completions
@@ -544,14 +557,17 @@ pub fn create_completion_item(
     };
 
     // Add sort text for better ordering
-    item.sort_text = Some(format!("{:04}", match kind {
-        CompletionItemKind::FUNCTION => 1,
-        CompletionItemKind::CLASS => 2,
-        CompletionItemKind::MODULE => 3,
-        CompletionItemKind::PROPERTY => 4,
-        CompletionItemKind::INTERFACE => 5,
-        _ => 9,
-    }));
+    item.sort_text = Some(format!(
+        "{:04}",
+        match kind {
+            CompletionItemKind::FUNCTION => 1,
+            CompletionItemKind::CLASS => 2,
+            CompletionItemKind::MODULE => 3,
+            CompletionItemKind::PROPERTY => 4,
+            CompletionItemKind::INTERFACE => 5,
+            _ => 9,
+        }
+    ));
 
     item
 }
