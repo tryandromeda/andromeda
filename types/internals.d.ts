@@ -160,6 +160,21 @@ declare function internal_sleep(duration: number): Promise<void>;
 declare function internal_print(message: string): void;
 
 /**
+ * The `internal_print_err` function to log error messages to the console.
+ */
+declare function internal_print_err(message: string): void;
+
+/**
+ * The `clear_console` function clears the console.
+ */
+declare function clear_console(): void;
+
+/**
+ * The `get_stack_trace` function returns the current stack trace.
+ */
+declare function get_stack_trace(): string;
+
+/**
  * The `internal_get_cli_args` function to get the command line arguments.
  */
 declare function internal_get_cli_args(): string[];
@@ -1004,3 +1019,48 @@ declare function internal_writable_stream_abort(streamId: string): string;
  * The `internal_stream_get_state` function gets the state of a stream.
  */
 declare function internal_stream_get_state(streamId: string): string;
+
+/**
+ * The `time_start` function starts a timer with the given label.
+ */
+declare function time_start(label?: string): number;
+
+/**
+ * The `time_log` function logs the current time for a timer.
+ */
+declare function time_log(label: string, data?: string): string;
+
+/**
+ * The `time_end` function ends a timer and returns the elapsed time.
+ */
+declare function time_end(label?: string): string;
+
+/**
+ * The `count` function increments a counter for the given label.
+ */
+declare function count(label?: string): string;
+
+/**
+ * The `count_reset` function resets a counter for the given label.
+ */
+declare function count_reset(label?: string): string;
+
+/**
+ * The `group_start` function starts a console group.
+ */
+declare function group_start(label?: string): string;
+
+/**
+ * The `group_end` function ends a console group.
+ */
+declare function group_end(): void;
+
+/**
+ * The `internal_css_to_ansi` function converts CSS styling to ANSI escape codes.
+ */
+declare function internal_css_to_ansi(cssText: string): string;
+
+/**
+ * The `get_group_indent` function returns the current console group indentation level.
+ */
+declare function get_group_indent(): number;
