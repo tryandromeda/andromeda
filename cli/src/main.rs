@@ -4,22 +4,22 @@
 
 use andromeda_core::RuntimeFile;
 use clap::{CommandFactory, Parser as ClapParser, Subcommand};
-use clap_complete::{Shell, generate};
+use clap_complete::{generate, Shell};
 use libsui::find_section;
+use std::env;
 use std::io;
 use std::path::PathBuf;
-
 mod bundle;
 use bundle::bundle;
 mod compile;
-use compile::{ANDROMEDA_JS_CODE_SECTION, compile};
+use compile::{compile, ANDROMEDA_JS_CODE_SECTION};
 mod repl;
 use repl::run_repl_with_config;
 mod run;
 mod styles;
 use run::run;
 mod error;
-use error::{Result, init_error_reporting, print_error};
+use error::{init_error_reporting, print_error, Result};
 mod format;
 use format::format_file;
 mod helper;
@@ -207,7 +207,6 @@ fn run_main() -> Result<()> {
         );
     }
 
-    use std::env;
     let mut raw_args: Vec<String> = env::args().collect();
 
     if !raw_args.is_empty() {

@@ -202,7 +202,7 @@ impl ConfigManager {
         if let Some((config_path, _)) = Self::find_config_file(start_dir) {
             match Self::load_config(&config_path) {
                 Ok(config) => {
-                    println!("📝 Using config file: {}", config_path.display());
+                    // println!("📝 Using config file: {}", config_path.display());
                     config
                 }
                 Err(err) => {
