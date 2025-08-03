@@ -567,10 +567,6 @@ declare class ImageBitmap {
  */
 declare function createImageBitmap(path: string): Promise<ImageBitmap>;
 
-// =============================================================================
-// Text Encoding API
-// =============================================================================
-
 /**
  * TextEncoder interface for encoding strings to UTF-8 bytes
  */
@@ -681,10 +677,6 @@ declare const TextEncoder: {
 declare const TextDecoder: {
   new(label?: string, options?: TextDecoderOptions): TextDecoder;
 };
-
-// =============================================================================
-// Web Crypto API
-// =============================================================================
 
 /**
  * Buffer source types for crypto operations
@@ -1617,3 +1609,181 @@ declare const sqlite: {
   Database: typeof DatabaseSync;
   constants: typeof constants;
 };
+
+/**
+ * Queuing strategy interface
+ */
+interface QueuingStrategy<T = any> {
+  highWaterMark?: number;
+  size?(chunk: T): number;
+}
+
+/**
+ * CountQueuingStrategy implementation
+ * Measures the size of a chunk as 1
+ */
+declare class CountQueuingStrategy implements QueuingStrategy {
+  readonly highWaterMark: number;
+  constructor(init: { highWaterMark: number });
+  size(chunk?: any): number;
+}
+
+/**
+ * ByteLengthQueuingStrategy implementation
+ * Measures the size of a chunk by its byteLength property
+ */
+declare class ByteLengthQueuingStrategy implements QueuingStrategy {
+  readonly highWaterMark: number;
+  constructor(init: { highWaterMark: number });
+  size(chunk?: any): number;
+}
+
+/**
+ * ReadableStream default controller interface
+ */
+interface ReadableStreamDefaultController<R = any> {
+  readonly desiredSize: number | null;
+  close(): void;
+  enqueue(chunk?: R): void;
+  error(e?: any): void;
+}
+
+/**
+ * ReadableStreamDefaultReader interface
+ */
+interface ReadableStreamDefaultReader<R = any> {
+  readonly closed: Promise<undefined>;
+  cancel(reason?: any): Promise<void>;
+  read(): Promise<ReadableStreamReadResult<R>>;
+  releaseLock(): void;
+}
+
+/**
+ * ReadableStream read result interface
+ */
+interface ReadableStreamReadResult<T> {
+  done: boolean;
+  value: T;
+}
+
+/**
+ * ReadableStream underlying source interface
+ */
+interface ReadableStreamUnderlyingSource<R = any> {
+  start?(controller: ReadableStreamDefaultController<R>): void | Promise<void>;
+  pull?(controller: ReadableStreamDefaultController<R>): void | Promise<void>;
+  cancel?(reason?: any): void | Promise<void>;
+  type?: undefined;
+}
+
+/**
+ * Pipe options interface
+ */
+interface PipeOptions {
+  preventClose?: boolean;
+  preventAbort?: boolean;
+  preventCancel?: boolean;
+  signal?: AbortSignal;
+}
+
+/**
+ * ReadableStream implementation
+ */
+declare class ReadableStream<R = any> {
+  constructor(
+    underlyingSource?: ReadableStreamUnderlyingSource<R>,
+    strategy?: QueuingStrategy<R>
+  );
+  
+  readonly locked: boolean;
+  cancel(reason?: any): Promise<void>;
+  getReader(): ReadableStreamDefaultReader<R>;
+  pipeThrough<T>(
+    transform: { readable: ReadableStream<T>; writable: WritableStream<R> },
+    options?: PipeOptions
+  ): ReadableStream<T>;
+  pipeTo(destination: WritableStream<R>, options?: PipeOptions): Promise<void>;
+  tee(): [ReadableStream<R>, ReadableStream<R>];
+  [Symbol.asyncIterator](): AsyncIterator<R>;
+}
+
+/**
+ * WritableStreamDefaultController interface
+ */
+interface WritableStreamDefaultController {
+  error(e?: any): void;
+}
+
+/**
+ * WritableStreamDefaultWriter interface
+ */
+interface WritableStreamDefaultWriter<W = any> {
+  readonly closed: Promise<undefined>;
+  readonly desiredSize: number | null;
+  readonly ready: Promise<undefined>;
+  abort(reason?: any): Promise<void>;
+  close(): Promise<void>;
+  releaseLock(): void;
+  write(chunk: W): Promise<void>;
+}
+
+/**
+ * WritableStream underlying sink interface
+ */
+interface WritableStreamUnderlyingSink<W = any> {
+  start?(controller: WritableStreamDefaultController): void | Promise<void>;
+  write?(chunk: W, controller: WritableStreamDefaultController): void | Promise<void>;
+  close?(): void | Promise<void>;
+  abort?(reason?: any): void | Promise<void>;
+  type?: undefined;
+}
+
+/**
+ * WritableStream implementation
+ */
+declare class WritableStream<W = any> {
+  constructor(
+    underlyingSink?: WritableStreamUnderlyingSink<W>,
+    strategy?: QueuingStrategy<W>
+  );
+  
+  readonly locked: boolean;
+  abort(reason?: any): Promise<void>;
+  close(): Promise<void>;
+  getWriter(): WritableStreamDefaultWriter<W>;
+}
+
+/**
+ * TransformStreamDefaultController interface
+ */
+interface TransformStreamDefaultController<O = any> {
+  readonly desiredSize: number | null;
+  enqueue(chunk?: O): void;
+  error(reason?: any): void;
+  terminate(): void;
+}
+
+/**
+ * Transformer interface
+ */
+interface Transformer<I = any, O = any> {
+  start?(controller: TransformStreamDefaultController<O>): void | Promise<void>;
+  transform?(chunk: I, controller: TransformStreamDefaultController<O>): void | Promise<void>;
+  flush?(controller: TransformStreamDefaultController<O>): void | Promise<void>;
+  readableType?: undefined;
+  writableType?: undefined;
+}
+
+/**
+ * TransformStream implementation
+ */
+declare class TransformStream<I = any, O = any> {
+  constructor(
+    transformer?: Transformer<I, O>,
+    writableStrategy?: QueuingStrategy<I>,
+    readableStrategy?: QueuingStrategy<O>
+  );
+  
+  readonly readable: ReadableStream<O>;
+  readonly writable: WritableStream<I>;
+}

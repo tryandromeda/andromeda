@@ -954,3 +954,53 @@ declare const internal_file_create: (
   options: string,
   lastModified: number,
 ) => string;
+
+/**
+ * The `internal_readable_stream_create` function creates a new ReadableStream and returns its ID.
+ */
+declare function internal_readable_stream_create(): string;
+
+/**
+ * The `internal_readable_stream_read` function reads data from a ReadableStream.
+ */
+declare function internal_readable_stream_read(streamId: string): string;
+
+/**
+ * The `internal_readable_stream_cancel` function cancels a ReadableStream.
+ */
+declare function internal_readable_stream_cancel(streamId: string): string;
+
+/**
+ * The `internal_readable_stream_close` function closes a ReadableStream.
+ */
+declare function internal_readable_stream_close(streamId: string): string;
+
+/**
+ * The `internal_readable_stream_enqueue` function enqueues data to a ReadableStream.
+ */
+declare function internal_readable_stream_enqueue(streamId: string, chunk: string): string;
+
+/**
+ * The `internal_writable_stream_create` function creates a new WritableStream and returns its ID.
+ */
+declare function internal_writable_stream_create(): string;
+
+/**
+ * The `internal_writable_stream_write` function writes data to a WritableStream.
+ */
+declare function internal_writable_stream_write(streamId: string, chunk: string): string;
+
+/**
+ * The `internal_writable_stream_close` function closes a WritableStream.
+ */
+declare function internal_writable_stream_close(streamId: string): string;
+
+/**
+ * The `internal_writable_stream_abort` function aborts a WritableStream.
+ */
+declare function internal_writable_stream_abort(streamId: string): string;
+
+/**
+ * The `internal_stream_get_state` function gets the state of a stream.
+ */
+declare function internal_stream_get_state(streamId: string): string;
