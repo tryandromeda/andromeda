@@ -14,7 +14,7 @@ use bundle::bundle;
 mod compile;
 use compile::{ANDROMEDA_JS_CODE_SECTION, compile};
 mod repl;
-use repl::run_repl;
+use repl::run_repl_with_config;
 mod run;
 mod styles;
 use run::run;
@@ -25,9 +25,11 @@ use format::format_file;
 mod helper;
 use helper::find_formattable_files;
 mod lint;
-use lint::lint_file;
+use lint::lint_file_with_config;
+mod config;
 mod lsp;
 mod upgrade;
+use config::{AndromedaConfig, ConfigFormat, ConfigManager};
 use lsp::run_lsp_server;
 
 /// A JavaScript runtime
@@ -131,6 +133,51 @@ enum Command {
 
     /// Start Language Server Protocol (LSP) server
     Lsp,
+
+    /// Configuration file management
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum ConfigAction {
+    /// Initialize a new config file
+    Init {
+        /// Config file format
+        #[arg(value_enum, default_value = "json")]
+        format: ConfigFileFormat,
+
+        /// Output path for config file
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Force overwrite existing config file
+        #[arg(short, long)]
+        force: bool,
+    },
+
+    /// Show current configuration
+    Show {
+        /// Show configuration from specific file
+        #[arg(short, long)]
+        file: Option<PathBuf>,
+    },
+
+    /// Validate configuration file
+    Validate {
+        /// Config file to validate
+        #[arg(short, long)]
+        file: Option<PathBuf>,
+    },
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+enum ConfigFileFormat {
+    Json,
+    Toml,
+    Yaml,
 }
 
 fn main() {
@@ -230,9 +277,14 @@ fn run_main() -> Result<()> {
                 expose_internals,
                 print_internals,
                 disable_gc,
-            } => run_repl(expose_internals, print_internals, disable_gc).map_err(|e| {
-                error::AndromedaError::repl_error(format!("REPL failed: {e}"), Some(e))
-            }),
+            } => {
+                // Load configuration
+                let config = ConfigManager::load_or_default(None);
+                run_repl_with_config(expose_internals, print_internals, disable_gc, Some(config))
+                    .map_err(|e| {
+                        error::AndromedaError::repl_error(format!("REPL failed: {e}"), Some(e))
+                    })
+            }
             Command::Fmt { paths } => {
                 let files_to_format = find_formattable_files(&paths)?;
                 if files_to_format.is_empty() {
@@ -276,6 +328,9 @@ fn run_main() -> Result<()> {
                 Ok(())
             }
             Command::Lint { paths } => {
+                // Load configuration
+                let config = ConfigManager::load_or_default(None);
+
                 let files_to_lint = find_formattable_files(&paths)?;
                 if files_to_lint.is_empty() {
                     println!("No lintable files found.");
@@ -284,7 +339,7 @@ fn run_main() -> Result<()> {
                 println!("Found {} file(s) to lint:", files_to_lint.len());
                 let mut had_issues = false;
                 for path in &files_to_lint {
-                    if let Err(e) = lint_file(path) {
+                    if let Err(e) = lint_file_with_config(path, Some(config.clone())) {
                         print_error(e);
                         had_issues = true;
                     }
@@ -313,6 +368,7 @@ fn run_main() -> Result<()> {
                 })?;
                 Ok(())
             }
+            Command::Config { action } => handle_config_command(action),
         }
     });
     match rt.block_on(nova_thread) {
@@ -366,4 +422,103 @@ fn detect_shell() -> Option<Shell> {
     }
 
     None
+}
+
+impl From<ConfigFileFormat> for ConfigFormat {
+    fn from(format: ConfigFileFormat) -> Self {
+        match format {
+            ConfigFileFormat::Json => ConfigFormat::Json,
+            ConfigFileFormat::Toml => ConfigFormat::Toml,
+            ConfigFileFormat::Yaml => ConfigFormat::Yaml,
+        }
+    }
+}
+
+#[allow(clippy::result_large_err)]
+fn handle_config_command(action: ConfigAction) -> Result<()> {
+    match action {
+        ConfigAction::Init {
+            format,
+            output,
+            force,
+        } => {
+            let config_format = ConfigFormat::from(format);
+            let config_path = output.unwrap_or_else(|| {
+                PathBuf::from(format!("andromeda.{}", config_format.extension()))
+            });
+
+            // Check if file exists and force is not set
+            if config_path.exists() && !force {
+                return Err(error::AndromedaError::config_error(
+                    format!(
+                        "Config file already exists: {}. Use --force to overwrite.",
+                        config_path.display()
+                    ),
+                    Some(config_path),
+                    None::<std::io::Error>,
+                ));
+            }
+
+            ConfigManager::create_default_config(&config_path, config_format).map_err(|e| {
+                error::AndromedaError::config_error(
+                    format!("Failed to create config file: {e}"),
+                    Some(config_path.clone()),
+                    None::<std::io::Error>,
+                )
+            })?;
+
+            println!("✅ Created config file: {}", config_path.display());
+            Ok(())
+        }
+        ConfigAction::Show { file } => {
+            let config = if let Some(path) = file {
+                ConfigManager::load_config(&path).map_err(|e| {
+                    error::AndromedaError::config_error(
+                        format!("Failed to load config: {e}"),
+                        Some(path),
+                        None::<std::io::Error>,
+                    )
+                })?
+            } else {
+                ConfigManager::load_or_default(None)
+            };
+
+            println!("Current Andromeda Configuration:");
+            println!("{}", serde_json::to_string_pretty(&config).unwrap());
+            Ok(())
+        }
+        ConfigAction::Validate { file } => {
+            let config = if let Some(path) = file {
+                ConfigManager::load_config(&path).map_err(|e| {
+                    error::AndromedaError::config_error(
+                        format!("Failed to load config: {e}"),
+                        Some(path),
+                        None::<std::io::Error>,
+                    )
+                })?
+            } else if let Some((config_path, _)) = ConfigManager::find_config_file(None) {
+                ConfigManager::load_config(&config_path).map_err(|e| {
+                    error::AndromedaError::config_error(
+                        format!("Failed to load config: {e}"),
+                        Some(config_path),
+                        None::<std::io::Error>,
+                    )
+                })?
+            } else {
+                println!("No config file found. Using default configuration.");
+                AndromedaConfig::default()
+            };
+
+            ConfigManager::validate_config(&config).map_err(|e| {
+                error::AndromedaError::config_error(
+                    format!("Config validation failed: {e}"),
+                    None,
+                    None::<std::io::Error>,
+                )
+            })?;
+
+            println!("✅ Configuration is valid!");
+            Ok(())
+        }
+    }
 }

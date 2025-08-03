@@ -52,6 +52,8 @@ ring = "0.17.14"
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.142"
+serde_yaml = "0.9.34-deprecated"
+toml = "0.9.4"
 signal-hook = "0.3.18"
 thiserror = "2.0.12"
 tempfile = "3.13.0"
