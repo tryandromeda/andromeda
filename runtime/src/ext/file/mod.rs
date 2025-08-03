@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use andromeda_core::{Extension, ExtensionOp};
+use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage};
 use nova_vm::{
     ecmascript::{
         builtins::ArgumentsList,
@@ -12,12 +12,9 @@ use nova_vm::{
     engine::context::{Bindable, GcScope},
 };
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
-// Resource table for managing blob data
-static BLOB_STORAGE: std::sync::OnceLock<Arc<Mutex<HashMap<String, BlobData>>>> =
-    std::sync::OnceLock::new();
+use crate::RuntimeMacroTask;
 
 // Internal blob data structure
 #[derive(Clone)]
@@ -25,6 +22,11 @@ struct BlobData {
     data: Vec<u8>,
     content_type: String,
     size: usize,
+}
+
+// Extension resources structure
+struct FileExtResources {
+    blob_storage: HashMap<String, BlobData>,
 }
 
 #[derive(Default)]
@@ -86,7 +88,11 @@ impl FileExt {
                     1,
                 ),
             ],
-            storage: None,
+            storage: Some(Box::new(|storage: &mut OpsStorage| {
+                storage.insert(FileExtResources {
+                    blob_storage: HashMap::new(),
+                });
+            })),
             files: vec![
                 include_str!("./blob.ts"),
                 include_str!("./file.ts"),
@@ -95,10 +101,13 @@ impl FileExt {
         }
     }
 
-    fn get_blob_storage() -> Arc<Mutex<HashMap<String, BlobData>>> {
-        BLOB_STORAGE
-            .get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
-            .clone()
+    fn get_blob_storage_mut(agent: &Agent) -> std::cell::RefMut<'_, HashMap<String, BlobData>> {
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let storage = host_data.storage.borrow_mut();
+        std::cell::RefMut::map(storage, |s| {
+            &mut s.get_mut::<FileExtResources>().unwrap().blob_storage
+        })
     }
 
     pub fn internal_blob_create<'gc>(
@@ -146,8 +155,9 @@ impl FileExt {
             size,
         };
 
-        let storage = Self::get_blob_storage();
-        storage.lock().unwrap().insert(blob_id.clone(), blob);
+        let mut storage = Self::get_blob_storage_mut(agent);
+        storage.insert(blob_id.clone(), blob);
+        drop(storage);
 
         let gc_no = gc.into_nogc();
         Ok(Value::from_string(agent, blob_id, gc_no).unbind())
@@ -189,24 +199,26 @@ impl FileExt {
                 .to_string()
         };
 
-        let storage = Self::get_blob_storage();
-        let storage_lock = storage.lock().unwrap();
+        let storage = Self::get_blob_storage_mut(agent);
 
-        if let Some(blob) = storage_lock.get(blob_id) {
+        if let Some(blob) = storage.get(blob_id) {
+            let blob_clone = blob.clone();
+            drop(storage);
+
             let end = if end_arg.is_undefined() {
-                blob.size
+                blob_clone.size
             } else {
                 (end_arg
                     .to_number(agent, gc.reborrow())
                     .unbind()?
                     .into_f64(agent) as usize)
-                    .min(blob.size)
+                    .min(blob_clone.size)
             };
 
-            let start = start.min(blob.size);
+            let start = start.min(blob_clone.size);
             let end = end.max(start);
 
-            let sliced_data = blob.data[start..end].to_vec();
+            let sliced_data = blob_clone.data[start..end].to_vec();
             let new_blob_id = Uuid::new_v4().to_string();
 
             let new_blob = BlobData {
@@ -215,14 +227,13 @@ impl FileExt {
                 size: end - start,
             };
 
-            drop(storage_lock);
-            storage
-                .lock()
-                .unwrap()
-                .insert(new_blob_id.clone(), new_blob);
+            let mut storage = Self::get_blob_storage_mut(agent);
+            storage.insert(new_blob_id.clone(), new_blob);
+            drop(storage);
 
             Ok(Value::from_string(agent, new_blob_id, gc.nogc()).unbind())
         } else {
+            drop(storage);
             Err(agent
                 .throw_exception(
                     ExceptionType::Error,
@@ -246,18 +257,19 @@ impl FileExt {
             .as_str(agent)
             .expect("String is not valid UTF-8");
 
-        let storage = Self::get_blob_storage();
-        let storage_lock = storage.lock().unwrap();
+        let storage = Self::get_blob_storage_mut(agent);
 
-        if let Some(blob) = storage_lock.get(blob_id) {
+        if let Some(blob) = storage.get(blob_id) {
             let bytes_str = blob
                 .data
                 .iter()
                 .map(|b| b.to_string())
                 .collect::<Vec<_>>()
                 .join(",");
+            drop(storage);
             Ok(Value::from_string(agent, bytes_str, gc.nogc()).unbind())
         } else {
+            drop(storage);
             Err(agent
                 .throw_exception(
                     ExceptionType::Error,
@@ -281,12 +293,14 @@ impl FileExt {
             .as_str(agent)
             .expect("String is not valid UTF-8");
 
-        let storage = Self::get_blob_storage();
-        let storage_lock = storage.lock().unwrap();
+        let storage = Self::get_blob_storage_mut(agent);
 
-        if let Some(blob) = storage_lock.get(blob_id) {
-            Ok(Value::from_f64(agent, blob.size as f64, gc.nogc()).unbind())
+        if let Some(blob) = storage.get(blob_id) {
+            let size = blob.size;
+            drop(storage);
+            Ok(Value::from_f64(agent, size as f64, gc.nogc()).unbind())
         } else {
+            drop(storage);
             Err(agent
                 .throw_exception(
                     ExceptionType::Error,
@@ -310,12 +324,14 @@ impl FileExt {
             .as_str(agent)
             .expect("String is not valid UTF-8");
 
-        let storage = Self::get_blob_storage();
-        let storage_lock = storage.lock().unwrap();
+        let storage = Self::get_blob_storage_mut(agent);
 
-        if let Some(blob) = storage_lock.get(blob_id) {
-            Ok(Value::from_string(agent, blob.content_type.clone(), gc.nogc()).unbind())
+        if let Some(blob) = storage.get(blob_id) {
+            let content_type = blob.content_type.clone();
+            drop(storage);
+            Ok(Value::from_string(agent, content_type, gc.nogc()).unbind())
         } else {
+            drop(storage);
             Err(agent
                 .throw_exception(
                     ExceptionType::Error,
@@ -339,10 +355,9 @@ impl FileExt {
             .as_str(agent)
             .expect("String is not valid UTF-8");
 
-        let storage = Self::get_blob_storage();
-        let storage_lock = storage.lock().unwrap();
+        let storage = Self::get_blob_storage_mut(agent);
 
-        if let Some(blob) = storage_lock.get(blob_id) {
+        if let Some(blob) = storage.get(blob_id) {
             // Return the blob data as comma-separated bytes for now
             // TODO: return a ReadableStream
             let bytes_str = blob
@@ -351,8 +366,10 @@ impl FileExt {
                 .map(|b| b.to_string())
                 .collect::<Vec<_>>()
                 .join(",");
+            drop(storage);
             Ok(Value::from_string(agent, bytes_str, gc.nogc()).unbind())
         } else {
+            drop(storage);
             Err(agent
                 .throw_exception(
                     ExceptionType::Error,
@@ -376,10 +393,9 @@ impl FileExt {
             .as_str(agent)
             .expect("String is not valid UTF-8");
 
-        let storage = Self::get_blob_storage();
-        let storage_lock = storage.lock().unwrap();
+        let storage = Self::get_blob_storage_mut(agent);
 
-        if let Some(blob) = storage_lock.get(blob_id) {
+        if let Some(blob) = storage.get(blob_id) {
             // Return the blob data as comma-separated bytes
             let bytes_str = blob
                 .data
@@ -387,8 +403,10 @@ impl FileExt {
                 .map(|b| b.to_string())
                 .collect::<Vec<_>>()
                 .join(",");
+            drop(storage);
             Ok(Value::from_string(agent, bytes_str, gc.nogc()).unbind())
         } else {
+            drop(storage);
             Err(agent
                 .throw_exception(
                     ExceptionType::Error,
@@ -412,13 +430,14 @@ impl FileExt {
             .as_str(agent)
             .expect("String is not valid UTF-8");
 
-        let storage = Self::get_blob_storage();
-        let storage_lock = storage.lock().unwrap();
+        let storage = Self::get_blob_storage_mut(agent);
 
-        if let Some(blob) = storage_lock.get(blob_id) {
+        if let Some(blob) = storage.get(blob_id) {
             let text = String::from_utf8_lossy(&blob.data).to_string();
+            drop(storage);
             Ok(Value::from_string(agent, text, gc.nogc()).unbind())
         } else {
+            drop(storage);
             Err(agent
                 .throw_exception(
                     ExceptionType::Error,
@@ -493,8 +512,9 @@ impl FileExt {
             size,
         };
 
-        let storage = Self::get_blob_storage();
-        storage.lock().unwrap().insert(blob_id.clone(), blob);
+        let mut storage = Self::get_blob_storage_mut(agent);
+        storage.insert(blob_id.clone(), blob);
+        drop(storage);
 
         // Return combined data: blob_id:name:last_modified
         let result = format!("{blob_id}:{name}:{last_modified}");
