@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use std::collections::HashMap;
-use std::io::{stderr, stdout, Write};
+use std::io::{Write, stderr, stdout};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use andromeda_core::{AndromedaError, ErrorReporter, Extension, ExtensionOp, HostData, OpsStorage};
