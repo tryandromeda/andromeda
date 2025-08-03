@@ -1,6 +1,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 // If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use crate::config::{AndromedaConfig, ConfigManager, LintConfig};
 use crate::error::{AndromedaError, Result};
 use console::Style;
 use miette as oxc_miette;
@@ -121,19 +122,46 @@ impl std::fmt::Display for LintError {
 
 impl std::error::Error for LintError {}
 
+/// Helper function to check if a lint rule should be applied
+/// Rules are enabled if:
+/// 1. They are explicitly in the `rules` list, OR
+/// 2. They are not in the `disabled_rules` list (default enabled)
+///    AND the rule is not in the `disabled_rules` list
+fn is_rule_enabled(rule_name: &str, lint_config: &LintConfig) -> bool {
+    // If disabled_rules contains the rule, it's disabled
+    if lint_config.disabled_rules.contains(&rule_name.to_string()) {
+        return false;
+    }
+
+    // If rules list is empty, all rules are enabled by default (unless disabled)
+    // If rules list is not empty, only explicitly listed rules are enabled
+    if lint_config.rules.is_empty() {
+        true
+    } else {
+        lint_config.rules.contains(&rule_name.to_string())
+    }
+}
+
 /// Helper function to recursively check expressions for lint issues
 fn check_expression_for_issues(
     expr: &oxc_ast::ast::Expression,
     _source_code: &str,
     _named_source: &NamedSource<String>,
     _lint_errors: &mut Vec<LintError>,
+    _lint_config: &LintConfig,
 ) {
     use oxc_ast::ast::Expression;
 
     if let Expression::CallExpression(call) = expr {
         for arg in &call.arguments {
             if let Some(expr) = arg.as_expression() {
-                check_expression_for_issues(expr, _source_code, _named_source, _lint_errors);
+                check_expression_for_issues(
+                    expr,
+                    _source_code,
+                    _named_source,
+                    _lint_errors,
+                    _lint_config,
+                );
             }
         }
     }
@@ -145,6 +173,7 @@ fn check_statement_for_expressions(
     source_code: &str,
     named_source: &NamedSource<String>,
     lint_errors: &mut Vec<LintError>,
+    lint_config: &LintConfig,
 ) {
     use oxc_ast::ast::Statement;
 
@@ -155,35 +184,67 @@ fn check_statement_for_expressions(
                 source_code,
                 named_source,
                 lint_errors,
+                lint_config,
             );
         }
         Statement::VariableDeclaration(var_decl) => {
             for declarator in &var_decl.declarations {
                 if let Some(init) = &declarator.init {
-                    check_expression_for_issues(init, source_code, named_source, lint_errors);
+                    check_expression_for_issues(
+                        init,
+                        source_code,
+                        named_source,
+                        lint_errors,
+                        lint_config,
+                    );
                 }
             }
         }
         Statement::IfStatement(if_stmt) => {
-            check_expression_for_issues(&if_stmt.test, source_code, named_source, lint_errors);
+            check_expression_for_issues(
+                &if_stmt.test,
+                source_code,
+                named_source,
+                lint_errors,
+                lint_config,
+            );
             check_statement_for_expressions(
                 &if_stmt.consequent,
                 source_code,
                 named_source,
                 lint_errors,
+                lint_config,
             );
             if let Some(alternate) = &if_stmt.alternate {
-                check_statement_for_expressions(alternate, source_code, named_source, lint_errors);
+                check_statement_for_expressions(
+                    alternate,
+                    source_code,
+                    named_source,
+                    lint_errors,
+                    lint_config,
+                );
             }
         }
         Statement::BlockStatement(block) => {
             for stmt in &block.body {
-                check_statement_for_expressions(stmt, source_code, named_source, lint_errors);
+                check_statement_for_expressions(
+                    stmt,
+                    source_code,
+                    named_source,
+                    lint_errors,
+                    lint_config,
+                );
             }
         }
         Statement::ReturnStatement(ret_stmt) => {
             if let Some(arg) = &ret_stmt.argument {
-                check_expression_for_issues(arg, source_code, named_source, lint_errors);
+                check_expression_for_issues(
+                    arg,
+                    source_code,
+                    named_source,
+                    lint_errors,
+                    lint_config,
+                );
             }
         }
         // Add more statement types as needed
@@ -197,6 +258,7 @@ fn check_prefer_const(
     source_code: &str,
     named_source: &NamedSource<String>,
     lint_errors: &mut Vec<LintError>,
+    lint_config: &LintConfig,
 ) {
     let mut let_variables = std::collections::HashSet::new();
     for stmt in statements {
@@ -216,6 +278,7 @@ fn check_prefer_const(
             source_code,
             named_source,
             lint_errors,
+            lint_config,
         );
     }
 }
@@ -359,6 +422,7 @@ fn report_prefer_const_violations(
     _source_code: &str,
     named_source: &NamedSource<String>,
     lint_errors: &mut Vec<LintError>,
+    lint_config: &LintConfig,
 ) {
     use oxc_ast::ast::{Statement, VariableDeclarationKind};
 
@@ -370,6 +434,7 @@ fn report_prefer_const_violations(
                         let var_name = id.name.to_string();
                         if let_variables.contains(&var_name)
                             && !reassigned_variables.contains(&var_name)
+                            && is_rule_enabled("prefer_const", lint_config)
                         {
                             let span = SourceSpan::new(
                                 (id.span.start as usize).into(),
@@ -395,6 +460,7 @@ fn report_prefer_const_violations(
                     _source_code,
                     named_source,
                     lint_errors,
+                    lint_config,
                 );
             }
         }
@@ -406,6 +472,7 @@ fn report_prefer_const_violations(
                 _source_code,
                 named_source,
                 lint_errors,
+                lint_config,
             );
             if let Some(alternate) = &if_stmt.alternate {
                 report_prefer_const_violations(
@@ -415,6 +482,7 @@ fn report_prefer_const_violations(
                     _source_code,
                     named_source,
                     lint_errors,
+                    lint_config,
                 );
             }
         }
@@ -428,6 +496,7 @@ fn report_prefer_const_violations(
                         _source_code,
                         named_source,
                         lint_errors,
+                        lint_config,
                     );
                 }
             }
@@ -442,6 +511,7 @@ fn report_prefer_const_violations(
                         _source_code,
                         named_source,
                         lint_errors,
+                        lint_config,
                     );
                 }
             }
@@ -450,49 +520,71 @@ fn report_prefer_const_violations(
     }
 }
 
-/// Lint a single JS/TS file
+/// Lint a single JS/TS file with configuration
 #[allow(clippy::result_large_err)]
-pub fn lint_file(path: &PathBuf) -> Result<()> {
+pub fn lint_file_with_config(
+    path: &PathBuf,
+    config_override: Option<AndromedaConfig>,
+) -> Result<()> {
     let content =
         fs::read_to_string(path).map_err(|e| AndromedaError::file_read_error(path.clone(), e))?;
 
-    match lint_file_content(path, &content) {
+    // Load configuration
+    let config = config_override.unwrap_or_else(|| ConfigManager::load_or_default(None));
+
+    match lint_file_content_with_config(path, &content, Some(config.clone())) {
         Ok(lint_errors) => {
-            display_lint_results(path, &lint_errors);
+            display_lint_results_with_config(path, &lint_errors, Some(&config));
             Ok(())
         }
         Err(e) => Err(e),
     }
 }
 
-/// Lint file content directly (useful for LSP)
+/// Lint file content directly with configuration (useful for LSP)
 #[allow(clippy::result_large_err)]
-pub fn lint_file_content(path: &PathBuf, content: &str) -> Result<Vec<LintError>> {
+pub fn lint_file_content_with_config(
+    path: &PathBuf,
+    content: &str,
+    config_override: Option<AndromedaConfig>,
+) -> Result<Vec<LintError>> {
     let allocator = Allocator::default();
     let source_type = SourceType::from_path(path).unwrap_or_default();
     let ret = Parser::new(&allocator, content, source_type).parse();
     let program = &ret.program;
     let mut lint_errors = Vec::new();
 
+    // Load configuration
+    let config = config_override.unwrap_or_else(|| ConfigManager::load_or_default(None));
+    let lint_config = &config.lint;
+
     let source_name = path.display().to_string();
     let named_source = NamedSource::new(source_name.clone(), content.to_string());
 
     for stmt in &program.body {
-        check_statement_for_expressions(stmt, content, &named_source, &mut lint_errors);
+        check_statement_for_expressions(
+            stmt,
+            content,
+            &named_source,
+            &mut lint_errors,
+            lint_config,
+        );
 
         match stmt {
             Statement::EmptyStatement(empty_stmt) => {
-                let span = SourceSpan::new(
-                    (empty_stmt.span().start as usize).into(),
-                    empty_stmt.span().size() as usize,
-                );
-                lint_errors.push(LintError::EmptyStatement {
-                    span,
-                    source_code: named_source.clone(),
-                });
+                if is_rule_enabled("empty_statement", lint_config) {
+                    let span = SourceSpan::new(
+                        (empty_stmt.span().start as usize).into(),
+                        empty_stmt.span().size() as usize,
+                    );
+                    lint_errors.push(LintError::EmptyStatement {
+                        span,
+                        source_code: named_source.clone(),
+                    });
+                }
             }
             Statement::VariableDeclaration(decl) => {
-                if decl.kind.is_var() {
+                if decl.kind.is_var() && is_rule_enabled("var_usage", lint_config) {
                     let span = SourceSpan::new(
                         (decl.span().start as usize).into(),
                         decl.span().size() as usize,
@@ -514,7 +606,8 @@ pub fn lint_file_content(path: &PathBuf, content: &str) -> Result<Vec<LintError>
             }
             Statement::FunctionDeclaration(func) => {
                 if let Some(body) = &func.body {
-                    if body.statements.is_empty() {
+                    if body.statements.is_empty() && is_rule_enabled("empty_function", lint_config)
+                    {
                         let span = SourceSpan::new(
                             (func.span().start as usize).into(),
                             func.span().size() as usize,
@@ -538,7 +631,13 @@ pub fn lint_file_content(path: &PathBuf, content: &str) -> Result<Vec<LintError>
         }
     }
 
-    check_prefer_const(&program.body, content, &named_source, &mut lint_errors);
+    check_prefer_const(
+        &program.body,
+        content,
+        &named_source,
+        &mut lint_errors,
+        lint_config,
+    );
 
     let semantic = SemanticBuilder::new().build(program);
     let scoping = semantic.semantic.scoping();
@@ -553,6 +652,7 @@ pub fn lint_file_content(path: &PathBuf, content: &str) -> Result<Vec<LintError>
                 | SymbolFlags::FunctionScopedVariable,
         ) && scoping.symbol_is_unused(symbol_id)
             && !name.starts_with('_')
+            && is_rule_enabled("unused_variable", lint_config)
         {
             let span = SourceSpan::new(
                 (symbol_span.start as usize).into(),
@@ -570,32 +670,72 @@ pub fn lint_file_content(path: &PathBuf, content: &str) -> Result<Vec<LintError>
     Ok(lint_errors)
 }
 
-/// Display lint results to the console
-fn display_lint_results(path: &Path, lint_errors: &[LintError]) {
+/// Display lint results to the console with configuration
+fn display_lint_results_with_config(
+    path: &Path,
+    lint_errors: &[LintError],
+    config_override: Option<&AndromedaConfig>,
+) {
     if !lint_errors.is_empty() {
+        // Load configuration to check max_warnings
+        let default_config = ConfigManager::load_or_default(None);
+        let config = config_override.unwrap_or(&default_config);
+        let max_warnings = config.lint.max_warnings.unwrap_or(0);
+
+        // Limit displayed errors if max_warnings is set
+        let errors_to_show = if max_warnings > 0 && lint_errors.len() > max_warnings as usize {
+            &lint_errors[..max_warnings as usize]
+        } else {
+            lint_errors
+        };
+
+        let truncated_msg = if errors_to_show.len() < lint_errors.len() {
+            format!(", showing first {}", errors_to_show.len())
+        } else {
+            String::new()
+        };
+
         println!();
         println!(
-            "{} {} ({} issue{} found)",
+            "{} {} ({} issue{} found{})",
             "🔍".bright_yellow(),
             "Lint Issues".bright_yellow().bold(),
             lint_errors.len(),
-            if lint_errors.len() == 1 { "" } else { "s" }
+            if lint_errors.len() == 1 { "" } else { "s" },
+            truncated_msg.bright_yellow()
         );
         println!("{}", "─".repeat(60).yellow());
 
-        for (i, error) in lint_errors.iter().enumerate() {
-            if lint_errors.len() > 1 {
+        for (i, error) in errors_to_show.iter().enumerate() {
+            if errors_to_show.len() > 1 {
                 println!();
                 println!(
                     "{} Issue {} of {}:",
                     "📍".cyan(),
                     (i + 1).to_string().bright_cyan(),
-                    lint_errors.len().to_string().bright_cyan()
+                    errors_to_show.len().to_string().bright_cyan()
                 );
                 println!("{}", "─".repeat(30).cyan());
             }
             println!("{:?}", oxc_miette::Report::new(error.clone()));
         }
+
+        if errors_to_show.len() < lint_errors.len() {
+            println!();
+            println!(
+                "{} {} more issue{} not shown (limited by max_warnings setting)",
+                "⚠️".bright_yellow(),
+                (lint_errors.len() - errors_to_show.len())
+                    .to_string()
+                    .bright_yellow(),
+                if lint_errors.len() - errors_to_show.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                }
+            );
+        }
+
         println!();
     } else {
         let ok = Style::new().green().bold().apply_to("✔");

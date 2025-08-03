@@ -1,7 +1,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 // If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::lint::lint_file_content;
+use crate::config::ConfigManager;
+use crate::lint::lint_file_content_with_config;
 use futures::future::join_all;
 use log::{debug, info, warn};
 use serde_json;
@@ -60,8 +61,11 @@ impl AndromedaBackend {
             }
         };
 
+        // Load configuration for linting
+        let config = ConfigManager::load_or_default(None);
+
         // Run the linter on the content
-        match lint_file_content(&path, content) {
+        match lint_file_content_with_config(&path, content, Some(config)) {
             Ok(lint_errors) => lint_errors
                 .iter()
                 .map(|error| lint_error_to_diagnostic(error, content))

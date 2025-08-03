@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use crate::config::{ConfigManager, FormatConfig};
 use crate::error::{AndromedaError, Result};
 use dprint_core::configuration::{ConfigKeyValue, GlobalConfiguration, NewLineKind};
 use dprint_plugin_json::{configuration as json_config, format_text as json_format};
@@ -20,16 +21,44 @@ enum FileType {
 }
 
 /// Creates a dprint configuration for TypeScript/JavaScript formatting
-fn create_ts_dprint_config() -> IndexMap<String, ConfigKeyValue> {
+fn create_ts_dprint_config(format_config: &FormatConfig) -> IndexMap<String, ConfigKeyValue> {
     let mut config = IndexMap::new();
 
-    config.insert("lineWidth".to_string(), ConfigKeyValue::from_i32(100));
-    config.insert("indentWidth".to_string(), ConfigKeyValue::from_i32(2));
-    config.insert("useTabs".to_string(), ConfigKeyValue::from_bool(false));
-    config.insert("semiColons".to_string(), ConfigKeyValue::from_str("always"));
+    config.insert(
+        "lineWidth".to_string(),
+        ConfigKeyValue::from_i32(format_config.line_width as i32),
+    );
+    config.insert(
+        "indentWidth".to_string(),
+        ConfigKeyValue::from_i32(format_config.tab_width as i32),
+    );
+    config.insert(
+        "useTabs".to_string(),
+        ConfigKeyValue::from_bool(format_config.use_tabs),
+    );
+    config.insert(
+        "semiColons".to_string(),
+        ConfigKeyValue::from_str(if format_config.semicolons {
+            "always"
+        } else {
+            "prefer_none"
+        }),
+    );
     config.insert(
         "quoteStyle".to_string(),
-        ConfigKeyValue::from_str("alwaysDouble"),
+        ConfigKeyValue::from_str(if format_config.single_quotes {
+            "prefer_single"
+        } else {
+            "prefer_double"
+        }),
+    );
+    config.insert(
+        "trailingComma".to_string(),
+        ConfigKeyValue::from_str(if format_config.trailing_comma {
+            "always"
+        } else {
+            "never"
+        }),
     );
     config.insert("newLineKind".to_string(), ConfigKeyValue::from_str("lf"));
     config.insert(
@@ -103,21 +132,36 @@ fn get_file_info(path: &std::path::Path) -> Result<FileType> {
 /// Formats a JavaScript, TypeScript, or JSON file using dprint.
 #[allow(clippy::result_large_err)]
 pub fn format_file(path: &PathBuf) -> Result<()> {
+    format_file_with_config(path, None)
+}
+
+/// Formats a JavaScript, TypeScript, or JSON file using dprint with custom config.
+#[allow(clippy::result_large_err)]
+pub fn format_file_with_config(
+    path: &PathBuf,
+    config_override: Option<FormatConfig>,
+) -> Result<()> {
     let original_content =
         fs::read_to_string(path).map_err(|e| AndromedaError::file_read_error(path.clone(), e))?;
 
     let file_type = get_file_info(path)?;
 
+    // Load configuration
+    let config = config_override.unwrap_or_else(|| {
+        let andromeda_config = ConfigManager::load_or_default(path.parent());
+        andromeda_config.format
+    });
+
     let global_config = GlobalConfiguration {
-        line_width: Some(100),
-        use_tabs: Some(false),
-        indent_width: Some(2),
+        line_width: Some(config.line_width),
+        use_tabs: Some(config.use_tabs),
+        indent_width: Some(config.tab_width as u8),
         new_line_kind: Some(NewLineKind::LineFeed),
     };
 
     let formatted_content = match file_type {
         FileType::TypeScript | FileType::JavaScript => {
-            format_ts_js_file(path, &original_content, &global_config)?
+            format_ts_js_file(path, &original_content, &global_config, &config)?
         }
         FileType::Json => format_json_file(path, &original_content, &global_config)?,
     };
@@ -142,8 +186,9 @@ fn format_ts_js_file(
     path: &PathBuf,
     original_content: &str,
     global_config: &GlobalConfiguration,
+    format_config: &FormatConfig,
 ) -> Result<Option<String>> {
-    let config = create_ts_dprint_config();
+    let config = create_ts_dprint_config(format_config);
     let resolved_config = ts_config::resolve_config(config, global_config);
 
     if !resolved_config.diagnostics.is_empty() {

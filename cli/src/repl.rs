@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use crate::config::{AndromedaConfig, ConfigManager};
 use crate::error::{AndromedaError, Result, print_error};
 use crate::repl::highlighter::JsHighlighter;
 use crate::repl::prompt::ReplPrompt;
@@ -50,7 +51,20 @@ fn handle_runtime_error_with_message(error_message: String) {
 }
 
 #[allow(clippy::result_large_err)]
-pub fn run_repl(expose_internals: bool, print_internals: bool, disable_gc: bool) -> Result<()> {
+pub fn run_repl_with_config(
+    expose_internals: bool,
+    print_internals: bool,
+    disable_gc: bool,
+    config_override: Option<AndromedaConfig>,
+) -> Result<()> {
+    // Load configuration
+    let config = config_override.unwrap_or_else(|| ConfigManager::load_or_default(None));
+
+    // Apply CLI overrides to config
+    let effective_expose_internals = expose_internals || config.runtime.expose_internals;
+    let effective_print_internals = print_internals || config.runtime.print_internals;
+    let effective_disable_gc = disable_gc || config.runtime.disable_gc;
+
     let (_macro_task_tx, _macro_task_rx) = mpsc::channel();
     let host_data = HostData::new(_macro_task_tx);
 
@@ -59,8 +73,8 @@ pub fn run_repl(expose_internals: bool, print_internals: bool, disable_gc: bool)
 
     let mut agent = GcAgent::new(
         Options {
-            disable_gc,
-            print_internals,
+            disable_gc: effective_disable_gc,
+            print_internals: effective_print_internals,
         },
         host_hooks,
     );
@@ -69,7 +83,7 @@ pub fn run_repl(expose_internals: bool, print_internals: bool, disable_gc: bool)
     let create_global_this_value: Option<for<'a> fn(&mut Agent, GcScope<'a, '_>) -> Object<'a>> =
         None;
 
-    let initialize_global: Option<fn(&mut Agent, Object, GcScope)> = if expose_internals {
+    let initialize_global: Option<fn(&mut Agent, Object, GcScope)> = if effective_expose_internals {
         Some(initialize_global_object_with_internals)
     } else {
         Some(initialize_global_object)
