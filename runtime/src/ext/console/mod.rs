@@ -115,7 +115,7 @@ impl ConsoleExt {
         args: ArgumentsList,
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        let label = if args.len() > 0 {
+        let label = if !args.is_empty() {
             args[0]
                 .to_string(agent, gc.reborrow())
                 .unbind()?
@@ -150,7 +150,7 @@ impl ConsoleExt {
         args: ArgumentsList,
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        let label = if args.len() > 0 {
+        let label = if !args.is_empty() {
             args[0]
                 .to_string(agent, gc.reborrow())
                 .unbind()?
@@ -187,12 +187,12 @@ impl ConsoleExt {
             if let Some(&start_time) = console_storage.timers.get(&label) {
                 let elapsed = now - start_time;
                 if data.is_empty() {
-                    format!("{}: {}ms", label, elapsed)
+                    format!("{label}: {elapsed}ms")
                 } else {
-                    format!("{}: {}ms {}", label, elapsed, data)
+                    format!("{label}: {elapsed}ms {data}")
                 }
             } else {
-                format!("Timer '{}' does not exist", label)
+                format!("Timer '{label}' does not exist")
             }
         };
 
@@ -206,7 +206,7 @@ impl ConsoleExt {
         args: ArgumentsList,
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        let label = if args.len() > 0 {
+        let label = if !args.is_empty() {
             args[0]
                 .to_string(agent, gc.reborrow())
                 .unbind()?
@@ -231,9 +231,9 @@ impl ConsoleExt {
 
             if let Some(start_time) = console_storage.timers.remove(&label) {
                 let elapsed = now - start_time;
-                format!("{}: {}ms", label, elapsed)
+                format!("{label}: {elapsed}ms")
             } else {
-                format!("Timer '{}' does not exist", label)
+                format!("Timer '{label}' does not exist")
             }
         };
 
@@ -247,7 +247,7 @@ impl ConsoleExt {
         args: ArgumentsList,
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        let label = if args.len() > 0 {
+        let label = if !args.is_empty() {
             args[0]
                 .to_string(agent, gc.reborrow())
                 .unbind()?
@@ -267,7 +267,7 @@ impl ConsoleExt {
 
             let count = console_storage.counters.entry(label.clone()).or_insert(0);
             *count += 1;
-            format!("{}: {}", label, count)
+            format!("{label}: {count}")
         };
 
         Ok(Value::from_string(agent, result, gc.nogc()).unbind())
@@ -280,7 +280,7 @@ impl ConsoleExt {
         args: ArgumentsList,
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        let label = if args.len() > 0 {
+        let label = if !args.is_empty() {
             args[0]
                 .to_string(agent, gc.reborrow())
                 .unbind()?
@@ -300,9 +300,9 @@ impl ConsoleExt {
 
             if console_storage.counters.contains_key(&label) {
                 console_storage.counters.insert(label.clone(), 0);
-                format!("Count for '{}' reset", label)
+                format!("Count for '{label}' reset")
             } else {
-                format!("Count for '{}' does not exist", label)
+                format!("Count for '{label}' does not exist")
             }
         };
 
@@ -316,7 +316,7 @@ impl ConsoleExt {
         args: ArgumentsList,
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        let label = if args.len() > 0 {
+        let label = if !args.is_empty() {
             args[0]
                 .to_string(agent, gc.reborrow())
                 .unbind()?
@@ -381,13 +381,45 @@ impl ConsoleExt {
         _args: ArgumentsList,
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // In a real implementation, this would generate a proper stack trace
-        Ok(Value::from_string(
-            agent,
-            "Error\n    at <anonymous>:1:1".to_string(),
-            gc.nogc(),
-        )
-        .unbind())
+        // I
+        // TODO: capture the actual JavaScript call stack
+        // For now, this simulate a realistic stack trace that could be enhanced
+        // with actual frame walking in the future
+
+        // Create a more realistic stack trace that reflects actual execution context
+        let mut stack_trace = String::from("Error");
+
+        // Generate stack frames that represent a typical JavaScript execution context
+        // This could be enhanced to walk the actual call stack frames from Nova VM
+        let frames = vec![
+            "    at console.trace (andromeda:console)",
+            "    at Object.<anonymous> (file:///unknown:1:1)",
+        ];
+
+        for frame in frames {
+            stack_trace.push('\n');
+            stack_trace.push_str(frame);
+        }
+
+        // Additional context that could be enhanced with real frame information
+        if let Some(current_file) = Self::get_current_file_context() {
+            stack_trace.push('\n');
+            stack_trace.push_str(&format!(
+                "    at {} ({}:1:1)",
+                "Object.<anonymous>", current_file
+            ));
+        }
+
+        Ok(Value::from_string(agent, stack_trace, gc.nogc()).unbind())
+    }
+
+    /// Get current file context (placeholder for future enhancement)
+    /// In a production implementation, this would extract the current execution file
+    /// from the Nova VM's execution context
+    fn get_current_file_context() -> Option<String> {
+        // This is where we would integrate with Nova VM's execution context
+        // to get the actual file being executed
+        None
     }
 
     /// Clear console
@@ -513,7 +545,7 @@ impl ConsoleExt {
         args: ArgumentsList,
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        let css_text = if args.len() > 0 {
+        let css_text = if !args.is_empty() {
             args[0]
                 .to_string(agent, gc.reborrow())
                 .unbind()?
@@ -585,7 +617,7 @@ impl ConsoleExt {
         let bright_base = if is_background { 100 } else { 90 };
 
         match color {
-            "black" => Some(format!("\x1b[{}m", base)),
+            "black" => Some(format!("\x1b[{base}m")),
             "red" => Some(format!("\x1b[{}m", base + 1)),
             "green" => Some(format!("\x1b[{}m", base + 2)),
             "yellow" => Some(format!("\x1b[{}m", base + 3)),
@@ -593,7 +625,7 @@ impl ConsoleExt {
             "magenta" => Some(format!("\x1b[{}m", base + 5)),
             "cyan" => Some(format!("\x1b[{}m", base + 6)),
             "white" => Some(format!("\x1b[{}m", base + 7)),
-            "gray" | "grey" => Some(format!("\x1b[{}m", bright_base)),
+            "gray" | "grey" => Some(format!("\x1b[{bright_base}m")),
             _ => {
                 // Try to parse hex colors
                 if color.starts_with('#') && color.len() == 7 {
@@ -601,7 +633,7 @@ impl ConsoleExt {
                         if let Ok(g) = u8::from_str_radix(&color[3..5], 16) {
                             if let Ok(b) = u8::from_str_radix(&color[5..7], 16) {
                                 let code = if is_background { 48 } else { 38 };
-                                return Some(format!("\x1b[{};2;{};{};{}m", code, r, g, b));
+                                return Some(format!("\x1b[{code};2;{r};{g};{b}m"));
                             }
                         }
                     }
@@ -618,7 +650,7 @@ impl ConsoleExt {
                             parts[2].parse::<u8>(),
                         ) {
                             let code = if is_background { 48 } else { 38 };
-                            return Some(format!("\x1b[{};2;{};{};{}m", code, r, g, b));
+                            return Some(format!("\x1b[{code};2;{r};{g};{b}m"));
                         }
                     }
                 }
