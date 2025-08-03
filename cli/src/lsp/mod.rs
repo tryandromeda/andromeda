@@ -3,6 +3,7 @@
 
 pub mod backend;
 pub mod capabilities;
+pub mod completions;
 pub mod diagnostic_converter;
 pub mod options;
 pub mod server;
