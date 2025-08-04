@@ -216,7 +216,8 @@ class StatementSync {
 }
 
 (globalThis as unknown as Record<string, unknown>).DatabaseSync = DatabaseSync;
-(globalThis as unknown as Record<string, unknown>).StatementSync = StatementSync;
+(globalThis as unknown as Record<string, unknown>).StatementSync =
+  StatementSync;
 
 (globalThis as unknown as Record<string, unknown>).Database = DatabaseSync;
 

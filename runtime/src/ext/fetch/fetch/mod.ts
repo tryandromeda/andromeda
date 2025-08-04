@@ -166,7 +166,8 @@ const fetching = (
     //  1. Set taskDestination to request’s client’s global object.
     taskDestination = request.client.globalObject;
     //  2. Set crossOriginIsolatedCapability to request’s client’s cross-origin isolated capability.
-    crossOriginIsolatedCapability = request.client.crossOriginIsolatedCapability;
+    crossOriginIsolatedCapability =
+      request.client.crossOriginIsolatedCapability;
   }
 
   // TODO

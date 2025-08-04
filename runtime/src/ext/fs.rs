@@ -12,15 +12,22 @@ use std::{
 use nova_vm::{
     SmallInteger,
     ecmascript::{
-        builtins::ArgumentsList,
+        builtins::{
+            ArgumentsList,
+            promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
+        },
         execution::{Agent, JsResult},
-        types::Value,
+        types::{IntoValue, Value},
     },
-    engine::context::{Bindable, GcScope},
+    engine::{
+        Global,
+        context::{Bindable, GcScope},
+    },
 };
 
 use andromeda_core::{
-    AndromedaError, ErrorReporter, Extension, ExtensionOp, HostData, OpsStorage, ResourceTable,
+    AndromedaError, ErrorReporter, Extension, ExtensionOp, HostData, MacroTask, OpsStorage,
+    ResourceTable,
 };
 
 use crate::RuntimeMacroTask;
@@ -62,6 +69,38 @@ impl FsExt {
                 ExtensionOp::new("internal_symlink", Self::internal_symlink, 2),
                 ExtensionOp::new("internal_read_link", Self::internal_read_link, 1),
                 ExtensionOp::new("internal_real_path", Self::internal_real_path, 1),
+                // Async methods
+                ExtensionOp::new(
+                    "internal_read_text_file_async",
+                    Self::internal_read_text_file_async,
+                    1,
+                ),
+                ExtensionOp::new(
+                    "internal_write_text_file_async",
+                    Self::internal_write_text_file_async,
+                    2,
+                ),
+                ExtensionOp::new(
+                    "internal_read_file_async",
+                    Self::internal_read_file_async,
+                    1,
+                ),
+                ExtensionOp::new(
+                    "internal_write_file_async",
+                    Self::internal_write_file_async,
+                    2,
+                ),
+                ExtensionOp::new(
+                    "internal_copy_file_async",
+                    Self::internal_copy_file_async,
+                    2,
+                ),
+                ExtensionOp::new("internal_remove_async", Self::internal_remove_async, 1),
+                ExtensionOp::new(
+                    "internal_create_file_async",
+                    Self::internal_create_file_async,
+                    1,
+                ),
             ],
             storage: Some(Box::new(|storage: &mut OpsStorage| {
                 storage.insert(FsExtResources {
@@ -786,5 +825,369 @@ impl FsExt {
         format!(
             "{{\"size\":{size},\"isFile\":{is_file},\"isDirectory\":{is_dir},\"isSymlink\":{is_symlink},\"modified\":{modified},\"accessed\":{accessed},\"created\":{created}}}"
         )
+    }
+
+    // Async file operations
+
+    /// Read a text file asynchronously and return the content as a string.
+    pub fn internal_read_text_file_async<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path_string = binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+
+        let promise_capability = PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let macro_task_tx = host_data.macro_task_tx();
+
+        host_data.spawn_macro_task(async move {
+            let result = tokio::fs::read_to_string(&path_string).await;
+            match result {
+                Ok(content) => {
+                    macro_task_tx
+                        .send(MacroTask::ResolvePromiseWithString(root_value, content))
+                        .unwrap();
+                }
+                Err(e) => {
+                    let error = AndromedaError::fs_error(e, "read_text_file_async", &path_string);
+                    let error_msg = ErrorReporter::format_error(&error);
+                    macro_task_tx
+                        .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                            root_value,
+                            format!("Error: {error_msg}"),
+                        )))
+                        .unwrap();
+                }
+            }
+        });
+
+        Ok(Value::Promise(promise_capability.promise()).unbind())
+    }
+
+    /// Write a text file asynchronously with the content of the second argument.
+    pub fn internal_write_text_file_async<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_binding = args
+            .get(0)
+            .to_string(agent, gc.borrow_mut().reborrow())
+            .unbind()?;
+        let content_binding = args
+            .get(1)
+            .to_string(agent.borrow_mut(), gc.reborrow())
+            .unbind()?;
+
+        let path_string = path_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+        let content_string = content_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+
+        let promise_capability = PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let macro_task_tx = host_data.macro_task_tx();
+
+        host_data.spawn_macro_task(async move {
+            let result = tokio::fs::write(&path_string, &content_string).await;
+            match result {
+                Ok(_) => {
+                    macro_task_tx
+                        .send(MacroTask::ResolvePromiseWithString(
+                            root_value,
+                            "Success".to_string(),
+                        ))
+                        .unwrap();
+                }
+                Err(e) => {
+                    let error = AndromedaError::fs_error(e, "write_text_file_async", &path_string);
+                    let error_msg = ErrorReporter::format_error(&error);
+                    macro_task_tx
+                        .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                            root_value,
+                            format!("Error: {error_msg}"),
+                        )))
+                        .unwrap();
+                }
+            }
+        });
+
+        Ok(Value::Promise(promise_capability.promise()).unbind())
+    }
+
+    /// Read a file asynchronously as bytes and return as a Uint8Array-like structure.
+    pub fn internal_read_file_async<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path_string = binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+
+        let promise_capability = PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let macro_task_tx = host_data.macro_task_tx();
+
+        host_data.spawn_macro_task(async move {
+            let result = tokio::fs::read(&path_string).await;
+            match result {
+                Ok(content) => {
+                    macro_task_tx
+                        .send(MacroTask::ResolvePromiseWithBytes(root_value, content))
+                        .unwrap();
+                }
+                Err(e) => {
+                    let error = AndromedaError::fs_error(e, "read_file_async", &path_string);
+                    let error_msg = ErrorReporter::format_error(&error);
+                    macro_task_tx
+                        .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                            root_value,
+                            format!("Error: {error_msg}"),
+                        )))
+                        .unwrap();
+                }
+            }
+        });
+
+        Ok(Value::Promise(promise_capability.promise()).unbind())
+    }
+
+    /// Write bytes to a file asynchronously.
+    pub fn internal_write_file_async<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_binding = args
+            .get(0)
+            .to_string(agent, gc.borrow_mut().reborrow())
+            .unbind()?;
+        let content_binding = args
+            .get(1)
+            .to_string(agent.borrow_mut(), gc.reborrow())
+            .unbind()?;
+
+        let path_string = path_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+        let content_string = content_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+
+        let promise_capability = PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let macro_task_tx = host_data.macro_task_tx();
+
+        host_data.spawn_macro_task(async move {
+            // For now, just write the string as bytes
+            // TODO: In a full implementation, you'd want to handle Uint8Array directly
+            let content = content_string.as_bytes();
+            let result = tokio::fs::write(&path_string, content).await;
+            match result {
+                Ok(_) => {
+                    macro_task_tx
+                        .send(MacroTask::ResolvePromiseWithString(
+                            root_value,
+                            "Success".to_string(),
+                        ))
+                        .unwrap();
+                }
+                Err(e) => {
+                    let error = AndromedaError::fs_error(e, "write_file_async", &path_string);
+                    let error_msg = ErrorReporter::format_error(&error);
+                    macro_task_tx
+                        .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                            root_value,
+                            format!("Error: {error_msg}"),
+                        )))
+                        .unwrap();
+                }
+            }
+        });
+
+        Ok(Value::Promise(promise_capability.promise()).unbind())
+    }
+
+    /// Copy a file asynchronously from the first argument to the second argument.
+    pub fn internal_copy_file_async<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let from_binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let to_binding = args
+            .get(1)
+            .to_string(agent, gc.borrow_mut().reborrow())
+            .unbind()?;
+
+        let from_string = from_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+        let to_string = to_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+
+        let promise_capability = PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let macro_task_tx = host_data.macro_task_tx();
+
+        host_data.spawn_macro_task(async move {
+            let result = tokio::fs::copy(&from_string, &to_string).await;
+            match result {
+                Ok(_) => {
+                    macro_task_tx
+                        .send(MacroTask::ResolvePromiseWithString(
+                            root_value,
+                            "Success".to_string(),
+                        ))
+                        .unwrap();
+                }
+                Err(e) => {
+                    let error = AndromedaError::fs_error(
+                        e,
+                        "copy_file_async",
+                        format!("{from_string} -> {to_string}"),
+                    );
+                    let error_msg = ErrorReporter::format_error(&error);
+                    macro_task_tx
+                        .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                            root_value,
+                            format!("Error: {error_msg}"),
+                        )))
+                        .unwrap();
+                }
+            }
+        });
+
+        Ok(Value::Promise(promise_capability.promise()).unbind())
+    }
+
+    /// Remove a file or directory asynchronously.
+    pub fn internal_remove_async<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path_string = binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+
+        let promise_capability = PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let macro_task_tx = host_data.macro_task_tx();
+
+        host_data.spawn_macro_task(async move {
+            let path = Path::new(&path_string);
+            let result = if path.is_dir() {
+                tokio::fs::remove_dir(&path_string).await
+            } else {
+                tokio::fs::remove_file(&path_string).await
+            };
+
+            match result {
+                Ok(_) => {
+                    macro_task_tx
+                        .send(MacroTask::ResolvePromiseWithString(
+                            root_value,
+                            "Success".to_string(),
+                        ))
+                        .unwrap();
+                }
+                Err(e) => {
+                    let error = AndromedaError::fs_error(e, "remove_async", &path_string);
+                    let error_msg = ErrorReporter::format_error(&error);
+                    macro_task_tx
+                        .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                            root_value,
+                            format!("Error: {error_msg}"),
+                        )))
+                        .unwrap();
+                }
+            }
+        });
+
+        Ok(Value::Promise(promise_capability.promise()).unbind())
+    }
+
+    /// Create a file asynchronously.
+    pub fn internal_create_file_async<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path_string = binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+
+        let promise_capability = PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let macro_task_tx = host_data.macro_task_tx();
+
+        host_data.spawn_macro_task(async move {
+            let result = tokio::fs::File::create(&path_string).await;
+            match result {
+                Ok(_) => {
+                    macro_task_tx
+                        .send(MacroTask::ResolvePromiseWithString(
+                            root_value,
+                            "Success".to_string(),
+                        ))
+                        .unwrap();
+                }
+                Err(e) => {
+                    let error = AndromedaError::fs_error(e, "create_file_async", &path_string);
+                    let error_msg = ErrorReporter::format_error(&error);
+                    macro_task_tx
+                        .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                            root_value,
+                            format!("Error: {error_msg}"),
+                        )))
+                        .unwrap();
+                }
+            }
+        });
+
+        Ok(Value::Promise(promise_capability.promise()).unbind())
     }
 }

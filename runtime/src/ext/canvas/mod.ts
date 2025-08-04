@@ -50,7 +50,9 @@ class OffscreenCanvas {
    * Returns true if save was successful, false otherwise.
    */
   saveAsPng(path: string): boolean {
-    return this.render() ? internal_canvas_save_as_png(this.#rid, path) : false;
+    return this.render() ?
+      internal_canvas_save_as_png(this.#rid, path) :
+      false;
   }
 }
 
@@ -182,7 +184,12 @@ class CanvasRenderingContext2D {
   /**
    * Creates a gradient along the line connecting two given coordinates.
    */
-  createLinearGradient(x0: number, y0: number, x1: number, y1: number): CanvasGradient {
+  createLinearGradient(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+  ): CanvasGradient {
     const rid = internal_canvas_create_linear_gradient(x0, y0, x1, y1);
     return new CanvasGradient(rid);
   }
@@ -205,7 +212,11 @@ class CanvasRenderingContext2D {
   /**
    * Creates a gradient around a point with given coordinates.
    */
-  createConicGradient(startAngle: number, x: number, y: number): CanvasGradient {
+  createConicGradient(
+    startAngle: number,
+    x: number,
+    y: number,
+  ): CanvasGradient {
     const rid = internal_canvas_create_conic_gradient(startAngle, x, y);
     return new CanvasGradient(rid);
   }

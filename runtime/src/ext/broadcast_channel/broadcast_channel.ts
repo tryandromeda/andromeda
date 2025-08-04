@@ -210,7 +210,9 @@ class BroadcastChannel {
 
     let serializedData: unknown;
     try {
-      serializedData = (globalThis as unknown as { structuredClone: (value: unknown) => unknown; })
+      serializedData = (globalThis as unknown as {
+        structuredClone: (value: unknown) => unknown;
+      })
         .structuredClone(message);
     } catch (error) {
       if (error instanceof Error && error.name === "DataCloneError") {
@@ -237,7 +239,10 @@ class BroadcastChannel {
           this.dispatchEvent(
             new ErrorEvent("messageerror", {
               // @ts-ignore createDOMException is defined in dom_exception.ts
-              error: createDOMException("Failed to send message", "DataCloneError"),
+              error: createDOMException(
+                "Failed to send message",
+                "DataCloneError",
+              ),
             }),
           );
         }

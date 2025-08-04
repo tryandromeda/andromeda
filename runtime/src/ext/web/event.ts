@@ -498,7 +498,8 @@ function appendToEventPath(
   slotInClosedTree: boolean,
 ): void {
   const itemInShadowTree = isNode(target) && isShadowRoot(getRoot(target));
-  const rootOfClosedTree = isShadowRoot(target) && getMode(target) === "closed";
+  const rootOfClosedTree = isShadowRoot(target) &&
+    getMode(target) === "closed";
 
   getPath(eventImpl).push({
     item: target,
@@ -960,7 +961,9 @@ class EventTarget {
     }
 
     if (getDispatched(event)) {
-      throw new Error("Invalid event state: Event is already being dispatched");
+      throw new Error(
+        "Invalid event state: Event is already being dispatched",
+      );
     }
 
     if (event.eventPhase !== Event.NONE) {

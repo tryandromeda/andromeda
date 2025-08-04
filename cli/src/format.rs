@@ -47,17 +47,17 @@ fn create_ts_dprint_config(format_config: &FormatConfig) -> IndexMap<String, Con
     config.insert(
         "quoteStyle".to_string(),
         ConfigKeyValue::from_str(if format_config.single_quotes {
-            "prefer_single"
+            "preferSingle"
         } else {
-            "prefer_double"
+            "preferDouble"
         }),
     );
     config.insert(
-        "trailingComma".to_string(),
+        "trailingCommas".to_string(),
         ConfigKeyValue::from_str(if format_config.trailing_comma {
             "always"
         } else {
-            "never"
+            "onlyMultiLine"
         }),
     );
     config.insert("newLineKind".to_string(), ConfigKeyValue::from_str("lf"));
@@ -76,10 +76,6 @@ fn create_ts_dprint_config(format_config: &FormatConfig) -> IndexMap<String, Con
     config.insert(
         "nextControlFlowPosition".to_string(),
         ConfigKeyValue::from_str("sameLine"),
-    );
-    config.insert(
-        "trailingCommas".to_string(),
-        ConfigKeyValue::from_str("onlyMultiLine"),
     );
     config.insert(
         "operatorPosition".to_string(),

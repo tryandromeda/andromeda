@@ -106,4 +106,6 @@ const nullDecoded = decoder.decode(nullBytes);
 console.log("✓ Null bytes:", nullString === nullDecoded ? "PASS" : "FAIL");
 
 console.log("\n=== All Tests Complete ===");
-console.log("TextEncoder and TextDecoder implementation is working correctly!");
+console.log(
+  "TextEncoder and TextDecoder implementation is working correctly!",
+);

@@ -21,7 +21,11 @@ class File {
   #name: string;
   #lastModified: number;
 
-  constructor(fileBits: BlobPart[], fileName: string, options: FilePropertyBag = {}) {
+  constructor(
+    fileBits: BlobPart[],
+    fileName: string,
+    options: FilePropertyBag = {},
+  ) {
     // Create the underlying blob
     this.#blob = new Blob(fileBits, { type: options.type || "" });
 

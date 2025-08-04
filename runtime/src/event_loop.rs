@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::ext::{interval::IntervalId, timeout::TimeoutId};
+use nova_vm::{ecmascript::types::Value, engine::Global};
 
 pub enum RuntimeMacroTask {
     /// Run an interval.
@@ -13,4 +14,8 @@ pub enum RuntimeMacroTask {
     RunAndClearTimeout(TimeoutId),
     /// Stop a timeout from running no further.
     ClearTimeout(TimeoutId),
+    /// Resolve a promise with a pre-created Value.
+    ResolvePromiseWithValue(Global<Value<'static>>, Global<Value<'static>>),
+    /// Reject a promise with an error message.
+    RejectPromise(Global<Value<'static>>, String),
 }

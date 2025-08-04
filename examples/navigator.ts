@@ -58,6 +58,9 @@ console.log("vendorSub:", navigator.vendorSub); // Always empty string
 // clientInformation alias (legacy compatibility)
 console.log("\n=== Legacy Compatibility ===");
 console.log("clientInformation.userAgent:", clientInformation.userAgent);
-console.log("clientInformation === navigator:", clientInformation === navigator);
+console.log(
+  "clientInformation === navigator:",
+  clientInformation === navigator,
+);
 
 console.log("\n✅ Navigator.userAgent API example completed successfully!");

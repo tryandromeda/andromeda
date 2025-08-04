@@ -3,7 +3,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use andromeda_core::{Extension, HostData};
-use nova_vm::ecmascript::execution::agent::{GcAgent, RealmRoot};
+use nova_vm::ecmascript::{
+    builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
+    execution::agent::{GcAgent, RealmRoot},
+    types::{IntoValue, String as NovaString, Value},
+};
 
 use crate::{
     BroadcastChannelExt, ConsoleExt, FetchExt, FileExt, FsExt, HeadersExt, ProcessExt, RequestExt,
@@ -56,6 +60,30 @@ pub fn recommended_eventloop_handler(
         }
         RuntimeMacroTask::ClearTimeout(timeout_id) => {
             timeout_id.clear_and_abort(host_data);
+        }
+        RuntimeMacroTask::ResolvePromiseWithValue(promise_root, value_root) => {
+            agent.run_in_realm(realm_root, |agent, mut gc| {
+                let promise_value = promise_root.take(agent);
+                let resolve_value = value_root.take(agent);
+                if let Value::Promise(promise) = promise_value {
+                    let promise_capability = PromiseCapability::from_promise(promise, false);
+                    promise_capability.resolve(agent, resolve_value, gc.reborrow());
+                } else {
+                    panic!("Attempted to resolve a non-promise value");
+                }
+            });
+        }
+        RuntimeMacroTask::RejectPromise(root_value, error_message) => {
+            agent.run_in_realm(realm_root, |agent, gc| {
+                let value = root_value.take(agent);
+                if let Value::Promise(promise) = value {
+                    let promise_capability = PromiseCapability::from_promise(promise, false);
+                    let error_val = NovaString::from_str(agent, &error_message, gc.nogc());
+                    promise_capability.reject(agent, error_val.into_value(), gc.nogc());
+                } else {
+                    panic!("Attempted to reject a non-promise value");
+                }
+            });
         }
     }
 }

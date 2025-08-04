@@ -63,7 +63,8 @@ class NavigatorUAData {
    */
   get mobile(): boolean {
     const ua = internal_navigator_user_agent();
-    return ua.includes("Mobile") || ua.includes("Android") || ua.includes("iPhone") ||
+    return ua.includes("Mobile") || ua.includes("Android") ||
+      ua.includes("iPhone") ||
       ua.includes("iPad");
   }
 
@@ -111,7 +112,8 @@ class NavigatorUAData {
           break;
 
         case "bitness":
-          result.bitness = ua.includes("Win64") || ua.includes("x86_64") || ua.includes("aarch64") ?
+          result.bitness = ua.includes("Win64") || ua.includes("x86_64") ||
+              ua.includes("aarch64") ?
             "64" :
             "32";
           break;
@@ -296,8 +298,10 @@ class AndromedaNavigator {
 }
 
 // Attach the navigator object to globalThis
-(globalThis as unknown as { navigator: AndromedaNavigator; }).navigator = new AndromedaNavigator();
+(globalThis as unknown as { navigator: AndromedaNavigator; }).navigator =
+  new AndromedaNavigator();
 
 // For compatibility, also provide clientInformation alias
 (globalThis as unknown as { clientInformation: AndromedaNavigator; })
-  .clientInformation = (globalThis as unknown as { navigator: AndromedaNavigator; }).navigator;
+  .clientInformation =
+    (globalThis as unknown as { navigator: AndromedaNavigator; }).navigator;

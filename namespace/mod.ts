@@ -131,6 +131,19 @@ const Andromeda = {
   },
 
   /**
+   * The readTextFile function asynchronously reads a text file from the filesystem.
+   *
+   * @example
+   * ```ts
+   * const data = await Andromeda.readTextFile("hello.txt");
+   * console.log(data);
+   * ```
+   */
+  async readTextFile(path: string): Promise<string> {
+    return await internal_read_text_file_async(path);
+  },
+
+  /**
    * The writeTextFileSync function writes text data to a file on the filesystem.
    *
    * @example
@@ -140,6 +153,18 @@ const Andromeda = {
    */
   writeTextFileSync(path: string, data: string): void {
     internal_write_text_file(path, data);
+  },
+
+  /**
+   * The writeTextFile function asynchronously writes text data to a file on the filesystem.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.writeTextFile("hello.txt", "Hello, World!");
+   * ```
+   */
+  async writeTextFile(path: string, data: string): Promise<void> {
+    await internal_write_text_file_async(path, data);
   },
 
   /**
@@ -156,6 +181,19 @@ const Andromeda = {
   },
 
   /**
+   * The readFile function asynchronously reads a file as binary data from the filesystem.
+   *
+   * @example
+   * ```ts
+   * const data = await Andromeda.readFile("image.png");
+   * console.log(data);
+   * ```
+   */
+  async readFile(path: string): Promise<Uint8Array> {
+    return await internal_read_file_async(path);
+  },
+
+  /**
    * The writeFileSync function writes binary data to a file on the filesystem.
    *
    * @example
@@ -166,6 +204,19 @@ const Andromeda = {
    */
   writeFileSync(path: string, data: Uint8Array): void {
     internal_write_file(path, data);
+  },
+
+  /**
+   * The writeFile function asynchronously writes binary data to a file on the filesystem.
+   *
+   * @example
+   * ```ts
+   * const data = new Uint8Array([72, 101, 108, 108, 111]);
+   * await Andromeda.writeFile("data.bin", data);
+   * ```
+   */
+  async writeFile(path: string, data: Uint8Array): Promise<void> {
+    await internal_write_file_async(path, data);
   },
 
   /**
@@ -194,6 +245,18 @@ const Andromeda = {
   },
 
   /**
+   * The create function asynchronously creates a new file in the file system.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.create("hello.txt");
+   * ```
+   */
+  async create(path: string): Promise<void> {
+    await internal_create_file_async(path);
+  },
+
+  /**
    * The copyFileSync function copies a file in the file system.
    *
    * @example
@@ -206,6 +269,18 @@ const Andromeda = {
   },
 
   /**
+   * The copyFile function asynchronously copies a file in the file system.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.copyFile("hello.txt", "world.txt");
+   * ```
+   */
+  async copyFile(source: string, destination: string): Promise<void> {
+    await internal_copy_file_async(source, destination);
+  },
+
+  /**
    * The removeSync function removes a file from the file system.
    *
    * @example
@@ -215,6 +290,18 @@ const Andromeda = {
    */
   removeSync(path: string): void {
     internal_remove(path);
+  },
+
+  /**
+   * The remove function asynchronously removes a file from the file system.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.remove("hello.txt");
+   * ```
+   */
+  async remove(path: string): Promise<void> {
+    await internal_remove_async(path);
   },
 
   /**
@@ -292,43 +379,78 @@ const Andromeda = {
     internal_mk_dir(path);
   },
 
-  // These filesystem functions are implemented in Rust but not yet exposed
-  // TODO: Uncomment when the internal functions are registered in the runtime
-  /*
-  readDirSync(path: string): Array<{name: string, isFile: boolean, isDirectory: boolean, isSymlink: boolean}> {
+  /**
+   * The readDirSync function reads the contents of a directory.
+   *
+   * @example
+   * ```ts
+   * const entries = Andromeda.readDirSync(".");
+   * console.log(entries);
+   * ```
+   */
+  readDirSync(
+    path: string,
+  ): Array<
+    { name: string; isFile: boolean; isDirectory: boolean; isSymlink: boolean; }
+  > {
     return internal_read_dir(path);
   },
 
+  /**
+   * The statSync function gets information about a file or directory.
+   *
+   * @example
+   * ```ts
+   * const stats = Andromeda.statSync("hello.txt");
+   * console.log(stats);
+   * ```
+   */
   statSync(path: string): {
-    isFile: boolean,
-    isDirectory: boolean,
-    isSymlink: boolean,
-    size: number,
-    modified: number,
-    accessed: number,
-    created: number,
-    mode: number
+    isFile: boolean;
+    isDirectory: boolean;
+    isSymlink: boolean;
+    size: number;
+    modified: number;
+    accessed: number;
+    created: number;
+    mode: number;
   } {
     return internal_stat(path);
   },
 
+  /**
+   * The mkdirAllSync function creates a directory and all its parent directories.
+   *
+   * @example
+   * ```ts
+   * Andromeda.mkdirAllSync("path/to/deep/directory");
+   * ```
+   */
   mkdirAllSync(path: string): void {
     internal_mk_dir_all(path);
   },
 
+  /**
+   * The lstatSync function gets information about a file or directory without following symbolic links.
+   *
+   * @example
+   * ```ts
+   * const stats = Andromeda.lstatSync("hello.txt");
+   * console.log(stats);
+   * ```
+   */
   lstatSync(path: string): {
-    isFile: boolean,
-    isDirectory: boolean,
-    isSymlink: boolean,
-    size: number,
-    modified: number,
-    accessed: number,
-    created: number,
-    mode: number
+    isFile: boolean;
+    isDirectory: boolean;
+    isSymlink: boolean;
+    size: number;
+    modified: number;
+    accessed: number;
+    created: number;
+    mode: number;
   } {
     return internal_lstat(path);
   },
-  */
   // System operations
   /**
    * The `exit` function exits the program with an optional exit code.

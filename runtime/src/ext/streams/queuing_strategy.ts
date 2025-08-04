@@ -11,7 +11,9 @@ class CountQueuingStrategy {
 
   constructor(init: { highWaterMark: number; }) {
     if (typeof init !== "object" || init === null) {
-      throw new TypeError("CountQueuingStrategy constructor requires an object");
+      throw new TypeError(
+        "CountQueuingStrategy constructor requires an object",
+      );
     }
 
     if (typeof init.highWaterMark !== "number") {
@@ -35,7 +37,9 @@ class ByteLengthQueuingStrategy {
 
   constructor(init: { highWaterMark: number; }) {
     if (typeof init !== "object" || init === null) {
-      throw new TypeError("ByteLengthQueuingStrategy constructor requires an object");
+      throw new TypeError(
+        "ByteLengthQueuingStrategy constructor requires an object",
+      );
     }
 
     if (typeof init.highWaterMark !== "number") {

@@ -34,9 +34,8 @@ function convertBlobPartsToBytes(blobParts: BlobPart[]): number[] {
       const partBlob = part as Blob & { _blobId: string; };
       const blobBytes = internal_blob_get_data(partBlob._blobId);
       if (blobBytes) {
-        const blobByteArray = blobBytes.split(",").map((b) => parseInt(b, 10)).filter((b) =>
-          !isNaN(b)
-        );
+        const blobByteArray = blobBytes.split(",").map((b) => parseInt(b, 10))
+          .filter((b) => !isNaN(b));
         bytes.push(...blobByteArray);
       }
     } else if (part instanceof ArrayBuffer) {
