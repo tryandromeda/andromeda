@@ -70,6 +70,17 @@ declare namespace Andromeda {
   function readTextFileSync(path: string): string;
 
   /**
+   * readTextFile asynchronously reads a text file from the file system.
+   *
+   * @example
+   * ```ts
+   * const data = await Andromeda.readTextFile("hello.txt");
+   * console.log(data);
+   * ```
+   */
+  function readTextFile(path: string): Promise<string>;
+
+  /**
    * writeTextFileSync writes a text file to the file system.
    *
    * @example
@@ -78,6 +89,16 @@ declare namespace Andromeda {
    * ```
    */
   function writeTextFileSync(path: string, data: string): void;
+
+  /**
+   * writeTextFile asynchronously writes a text file to the file system.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.writeTextFile("hello.txt", "Hello, World!");
+   * ```
+   */
+  function writeTextFile(path: string, data: string): Promise<void>;
 
   // Binary file operations
   /**
@@ -92,6 +113,17 @@ declare namespace Andromeda {
   function readFileSync(path: string): Uint8Array;
 
   /**
+   * readFile asynchronously reads a binary file from the file system.
+   *
+   * @example
+   * ```ts
+   * const data = await Andromeda.readFile("image.png");
+   * console.log(data);
+   * ```
+   */
+  function readFile(path: string): Promise<Uint8Array>;
+
+  /**
    * writeFileSync writes binary data to a file in the file system.
    *
    * @example
@@ -102,7 +134,49 @@ declare namespace Andromeda {
    */
   function writeFileSync(path: string, data: Uint8Array): void;
 
-  // File operations
+  /**
+   * writeFile asynchronously writes binary data to a file in the file system.
+   *
+   * @example
+   * ```ts
+   * const data = new Uint8Array([72, 101, 108, 108, 111]);
+   * await Andromeda.writeFile("data.bin", data);
+   * ```
+   */
+  function writeFile(path: string, data: Uint8Array): Promise<void>;
+
+  // Async file operations
+  /**
+   * create asynchronously creates a new empty file in the file system.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.create("hello.txt");
+   * ```
+   */
+  function create(path: string): Promise<void>;
+
+  /**
+   * copyFile asynchronously copies a file in the file system.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.copyFile("hello.txt", "world.txt");
+   * ```
+   */
+  function copyFile(source: string, destination: string): Promise<void>;
+
+  /**
+   * remove asynchronously removes a file from the file system.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.remove("hello.txt");
+   * ```
+   */
+  function remove(path: string): Promise<void>;
+
+  // Sync file operations
   /**
    * createSync creates a new empty file in the file system.
    *
@@ -425,7 +499,10 @@ interface StructuredSerializeOptions {
  * const transferred = structuredClone(buffer, { transfer: [buffer] });
  * ```
  */
-declare function structuredClone<T = any>(value: T, options?: StructuredSerializeOptions): T;
+declare function structuredClone<T = any>(
+  value: T,
+  options?: StructuredSerializeOptions,
+): T;
 
 /**
  * An offscreen Canvas implementation.
@@ -491,7 +568,12 @@ declare class CanvasRenderingContext2D {
   /** Clears the specified rectangular area, making it fully transparent. */
   clearRect(x: number, y: number, width: number, height: number): void;
   /** Creates a gradient along the line connecting two given coordinates. */
-  createLinearGradient(x0: number, y0: number, x1: number, y1: number): CanvasGradient;
+  createLinearGradient(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+  ): CanvasGradient;
   /** Creates a radial gradient using the size and coordinates of two circles. */
   createRadialGradient(
     x0: number,
@@ -502,7 +584,11 @@ declare class CanvasRenderingContext2D {
     r1: number,
   ): CanvasGradient;
   /** Creates a gradient around a point with given coordinates. */
-  createConicGradient(startAngle: number, x: number, y: number): CanvasGradient;
+  createConicGradient(
+    startAngle: number,
+    x: number,
+    y: number,
+  ): CanvasGradient;
   /** Closes the current path on the canvas context. */
   closePath(): void;
   /** Draws a filled rectangle whose starting corner is at (x, y). */
@@ -1732,7 +1818,10 @@ interface WritableStreamDefaultWriter<W = any> {
  */
 interface WritableStreamUnderlyingSink<W = any> {
   start?(controller: WritableStreamDefaultController): void | Promise<void>;
-  write?(chunk: W, controller: WritableStreamDefaultController): void | Promise<void>;
+  write?(
+    chunk: W,
+    controller: WritableStreamDefaultController,
+  ): void | Promise<void>;
   close?(): void | Promise<void>;
   abort?(reason?: any): void | Promise<void>;
   type?: undefined;
@@ -1767,9 +1856,16 @@ interface TransformStreamDefaultController<O = any> {
  * Transformer interface
  */
 interface Transformer<I = any, O = any> {
-  start?(controller: TransformStreamDefaultController<O>): void | Promise<void>;
-  transform?(chunk: I, controller: TransformStreamDefaultController<O>): void | Promise<void>;
-  flush?(controller: TransformStreamDefaultController<O>): void | Promise<void>;
+  start?(
+    controller: TransformStreamDefaultController<O>,
+  ): void | Promise<void>;
+  transform?(
+    chunk: I,
+    controller: TransformStreamDefaultController<O>,
+  ): void | Promise<void>;
+  flush?(
+    controller: TransformStreamDefaultController<O>,
+  ): void | Promise<void>;
   readableType?: undefined;
   writableType?: undefined;
 }

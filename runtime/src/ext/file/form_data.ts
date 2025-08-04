@@ -46,11 +46,16 @@ class FormData {
     let normalizedValue: FormDataEntryValue;
     if (value instanceof File) {
       normalizedValue = value;
-    } else if (typeof value === "object" && value !== null && "type" in value && "size" in value) {
+    } else if (
+      typeof value === "object" && value !== null && "type" in value &&
+      "size" in value
+    ) {
       // Duck-type check for Blob-like object
       const blobValue = value as Blob;
       const fileName = filename ?? "blob";
-      normalizedValue = new File([blobValue], fileName, { type: blobValue.type });
+      normalizedValue = new File([blobValue], fileName, {
+        type: blobValue.type,
+      });
     } else {
       normalizedValue = String(value);
     }
@@ -113,11 +118,16 @@ class FormData {
     let normalizedValue: FormDataEntryValue;
     if (value instanceof File) {
       normalizedValue = value;
-    } else if (typeof value === "object" && value !== null && "type" in value && "size" in value) {
+    } else if (
+      typeof value === "object" && value !== null && "type" in value &&
+      "size" in value
+    ) {
       // Duck-type check for Blob-like object
       const blobValue = value as Blob;
       const fileName = filename ?? "blob";
-      normalizedValue = new File([blobValue], fileName, { type: blobValue.type });
+      normalizedValue = new File([blobValue], fileName, {
+        type: blobValue.type,
+      });
     } else {
       normalizedValue = String(value);
     }
@@ -167,7 +177,11 @@ class FormData {
    * Executes a provided function once for each key/value pair of the FormData.
    */
   forEach(
-    callback: (value: FormDataEntryValue, key: string, parent: FormData) => void,
+    callback: (
+      value: FormDataEntryValue,
+      key: string,
+      parent: FormData,
+    ) => void,
     thisArg?: unknown,
   ): void {
     for (const [key, value] of this) {

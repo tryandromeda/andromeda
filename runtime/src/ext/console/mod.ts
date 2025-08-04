@@ -130,7 +130,7 @@ function formatArgs(args: ConsoleValue[]): string {
         } else if (argIndex < rest.length) {
           const arg = rest[argIndex];
           let converted = false;
-          
+
           switch (nextChar) {
             case "s": // String
               result += String(arg);
@@ -165,7 +165,7 @@ function formatArgs(args: ConsoleValue[]): string {
               converted = true;
               break;
           }
-          
+
           if (converted) {
             argIndex++;
             i += 2;
@@ -203,24 +203,36 @@ function formatOptimallyUseful(value: ConsoleValue): string {
   if (value === null) return "null";
   if (value === undefined) return "undefined";
   if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
   if (typeof value === "function") {
     const funcName = (value as unknown as Record<string, unknown>).name;
     return `ƒ ${typeof funcName === "string" ? funcName : "anonymous"}()`;
   }
   if (Array.isArray(value)) {
     if (value.length <= 5) {
-      return `(${value.length}) [${value.map(formatValueForContainer).join(", ")}]`;
+      return `(${value.length}) [${
+        value.map(formatValueForContainer).join(", ")
+      }]`;
     } else {
-      return `(${value.length}) [${value.slice(0, 3).map(formatValueForContainer).join(", ")}, …]`;
+      return `(${value.length}) [${
+        value.slice(0, 3).map(formatValueForContainer).join(", ")
+      }, …]`;
     }
   }
   if (typeof value === "object") {
     const entries = Object.entries(value as Record<string, ConsoleValue>);
     if (entries.length <= 3) {
-      return `{${entries.map(([k, v]) => `${k}: ${formatValueForContainer(v)}`).join(", ")}}`;
+      return `{${
+        entries.map(([k, v]) => `${k}: ${formatValueForContainer(v)}`).join(
+          ", ",
+        )
+      }}`;
     } else {
-      const preview = entries.slice(0, 2).map(([k, v]) => `${k}: ${formatValueForContainer(v)}`);
+      const preview = entries.slice(0, 2).map(([k, v]) =>
+        `${k}: ${formatValueForContainer(v)}`
+      );
       return `{${preview.join(", ")}, …}`;
     }
   }
@@ -232,16 +244,22 @@ function formatGenericObject(value: ConsoleValue): string {
   if (value === null) return "null";
   if (value === undefined) return "undefined";
   if (typeof value === "string") return `"${value}"`;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
   if (typeof value === "function") {
     const funcName = (value as unknown as Record<string, unknown>).name;
-    return `[Function: ${typeof funcName === "string" ? funcName : "anonymous"}]`;
+    return `[Function: ${
+      typeof funcName === "string" ? funcName : "anonymous"
+    }]`;
   }
   if (Array.isArray(value)) {
     return `[${value.map(formatValueForContainer).join(", ")}]`;
   }
   if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, ConsoleValue>).map(([k, v]) => `${k}: ${formatValueForContainer(v)}`);
+    const entries = Object.entries(value as Record<string, ConsoleValue>).map((
+      [k, v],
+    ) => `${k}: ${formatValueForContainer(v)}`);
     return `{ ${entries.join(", ")} }`;
   }
   return String(value);
@@ -256,9 +274,9 @@ function createTable(data: ConsoleValue[], headers?: string[]): string {
   const table: string[][] = [];
   const firstItem = data[0];
   const cols = headers ||
-    (typeof firstItem === "object" && firstItem !== null
-      ? Object.keys(firstItem as Record<string, ConsoleValue>)
-      : []);
+    (typeof firstItem === "object" && firstItem !== null ?
+      Object.keys(firstItem as Record<string, ConsoleValue>) :
+      []);
 
   // Add header row
   table.push(["(index)", ...cols]);
@@ -267,9 +285,9 @@ function createTable(data: ConsoleValue[], headers?: string[]): string {
   data.forEach((row, index) => {
     const tableRow = [index.toString()];
     cols.forEach((col) => {
-      const value = row && typeof row === "object"
-        ? (row as Record<string, ConsoleValue>)[col]
-        : "";
+      const value = row && typeof row === "object" ?
+        (row as Record<string, ConsoleValue>)[col] :
+        "";
       tableRow.push(formatValue(value));
     });
     table.push(tableRow);
@@ -380,7 +398,7 @@ const andromedaConsole = {
    */
   assert(condition?: boolean, ...args: ConsoleValue[]) {
     if (condition) return; // Early return if condition is true
-    
+
     let message: string;
     if (args.length === 0) {
       message = "Assertion failed";
@@ -396,7 +414,7 @@ const andromedaConsole = {
         message = formatArgs(modifiedArgs);
       }
     }
-    
+
     // Use error level for assertion failures per WHATWG spec
     const errorMessage = getIndent() + COLORS.fg.red + message + COLORS.reset;
     internal_print_err(errorMessage + "\n");
@@ -591,7 +609,7 @@ const andromedaConsole = {
 
     const elapsed = Date.now() - startTime;
     const durationStr = `${elapsed}ms`;
-    
+
     if (args.length > 0) {
       const message = `${label}: ${durationStr} ${formatArgs(args)}`;
       console.info(message);

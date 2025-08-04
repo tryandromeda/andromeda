@@ -44,7 +44,10 @@ function isTransferable(value: any): value is Transferable {
 /**
  * Serialize a value to JSON representation for structured cloning
  */
-function structuredSerialize(value: any, transferList: Transferable[] = []): string {
+function structuredSerialize(
+  value: any,
+  transferList: Transferable[] = [],
+): string {
   const memory = new Map();
   const transferSet = new Set(transferList);
 
@@ -114,7 +117,9 @@ function structuredSerialize(value: any, transferList: Transferable[] = []): str
           const bytes = Array.from(new Uint8Array(val));
           return { type: "ArrayBuffer", id, transfer: false, bytes };
         } catch (error) {
-          throw createDataCloneError(`Failed to serialize ArrayBuffer: ${error}`);
+          throw createDataCloneError(
+            `Failed to serialize ArrayBuffer: ${error}`,
+          );
         }
       }
     }
@@ -187,12 +192,17 @@ function structuredSerialize(value: any, transferList: Transferable[] = []): str
       return { type: "Object", id, properties };
     }
 
-    throw createDataCloneError(`${val.constructor?.name || "Object"} objects cannot be cloned`);
+    throw createDataCloneError(
+      `${val.constructor?.name || "Object"} objects cannot be cloned`,
+    );
   }
 
   try {
     const serialized = serializeInternal(value);
-    return JSON.stringify({ root: serialized, transferList: transferList.length });
+    return JSON.stringify({
+      root: serialized,
+      transferList: transferList.length,
+    });
   } catch (error) {
     if (error instanceof Error && error.name === "DataCloneError") {
       throw error;
@@ -204,7 +214,10 @@ function structuredSerialize(value: any, transferList: Transferable[] = []): str
 /**
  * Deserialize a JSON representation back to JavaScript values
  */
-function structuredDeserialize(serializedData: string, transferredValues: any[] = []): any {
+function structuredDeserialize(
+  serializedData: string,
+  transferredValues: any[] = [],
+): any {
   const data = JSON.parse(serializedData);
   const memory = new Map();
 
@@ -266,19 +279,31 @@ function structuredDeserialize(serializedData: string, transferredValues: any[] 
                 view[i] = serialized.bytes[i];
               }
             } catch (error) {
-              throw createDataCloneError(`Failed to deserialize ArrayBuffer: ${error}`);
+              throw createDataCloneError(
+                `Failed to deserialize ArrayBuffer: ${error}`,
+              );
             }
           }
           break;
         case "DataView": {
           const buffer = deserializeInternal(serialized.buffer);
-          result = new DataView(buffer, serialized.byteOffset, serialized.byteLength);
+          result = new DataView(
+            buffer,
+            serialized.byteOffset,
+            serialized.byteLength,
+          );
           break;
         }
         case "TypedArray": {
           const arrayBuffer = deserializeInternal(serialized.buffer);
-          const Constructor = globalThis[serialized.constructor as keyof typeof globalThis] as any;
-          result = new Constructor(arrayBuffer, serialized.byteOffset, serialized.length);
+          const Constructor = globalThis[
+            serialized.constructor as keyof typeof globalThis
+          ] as any;
+          result = new Constructor(
+            arrayBuffer,
+            serialized.byteOffset,
+            serialized.length,
+          );
           break;
         }
         case "Map":
@@ -296,8 +321,9 @@ function structuredDeserialize(serializedData: string, transferredValues: any[] 
           }
           return result;
         case "Error": {
-          const ErrorConstructor =
-            globalThis[serialized.name as keyof typeof globalThis] as ErrorConstructor || Error;
+          const ErrorConstructor = globalThis[
+            serialized.name as keyof typeof globalThis
+          ] as ErrorConstructor || Error;
           result = new ErrorConstructor(serialized.message);
           result.name = serialized.name;
           if (serialized.stack) {
@@ -320,7 +346,9 @@ function structuredDeserialize(serializedData: string, transferredValues: any[] 
           }
           return result;
         default:
-          throw createDataCloneError(`Unknown serialized type: ${serialized.type}`);
+          throw createDataCloneError(
+            `Unknown serialized type: ${serialized.type}`,
+          );
       }
 
       memory.set(serialized.id, result);
@@ -336,7 +364,10 @@ function structuredDeserialize(serializedData: string, transferredValues: any[] 
 /**
  * The structuredClone() method creates a deep clone of a given value using the structured clone algorithm.
  */
-function structuredClone<T = any>(value: T, options: StructuredSerializeOptions = {}): T {
+function structuredClone<T = any>(
+  value: T,
+  options: StructuredSerializeOptions = {},
+): T {
   const transferList = options.transfer || [];
 
   for (const transferable of transferList) {

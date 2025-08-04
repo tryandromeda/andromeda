@@ -10,9 +10,16 @@
  */
 
 interface Transformer<I = unknown, O = unknown> {
-  start?(controller: TransformStreamDefaultController<O>): void | Promise<void>;
-  transform?(chunk: I, controller: TransformStreamDefaultController<O>): void | Promise<void>;
-  flush?(controller: TransformStreamDefaultController<O>): void | Promise<void>;
+  start?(
+    controller: TransformStreamDefaultController<O>,
+  ): void | Promise<void>;
+  transform?(
+    chunk: I,
+    controller: TransformStreamDefaultController<O>,
+  ): void | Promise<void>;
+  flush?(
+    controller: TransformStreamDefaultController<O>,
+  ): void | Promise<void>;
   readableType?: undefined;
   writableType?: undefined;
 }
@@ -83,7 +90,9 @@ class TransformStream<I = unknown, O = unknown> {
     // Get the readable stream ID for the controller
     // deno-lint-ignore no-explicit-any
     const readableStreamId = (this.#readable as any)._streamId;
-    this.#controller = new TransformStreamDefaultController<O>(readableStreamId);
+    this.#controller = new TransformStreamDefaultController<O>(
+      readableStreamId,
+    );
 
     // Create writable stream with transformer
     this.#writable = new WritableStream<I>({

@@ -13,7 +13,10 @@ async function runTests() {
     // Test 2: Default export module
     console.log("\n🎯 Test 2: Default export");
     const defaultModule = await import("./default-export.js");
-    console.log("   ✅ Default greeting:", defaultModule.default("Andromeda"));
+    console.log(
+      "   ✅ Default greeting:",
+      defaultModule.default("Andromeda"),
+    );
     console.log("   ✅ Version:", defaultModule.version);
 
     // Test 3: TypeScript module

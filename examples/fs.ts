@@ -11,23 +11,23 @@ As of some one gently rapping, rapping at my chamber door.
 "'Tis some visitor," I muttered, "tapping at my chamber door—
             Only this and nothing more."`;
 
-Andromeda.writeTextFileSync("raven.txt", poem);
+await Andromeda.writeTextFile("raven.txt", poem);
 console.log("Poem written to raven.txt");
 
 // Write binary data
 const binaryData = new Uint8Array([104, 101, 108, 108, 111]); // "hello" in ASCII
-Andromeda.writeFileSync("binary.dat", binaryData);
+await Andromeda.writeFile("binary.dat", binaryData);
 console.log("Binary data written to binary.dat");
 
 // ----------------- READING FILES -----------------
 
 // Read the poem back
-const readPoem = Andromeda.readTextFileSync("raven.txt");
+const readPoem = await Andromeda.readTextFile("raven.txt");
 console.log("Read from file:");
 console.log(readPoem);
 
 // Read binary data back
-const readBinary = Andromeda.readFileSync("binary.dat");
+const readBinary = await Andromeda.readFile("binary.dat");
 console.log("Read binary data:", readBinary);
 
 // ----------------- CHECKING FILE EXISTENCE -----------------

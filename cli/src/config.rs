@@ -88,7 +88,7 @@ impl Default for FormatConfig {
             line_width: 80,
             use_tabs: false,
             tab_width: 2,
-            trailing_comma: true,
+            trailing_comma: false,
             semicolons: true,
             single_quotes: false,
         }

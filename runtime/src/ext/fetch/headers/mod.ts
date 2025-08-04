@@ -8,7 +8,8 @@ type Header = [string, string];
 type HeaderList = Header[];
 
 class Headers {
-  #guard: "immutable" | "request" | "request-no-cors" | "response" | "none" = "none";
+  #guard: "immutable" | "request" | "request-no-cors" | "response" | "none" =
+    "none";
   #headerList: HeaderList = [];
 
   // TODO: this is HeaderList type
@@ -65,7 +66,8 @@ class Headers {
   }
 }
 
-const { setHeadersList, setHeadersGuard, getHeadersList, getHeadersGuard } = Headers;
+const { setHeadersList, setHeadersGuard, getHeadersList, getHeadersGuard } =
+  Headers;
 
 // deno-lint-ignore no-explicit-any
 function fillHeaders(headers: Headers, object: any) {

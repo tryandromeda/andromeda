@@ -8,9 +8,22 @@
 declare function internal_read_text_file(path: string): string;
 
 /**
+ * The `internal_read_text_file_async` function asynchronously reads a file from the file system.
+ */
+declare function internal_read_text_file_async(path: string): Promise<string>;
+
+/**
  * The `internal_write_text_file` function writes a text file to the file system.
  */
 declare function internal_write_text_file(path: string, data: string): void;
+
+/**
+ * The `internal_write_text_file_async` function asynchronously writes a text file to the file system.
+ */
+declare function internal_write_text_file_async(
+  path: string,
+  data: string,
+): Promise<string>;
 
 /**
  * The `internal_create_file` function creates a file in the file system.
@@ -18,9 +31,22 @@ declare function internal_write_text_file(path: string, data: string): void;
 declare function internal_create_file(path: string): void;
 
 /**
+ * The `internal_create_file_async` function asynchronously creates a file in the file system.
+ */
+declare function internal_create_file_async(path: string): Promise<string>;
+
+/**
  * The `internal_copy_file` function copies a file in the file system.
  */
 declare function internal_copy_file(source: string, destination: string): void;
+
+/**
+ * The `internal_copy_file_async` function asynchronously copies a file in the file system.
+ */
+declare function internal_copy_file_async(
+  source: string,
+  destination: string,
+): Promise<string>;
 
 /**
  * The `internal_mk_dir` function creates a directory in the file system.
@@ -38,14 +64,32 @@ declare function internal_mk_dir_all(path: string): void;
 declare function internal_read_file(path: string): Uint8Array;
 
 /**
+ * The `internal_read_file_async` function asynchronously reads a file as binary data from the file system.
+ */
+declare function internal_read_file_async(path: string): Promise<Uint8Array>;
+
+/**
  * The `internal_write_file` function writes binary data to a file in the file system.
  */
 declare function internal_write_file(path: string, data: Uint8Array): void;
 
 /**
+ * The `internal_write_file_async` function asynchronously writes binary data to a file in the file system.
+ */
+declare function internal_write_file_async(
+  path: string,
+  data: Uint8Array,
+): Promise<string>;
+
+/**
  * The `internal_remove` function removes a file from the file system.
  */
 declare function internal_remove(path: string): void;
+
+/**
+ * The `internal_remove_async` function asynchronously removes a file from the file system.
+ */
+declare function internal_remove_async(path: string): Promise<string>;
 
 /**
  * The `internal_remove_all` function recursively removes a file or directory from the file system.
@@ -993,7 +1037,10 @@ declare function internal_readable_stream_close(streamId: string): string;
 /**
  * The `internal_readable_stream_enqueue` function enqueues data to a ReadableStream.
  */
-declare function internal_readable_stream_enqueue(streamId: string, chunk: string): string;
+declare function internal_readable_stream_enqueue(
+  streamId: string,
+  chunk: string,
+): string;
 
 /**
  * The `internal_writable_stream_create` function creates a new WritableStream and returns its ID.
@@ -1003,7 +1050,10 @@ declare function internal_writable_stream_create(): string;
 /**
  * The `internal_writable_stream_write` function writes data to a WritableStream.
  */
-declare function internal_writable_stream_write(streamId: string, chunk: string): string;
+declare function internal_writable_stream_write(
+  streamId: string,
+  chunk: string,
+): string;
 
 /**
  * The `internal_writable_stream_close` function closes a WritableStream.

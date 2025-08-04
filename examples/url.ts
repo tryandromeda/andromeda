@@ -41,13 +41,43 @@ result = URL.parse(
 );
 console.log(`[4]: ${result}`);
 
-console.log(`Username: ${new URL("https://user:pass@developer.mozilla.org/en-US/docs").username}`);
-console.log(`Password: ${new URL("https://user:pass@developer.mozilla.org/en-US/docs").password}`);
-console.log(`Host: ${new URL("https://user:pass@developer.mozilla.org/en-US/docs").host}`);
-console.log(`Hostname: ${new URL("https://user:pass@developer.mozilla.org/en-US/docs").hostname}`);
-console.log(`Port: ${new URL("https://user:pass@developer.mozilla.org:8080/en-US/docs").port}`);
-console.log(`Pathname: ${new URL("https://user:pass@developer.mozilla.org/en-US/docs").pathname}`);
 console.log(
-  `Search: ${new URL("https://user:pass@developer.mozilla.org/en-US/docs?foo=bar&baz=qux").search}`,
+  `Username: ${
+    new URL("https://user:pass@developer.mozilla.org/en-US/docs").username
+  }`,
 );
-console.log(`Hash: ${new URL("https://user:pass@developer.mozilla.org/en-US/docs#section1").hash}`);
+console.log(
+  `Password: ${
+    new URL("https://user:pass@developer.mozilla.org/en-US/docs").password
+  }`,
+);
+console.log(
+  `Host: ${new URL("https://user:pass@developer.mozilla.org/en-US/docs").host}`,
+);
+console.log(
+  `Hostname: ${
+    new URL("https://user:pass@developer.mozilla.org/en-US/docs").hostname
+  }`,
+);
+console.log(
+  `Port: ${
+    new URL("https://user:pass@developer.mozilla.org:8080/en-US/docs").port
+  }`,
+);
+console.log(
+  `Pathname: ${
+    new URL("https://user:pass@developer.mozilla.org/en-US/docs").pathname
+  }`,
+);
+console.log(
+  `Search: ${
+    new URL(
+      "https://user:pass@developer.mozilla.org/en-US/docs?foo=bar&baz=qux",
+    ).search
+  }`,
+);
+console.log(
+  `Hash: ${
+    new URL("https://user:pass@developer.mozilla.org/en-US/docs#section1").hash
+  }`,
+);
