@@ -2,8 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use nova_vm::{engine::Global, ecmascript::types::Value};
 use crate::ext::{interval::IntervalId, timeout::TimeoutId};
+use nova_vm::{ecmascript::types::Value, engine::Global};
 
 pub enum RuntimeMacroTask {
     /// Run an interval.

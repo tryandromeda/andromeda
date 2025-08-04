@@ -1,4 +1,3 @@
-
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -7,7 +6,7 @@ use andromeda_core::{Extension, HostData};
 use nova_vm::ecmascript::{
     builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
     execution::agent::{GcAgent, RealmRoot},
-    types::{Value, IntoValue, String as NovaString},
+    types::{IntoValue, String as NovaString, Value},
 };
 
 use crate::{

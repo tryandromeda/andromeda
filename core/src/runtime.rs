@@ -31,7 +31,10 @@ use nova_vm::{
         },
         types::{self, Object, PropertyKey, String as NovaString, Value},
     },
-    engine::{Global, context::{Bindable, GcScope, NoGcScope}},
+    engine::{
+        Global,
+        context::{Bindable, GcScope, NoGcScope},
+    },
 };
 
 use crate::{
@@ -540,11 +543,14 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             }
             Ok(MacroTask::ResolvePromiseWithString(root_value, string_value)) => {
                 // First, create the string value in a separate realm call
-                let string_global = self.agent.run_in_realm(&self.realm_root, |agent, gc| {
-                    let string_val = Value::from_string(agent, string_value, gc.nogc());
-                    Some(Global::new(agent, string_val.unbind()))
-                }).unwrap();
-                
+                let string_global = self
+                    .agent
+                    .run_in_realm(&self.realm_root, |agent, gc| {
+                        let string_val = Value::from_string(agent, string_value, gc.nogc());
+                        Some(Global::new(agent, string_val.unbind()))
+                    })
+                    .unwrap();
+
                 // Then resolve the promise with the pre-created string
                 self.agent.run_in_realm(&self.realm_root, |agent, gc| {
                     let promise_value = root_value.take(agent);
