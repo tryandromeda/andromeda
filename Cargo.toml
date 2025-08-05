@@ -29,7 +29,7 @@ lazy_static = "1.5.0"
 libsui = "0.10.0"
 log = "0.4.22"
 lsp-types = "0.97.0"
-nova_vm = { git = "https://github.com/trynova/nova", rev = "80f06f3874d5d5633b13b454e6e004d95e53ef9c", features = [
+nova_vm = { git = "https://github.com/trynova/nova", rev = "a957ec141816824e7cbec07264dc98c8d948d5f2", features = [
     "typescript"
 ] }
 nu-ansi-term = "0.50.1"

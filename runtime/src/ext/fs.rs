@@ -853,7 +853,9 @@ impl FsExt {
             match result {
                 Ok(content) => {
                     macro_task_tx
-                        .send(MacroTask::ResolvePromiseWithString(root_value, content))
+                        .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
+                            root_value, content,
+                        )))
                         .unwrap();
                 }
                 Err(e) => {
@@ -908,10 +910,10 @@ impl FsExt {
             match result {
                 Ok(_) => {
                     macro_task_tx
-                        .send(MacroTask::ResolvePromiseWithString(
+                        .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
                             root_value,
                             "Success".to_string(),
-                        ))
+                        )))
                         .unwrap();
                 }
                 Err(e) => {
@@ -954,7 +956,9 @@ impl FsExt {
             match result {
                 Ok(content) => {
                     macro_task_tx
-                        .send(MacroTask::ResolvePromiseWithBytes(root_value, content))
+                        .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithBytes(
+                            root_value, content,
+                        )))
                         .unwrap();
                 }
                 Err(e) => {
@@ -1012,10 +1016,10 @@ impl FsExt {
             match result {
                 Ok(_) => {
                     macro_task_tx
-                        .send(MacroTask::ResolvePromiseWithString(
+                        .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
                             root_value,
                             "Success".to_string(),
-                        ))
+                        )))
                         .unwrap();
                 }
                 Err(e) => {
@@ -1067,10 +1071,10 @@ impl FsExt {
             match result {
                 Ok(_) => {
                     macro_task_tx
-                        .send(MacroTask::ResolvePromiseWithString(
+                        .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
                             root_value,
                             "Success".to_string(),
-                        ))
+                        )))
                         .unwrap();
                 }
                 Err(e) => {
@@ -1123,10 +1127,10 @@ impl FsExt {
             match result {
                 Ok(_) => {
                     macro_task_tx
-                        .send(MacroTask::ResolvePromiseWithString(
+                        .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
                             root_value,
                             "Success".to_string(),
-                        ))
+                        )))
                         .unwrap();
                 }
                 Err(e) => {
@@ -1169,10 +1173,10 @@ impl FsExt {
             match result {
                 Ok(_) => {
                     macro_task_tx
-                        .send(MacroTask::ResolvePromiseWithString(
+                        .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
                             root_value,
                             "Success".to_string(),
-                        ))
+                        )))
                         .unwrap();
                 }
                 Err(e) => {

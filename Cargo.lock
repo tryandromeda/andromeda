@@ -2315,7 +2315,7 @@ checksum = "0676bb32a98c1a483ce53e500a81ad9c3d5b3f7c920c28c24e9cb0980d0b5bc8"
 [[package]]
 name = "nova_vm"
 version = "0.2.1"
-source = "git+https://github.com/trynova/nova?rev=80f06f3874d5d5633b13b454e6e004d95e53ef9c#80f06f3874d5d5633b13b454e6e004d95e53ef9c"
+source = "git+https://github.com/trynova/nova?rev=a957ec141816824e7cbec07264dc98c8d948d5f2#a957ec141816824e7cbec07264dc98c8d948d5f2"
 dependencies = [
  "ahash",
  "fast-float",
@@ -3762,7 +3762,7 @@ dependencies = [
 [[package]]
 name = "small_string"
 version = "0.2.0"
-source = "git+https://github.com/trynova/nova?rev=80f06f3874d5d5633b13b454e6e004d95e53ef9c#80f06f3874d5d5633b13b454e6e004d95e53ef9c"
+source = "git+https://github.com/trynova/nova?rev=a957ec141816824e7cbec07264dc98c8d948d5f2#a957ec141816824e7cbec07264dc98c8d948d5f2"
 dependencies = [
  "wtf8",
 ]

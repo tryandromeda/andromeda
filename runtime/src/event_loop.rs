@@ -16,6 +16,10 @@ pub enum RuntimeMacroTask {
     ClearTimeout(TimeoutId),
     /// Resolve a promise with a pre-created Value.
     ResolvePromiseWithValue(Global<Value<'static>>, Global<Value<'static>>),
+    /// Resolve a promise with a string value.
+    ResolvePromiseWithString(Global<Value<'static>>, String),
+    /// Resolve a promise with bytes as Uint8Array.
+    ResolvePromiseWithBytes(Global<Value<'static>>, Vec<u8>),
     /// Reject a promise with an error message.
     RejectPromise(Global<Value<'static>>, String),
 }
