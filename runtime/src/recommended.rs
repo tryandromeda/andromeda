@@ -37,6 +37,8 @@ pub fn recommended_extensions() -> Vec<Extension> {
         crate::LocalStorageExt::new_extension(),
         #[cfg(feature = "storage")]
         crate::SqliteExt::new_extension(),
+        #[cfg(feature = "storage")]
+        crate::CacheStorageExt::new_extension(),
     ]
 }
 
