@@ -1150,3 +1150,12 @@ declare function cacheStorage_match(
   request: RequestInfo,
   options?: CacheQueryOptions,
 ): Response | undefined;
+
+/**
+ * The `cron` function creates a cron job with the specified name, schedule, and handler.
+ */
+declare function cron(
+  name: string,
+  schedule: string,
+  handler: () => void | Promise<void>,
+): Promise<void>;

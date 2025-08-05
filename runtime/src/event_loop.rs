@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::ext::{interval::IntervalId, timeout::TimeoutId};
+use crate::ext::{cron::CronId, interval::IntervalId, timeout::TimeoutId};
 use nova_vm::{ecmascript::types::Value, engine::Global};
 
 pub enum RuntimeMacroTask {
@@ -14,6 +14,10 @@ pub enum RuntimeMacroTask {
     RunAndClearTimeout(TimeoutId),
     /// Stop a timeout from running no further.
     ClearTimeout(TimeoutId),
+    /// Run a cron job.
+    RunCron(CronId),
+    /// Clear a cron job.
+    ClearCron(CronId),
     /// Resolve a promise with a pre-created Value.
     ResolvePromiseWithValue(Global<Value<'static>>, Global<Value<'static>>),
     /// Resolve a promise with a string value.
