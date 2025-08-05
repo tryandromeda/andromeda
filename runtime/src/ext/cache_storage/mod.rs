@@ -11,7 +11,7 @@ use nova_vm::{
     },
     engine::context::{Bindable, GcScope},
 };
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
