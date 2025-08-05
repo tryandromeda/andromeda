@@ -27,8 +27,8 @@ console.log("✓ Non-existent match:", nonMatch === undefined);
 
 const keys = await cache.keys();
 console.log(
-    "✓ Cache keys count:",
-    Array.isArray(keys) ? keys.length : "not an array",
+  "✓ Cache keys count:",
+  Array.isArray(keys) ? keys.length : "not an array",
 );
 console.log("  Keys type:", typeof keys);
 const deleted = await cache.delete("https://api.example.com/data1");

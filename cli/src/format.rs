@@ -4,6 +4,7 @@
 
 use crate::config::{ConfigManager, FormatConfig};
 use crate::error::{AndromedaError, Result};
+use console::Style;
 use dprint_core::configuration::{ConfigKeyValue, GlobalConfiguration, NewLineKind};
 use dprint_plugin_json::{configuration as json_config, format_text as json_format};
 use dprint_plugin_typescript::{
@@ -41,7 +42,7 @@ fn create_ts_dprint_config(format_config: &FormatConfig) -> IndexMap<String, Con
         ConfigKeyValue::from_str(if format_config.semicolons {
             "always"
         } else {
-            "prefer_none"
+            "asi"
         }),
     );
     config.insert(
@@ -125,9 +126,18 @@ fn get_file_info(path: &std::path::Path) -> Result<FileType> {
     }
 }
 
+/// Result of formatting a file
+#[derive(Debug, PartialEq)]
+pub enum FormatResult {
+    /// File was changed/formatted
+    Changed,
+    /// File was already formatted
+    AlreadyFormatted,
+}
+
 /// Formats a JavaScript, TypeScript, or JSON file using dprint.
 #[allow(clippy::result_large_err)]
-pub fn format_file(path: &PathBuf) -> Result<()> {
+pub fn format_file(path: &PathBuf) -> Result<FormatResult> {
     format_file_with_config(path, None)
 }
 
@@ -136,7 +146,7 @@ pub fn format_file(path: &PathBuf) -> Result<()> {
 pub fn format_file_with_config(
     path: &PathBuf,
     config_override: Option<FormatConfig>,
-) -> Result<()> {
+) -> Result<FormatResult> {
     let original_content =
         fs::read_to_string(path).map_err(|e| AndromedaError::file_read_error(path.clone(), e))?;
 
@@ -166,14 +176,17 @@ pub fn format_file_with_config(
         Some(content) if content != original_content => {
             fs::write(path, &content)
                 .map_err(|e| AndromedaError::file_read_error(path.clone(), e))?;
-            println!("📄 Formatted {}", path.display());
+            let formatted_icon = Style::new().green().apply_to("📄");
+            let file_path = Style::new().cyan().apply_to(path.display());
+            println!("   {formatted_icon} {file_path}");
+            Ok(FormatResult::Changed)
         }
         _ => {
-            println!("✨ File {} is already formatted.", path.display());
+            // lets keep this clean
+            // println!("✨ File {} is already formatted.", path.display());
+            Ok(FormatResult::AlreadyFormatted)
         }
     }
-
-    Ok(())
 }
 
 /// Formats TypeScript/JavaScript files

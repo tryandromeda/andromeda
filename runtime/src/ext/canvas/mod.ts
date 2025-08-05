@@ -50,9 +50,7 @@ class OffscreenCanvas {
    * Returns true if save was successful, false otherwise.
    */
   saveAsPng(path: string): boolean {
-    return this.render() ?
-      internal_canvas_save_as_png(this.#rid, path) :
-      false;
+    return this.render() ? internal_canvas_save_as_png(this.#rid, path) : false;
   }
 }
 

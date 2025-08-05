@@ -1247,8 +1247,8 @@ class AbortSignal extends EventTarget {
     const signal = new AbortSignal();
     (signal as any)[_aborted] = true;
     (signal as any)[_abortReason] = reason !== undefined ?
-      reason :
-      // @ts-ignore createDOMException is defined in dom_exception.ts
+      reason // @ts-ignore createDOMException is defined in dom_exception.ts
+       :
       createDOMException("signal is aborted without reason", "AbortError");
     return signal;
   }
@@ -1321,8 +1321,8 @@ class AbortController {
     signalAbort(
       this.#signal,
       reason !== undefined ?
-        reason :
-        // @ts-ignore createDOMException is defined in dom_exception.ts
+        reason // @ts-ignore createDOMException is defined in dom_exception.ts
+         :
         createDOMException("signal is aborted without reason", "AbortError"),
     );
   }

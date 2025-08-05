@@ -4,30 +4,45 @@
 
 [![Discord Server](https://img.shields.io/discord/1264947585882259599.svg?logo=discord&style=flat-square)](https://discord.gg/tgjAnX2Ny3)
 
-**A modern, fast, and secure JavaScript & TypeScript runtime** built from the ground up in [Rust 🦀](https://www.rust-lang.org/) and powered by [Nova Engine](https://trynova.dev/).
+**A modern, fast, and secure JavaScript & TypeScript runtime** built from the
+ground up in [Rust 🦀](https://www.rust-lang.org/) and powered by
+[Nova Engine](https://trynova.dev/).
 
-[Andromeda](https://github.com/tryandromeda/andromeda) provides **zero-config TypeScript support**, **rich Web APIs**, and **native performance** - making it perfect for scripts, utilities, and applications that need to run fast without the complexity of traditional Node.js setups.
+[Andromeda](https://github.com/tryandromeda/andromeda) provides **zero-config
+TypeScript support**, **rich Web APIs**, and **native performance** - making it
+perfect for scripts, utilities, and applications that need to run fast without
+the complexity of traditional Node.js setups.
 
 ## ✨ Key Features
 
-- 🚀 **Zero-configuration TypeScript** - Run `.ts` files directly, no transpilation needed
-- 🎨 **GPU-Accelerated Canvas** - Hardware-accelerated 2D Canvas API with WGPU backend and PNG export
+- 🚀 **Zero-configuration TypeScript** - Run `.ts` files directly, no
+  transpilation needed
+- 🎨 **GPU-Accelerated Canvas** - Hardware-accelerated 2D Canvas API with WGPU
+  backend and PNG export
 - 🔐 **Web Crypto API** - Industry-standard cryptographic primitives
 - 📒 **SQLite Support** - Built-in support for SQLite databases
 - 📁 **File System Access** - Simple APIs for reading/writing files
 - 💾 **Web Storage** - localStorage and sessionStorage APIs for data persistence
-- ⚡ **Native Performance** - Rust-powered execution with Nova's optimized JS engine
-- 🛠️ **Developer Tools** - Interactive REPL, code formatter, and single-file compilation
+- ⚡ **Native Performance** - Rust-powered execution with Nova's optimized JS
+  engine
+- 🛠️ **Developer Tools** - Interactive REPL, code formatter, and single-file
+  compilation
 - 🌐 **Web Standards** - TextEncoder/Decoder, Performance API, and more
 - 🔧 **Extensible** - Modular architecture with optional features
-- 🔧 **Self-Updating** - Built-in upgrade system to stay current with latest releases
-- 🔧 **Shell Integration** - Auto-completion support for bash, zsh, fish, and PowerShell
+- 🔧 **Self-Updating** - Built-in upgrade system to stay current with latest
+  releases
+- 🔧 **Shell Integration** - Auto-completion support for bash, zsh, fish, and
+  PowerShell
 
 ## 🎯 Standards & Compatibility
 
-Andromeda aims to be **[WinterTC](https://wintertc.org/)** compliant, ensuring interoperability and compatibility with the broader JavaScript ecosystem. WinterTC provides a test suite for JavaScript engines to ensure they conform to ECMAScript standards and common runtime behaviors.
+Andromeda aims to be **[WinterTC](https://wintertc.org/)** compliant, ensuring
+interoperability and compatibility with the broader JavaScript ecosystem.
+WinterTC provides a test suite for JavaScript engines to ensure they conform to
+ECMAScript standards and common runtime behaviors.
 
-> **Note:** ⚠️ Andromeda is in active development. While functional, it's not yet recommended for production use.
+> **Note:** ⚠️ Andromeda is in active development. While functional, it's not
+> yet recommended for production use.
 
 ## 🚀 Quick Start
 
@@ -174,8 +189,10 @@ andromeda repl --print-internals --expose-internals --disable-gc
 
 **✨ REPL Features:**
 
-- **Advanced Syntax Highlighting** - TypeScript-aware coloring with keyword recognition
-- **Smart Multiline Input** - Automatic detection of incomplete syntax (functions, objects, etc.)
+- **Advanced Syntax Highlighting** - TypeScript-aware coloring with keyword
+  recognition
+- **Smart Multiline Input** - Automatic detection of incomplete syntax
+  (functions, objects, etc.)
 - **Performance Metrics** - Execution timing for every evaluation
 - **Command History** - Navigate through previous commands with arrow keys
 - **Built-in Commands** - `help`, `history`, `clear`, `gc`, `exit`
@@ -210,7 +227,9 @@ andromeda compile my-script.ts my-app.exe
 
 ### Language Server Protocol (LSP)
 
-Andromeda includes a built-in Language Server that provides real-time diagnostics and linting capabilities for JavaScript and TypeScript files in your editor:
+Andromeda includes a built-in Language Server that provides real-time
+diagnostics and linting capabilities for JavaScript and TypeScript files in your
+editor:
 
 ```bash
 # Start the Language Server (typically called by your editor)
@@ -222,15 +241,17 @@ andromeda lsp
 - **Real-time Diagnostics** - Live error reporting as you type
 - **Comprehensive Linting** - 5 built-in rules for code quality:
   - Empty function detection
-  - Empty statement detection  
+  - Empty statement detection
   - Variable usage validation
   - Unreachable code detection
   - Invalid syntax highlighting
 - **Multi-file Support** - Workspace-wide analysis
 - **Rich Error Messages** - Detailed explanations with code context
-- **Editor Integration** - Works with VS Code, Neovim, and other LSP-compatible editors
+- **Editor Integration** - Works with VS Code, Neovim, and other LSP-compatible
+  editors
 
-Configure your editor to use `andromeda lsp` as the language server for JavaScript and TypeScript files to get instant feedback on code quality.
+Configure your editor to use `andromeda lsp` as the language server for
+JavaScript and TypeScript files to get instant feedback on code quality.
 
 ### Shell Integration
 
@@ -267,50 +288,54 @@ andromeda upgrade --dry-run
 
 ## 🏗️ Architecture & Extensions
 
-Andromeda is built with a modular architecture, allowing features to be enabled or disabled as needed:
+Andromeda is built with a modular architecture, allowing features to be enabled
+or disabled as needed:
 
 ### Runtime Extensions
 
-| Extension | Description | APIs Provided |
-|-----------|-------------|---------------|
-| **Canvas** | GPU-accelerated 2D graphics | `OffscreenCanvas`, `CanvasRenderingContext2D`, `ImageBitmap` with WGPU backend |
-| **Crypto** | Web Crypto API implementation | `crypto.subtle`, `crypto.randomUUID()`, `crypto.getRandomValues()` |
-| **Console** | Enhanced console output | `console.log()`, `console.error()`, `console.warn()` |
-| **Fetch** | HTTP client capabilities | `fetch()`, `Request`, `Response`, `Headers` |
-| **File System** | File I/O operations | `Andromeda.readTextFileSync()`, `Andromeda.writeTextFileSync()`, directory ops |
-| **Local Storage** | Web storage APIs | `localStorage`, `sessionStorage` with persistence |
-| **Process** | System interaction | `Andromeda.args`, `Andromeda.env`, `Andromeda.exit()` |
-| **SQLite** | Database operations | `Database`, prepared statements, transactions |
-| **Time** | Timing utilities | `performance.now()`, `setTimeout()`, `setInterval()`, `Andromeda.sleep()` |
-| **URL** | URL parsing and manipulation | `URL`, `URLSearchParams` |
-| **Web** | Web standards | `TextEncoder`, `TextDecoder`, `navigator`, `queueMicrotask()` |
+| Extension         | Description                   | APIs Provided                                                                  |
+| ----------------- | ----------------------------- | ------------------------------------------------------------------------------ |
+| **Canvas**        | GPU-accelerated 2D graphics   | `OffscreenCanvas`, `CanvasRenderingContext2D`, `ImageBitmap` with WGPU backend |
+| **Crypto**        | Web Crypto API implementation | `crypto.subtle`, `crypto.randomUUID()`, `crypto.getRandomValues()`             |
+| **Console**       | Enhanced console output       | `console.log()`, `console.error()`, `console.warn()`                           |
+| **Fetch**         | HTTP client capabilities      | `fetch()`, `Request`, `Response`, `Headers`                                    |
+| **File System**   | File I/O operations           | `Andromeda.readTextFileSync()`, `Andromeda.writeTextFileSync()`, directory ops |
+| **Local Storage** | Web storage APIs              | `localStorage`, `sessionStorage` with persistence                              |
+| **Process**       | System interaction            | `Andromeda.args`, `Andromeda.env`, `Andromeda.exit()`                          |
+| **SQLite**        | Database operations           | `Database`, prepared statements, transactions                                  |
+| **Time**          | Timing utilities              | `performance.now()`, `setTimeout()`, `setInterval()`, `Andromeda.sleep()`      |
+| **URL**           | URL parsing and manipulation  | `URL`, `URLSearchParams`                                                       |
+| **Web**           | Web standards                 | `TextEncoder`, `TextDecoder`, `navigator`, `queueMicrotask()`                  |
 
 ### Advanced Features
 
 - **Microtask Scheduling** - `queueMicrotask()` for proper async execution order
 - **Navigator API** - Complete `navigator.userAgent` and platform detection
-- **Structured Clone** - Web platform structured clone algorithm for object serialization
+- **Structured Clone** - Web platform structured clone algorithm for object
+  serialization
 - **Performance Timing** - High-precision timing with marks and measurements
 - **Hardware Acceleration** - WGPU-based GPU rendering for Canvas operations
 
 ## Crates
 
-| Crate | Description |
-|-------|-------------|
-| [**andromeda**](/cli) | Command-line interface and developer tools |
-| [**andromeda-core**](/core) | Core runtime engine and JavaScript execution |
+| Crate                             | Description                                    |
+| --------------------------------- | ---------------------------------------------- |
+| [**andromeda**](/cli)             | Command-line interface and developer tools     |
+| [**andromeda-core**](/core)       | Core runtime engine and JavaScript execution   |
 | [**andromeda-runtime**](/runtime) | Runtime extensions and Web API implementations |
 
 ## 🤝 Contributing
 
-Andromeda is an open-source project and welcomes contributions! Whether you're interested in:
+Andromeda is an open-source project and welcomes contributions! Whether you're
+interested in:
 
 - 🐛 **Bug fixes** - Help improve stability
-- ✨ **New features** - Add runtime capabilities  
+- ✨ **New features** - Add runtime capabilities
 - 📚 **Documentation** - Improve guides and examples
 - 🧪 **Testing** - Expand test coverage
 
-Join our [Discord community](https://discord.gg/tgjAnX2Ny3) to discuss ideas and get involved!
+Join our [Discord community](https://discord.gg/tgjAnX2Ny3) to discuss ideas and
+get involved!
 
 ## 📜 License
 
