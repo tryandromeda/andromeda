@@ -41,7 +41,7 @@ fn create_ts_dprint_config(format_config: &FormatConfig) -> IndexMap<String, Con
         ConfigKeyValue::from_str(if format_config.semicolons {
             "always"
         } else {
-            "prefer_none"
+            "asi"
         }),
     );
     config.insert(

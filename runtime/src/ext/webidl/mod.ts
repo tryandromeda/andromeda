@@ -32,7 +32,7 @@ function type(V: unknown): string {
 }
 
 function makeException(
-  ErrorType: new (message: string) => Error,
+  ErrorType: new(message: string) => Error,
   message: string,
   prefix?: string,
   context?: string,
@@ -82,7 +82,7 @@ interface ConversionOptions {
 
 function createIntegerConversion(
   bitLength: number,
-  typeOpts: { unsigned: boolean },
+  typeOpts: { unsigned: boolean; },
 ) {
   const isSigned = !typeOpts.unsigned;
 
@@ -562,7 +562,7 @@ function createInterfaceConverter(name: string, prototype: object) {
 }
 
 // Used by other modules to create branded objects
-function createBranded<T>(Type: new () => T): T {
+function createBranded<T>(Type: new() => T): T {
   const t = Object.create(Type.prototype);
   (t as Record<symbol, unknown>)[brand] = brand;
   return t;
@@ -588,7 +588,7 @@ function illegalConstructor(): never {
 // Used by other modules to configure WebIDL interfaces
 function configureInterface(
   interface_: {
-    new (...args: unknown[]): unknown;
+    new(...args: unknown[]): unknown;
     prototype: object;
     name: string;
   },
