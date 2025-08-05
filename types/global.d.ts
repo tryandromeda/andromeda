@@ -442,6 +442,73 @@ declare namespace Andromeda {
    * ```
    */
   function removeSignalListener(signal: Signal, handler: () => void): void;
+
+  // Cron API types
+  /**
+   * CronScheduleExpression defines the different ways to specify a time component in a cron schedule.
+   */
+  type CronScheduleExpression = number | { exact: number | number[]; } | {
+    start?: number;
+    end?: number;
+    every?: number;
+  };
+
+  /**
+   * CronSchedule is the interface used for JSON format cron schedule.
+   */
+  interface CronSchedule {
+    minute?: CronScheduleExpression;
+    hour?: CronScheduleExpression;
+    dayOfMonth?: CronScheduleExpression;
+    month?: CronScheduleExpression;
+    dayOfWeek?: CronScheduleExpression;
+  }
+
+  /**
+   * Create a cron job that will periodically execute the provided handler
+   * callback based on the specified schedule.
+   *
+   * ```ts
+   * Andromeda.cron("sample cron", "20 * * * *", () => {
+   *   console.log("cron job executed");
+   * });
+   * ```
+   *
+   * ```ts
+   * Andromeda.cron("sample cron", { hour: { every: 6 } }, () => {
+   *   console.log("cron job executed");
+   * });
+   * ```
+   *
+   * `schedule` can be a string in the Unix cron format or in JSON format
+   * as specified by interface {@linkcode CronSchedule}, where time is specified
+   * using UTC time zone.
+   */
+  function cron(
+    name: string,
+    schedule: string | CronSchedule,
+    handler: () => Promise<void> | void,
+  ): Promise<void>;
+
+  /**
+   * Create a cron job that will periodically execute the provided handler
+   * callback based on the specified schedule.
+   *
+   * ```ts
+   * Andromeda.cron("sample cron", "20 * * * *", {
+   *   backoffSchedule: [100, 1000, 5000],
+   *   signal: abortController.signal,
+   * }, () => {
+   *   console.log("cron job executed");
+   * });
+   * ```
+   */
+  function cron(
+    name: string,
+    schedule: string | CronSchedule,
+    options: { backoffSchedule?: number[]; signal?: AbortSignal; },
+    handler: () => Promise<void> | void,
+  ): Promise<void>;
 }
 /**
  * The `prompt` function prompts the user for input.

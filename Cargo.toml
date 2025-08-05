@@ -7,14 +7,16 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.0-draft11"
+version = "0.1.0-draft12"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
 andromeda-runtime = { path = "runtime", features = ["canvas", "crypto", "storage"] }
 anyhow = "1.0.98"
 anymap = "0.12.1"
+async-trait = "0.1.83"
 base64-simd = "0.8.0"
+chrono = { version = "0.4.41", features = ["serde"] }
 clap = { version = "4.5.42", features = ["derive"] }
 clap_complete = "4.5.55"
 console = "0.16.0"
@@ -50,6 +52,7 @@ reedline = "0.41.0"
 regex = "1.11.1"
 ring = "0.17.14"
 rusqlite = { version = "0.37.0", features = ["bundled"] }
+saffron = "0.1.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.142"
 serde_yaml = "0.9.34-deprecated"

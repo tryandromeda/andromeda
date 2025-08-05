@@ -578,6 +578,29 @@ const Andromeda = {
     },
   },
 
+  // Cron functions
+  /**
+   * Create a cron job that will periodically execute the provided handler
+   * callback based on the specified schedule.
+   *
+   * @example
+   * ```ts
+   * Andromeda.cron("sample cron", "20 * * * *", () => {
+   *   console.log("cron job executed");
+   * });
+   * ```
+   *
+   * `schedule` can be a string in the Unix cron format, where time is specified
+   * using UTC time zone.
+   */
+  async cron(
+    name: string,
+    schedule: string,
+    handler: () => Promise<void> | void,
+  ): Promise<void> {
+    return await cron(name, schedule, handler);
+  },
+
   // Signal handling functions
   /**
    * Registers the given function as a listener of the given signal event.

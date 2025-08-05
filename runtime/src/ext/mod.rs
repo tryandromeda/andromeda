@@ -8,6 +8,7 @@ mod cache_storage;
 #[cfg(feature = "canvas")]
 mod canvas;
 mod console;
+pub mod cron;
 #[cfg(feature = "crypto")]
 mod crypto;
 mod fetch;
@@ -29,6 +30,7 @@ pub use cache_storage::*;
 #[cfg(feature = "canvas")]
 pub use canvas::*;
 pub use console::*;
+pub use cron::*;
 #[cfg(feature = "crypto")]
 pub use crypto::*;
 pub use fetch::*;

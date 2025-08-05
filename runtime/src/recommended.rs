@@ -13,8 +13,8 @@ use nova_vm::{
 };
 
 use crate::{
-    BroadcastChannelExt, ConsoleExt, FetchExt, FileExt, FsExt, HeadersExt, ProcessExt, RequestExt,
-    ResponseExt, RuntimeMacroTask, StreamsExt, TimeExt, URLExt, WebExt,
+    BroadcastChannelExt, ConsoleExt, CronExt, FetchExt, FileExt, FsExt, HeadersExt, ProcessExt,
+    RequestExt, ResponseExt, RuntimeMacroTask, StreamsExt, TimeExt, URLExt, WebExt,
 };
 
 pub fn recommended_extensions() -> Vec<Extension> {
@@ -22,6 +22,7 @@ pub fn recommended_extensions() -> Vec<Extension> {
         FsExt::new_extension(),
         ConsoleExt::new_extension(),
         TimeExt::new_extension(),
+        CronExt::new_extension(),
         ProcessExt::new_extension(),
         URLExt::new_extension(),
         WebExt::new_extension(),
@@ -65,6 +66,10 @@ pub fn recommended_eventloop_handler(
         }
         RuntimeMacroTask::ClearTimeout(timeout_id) => {
             timeout_id.clear_and_abort(host_data);
+        }
+        RuntimeMacroTask::RunCron(cron_id) => cron_id.run(agent, host_data, realm_root),
+        RuntimeMacroTask::ClearCron(cron_id) => {
+            cron_id.clear_and_abort(host_data);
         }
         RuntimeMacroTask::ResolvePromiseWithValue(promise_root, value_root) => {
             agent.run_in_realm(realm_root, |agent, mut gc| {
