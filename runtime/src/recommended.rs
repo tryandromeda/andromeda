@@ -3,10 +3,13 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use andromeda_core::{Extension, HostData};
-use nova_vm::ecmascript::{
-    builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
-    execution::agent::{GcAgent, RealmRoot},
-    types::{IntoValue, String as NovaString, Value},
+use nova_vm::{
+    ecmascript::{
+        builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
+        execution::agent::{GcAgent, RealmRoot},
+        types::{IntoValue, String as NovaString, Value},
+    },
+    engine::{Global, context::Bindable},
 };
 
 use crate::{
@@ -84,6 +87,40 @@ pub fn recommended_eventloop_handler(
                     promise_capability.reject(agent, error_val.into_value(), gc.nogc());
                 } else {
                     panic!("Attempted to reject a non-promise value");
+                }
+            });
+        }
+        RuntimeMacroTask::ResolvePromiseWithString(root_value, string_value) => {
+            // First, create the string value in a separate realm call
+            let string_global = agent
+                .run_in_realm(realm_root, |agent, gc| {
+                    let string_val = Value::from_string(agent, string_value, gc.nogc());
+                    Some(Global::new(agent, string_val.into_value().unbind()))
+                })
+                .unwrap();
+
+            // Then resolve the promise with the pre-created string
+            agent.run_in_realm(realm_root, |agent, gc| {
+                let promise_value = root_value.take(agent);
+                let string_value = string_global.take(agent);
+                if let Value::Promise(promise) = promise_value {
+                    let promise_capability = PromiseCapability::from_promise(promise, false);
+                    promise_capability.resolve(agent, string_value, gc);
+                } else {
+                    panic!("Attempted to resolve a non-promise value");
+                }
+            });
+        }
+        RuntimeMacroTask::ResolvePromiseWithBytes(root_value, _bytes_value) => {
+            agent.run_in_realm(realm_root, |agent, gc| {
+                let value = root_value.take(agent);
+                if let Value::Promise(promise) = value {
+                    let promise_capability = PromiseCapability::from_promise(promise, false);
+                    // TODO: Implement bytes to Uint8Array conversion
+                    let undefined_val = Value::Undefined;
+                    promise_capability.resolve(agent, undefined_val, gc);
+                } else {
+                    panic!("Attempted to resolve a non-promise value");
                 }
             });
         }

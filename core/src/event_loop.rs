@@ -9,10 +9,6 @@ use nova_vm::{ecmascript::types::Value, engine::Global};
 pub enum MacroTask<UserMacroTask> {
     /// Resolve a promise.
     ResolvePromise(Global<Value<'static>>),
-    /// Resolve a promise with a string value.
-    ResolvePromiseWithString(Global<Value<'static>>, String),
-    /// Resolve a promise with bytes as Uint8Array.
-    ResolvePromiseWithBytes(Global<Value<'static>>, Vec<u8>),
     /// User-defined macro task.
     User(UserMacroTask),
 }

@@ -31,10 +31,7 @@ use nova_vm::{
         },
         types::{self, Object, PropertyKey, String as NovaString, Value},
     },
-    engine::{
-        Global,
-        context::{Bindable, GcScope, NoGcScope},
-    },
+    engine::context::{Bindable, GcScope, NoGcScope},
 };
 
 use crate::{
@@ -535,41 +532,6 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                     let value = root_value.take(agent);
                     if let Value::Promise(promise) = value {
                         let promise_capability = PromiseCapability::from_promise(promise, false);
-                        promise_capability.resolve(agent, Value::Undefined, gc);
-                    } else {
-                        panic!("Attempted to resolve a non-promise value");
-                    }
-                });
-            }
-            Ok(MacroTask::ResolvePromiseWithString(root_value, string_value)) => {
-                // First, create the string value in a separate realm call
-                let string_global = self
-                    .agent
-                    .run_in_realm(&self.realm_root, |agent, gc| {
-                        let string_val = Value::from_string(agent, string_value, gc.nogc());
-                        Some(Global::new(agent, string_val.unbind()))
-                    })
-                    .unwrap();
-
-                // Then resolve the promise with the pre-created string
-                self.agent.run_in_realm(&self.realm_root, |agent, gc| {
-                    let promise_value = root_value.take(agent);
-                    let string_value = string_global.take(agent);
-                    if let Value::Promise(promise) = promise_value {
-                        let promise_capability = PromiseCapability::from_promise(promise, false);
-                        promise_capability.resolve(agent, string_value, gc);
-                    } else {
-                        panic!("Attempted to resolve a non-promise value");
-                    }
-                });
-            }
-            Ok(MacroTask::ResolvePromiseWithBytes(root_value, _bytes_value)) => {
-                self.agent.run_in_realm(&self.realm_root, |agent, gc| {
-                    let value = root_value.take(agent);
-                    if let Value::Promise(promise) = value {
-                        let promise_capability = PromiseCapability::from_promise(promise, false);
-                        // TODO: Create Uint8Array from bytes
-                        // For now, resolve with undefined
                         promise_capability.resolve(agent, Value::Undefined, gc);
                     } else {
                         panic!("Attempted to resolve a non-promise value");
