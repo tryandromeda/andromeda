@@ -5,6 +5,7 @@
 use andromeda_core::RuntimeFile;
 use clap::{CommandFactory, Parser as ClapParser, Subcommand};
 use clap_complete::{Shell, generate};
+use console::Style;
 use libsui::find_section;
 use std::io;
 use std::path::PathBuf;
@@ -21,7 +22,7 @@ use run::run;
 mod error;
 use error::{Result, init_error_reporting, print_error};
 mod format;
-use format::format_file;
+use format::{FormatResult, format_file};
 mod helper;
 use helper::find_formattable_files;
 mod lint;
@@ -288,13 +289,56 @@ fn run_main() -> Result<()> {
             Command::Fmt { paths } => {
                 let files_to_format = find_formattable_files(&paths)?;
                 if files_to_format.is_empty() {
-                    println!("No formattable files found.");
+                    let warning = Style::new().yellow().bold().apply_to("⚠️");
+                    let msg = Style::new()
+                        .yellow()
+                        .apply_to("No formattable files found.");
+                    println!("{warning} {msg}");
                     return Ok(());
                 }
-                println!("Found {} file(s) to format:", files_to_format.len());
+
+                let count = Style::new().cyan().apply_to(files_to_format.len());
+                println!("Found {count} file(s) to format");
+                println!("{}", Style::new().dim().apply_to("─".repeat(40)));
+
+                let mut already_formatted_count = 0;
+                let mut formatted_count = 0;
+
                 for path in &files_to_format {
-                    format_file(path)?;
+                    match format_file(path)? {
+                        FormatResult::Changed => formatted_count += 1,
+                        FormatResult::AlreadyFormatted => already_formatted_count += 1,
+                    }
                 }
+
+                println!();
+                let success = Style::new().green().bold().apply_to("✅");
+                let complete_msg = Style::new().green().bold().apply_to("Formatting complete");
+                println!("{success} {complete_msg}:");
+
+                if formatted_count > 0 {
+                    let formatted_icon = Style::new().green().apply_to("📄");
+                    let formatted_num = Style::new().green().bold().apply_to(formatted_count);
+                    let formatted_text = if formatted_count == 1 {
+                        "file"
+                    } else {
+                        "files"
+                    };
+                    println!("   {formatted_icon} {formatted_num} {formatted_text} formatted");
+                }
+
+                if already_formatted_count > 0 {
+                    let already_icon = Style::new().cyan().apply_to("✨");
+                    let already_num = Style::new().cyan().bold().apply_to(already_formatted_count);
+                    let already_text = if already_formatted_count == 1 {
+                        "file"
+                    } else {
+                        "files"
+                    };
+                    let already_msg = Style::new().cyan().apply_to("already formatted");
+                    println!("   {already_icon} {already_num} {already_text} {already_msg}");
+                }
+
                 Ok(())
             }
             Command::Completions { shell } => {
