@@ -1114,3 +1114,39 @@ declare function internal_css_to_ansi(cssText: string): string;
  * The `get_group_indent` function returns the current console group indentation level.
  */
 declare function get_group_indent(): number;
+
+declare function cache_match(
+  cacheName: string,
+  request: RequestInfo,
+  options?: CacheQueryOptions,
+): Response | undefined;
+declare function cache_matchAll(
+  cacheName: string,
+  request?: RequestInfo,
+  options?: CacheQueryOptions,
+): Response[];
+declare function cache_add(cacheName: string, request: RequestInfo): void;
+declare function cache_addAll(cacheName: string, requests: RequestInfo[]): void;
+declare function cache_put(
+  cacheName: string,
+  request: RequestInfo,
+  response: Response,
+): void;
+declare function cache_delete(
+  cacheName: string,
+  request: RequestInfo,
+  options?: CacheQueryOptions,
+): boolean;
+declare function cache_keys(
+  cacheName: string,
+  request?: RequestInfo,
+  options?: CacheQueryOptions,
+): Request[];
+declare function cacheStorage_open(cacheName: string): void;
+declare function cacheStorage_has(cacheName: string): boolean;
+declare function cacheStorage_delete(cacheName: string): boolean;
+declare function cacheStorage_keys(): string[];
+declare function cacheStorage_match(
+  request: RequestInfo,
+  options?: CacheQueryOptions,
+): Response | undefined;

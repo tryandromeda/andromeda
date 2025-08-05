@@ -3,6 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // mod broadcast_channel;
 mod broadcast_channel;
+#[cfg(feature = "storage")]
+mod cache_storage;
 #[cfg(feature = "canvas")]
 mod canvas;
 mod console;
@@ -22,6 +24,8 @@ mod url;
 mod web;
 
 pub use broadcast_channel::*;
+#[cfg(feature = "storage")]
+pub use cache_storage::*;
 #[cfg(feature = "canvas")]
 pub use canvas::*;
 pub use console::*;
