@@ -68,7 +68,7 @@ dependencies = [
 
 [[package]]
 name = "andromeda"
-version = "0.1.0-draft11"
+version = "0.1.0-draft12"
 dependencies = [
  "andromeda-core",
  "andromeda-runtime",
@@ -116,7 +116,7 @@ dependencies = [
 
 [[package]]
 name = "andromeda-core"
-version = "0.1.0-draft11"
+version = "0.1.0-draft12"
 dependencies = [
  "anyhow",
  "anymap",
@@ -128,6 +128,8 @@ dependencies = [
  "oxc_diagnostics",
  "oxc_parser",
  "oxc_span",
+ "serde",
+ "serde_json",
  "thiserror 2.0.12",
  "tokio",
  "ureq",
@@ -136,7 +138,7 @@ dependencies = [
 
 [[package]]
 name = "andromeda-runtime"
-version = "0.1.0-draft11"
+version = "0.1.0-draft12"
 dependencies = [
  "andromeda-core",
  "anyhow",

@@ -17,6 +17,8 @@ the complexity of traditional Node.js setups.
 
 - 🚀 **Zero-configuration TypeScript** - Run `.ts` files directly, no
   transpilation needed
+- 🗺️ **Import Maps** - Modern module resolution with bare specifiers and CDN
+  integration
 - 🎨 **GPU-Accelerated Canvas** - Hardware-accelerated 2D Canvas API with WGPU
   backend and PNG export
 - 🔐 **Web Crypto API** - Industry-standard cryptographic primitives

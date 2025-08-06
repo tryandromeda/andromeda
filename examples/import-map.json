@@ -1,0 +1,16 @@
+{
+  "imports": {
+    "@test/": "./test-utilities/",
+    "chai": "https://esm.sh/chai@4",
+    "mocha": "https://esm.sh/mocha@10"
+  },
+  "scopes": {
+    "./test/": {
+      "assert": "./test-utilities/assert.ts"
+    }
+  },
+  "integrity": {
+    "https://esm.sh/chai@4": "sha384-example-integrity-hash-for-chai",
+    "./test-utilities/assert.ts": "sha384-example-integrity-hash-for-assert"
+  }
+}

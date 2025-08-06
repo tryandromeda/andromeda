@@ -16,6 +16,18 @@ pub struct AndromedaConfig {
     pub format: FormatConfig,
     /// Linting configuration
     pub lint: LintConfig,
+    /// Direct module specifier mappings (Web Import Maps spec)
+    #[serde(skip_serializing_if = "std::collections::HashMap::is_empty")]
+    pub imports: std::collections::HashMap<String, String>,
+    /// Scope-specific mappings (Web Import Maps spec)
+    #[serde(skip_serializing_if = "std::collections::HashMap::is_empty")]
+    pub scopes: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+    /// Integrity metadata mappings (Web Import Maps spec)
+    #[serde(skip_serializing_if = "std::collections::HashMap::is_empty")]
+    pub integrity: std::collections::HashMap<String, String>,
+    /// Additional import map files to load (Andromeda extension)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub import_map_files: Vec<String>,
     /// Project name
     pub name: Option<String>,
     /// Project version
@@ -341,6 +353,18 @@ impl ConfigManager {
                 return Err(AndromedaError::config_error(
                     "Maximum warnings cannot be zero".to_string(),
                     None,
+                    None::<std::io::Error>,
+                ));
+            }
+        }
+
+        // Validate import map configuration
+        for config_file in &config.import_map_files {
+            let path = Path::new(config_file);
+            if !path.exists() {
+                return Err(AndromedaError::config_error(
+                    format!("Import map config file not found: {config_file}"),
+                    Some(path.to_path_buf()),
                     None::<std::io::Error>,
                 ));
             }
