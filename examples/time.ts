@@ -1,5 +1,3 @@
-/// <reference path="../types/global.d.ts" />
-
 let i = 0;
 
 setTimeout(() => {
@@ -10,7 +8,7 @@ clearTimeout(setTimeout(() => {
   console.log("I'll never run :)");
 }, 1000));
 
-let id = setInterval(() => {
+const id = setInterval(() => {
   console.log(`[interval]: ${i}s`);
   i += 1;
   if (i == 5) {
