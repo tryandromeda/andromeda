@@ -29,8 +29,8 @@ mod lint;
 use lint::lint_file_with_config;
 mod config;
 mod lsp;
-mod upgrade;
 mod task;
+mod upgrade;
 use config::{AndromedaConfig, ConfigFormat, ConfigManager};
 use lsp::run_lsp_server;
 use task::run_task;
@@ -420,17 +420,7 @@ fn run_main() -> Result<()> {
                 })?;
                 Ok(())
             }
-            Command::Task { task_name } => {
-                run_task(task_name).map_err(|e| {
-                    error::AndromedaError::runtime_error(
-                        format!("Task execution failed: {e}"),
-                        None,
-                        None,
-                        None,
-                        None,
-                    )
-                })
-            }
+            Command::Task { task_name } => run_task(task_name).map_err(|e| *e),
             Command::Config { action } => handle_config_command(action),
         }
     });
