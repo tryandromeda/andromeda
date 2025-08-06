@@ -9,35 +9,27 @@ use tower_lsp::lsp_types::*;
 /// Convert Andromeda lint errors to LSP diagnostics
 pub fn lint_error_to_diagnostic(lint_error: &LintError, source_code: &str) -> Diagnostic {
     let (message, severity, code, source) = match lint_error {
-        LintError::EmptyStatement { .. } => (
+        LintError::NoEmpty { .. } => (
             "Empty statement found".to_string(),
             DiagnosticSeverity::WARNING,
             Some(NumberOrString::String(
-                "andromeda::lint::empty_statement".to_string(),
+                "andromeda::lint::no-empty".to_string(),
             )),
             Some("andromeda".to_string()),
         ),
-        LintError::VarUsage { variable_name, .. } => (
+        LintError::NoVar { variable_name, .. } => (
             format!("Usage of 'var' for variable '{variable_name}'"),
             DiagnosticSeverity::WARNING,
             Some(NumberOrString::String(
-                "andromeda::lint::var_usage".to_string(),
+                "andromeda::lint::no-var".to_string(),
             )),
             Some("andromeda".to_string()),
         ),
-        LintError::EmptyFunction { function_name, .. } => (
-            format!("Function '{function_name}' has an empty body"),
-            DiagnosticSeverity::WARNING,
-            Some(NumberOrString::String(
-                "andromeda::lint::empty_function".to_string(),
-            )),
-            Some("andromeda".to_string()),
-        ),
-        LintError::UnusedVariable { variable_name, .. } => (
+        LintError::NoUnusedVars { variable_name, .. } => (
             format!("Unused variable '{variable_name}'"),
             DiagnosticSeverity::WARNING,
             Some(NumberOrString::String(
-                "andromeda::lint::unused_variable".to_string(),
+                "andromeda::lint::no-unused-vars".to_string(),
             )),
             Some("andromeda".to_string()),
         ),
@@ -45,7 +37,71 @@ pub fn lint_error_to_diagnostic(lint_error: &LintError, source_code: &str) -> Di
             format!("Variable '{variable_name}' could be const"),
             DiagnosticSeverity::INFORMATION,
             Some(NumberOrString::String(
-                "andromeda::lint::prefer_const".to_string(),
+                "andromeda::lint::prefer-const".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoConsole { method_name, .. } => (
+            format!("Console.{method_name}() usage found"),
+            DiagnosticSeverity::WARNING,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-console".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoDebugger { .. } => (
+            "Debugger statement found".to_string(),
+            DiagnosticSeverity::ERROR,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-debugger".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoExplicitAny { .. } => (
+            "Explicit 'any' type used".to_string(),
+            DiagnosticSeverity::WARNING,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-explicit-any".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::RequireAwait { function_name, .. } => (
+            format!("Async function '{function_name}' lacks await"),
+            DiagnosticSeverity::WARNING,
+            Some(NumberOrString::String(
+                "andromeda::lint::require-await".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoEval { .. } => (
+            "eval() usage found".to_string(),
+            DiagnosticSeverity::ERROR,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-eval".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::Eqeqeq { operator, .. } => (
+            format!("Use strict equality instead of '{operator}'"),
+            DiagnosticSeverity::WARNING,
+            Some(NumberOrString::String(
+                "andromeda::lint::eqeqeq".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::Camelcase { name, .. } => (
+            format!("Identifier '{name}' is not in camelCase"),
+            DiagnosticSeverity::INFORMATION,
+            Some(NumberOrString::String(
+                "andromeda::lint::camelcase".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoBooleanLiteralForArguments { value, .. } => (
+            format!("Boolean literal '{value}' passed as argument"),
+            DiagnosticSeverity::INFORMATION,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-boolean-literal-for-arguments".to_string(),
             )),
             Some("andromeda".to_string()),
         ),
@@ -70,11 +126,18 @@ pub fn lint_error_to_diagnostic(lint_error: &LintError, source_code: &str) -> Di
 /// Extract the source span from a lint error
 fn get_lint_error_span(lint_error: &LintError) -> SourceSpan {
     match lint_error {
-        LintError::EmptyStatement { span, .. } => *span,
-        LintError::VarUsage { span, .. } => *span,
-        LintError::EmptyFunction { span, .. } => *span,
-        LintError::UnusedVariable { span, .. } => *span,
+        LintError::NoEmpty { span, .. } => *span,
+        LintError::NoVar { span, .. } => *span,
+        LintError::NoUnusedVars { span, .. } => *span,
         LintError::PreferConst { span, .. } => *span,
+        LintError::NoConsole { span, .. } => *span,
+        LintError::NoDebugger { span, .. } => *span,
+        LintError::NoExplicitAny { span, .. } => *span,
+        LintError::RequireAwait { span, .. } => *span,
+        LintError::NoEval { span, .. } => *span,
+        LintError::Eqeqeq { span, .. } => *span,
+        LintError::Camelcase { span, .. } => *span,
+        LintError::NoBooleanLiteralForArguments { span, .. } => *span,
     }
 }
 
