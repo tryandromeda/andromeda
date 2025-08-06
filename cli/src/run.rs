@@ -5,7 +5,7 @@
 use crate::config::{AndromedaConfig, ConfigManager};
 use crate::error::{Result, read_file_with_context};
 use andromeda_core::{
-    AndromedaError, ErrorReporter, HostData, Runtime, RuntimeConfig, RuntimeFile,
+    AndromedaError, ErrorReporter, HostData, ImportMap, Runtime, RuntimeConfig, RuntimeFile,
 };
 use andromeda_runtime::{
     recommended_builtins, recommended_eventloop_handler, recommended_extensions,
@@ -52,6 +52,16 @@ pub fn create_runtime_files(
     // Apply include/exclude filters from config
     let filtered_files = apply_file_filters(files, &config)?;
 
+    // Build import map from config
+    let start_dir = filtered_files.first().and_then(|file| {
+        if let RuntimeFile::Local { path } = file {
+            std::path::Path::new(path).parent()
+        } else {
+            None
+        }
+    });
+    let import_map = build_import_map(&config, start_dir)?;
+
     // Pre-validate all local files exist before starting the runtime
     for file in &filtered_files {
         if let RuntimeFile::Local { path } = file {
@@ -89,6 +99,7 @@ pub fn create_runtime_files(
             builtins: recommended_builtins(),
             eventloop_handler: recommended_eventloop_handler,
             macro_task_rx,
+            import_map,
         },
         host_data,
     );
@@ -211,4 +222,58 @@ fn apply_file_filters(
     }
 
     Ok(filtered_files)
+}
+
+/// Build import map from configuration
+#[allow(clippy::result_large_err)]
+fn build_import_map(
+    config: &AndromedaConfig,
+    start_dir: Option<&std::path::Path>,
+) -> Result<Option<ImportMap>> {
+    if config.imports.is_empty() && config.scopes.is_empty() && config.import_map_files.is_empty() {
+        return Ok(None);
+    }
+
+    let mut import_map = ImportMap {
+        imports: config.imports.clone(),
+        scopes: config.scopes.clone(),
+        integrity: config.integrity.clone(),
+    };
+
+    // Load import maps from config files
+    for config_file in &config.import_map_files {
+        let config_path = if std::path::Path::new(config_file).is_absolute() {
+            std::path::PathBuf::from(config_file)
+        } else {
+            // Make relative to the config directory or start directory
+            let base_dir = start_dir.unwrap_or_else(|| std::path::Path::new("."));
+            base_dir.join(config_file)
+        };
+
+        if !config_path.exists() {
+            return Err(crate::error::AndromedaError::file_not_found(
+                config_path.clone(),
+                std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Import map config file not found",
+                ),
+            ));
+        }
+
+        let file_import_map = ImportMap::from_file(&config_path).map_err(|e| {
+            crate::error::AndromedaError::config_error(
+                format!(
+                    "Failed to load import map from {}: {}",
+                    config_path.display(),
+                    e
+                ),
+                Some(config_path),
+                None::<std::io::Error>,
+            )
+        })?;
+
+        import_map.merge(file_import_map);
+    }
+
+    Ok(Some(import_map))
 }

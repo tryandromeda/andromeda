@@ -1,0 +1,20 @@
+{
+  "name": "andromeda-examples",
+  "version": "0.1.0",
+  "description": "Examples",
+  "imports": {
+    "@std/path": "./modules/path.ts",
+    "@utils/": "./modules/utils/",
+    "react": "https://esm.sh/react@18",
+    "lodash": "https://esm.sh/lodash@4"
+  },
+  "scopes": {
+    "./modules/": {
+      "fs": "./modules/fs-shim.ts"
+    }
+  },
+  "integrity": {
+    "./modules/path.ts": "sha384-example-hash-for-path-module"
+  },
+  "import_map_files": ["./import-map.json"]
+}

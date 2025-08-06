@@ -36,12 +36,14 @@ use nova_vm::{
 
 use crate::{
     AndromedaError, AndromedaResult, Extension, HostData, MacroTask, exit_with_parse_errors,
+    module::ImportMap,
 };
 
 pub struct RuntimeHostHooks<UserMacroTask> {
     pub(crate) promise_job_queue: RefCell<VecDeque<Job>>,
     pub(crate) host_data: HostData<UserMacroTask>,
     pub(crate) base_path: PathBuf,
+    pub(crate) import_map: Option<ImportMap>,
 }
 
 impl<UserMacroTask> std::fmt::Debug for RuntimeHostHooks<UserMacroTask> {
@@ -56,6 +58,7 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
             promise_job_queue: RefCell::default(),
             host_data,
             base_path: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            import_map: None,
         }
     }
 
@@ -64,6 +67,20 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
             promise_job_queue: RefCell::default(),
             host_data,
             base_path,
+            import_map: None,
+        }
+    }
+
+    pub fn with_import_map(
+        host_data: HostData<UserMacroTask>,
+        base_path: PathBuf,
+        import_map: ImportMap,
+    ) -> Self {
+        Self {
+            promise_job_queue: RefCell::default(),
+            host_data,
+            base_path,
+            import_map: Some(import_map),
         }
     }
 
@@ -77,6 +94,29 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
 
     /// Resolve a module specifier relative to a referrer path
     fn resolve_module_specifier(&self, specifier: &str, referrer_path: &Path) -> PathBuf {
+        // Try import map resolution first for bare specifiers
+        if let Some(import_map) = &self.import_map {
+            if !specifier.starts_with("./")
+                && !specifier.starts_with("../")
+                && !specifier.starts_with("/")
+                && !specifier.contains("://")
+            {
+                // This is a bare specifier, try import map resolution
+                let base_url = referrer_path.to_string_lossy();
+                if let Some(mapped_specifier) =
+                    import_map.resolve_specifier(specifier, Some(&base_url))
+                {
+                    // Use the mapped specifier for resolution
+                    return self.resolve_path_specifier(&mapped_specifier, referrer_path);
+                }
+            }
+        }
+
+        self.resolve_path_specifier(specifier, referrer_path)
+    }
+
+    /// Resolve a path-based specifier (internal helper)
+    fn resolve_path_specifier(&self, specifier: &str, referrer_path: &Path) -> PathBuf {
         if specifier.starts_with("./") || specifier.starts_with("../") {
             // Relative import
             let referrer_dir = referrer_path.parent().unwrap_or(&self.base_path);
@@ -359,6 +399,8 @@ pub struct RuntimeConfig<UserMacroTask: 'static> {
     pub eventloop_handler: EventLoopHandler<UserMacroTask>,
     /// Macro tasks eventloop receiver.
     pub macro_task_rx: Receiver<MacroTask<UserMacroTask>>,
+    /// Import map for module resolution
+    pub import_map: Option<ImportMap>,
 }
 
 pub struct Runtime<UserMacroTask: 'static> {
@@ -387,7 +429,11 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             })
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
-        let host_hooks = RuntimeHostHooks::with_base_path(host_data, base_path);
+        let host_hooks = if let Some(import_map) = config.import_map.clone() {
+            RuntimeHostHooks::with_import_map(host_data, base_path, import_map)
+        } else {
+            RuntimeHostHooks::with_base_path(host_data, base_path)
+        };
 
         let host_hooks: &RuntimeHostHooks<UserMacroTask> = &*Box::leak(Box::new(host_hooks));
         let mut agent = GcAgent::new(

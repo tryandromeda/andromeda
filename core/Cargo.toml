@@ -21,3 +21,5 @@ owo-colors.workspace = true
 thiserror.workspace = true
 url.workspace = true
 ureq.workspace = true
+serde.workspace = true
+serde_json.workspace = true

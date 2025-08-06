@@ -12,6 +12,7 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast;
 use oxc_parser::{Parser, ParserReturn};
 use oxc_span::SourceType;
+use serde::{Deserialize, Serialize};
 
 /// Error type for module-related operations
 #[derive(Debug, thiserror::Error)]
@@ -386,6 +387,17 @@ impl CompositeModuleLoader {
         composite.add_loader(Box::new(HttpModuleLoader::new()));
         composite
     }
+
+    pub fn with_import_map(import_map: ImportMap, base_url: String) -> Self {
+        let mut composite = Self::new();
+        let fallback = Self::default_loaders();
+        composite.add_loader(Box::new(ImportMapModuleLoader::new(
+            import_map,
+            base_url,
+            Box::new(fallback),
+        )));
+        composite
+    }
 }
 
 impl Default for CompositeModuleLoader {
@@ -431,6 +443,182 @@ impl ModuleLoader for CompositeModuleLoader {
         extensions.sort();
         extensions.dedup();
         extensions
+    }
+}
+
+/// Import map configuration for module resolution
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(default)]
+pub struct ImportMap {
+    /// Direct module specifier mappings
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub imports: HashMap<String, String>,
+    /// Scope-specific mappings
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub scopes: HashMap<String, HashMap<String, String>>,
+    /// Integrity metadata mappings
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub integrity: HashMap<String, String>,
+}
+
+impl ImportMap {
+    /// Load import map from JSON file
+    pub fn from_file<P: AsRef<Path>>(path: P) -> ModuleResult<Self> {
+        let content = std::fs::read_to_string(path.as_ref()).map_err(|e| ModuleError::Io {
+            message: format!(
+                "Failed to read import map file {}: {}",
+                path.as_ref().display(),
+                e
+            ),
+        })?;
+
+        let import_map: ImportMap =
+            serde_json::from_str(&content).map_err(|e| ModuleError::ParseError {
+                path: path.as_ref().to_string_lossy().to_string(),
+                message: format!("Invalid import map JSON: {e}"),
+            })?;
+
+        Ok(import_map)
+    }
+
+    /// Resolve a bare specifier using the import map
+    pub fn resolve_specifier(&self, specifier: &str, base_url: Option<&str>) -> Option<String> {
+        // Check if it's a relative or absolute specifier (should not be mapped)
+        if specifier.starts_with("./")
+            || specifier.starts_with("../")
+            || specifier.starts_with("/")
+            || specifier.contains("://")
+        {
+            return None;
+        }
+
+        // Try scope-specific mappings first if we have a base URL
+        if let Some(base) = base_url {
+            for (scope_prefix, scope_map) in &self.scopes {
+                if base.starts_with(scope_prefix) {
+                    // Try exact match first
+                    if let Some(resolved) = scope_map.get(specifier) {
+                        return Some(resolved.clone());
+                    }
+
+                    // Try prefix match
+                    for (prefix, target) in scope_map {
+                        if specifier.starts_with(prefix) && prefix.ends_with('/') {
+                            let suffix = &specifier[prefix.len()..];
+                            return Some(format!("{target}{suffix}"));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Try global imports
+        // Exact match first
+        if let Some(resolved) = self.imports.get(specifier) {
+            return Some(resolved.clone());
+        }
+
+        // Prefix match for directories
+        for (prefix, target) in &self.imports {
+            if specifier.starts_with(prefix) && prefix.ends_with('/') {
+                let suffix = &specifier[prefix.len()..];
+                return Some(format!("{target}{suffix}"));
+            }
+        }
+
+        None
+    }
+
+    /// Merge another import map into this one
+    pub fn merge(&mut self, other: ImportMap) {
+        // Merge global imports
+        for (key, value) in other.imports {
+            self.imports.insert(key, value);
+        }
+
+        // Merge scopes
+        for (scope, scope_map) in other.scopes {
+            let existing_scope = self.scopes.entry(scope).or_default();
+            for (key, value) in scope_map {
+                existing_scope.insert(key, value);
+            }
+        }
+
+        // Merge integrity metadata
+        for (url, metadata) in other.integrity {
+            self.integrity.insert(url, metadata);
+        }
+    }
+}
+
+/// Import map-aware module loader
+pub struct ImportMapModuleLoader {
+    /// The import map for resolving bare specifiers
+    pub import_map: ImportMap,
+    /// Base URL for resolving relative URLs in the import map
+    pub base_url: String,
+    /// Fallback loader for actual module loading
+    pub fallback_loader: Box<dyn ModuleLoader>,
+}
+
+impl ImportMapModuleLoader {
+    pub fn new(
+        import_map: ImportMap,
+        base_url: String,
+        fallback_loader: Box<dyn ModuleLoader>,
+    ) -> Self {
+        Self {
+            import_map,
+            base_url,
+            fallback_loader,
+        }
+    }
+
+    pub fn from_config_files<P: AsRef<Path>>(
+        config_files: &[P],
+        base_url: String,
+        fallback_loader: Box<dyn ModuleLoader>,
+    ) -> ModuleResult<Self> {
+        let mut import_map = ImportMap::default();
+
+        for config_file in config_files {
+            let file_import_map = ImportMap::from_file(config_file)?;
+            import_map.merge(file_import_map);
+        }
+
+        Ok(Self::new(import_map, base_url, fallback_loader))
+    }
+}
+
+impl ModuleLoader for ImportMapModuleLoader {
+    fn load_module(&self, specifier: &str) -> ModuleResult<String> {
+        self.fallback_loader.load_module(specifier)
+    }
+
+    fn resolve_specifier(&self, specifier: &str, base: Option<&str>) -> ModuleResult<String> {
+        // Try import map resolution first
+        if let Some(mapped_specifier) = self.import_map.resolve_specifier(specifier, base) {
+            // Use the mapped specifier
+            return self
+                .fallback_loader
+                .resolve_specifier(&mapped_specifier, base);
+        }
+
+        // Fall back to standard resolution
+        self.fallback_loader.resolve_specifier(specifier, base)
+    }
+
+    fn module_exists(&self, specifier: &str) -> bool {
+        // Try import map resolution first
+        if let Some(mapped_specifier) = self.import_map.resolve_specifier(specifier, None) {
+            return self.fallback_loader.module_exists(&mapped_specifier);
+        }
+
+        self.fallback_loader.module_exists(specifier)
+    }
+
+    fn supported_extensions(&self) -> Vec<&'static str> {
+        self.fallback_loader.supported_extensions()
     }
 }
 
