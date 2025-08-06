@@ -288,6 +288,55 @@ andromeda upgrade --version v0.1.2
 andromeda upgrade --dry-run
 ```
 
+### Task System
+
+Andromeda includes a powerful task system inspired by Deno, allowing you to define and run custom scripts and workflows directly from your configuration file.
+
+#### Defining Tasks
+
+Tasks are defined in your `andromeda.json`, `andromeda.toml`, or `andromeda.yaml` configuration file:
+
+```json
+{
+  "tasks": {
+    "dev": "andromeda run src/main.ts",
+    "build": {
+      "description": "Build the project",
+      "command": "echo Building project...",
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+    "test": {
+      "description": "Run tests after building",
+      "command": "andromeda run tests/main.ts",
+      "dependencies": ["build"]
+    },
+    "deploy": {
+      "description": "Deploy to production",
+      "command": "echo Deploying...",
+      "dependencies": ["test"],
+      "cwd": "./dist"
+    }
+  }
+}
+```
+
+#### Running Tasks
+
+```bash
+# List all available tasks
+andromeda task
+
+# Run a specific task
+andromeda task dev
+andromeda task build
+andromeda task test
+
+# Dependencies are automatically resolved
+andromeda task deploy  # Will run: build → test → deploy
+```
+
 ## 🏗️ Architecture & Extensions
 
 Andromeda is built with a modular architecture, allowing features to be enabled

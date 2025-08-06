@@ -29,9 +29,11 @@ mod lint;
 use lint::lint_file_with_config;
 mod config;
 mod lsp;
+mod task;
 mod upgrade;
 use config::{AndromedaConfig, ConfigFormat, ConfigManager};
 use lsp::run_lsp_server;
+use task::run_task;
 
 /// A JavaScript runtime
 #[derive(Debug, ClapParser)]
@@ -134,6 +136,12 @@ enum Command {
 
     /// Start Language Server Protocol (LSP) server
     Lsp,
+
+    /// Run tasks defined in configuration
+    Task {
+        /// The task name to run. If not provided, lists all available tasks
+        task_name: Option<String>,
+    },
 
     /// Configuration file management
     Config {
@@ -412,6 +420,7 @@ fn run_main() -> Result<()> {
                 })?;
                 Ok(())
             }
+            Command::Task { task_name } => run_task(task_name).map_err(|e| *e),
             Command::Config { action } => handle_config_command(action),
         }
     });

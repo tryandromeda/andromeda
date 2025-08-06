@@ -1,20 +1,55 @@
 {
-  "name": "andromeda-examples",
-  "version": "0.1.0",
-  "description": "Examples",
-  "imports": {
-    "@std/path": "./modules/path.ts",
-    "@utils/": "./modules/utils/",
-    "react": "https://esm.sh/react@18",
-    "lodash": "https://esm.sh/lodash@4"
-  },
-  "scopes": {
-    "./modules/": {
-      "fs": "./modules/fs-shim.ts"
+  "name": "andromeda-tasks-example",
+  "version": "1.0.0",
+  "description": "Example showing Andromeda's task system",
+  "tasks": {
+    "hello": "echo Hello from Andromeda!",
+    "world": {
+      "description": "Print a greeting to the world",
+      "command": "echo Hello, World from a complex task!",
+      "env": {
+        "GREETING": "Hello",
+        "TARGET": "World"
+      }
+    },
+    "build": {
+      "description": "Build the project",
+      "command": "echo Building project... && echo Build complete!",
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+    "test": {
+      "description": "Run tests after building",
+      "command": "echo Running tests... && andromeda run fizzbuzz.ts",
+      "dependencies": ["build"]
+    },
+    "dev": {
+      "description": "Development server",
+      "command": "andromeda run main.ts",
+      "dependencies": ["build"],
+      "env": {
+        "NODE_ENV": "development"
+      }
+    },
+    "lint-fix": {
+      "description": "Format and lint code",
+      "command": "andromeda fmt . && andromeda lint .",
+      "dependencies": []
+    },
+    "clean": {
+      "description": "Clean build artifacts",
+      "command": "echo Cleaning build artifacts...",
+      "cwd": "."
+    },
+    "full-pipeline": {
+      "description": "Complete development pipeline",
+      "command": "echo Pipeline complete!",
+      "dependencies": ["clean", "lint-fix", "test"]
     }
   },
-  "integrity": {
-    "./modules/path.ts": "sha384-example-hash-for-path-module"
-  },
-  "import_map_files": ["./import-map.json"]
+  "imports": {
+    "@std/path": "./modules/path.ts",
+    "@utils/": "./modules/utils/"
+  }
 }
