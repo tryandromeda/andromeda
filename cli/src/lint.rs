@@ -7,7 +7,7 @@ use console::Style;
 use miette as oxc_miette;
 use owo_colors::OwoColorize;
 use oxc_allocator::Allocator;
-use oxc_ast::ast::Statement;
+use oxc_ast::ast::{Expression, Statement};
 use oxc_miette::{Diagnostic, NamedSource, SourceSpan};
 use oxc_parser::Parser;
 use oxc_semantic::SemanticBuilder;
@@ -17,33 +17,33 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Lint error types with enhanced diagnostics
+/// Comprehensive lint error types based on Deno's rule set with enhanced diagnostics
 #[derive(Diagnostic, Debug, Clone)]
 pub enum LintError {
-    /// Empty statement found
+    /// Empty statement found (no-empty)
     #[diagnostic(
-        code(andromeda::lint::empty_statement),
+        code(andromeda::lint::no_empty),
         help(
             "🔍 Remove unnecessary semicolons that create empty statements.\n💡 Empty statements can make code harder to read and may indicate errors."
         ),
-        url("https://eslint.org/docs/latest/rules/no-empty-statement")
+        url("https://docs.deno.com/lint/rules/no-empty")
     )]
-    EmptyStatement {
+    NoEmpty {
         #[label("Empty statement found here")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
     },
 
-    /// Usage of 'var' keyword
+    /// Usage of 'var' keyword (no-var)
     #[diagnostic(
-        code(andromeda::lint::var_usage),
+        code(andromeda::lint::no_var),
         help(
             "🔍 Replace 'var' with 'let' or 'const' for better scoping.\n💡 'var' has function-level scoping which can lead to unexpected behavior.\n📖 Use 'let' for variables that will be reassigned, 'const' for constants."
         ),
-        url("https://eslint.org/docs/latest/rules/no-var")
+        url("https://docs.deno.com/lint/rules/no-var")
     )]
-    VarUsage {
+    NoVar {
         #[label("'var' keyword used here")]
         span: SourceSpan,
         #[source_code]
@@ -51,31 +51,15 @@ pub enum LintError {
         variable_name: String,
     },
 
-    /// Function with empty body
+    /// Unused variable (no-unused-vars)
     #[diagnostic(
-        code(andromeda::lint::empty_function),
-        help(
-            "🔍 Add implementation to the function or mark it as intentionally empty.\n💡 Empty functions may indicate incomplete implementation.\n📝 Consider adding a comment if the function is intentionally empty."
-        ),
-        url("https://eslint.org/docs/latest/rules/no-empty-function")
-    )]
-    EmptyFunction {
-        #[label("Function with empty body")]
-        span: SourceSpan,
-        #[source_code]
-        source_code: NamedSource<String>,
-        function_name: String,
-    },
-
-    /// Unused variable
-    #[diagnostic(
-        code(andromeda::lint::unused_variable),
+        code(andromeda::lint::no_unused_vars),
         help(
             "🔍 Remove the unused variable or prefix it with '_' if intentionally unused.\n💡 Unused variables can indicate dead code or typos in variable names.\n🧹 Removing unused variables helps keep code clean and maintainable."
         ),
-        url("https://eslint.org/docs/latest/rules/no-unused-vars")
+        url("https://docs.deno.com/lint/rules/no-unused-vars")
     )]
-    UnusedVariable {
+    NoUnusedVars {
         #[label("Unused variable '{variable_name}'")]
         span: SourceSpan,
         #[source_code]
@@ -83,13 +67,13 @@ pub enum LintError {
         variable_name: String,
     },
 
-    /// Variable could be const
+    /// Variable could be const (prefer-const)
     #[diagnostic(
         code(andromeda::lint::prefer_const),
         help(
             "🔍 Use 'const' instead of 'let' for variables that are never reassigned.\n💡 'const' prevents accidental reassignment and makes intent clearer.\n📖 Save 'let' for variables that will be modified."
         ),
-        url("https://eslint.org/docs/latest/rules/prefer-const")
+        url("https://docs.deno.com/lint/rules/prefer-const")
     )]
     PreferConst {
         #[label("Variable '{variable_name}' is never reassigned, use 'const'")]
@@ -98,23 +82,163 @@ pub enum LintError {
         source_code: NamedSource<String>,
         variable_name: String,
     },
+
+    /// Console.log usage (no-console)
+    #[diagnostic(
+        code(andromeda::lint::no_console),
+        help(
+            "🔍 Remove console statements from production code.\n💡 Console statements should not be left in production code.\n📖 Use proper logging or remove console statements."
+        ),
+        url("https://docs.deno.com/lint/rules/no-console")
+    )]
+    NoConsole {
+        #[label("Console statement found here")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+        method_name: String,
+    },
+
+    /// Debugger statement (no-debugger)
+    #[diagnostic(
+        code(andromeda::lint::no_debugger),
+        help(
+            "🔍 Remove debugger statements from production code.\n💡 Debugger statements should not be left in production code.\n🚨 This can cause applications to stop in production."
+        ),
+        url("https://docs.deno.com/lint/rules/no-debugger")
+    )]
+    NoDebugger {
+        #[label("Debugger statement found here")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+    },
+
+    /// Explicit any type (no-explicit-any)
+    #[diagnostic(
+        code(andromeda::lint::no_explicit_any),
+        help(
+            "🔍 Use specific types instead of 'any'.\n💡 The 'any' type defeats the purpose of TypeScript.\n📖 Consider using specific types, union types, or generic constraints."
+        ),
+        url("https://docs.deno.com/lint/rules/no-explicit-any")
+    )]
+    NoExplicitAny {
+        #[label("Explicit 'any' type used here")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+    },
+
+    /// Missing await in async function (require-await)
+    #[diagnostic(
+        code(andromeda::lint::require_await),
+        help(
+            "🔍 Add await keyword or remove async from function.\n💡 Async functions should contain await expressions.\n📖 Functions without await don't need to be async."
+        ),
+        url("https://docs.deno.com/lint/rules/require-await")
+    )]
+    RequireAwait {
+        #[label("Async function without await")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+        function_name: String,
+    },
+
+    /// Use of eval (no-eval)
+    #[diagnostic(
+        code(andromeda::lint::no_eval),
+        help(
+            "🔍 Avoid using eval() as it's a security risk.\n💡 eval() can execute arbitrary code and is a security vulnerability.\n🚨 Consider alternative approaches for dynamic code execution."
+        ),
+        url("https://docs.deno.com/lint/rules/no-eval")
+    )]
+    NoEval {
+        #[label("eval() usage found here")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+    },
+
+    /// Loose equality comparison (eqeqeq)
+    #[diagnostic(
+        code(andromeda::lint::eqeqeq),
+        help(
+            "🔍 Use strict equality (=== or !==) instead of loose equality (== or !=).\n💡 Strict equality prevents type coercion bugs.\n📖 Use === and !== for safer comparisons."
+        ),
+        url("https://docs.deno.com/lint/rules/eqeqeq")
+    )]
+    Eqeqeq {
+        #[label("Use strict equality (=== or !==) instead")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+        operator: String,
+    },
+
+    /// Camelcase naming convention (camelcase)
+    #[diagnostic(
+        code(andromeda::lint::camelcase),
+        help(
+            "🔍 Use camelCase naming convention.\n💡 Consistent naming improves code readability.\n📖 Use camelCase for variables, functions, and methods."
+        ),
+        url("https://docs.deno.com/lint/rules/camelcase")
+    )]
+    Camelcase {
+        #[label("Identifier '{name}' is not in camelCase")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+        name: String,
+    },
+
+    /// Boolean literal as argument (no-boolean-literal-for-arguments)
+    #[diagnostic(
+        code(andromeda::lint::no_boolean_literal_for_arguments),
+        help(
+            "🔍 Avoid passing boolean literals as arguments.\n� Boolean arguments make code harder to understand.\n📖 Consider using named objects or enums instead."
+        ),
+        url("https://docs.deno.com/lint/rules/no-boolean-literal-for-arguments")
+    )]
+    NoBooleanLiteralForArguments {
+        #[label("Boolean literal passed as argument")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+        value: bool,
+    },
 }
 
 impl std::fmt::Display for LintError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LintError::EmptyStatement { .. } => write!(f, "Empty statement found"),
-            LintError::VarUsage { variable_name, .. } => {
+            LintError::NoEmpty { .. } => write!(f, "Empty statement found"),
+            LintError::NoVar { variable_name, .. } => {
                 write!(f, "Usage of 'var' for variable '{variable_name}'")
             }
-            LintError::EmptyFunction { function_name, .. } => {
-                write!(f, "Function '{function_name}' has empty body")
-            }
-            LintError::UnusedVariable { variable_name, .. } => {
+            LintError::NoUnusedVars { variable_name, .. } => {
                 write!(f, "Unused variable '{variable_name}'")
             }
             LintError::PreferConst { variable_name, .. } => {
                 write!(f, "Variable '{variable_name}' could be const")
+            }
+            LintError::NoConsole { method_name, .. } => {
+                write!(f, "Console.{method_name}() usage found")
+            }
+            LintError::NoDebugger { .. } => write!(f, "Debugger statement found"),
+            LintError::NoExplicitAny { .. } => write!(f, "Explicit 'any' type used"),
+            LintError::RequireAwait { function_name, .. } => {
+                write!(f, "Async function '{function_name}' lacks await")
+            }
+            LintError::NoEval { .. } => write!(f, "eval() usage found"),
+            LintError::Eqeqeq { operator, .. } => {
+                write!(f, "Use strict equality instead of '{operator}'")
+            }
+            LintError::Camelcase { name, .. } => {
+                write!(f, "Identifier '{name}' is not in camelCase")
+            }
+            LintError::NoBooleanLiteralForArguments { value, .. } => {
+                write!(f, "Boolean literal '{value}' passed as argument")
             }
         }
     }
@@ -125,49 +249,275 @@ impl std::error::Error for LintError {}
 /// Helper function to check if a lint rule should be applied
 /// Rules are enabled if:
 /// 1. They are explicitly in the `rules` list, OR
-/// 2. They are not in the `disabled_rules` list (default enabled)
-///    AND the rule is not in the `disabled_rules` list
+/// 2. They are in the default enabled rules list AND not in the `disabled_rules` list
 fn is_rule_enabled(rule_name: &str, lint_config: &LintConfig) -> bool {
     // If disabled_rules contains the rule, it's disabled
     if lint_config.disabled_rules.contains(&rule_name.to_string()) {
         return false;
     }
 
-    // If rules list is empty, all rules are enabled by default (unless disabled)
     // If rules list is not empty, only explicitly listed rules are enabled
-    if lint_config.rules.is_empty() {
-        true
-    } else {
-        lint_config.rules.contains(&rule_name.to_string())
+    if !lint_config.rules.is_empty() {
+        return lint_config.rules.contains(&rule_name.to_string());
     }
+
+    // Default enabled rules when no rules are explicitly configured
+    let default_rules = [
+        "no-var",
+        "no-debugger",
+        // "eqeqeq",
+        "prefer-const",
+        "no-unused-vars",
+        // "camelcase",
+        // "no-console"
+        "no-boolean-literal-for-arguments",
+        "no-explicit-any",
+        "require-await",
+        "no-eval",
+        "no-empty",
+    ];
+
+    default_rules.contains(&rule_name)
 }
 
-/// Helper function to recursively check expressions for lint issues
+/// Helper function to check expressions for lint issues
 fn check_expression_for_issues(
     expr: &oxc_ast::ast::Expression,
     _source_code: &str,
-    _named_source: &NamedSource<String>,
-    _lint_errors: &mut Vec<LintError>,
-    _lint_config: &LintConfig,
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+    lint_config: &LintConfig,
 ) {
-    use oxc_ast::ast::Expression;
+    match expr {
+        Expression::CallExpression(call) => {
+            // Check for console usage (no-console)
+            if is_rule_enabled("no-console", lint_config) {
+                if let Expression::StaticMemberExpression(member) = &call.callee {
+                    if let Expression::Identifier(ident) = &member.object {
+                        if ident.name == "console" {
+                            let span = SourceSpan::new(
+                                (call.span.start as usize).into(),
+                                call.span.size() as usize,
+                            );
+                            lint_errors.push(LintError::NoConsole {
+                                span,
+                                source_code: named_source.clone(),
+                                method_name: member.property.name.to_string(),
+                            });
+                        }
+                    }
+                }
+            }
 
-    if let Expression::CallExpression(call) = expr {
-        for arg in &call.arguments {
-            if let Some(expr) = arg.as_expression() {
-                check_expression_for_issues(
-                    expr,
-                    _source_code,
-                    _named_source,
-                    _lint_errors,
-                    _lint_config,
-                );
+            // Check for eval usage (no-eval)
+            if is_rule_enabled("no-eval", lint_config) {
+                if let Expression::Identifier(ident) = &call.callee {
+                    if ident.name == "eval" {
+                        let span = SourceSpan::new(
+                            (call.span.start as usize).into(),
+                            call.span.size() as usize,
+                        );
+                        lint_errors.push(LintError::NoEval {
+                            span,
+                            source_code: named_source.clone(),
+                        });
+                    }
+                }
+            }
+
+            // Check for boolean literals as arguments (no-boolean-literal-for-arguments)
+            if is_rule_enabled("no-boolean-literal-for-arguments", lint_config) {
+                for arg in &call.arguments {
+                    if let Some(Expression::BooleanLiteral(bool_lit)) = arg.as_expression() {
+                        let span = SourceSpan::new(
+                            (bool_lit.span.start as usize).into(),
+                            bool_lit.span.size() as usize,
+                        );
+                        lint_errors.push(LintError::NoBooleanLiteralForArguments {
+                            span,
+                            source_code: named_source.clone(),
+                            value: bool_lit.value,
+                        });
+                    }
+                }
+            }
+
+            // Recursively check arguments
+            for arg in &call.arguments {
+                if let Some(expr) = arg.as_expression() {
+                    check_expression_for_issues(
+                        expr,
+                        _source_code,
+                        named_source,
+                        lint_errors,
+                        lint_config,
+                    );
+                }
             }
         }
+        Expression::BinaryExpression(bin_expr) => {
+            // Check for loose equality (eqeqeq)
+            if is_rule_enabled("eqeqeq", lint_config) {
+                match bin_expr.operator {
+                    oxc_ast::ast::BinaryOperator::Equality => {
+                        let span = SourceSpan::new(
+                            (bin_expr.span.start as usize).into(),
+                            bin_expr.span.size() as usize,
+                        );
+                        lint_errors.push(LintError::Eqeqeq {
+                            span,
+                            source_code: named_source.clone(),
+                            operator: "==".to_string(),
+                        });
+                    }
+                    oxc_ast::ast::BinaryOperator::Inequality => {
+                        let span = SourceSpan::new(
+                            (bin_expr.span.start as usize).into(),
+                            bin_expr.span.size() as usize,
+                        );
+                        lint_errors.push(LintError::Eqeqeq {
+                            span,
+                            source_code: named_source.clone(),
+                            operator: "!=".to_string(),
+                        });
+                    }
+                    _ => {}
+                }
+            }
+            check_expression_for_issues(
+                &bin_expr.left,
+                _source_code,
+                named_source,
+                lint_errors,
+                lint_config,
+            );
+            check_expression_for_issues(
+                &bin_expr.right,
+                _source_code,
+                named_source,
+                lint_errors,
+                lint_config,
+            );
+        }
+        Expression::TSTypeAssertion(type_assertion) => {
+            // Check for explicit any (no-explicit-any)
+            if is_rule_enabled("no-explicit-any", lint_config) {
+                if let oxc_ast::ast::TSType::TSAnyKeyword(_) = &type_assertion.type_annotation {
+                    let span = SourceSpan::new(
+                        (type_assertion.span.start as usize).into(),
+                        type_assertion.span.size() as usize,
+                    );
+                    lint_errors.push(LintError::NoExplicitAny {
+                        span,
+                        source_code: named_source.clone(),
+                    });
+                }
+            }
+            check_expression_for_issues(
+                &type_assertion.expression,
+                _source_code,
+                named_source,
+                lint_errors,
+                lint_config,
+            );
+        }
+        _ => {}
     }
 }
 
-/// Helper function to check statements for expressions that need linting
+/// Helper function to check if an identifier follows camelCase convention
+fn is_camel_case(name: &str) -> bool {
+    if name.is_empty() {
+        return true;
+    }
+
+    // Allow leading underscore for intentionally unused variables
+    let name = name.strip_prefix('_').unwrap_or(name);
+
+    // First character should be lowercase
+    let mut chars = name.chars();
+    if let Some(first) = chars.next() {
+        if !first.is_ascii_lowercase() {
+            return false;
+        }
+    }
+
+    // No underscores allowed in camelCase (except leading underscore)
+    !name.contains('_')
+}
+
+/// Helper function to check if a function is async
+fn is_async_function(func: &oxc_ast::ast::Function) -> bool {
+    func.r#async
+}
+
+/// Helper function to check if a function body contains await expressions
+fn contains_await_expression(statements: &[oxc_ast::ast::Statement]) -> bool {
+    for stmt in statements {
+        if contains_await_in_statement(stmt) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Recursively check if a statement contains await expressions
+fn contains_await_in_statement(stmt: &oxc_ast::ast::Statement) -> bool {
+    match stmt {
+        Statement::ExpressionStatement(expr_stmt) => {
+            contains_await_in_expression(&expr_stmt.expression)
+        }
+        Statement::VariableDeclaration(var_decl) => {
+            for declarator in &var_decl.declarations {
+                if let Some(init) = &declarator.init {
+                    if contains_await_in_expression(init) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        Statement::IfStatement(if_stmt) => {
+            contains_await_in_expression(&if_stmt.test)
+                || contains_await_in_statement(&if_stmt.consequent)
+                || if_stmt
+                    .alternate
+                    .as_ref()
+                    .is_some_and(|alt| contains_await_in_statement(alt))
+        }
+        Statement::BlockStatement(block) => contains_await_expression(&block.body),
+        Statement::ReturnStatement(ret_stmt) => ret_stmt
+            .argument
+            .as_ref()
+            .is_some_and(|arg| contains_await_in_expression(arg)),
+        _ => false,
+    }
+}
+
+/// Recursively check if an expression contains await expressions
+fn contains_await_in_expression(expr: &oxc_ast::ast::Expression) -> bool {
+    match expr {
+        Expression::AwaitExpression(_) => true,
+        Expression::CallExpression(call) => {
+            if contains_await_in_expression(&call.callee) {
+                return true;
+            }
+            for arg in &call.arguments {
+                if let Some(expr) = arg.as_expression() {
+                    if contains_await_in_expression(expr) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        Expression::BinaryExpression(bin_expr) => {
+            contains_await_in_expression(&bin_expr.left)
+                || contains_await_in_expression(&bin_expr.right)
+        }
+        _ => false,
+    }
+}
 fn check_statement_for_expressions(
     stmt: &Statement,
     source_code: &str,
@@ -434,7 +784,7 @@ fn report_prefer_const_violations(
                         let var_name = id.name.to_string();
                         if let_variables.contains(&var_name)
                             && !reassigned_variables.contains(&var_name)
-                            && is_rule_enabled("prefer_const", lint_config)
+                            && is_rule_enabled("prefer-const", lint_config)
                         {
                             let span = SourceSpan::new(
                                 (id.span.start as usize).into(),
@@ -572,19 +922,19 @@ pub fn lint_file_content_with_config(
 
         match stmt {
             Statement::EmptyStatement(empty_stmt) => {
-                if is_rule_enabled("empty_statement", lint_config) {
+                if is_rule_enabled("no-empty", lint_config) {
                     let span = SourceSpan::new(
                         (empty_stmt.span().start as usize).into(),
                         empty_stmt.span().size() as usize,
                     );
-                    lint_errors.push(LintError::EmptyStatement {
+                    lint_errors.push(LintError::NoEmpty {
                         span,
                         source_code: named_source.clone(),
                     });
                 }
             }
             Statement::VariableDeclaration(decl) => {
-                if decl.kind.is_var() && is_rule_enabled("var_usage", lint_config) {
+                if decl.kind.is_var() && is_rule_enabled("no-var", lint_config) {
                     let span = SourceSpan::new(
                         (decl.span().start as usize).into(),
                         decl.span().size() as usize,
@@ -597,34 +947,84 @@ pub fn lint_file_content_with_config(
                         .unwrap_or("<unknown>")
                         .to_string();
 
-                    lint_errors.push(LintError::VarUsage {
+                    lint_errors.push(LintError::NoVar {
                         span,
                         source_code: named_source.clone(),
                         variable_name,
                     });
                 }
+
+                // Check camelCase naming convention
+                if is_rule_enabled("camelcase", lint_config) {
+                    for declarator in &decl.declarations {
+                        if let Some(id) = declarator.id.get_binding_identifier() {
+                            if !is_camel_case(&id.name) {
+                                let span = SourceSpan::new(
+                                    (id.span.start as usize).into(),
+                                    id.span.size() as usize,
+                                );
+                                lint_errors.push(LintError::Camelcase {
+                                    span,
+                                    source_code: named_source.clone(),
+                                    name: id.name.to_string(),
+                                });
+                            }
+                        }
+                    }
+                }
             }
             Statement::FunctionDeclaration(func) => {
-                if let Some(body) = &func.body {
-                    if body.statements.is_empty() && is_rule_enabled("empty_function", lint_config)
-                    {
-                        let span = SourceSpan::new(
-                            (func.span().start as usize).into(),
-                            func.span().size() as usize,
-                        );
-                        let function_name = func
-                            .id
-                            .as_ref()
-                            .map(|id| id.name.as_str())
-                            .unwrap_or("<anonymous>")
-                            .to_string();
-
-                        lint_errors.push(LintError::EmptyFunction {
-                            span,
-                            source_code: named_source.clone(),
-                            function_name,
-                        });
+                // Check camelCase for function names
+                if is_rule_enabled("camelcase", lint_config) {
+                    if let Some(id) = &func.id {
+                        if !is_camel_case(&id.name) {
+                            let span = SourceSpan::new(
+                                (id.span.start as usize).into(),
+                                id.span.size() as usize,
+                            );
+                            lint_errors.push(LintError::Camelcase {
+                                span,
+                                source_code: named_source.clone(),
+                                name: id.name.to_string(),
+                            });
+                        }
                     }
+                }
+
+                // Check require-await for async functions
+                if is_rule_enabled("require-await", lint_config) && is_async_function(func) {
+                    if let Some(body) = &func.body {
+                        if !contains_await_expression(&body.statements) {
+                            let span = SourceSpan::new(
+                                (func.span().start as usize).into(),
+                                func.span().size() as usize,
+                            );
+                            let function_name = func
+                                .id
+                                .as_ref()
+                                .map(|id| id.name.as_str())
+                                .unwrap_or("<anonymous>")
+                                .to_string();
+
+                            lint_errors.push(LintError::RequireAwait {
+                                span,
+                                source_code: named_source.clone(),
+                                function_name,
+                            });
+                        }
+                    }
+                }
+            }
+            Statement::DebuggerStatement(debugger_stmt) => {
+                if is_rule_enabled("no-debugger", lint_config) {
+                    let span = SourceSpan::new(
+                        (debugger_stmt.span.start as usize).into(),
+                        debugger_stmt.span.size() as usize,
+                    );
+                    lint_errors.push(LintError::NoDebugger {
+                        span,
+                        source_code: named_source.clone(),
+                    });
                 }
             }
             _ => {}
@@ -652,14 +1052,14 @@ pub fn lint_file_content_with_config(
                 | SymbolFlags::FunctionScopedVariable,
         ) && scoping.symbol_is_unused(symbol_id)
             && !name.starts_with('_')
-            && is_rule_enabled("unused_variable", lint_config)
+            && is_rule_enabled("no-unused-vars", lint_config)
         {
             let span = SourceSpan::new(
                 (symbol_span.start as usize).into(),
                 symbol_span.size() as usize,
             );
 
-            lint_errors.push(LintError::UnusedVariable {
+            lint_errors.push(LintError::NoUnusedVars {
                 span,
                 source_code: named_source.clone(),
                 variable_name: name.to_string(),
