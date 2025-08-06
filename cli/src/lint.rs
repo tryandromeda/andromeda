@@ -283,7 +283,7 @@ fn is_rule_enabled(rule_name: &str, lint_config: &LintConfig) -> bool {
 /// Helper function to check expressions for lint issues
 fn check_expression_for_issues(
     expr: &oxc_ast::ast::Expression,
-    source_code: &str,
+    _source_code: &str,
     named_source: &NamedSource<String>,
     lint_errors: &mut Vec<LintError>,
     lint_config: &LintConfig,
@@ -347,7 +347,7 @@ fn check_expression_for_issues(
                 if let Some(expr) = arg.as_expression() {
                     check_expression_for_issues(
                         expr,
-                        source_code,
+                        _source_code,
                         named_source,
                         lint_errors,
                         lint_config,
@@ -386,14 +386,14 @@ fn check_expression_for_issues(
             }
             check_expression_for_issues(
                 &bin_expr.left,
-                source_code,
+                _source_code,
                 named_source,
                 lint_errors,
                 lint_config,
             );
             check_expression_for_issues(
                 &bin_expr.right,
-                source_code,
+                _source_code,
                 named_source,
                 lint_errors,
                 lint_config,
@@ -415,7 +415,7 @@ fn check_expression_for_issues(
             }
             check_expression_for_issues(
                 &type_assertion.expression,
-                source_code,
+                _source_code,
                 named_source,
                 lint_errors,
                 lint_config,
@@ -483,13 +483,13 @@ fn contains_await_in_statement(stmt: &oxc_ast::ast::Statement) -> bool {
                 || if_stmt
                     .alternate
                     .as_ref()
-                    .map_or(false, |alt| contains_await_in_statement(alt))
+                    .is_some_and(|alt| contains_await_in_statement(alt))
         }
         Statement::BlockStatement(block) => contains_await_expression(&block.body),
         Statement::ReturnStatement(ret_stmt) => ret_stmt
             .argument
             .as_ref()
-            .map_or(false, |arg| contains_await_in_expression(arg)),
+            .is_some_and(|arg| contains_await_in_expression(arg)),
         _ => false,
     }
 }
