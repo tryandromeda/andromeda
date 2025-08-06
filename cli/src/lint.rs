@@ -264,7 +264,7 @@ fn is_rule_enabled(rule_name: &str, lint_config: &LintConfig) -> bool {
     // Default enabled rules when no rules are explicitly configured
     let default_rules = [
         "no-var",
-        "no-debugger", 
+        "no-debugger",
         // "eqeqeq",
         "prefer-const",
         "no-unused-vars",
@@ -274,7 +274,7 @@ fn is_rule_enabled(rule_name: &str, lint_config: &LintConfig) -> bool {
         "no-explicit-any",
         "require-await",
         "no-eval",
-        "no-empty"
+        "no-empty",
     ];
 
     default_rules.contains(&rule_name)
