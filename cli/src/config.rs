@@ -16,6 +16,9 @@ pub struct AndromedaConfig {
     pub format: FormatConfig,
     /// Linting configuration
     pub lint: LintConfig,
+    /// Task definitions
+    #[serde(skip_serializing_if = "std::collections::HashMap::is_empty")]
+    pub tasks: std::collections::HashMap<String, TaskDefinition>,
     /// Direct module specifier mappings (Web Import Maps spec)
     #[serde(skip_serializing_if = "std::collections::HashMap::is_empty")]
     pub imports: std::collections::HashMap<String, String>,
@@ -92,6 +95,71 @@ pub struct LintConfig {
     pub disabled_rules: Vec<String>,
     /// Maximum number of warnings before error
     pub max_warnings: Option<u32>,
+}
+
+/// Task definition configuration
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum TaskDefinition {
+    /// Simple string command
+    Simple(String),
+    /// Complex task definition
+    Complex {
+        /// Description of the task
+        description: Option<String>,
+        /// Command to execute
+        command: String,
+        /// Dependencies that must run before this task
+        #[serde(default)]
+        dependencies: Vec<String>,
+        /// Working directory for the task
+        cwd: Option<String>,
+        /// Environment variables for the task
+        #[serde(default)]
+        env: std::collections::HashMap<String, String>,
+    },
+}
+
+impl TaskDefinition {
+    /// Get the command string for this task
+    pub fn command(&self) -> &str {
+        match self {
+            TaskDefinition::Simple(cmd) => cmd,
+            TaskDefinition::Complex { command, .. } => command,
+        }
+    }
+
+    /// Get the description for this task
+    pub fn description(&self) -> Option<&str> {
+        match self {
+            TaskDefinition::Simple(_) => None,
+            TaskDefinition::Complex { description, .. } => description.as_deref(),
+        }
+    }
+
+    /// Get the dependencies for this task
+    pub fn dependencies(&self) -> &[String] {
+        match self {
+            TaskDefinition::Simple(_) => &[],
+            TaskDefinition::Complex { dependencies, .. } => dependencies,
+        }
+    }
+
+    /// Get the working directory for this task
+    pub fn cwd(&self) -> Option<&str> {
+        match self {
+            TaskDefinition::Simple(_) => None,
+            TaskDefinition::Complex { cwd, .. } => cwd.as_deref(),
+        }
+    }
+
+    /// Get the environment variables for this task
+    pub fn env(&self) -> std::collections::HashMap<String, String> {
+        match self {
+            TaskDefinition::Simple(_) => std::collections::HashMap::new(),
+            TaskDefinition::Complex { env, .. } => env.clone(),
+        }
+    }
 }
 
 impl Default for FormatConfig {
