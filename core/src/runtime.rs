@@ -116,9 +116,17 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
         if specifier.starts_with("http://") || specifier.starts_with("https://") {
             specifier.to_string()
         } else {
-            self.resolve_path_specifier(specifier, referrer_path)
-                .to_string_lossy()
-                .to_string()
+            // Check if referrer is a URL (HTTP/HTTPS)
+            let referrer_str = referrer_path.to_string_lossy();
+            if referrer_str.starts_with("http://") || referrer_str.starts_with("https://") {
+                // Use URL joining for URL-to-URL resolution
+                self.resolve_url_specifier(specifier, &referrer_str)
+            } else {
+                // Use file path resolution for file-to-file resolution
+                self.resolve_path_specifier(specifier, referrer_path)
+                    .to_string_lossy()
+                    .to_string()
+            }
         }
     }
 
@@ -138,6 +146,58 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
         } else {
             // Relative to base path or bare specifier
             self.base_path.join(specifier)
+        }
+    }
+
+    /// Resolve a URL-based specifier (internal helper for URL-to-URL resolution)
+    fn resolve_url_specifier(&self, specifier: &str, referrer_url: &str) -> String {
+        if specifier.starts_with("http://") || specifier.starts_with("https://") {
+            // Already a full URL
+            specifier.to_string()
+        } else {
+            // Use URL joining for relative imports
+            match url::Url::parse(referrer_url) {
+                Ok(base_url) => {
+                    match base_url.join(specifier) {
+                        Ok(resolved_url) => resolved_url.to_string(),
+                        Err(_) => {
+                            // If URL joining fails, fall back to simple concatenation
+                            // This shouldn't happen with valid URLs, but provides a fallback
+                            if let Some(stripped) = specifier.strip_prefix("./") {
+                                format!(
+                                    "{}/{}",
+                                    referrer_url.trim_end_matches('/'),
+                                    stripped
+                                )
+                            } else if let Some(stripped) = specifier.strip_prefix("../") {
+                                // Simple fallback for parent directory navigation
+                                let mut base = referrer_url.trim_end_matches('/');
+                                if let Some(last_slash) = base.rfind('/') {
+                                    base = &base[..last_slash];
+                                }
+                                format!("{base}/{stripped}")
+                            } else {
+                                format!("{}/{}", referrer_url.trim_end_matches('/'), specifier)
+                            }
+                        }
+                    }
+                }
+                Err(_) => {
+                    // If base URL parsing fails, use simple string concatenation as fallback
+                    if let Some(stripped) = specifier.strip_prefix("./") {
+                        format!("{}/{}", referrer_url.trim_end_matches('/'), stripped)
+                    } else if let Some(stripped) = specifier.strip_prefix("../") {
+                        // Simple fallback for parent directory navigation
+                        let mut base = referrer_url.trim_end_matches('/');
+                        if let Some(last_slash) = base.rfind('/') {
+                            base = &base[..last_slash];
+                        }
+                        format!("{base}/{stripped}")
+                    } else {
+                        format!("{}/{}", referrer_url.trim_end_matches('/'), specifier)
+                    }
+                }
+            }
         }
     }
 
@@ -205,23 +265,36 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
 
         // Extract referrer information properly from Nova VM
         let referrer_info = referrer.host_defined(agent);
-        let base_path = if let Some(host_defined) = referrer_info {
+        let referrer_str = if let Some(host_defined) = referrer_info {
             // Try to get the referrer module path from host_defined
             if let Some(path_rc) = host_defined.downcast_ref::<std::rc::Rc<String>>() {
-                PathBuf::from(path_rc.as_str())
+                path_rc.as_str().to_string()
             } else if let Some(path_rc) = host_defined.downcast_ref::<std::rc::Rc<PathBuf>>() {
-                path_rc.as_ref().clone()
+                path_rc.to_string_lossy().to_string()
+            } else if let Some(string_val) = host_defined.downcast_ref::<String>() {
+                string_val.clone()
             } else {
                 // Fallback to default base path
-                self.base_path.clone()
+                self.base_path.to_string_lossy().to_string()
             }
         } else {
             // Use runtime's base_path as fallback
-            self.base_path.clone()
+            self.base_path.to_string_lossy().to_string()
         };
 
-        // Resolve the module specifier using the proper referrer path
-        let resolved_specifier = self.resolve_module_specifier(&specifier_str, &base_path);
+        // Resolve the module specifier using the proper referrer
+        println!(
+            "Resolving module specifier '{specifier_str}' relative to referrer '{referrer_str}'"
+        );
+        let resolved_specifier =
+            if referrer_str.starts_with("http://") || referrer_str.starts_with("https://") {
+                // Referrer is a URL, use URL-based resolution
+                self.resolve_url_specifier(&specifier_str, &referrer_str)
+            } else {
+                // Referrer is a file path, use file-based resolution
+                let referrer_path = PathBuf::from(&referrer_str);
+                self.resolve_module_specifier(&specifier_str, &referrer_path)
+            };
 
         // For HTTP URLs, skip extension resolution; for file paths, try to resolve extensions
         let final_specifier = if resolved_specifier.starts_with("http://")
