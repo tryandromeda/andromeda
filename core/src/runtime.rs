@@ -93,7 +93,7 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
     }
 
     /// Resolve a module specifier relative to a referrer path
-    fn resolve_module_specifier(&self, specifier: &str, referrer_path: &Path) -> PathBuf {
+    fn resolve_module_specifier(&self, specifier: &str, referrer_path: &Path) -> String {
         // Try import map resolution first for bare specifiers
         if let Some(import_map) = &self.import_map {
             if !specifier.starts_with("./")
@@ -107,17 +107,28 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
                     import_map.resolve_specifier(specifier, Some(&base_url))
                 {
                     // Use the mapped specifier for resolution
-                    return self.resolve_path_specifier(&mapped_specifier, referrer_path);
+                    return mapped_specifier;
                 }
             }
         }
 
-        self.resolve_path_specifier(specifier, referrer_path)
+        // Handle HTTP URLs directly
+        if specifier.starts_with("http://") || specifier.starts_with("https://") {
+            specifier.to_string()
+        } else {
+            self.resolve_path_specifier(specifier, referrer_path)
+                .to_string_lossy()
+                .to_string()
+        }
     }
 
     /// Resolve a path-based specifier (internal helper)
     fn resolve_path_specifier(&self, specifier: &str, referrer_path: &Path) -> PathBuf {
-        if specifier.starts_with("./") || specifier.starts_with("../") {
+        if specifier.starts_with("http://") || specifier.starts_with("https://") {
+            // For HTTP URLs, return the URL as a path-like string
+            // We'll handle this specially in the loading logic
+            PathBuf::from(specifier)
+        } else if specifier.starts_with("./") || specifier.starts_with("../") {
             // Relative import
             let referrer_dir = referrer_path.parent().unwrap_or(&self.base_path);
             referrer_dir.join(specifier)
@@ -132,6 +143,13 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
 
     /// Resolve module file with proper extension handling
     fn resolve_extensions(&self, path: PathBuf) -> Option<PathBuf> {
+        let path_str = path.to_string_lossy();
+
+        // Handle HTTP URLs - they don't need file system extension resolution
+        if path_str.starts_with("http://") || path_str.starts_with("https://") {
+            return Some(path);
+        }
+
         // First try the path as-is
         if path.exists() {
             return Some(path);
@@ -190,61 +208,106 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
         let referrer_path = self.base_path.join("script.js");
 
         // Resolve the module specifier
-        let resolved_path = self.resolve_module_specifier(&specifier_str, &referrer_path);
-        let resolved_path = match self.resolve_extensions(resolved_path) {
-            Some(path) => path,
-            None => {
-                // Module not found error
-                let error = agent.throw_exception(
-                    ExceptionType::TypeError,
-                    format!("Module not found: {specifier_str}"),
-                    gc,
-                );
-                finish_loading_imported_module(
-                    agent,
-                    referrer,
-                    module_request,
-                    payload,
-                    Err(error),
-                    gc,
-                );
-                return;
+        let resolved_specifier = self.resolve_module_specifier(&specifier_str, &referrer_path);
+
+        // For HTTP URLs, skip extension resolution; for file paths, try to resolve extensions
+        let final_specifier = if resolved_specifier.starts_with("http://")
+            || resolved_specifier.starts_with("https://")
+        {
+            resolved_specifier
+        } else {
+            let path_buf = PathBuf::from(&resolved_specifier);
+            match self.resolve_extensions(path_buf) {
+                Some(path) => path.to_string_lossy().to_string(),
+                None => {
+                    // Module not found error
+                    let error = agent.throw_exception(
+                        ExceptionType::TypeError,
+                        format!("Module not found: {resolved_specifier}"),
+                        gc,
+                    );
+                    finish_loading_imported_module(
+                        agent,
+                        referrer,
+                        module_request,
+                        payload,
+                        Err(error),
+                        gc,
+                    );
+                    return;
+                }
             }
         };
 
         // Check if module is already loaded - let Nova VM handle caching internally
 
         // Check if this is a JSON module
-        let is_json = resolved_path
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .map(|ext| ext == "json")
-            .unwrap_or(false);
+        let is_json = final_specifier.ends_with(".json");
 
-        // Read the module source
-        let source_text = match std::fs::read_to_string(&resolved_path) {
-            Ok(content) => content,
-            Err(error) => {
-                let error = agent.throw_exception(
-                    ExceptionType::TypeError,
-                    format!(
-                        "Failed to read module {}: {}",
-                        resolved_path.display(),
-                        error
-                    ),
-                    gc,
-                );
-                finish_loading_imported_module(
-                    agent,
-                    referrer,
-                    module_request,
-                    payload,
-                    Err(error),
-                    gc,
-                );
-                return;
-            }
-        };
+        // Read the module source - handle both file system and HTTP URLs
+        let source_text =
+            if final_specifier.starts_with("http://") || final_specifier.starts_with("https://") {
+                // HTTP import - fetch from network
+                match ureq::get(&final_specifier).call() {
+                    Ok(mut response) => match response.body_mut().read_to_string() {
+                        Ok(content) => content,
+                        Err(error) => {
+                            let error = agent.throw_exception(
+                                ExceptionType::TypeError,
+                                format!("Failed to read HTTP module {final_specifier}: {error}"),
+                                gc,
+                            );
+                            finish_loading_imported_module(
+                                agent,
+                                referrer,
+                                module_request,
+                                payload,
+                                Err(error),
+                                gc,
+                            );
+                            return;
+                        }
+                    },
+                    Err(error) => {
+                        let error = agent.throw_exception(
+                            ExceptionType::TypeError,
+                            format!("Failed to fetch HTTP module {final_specifier}: {error}"),
+                            gc,
+                        );
+                        finish_loading_imported_module(
+                            agent,
+                            referrer,
+                            module_request,
+                            payload,
+                            Err(error),
+                            gc,
+                        );
+                        return;
+                    }
+                }
+            } else {
+                // File system import - read from local file
+                let file_path = PathBuf::from(&final_specifier);
+                match std::fs::read_to_string(&file_path) {
+                    Ok(content) => content,
+                    Err(error) => {
+                        let error = agent.throw_exception(
+                            ExceptionType::TypeError,
+                            format!("Failed to read module {}: {}", file_path.display(), error),
+                            gc,
+                        );
+                        finish_loading_imported_module(
+                            agent,
+                            referrer,
+                            module_request,
+                            payload,
+                            Err(error),
+                            gc,
+                        );
+                        return;
+                    }
+                }
+            };
 
         // Handle JSON modules specially
         let final_source = if is_json {
@@ -261,7 +324,7 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
         let realm = agent.current_realm(gc);
 
         // Parse the module
-        let module_host_defined = Some(std::rc::Rc::new(resolved_path.clone()) as HostDefined);
+        let module_host_defined = Some(std::rc::Rc::new(final_specifier.clone()) as HostDefined);
         match parse_module(agent, source_string, realm, module_host_defined, gc) {
             Ok(module) => {
                 let abstract_module = AbstractModule::from(module);
@@ -276,11 +339,7 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
             }
             Err(errors) => {
                 // Parse error
-                let error_msg = format!(
-                    "Parse error in module {}: {:?}",
-                    resolved_path.display(),
-                    errors
-                );
+                let error_msg = format!("Parse error in module {final_specifier}: {errors:?}");
                 let error = agent.throw_exception(ExceptionType::SyntaxError, error_msg, gc);
                 finish_loading_imported_module(
                     agent,
