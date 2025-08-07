@@ -11,15 +11,24 @@ pub fn create_server_capabilities() -> ServerCapabilities {
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         completion_provider: Some(CompletionOptions {
             resolve_provider: Some(false),
-            trigger_characters: Some(vec![".".to_string(), " ".to_string()]),
+            trigger_characters: Some(vec![
+                ".".to_string(),
+                " ".to_string(),
+                "(".to_string(),
+                "\"".to_string(),
+                "'".to_string(),
+            ]),
             work_done_progress_options: Default::default(),
             all_commit_characters: None,
-            completion_item: None,
+            completion_item: Some(CompletionOptionsCompletionItem {
+                label_details_support: Some(true),
+            }),
         }),
         code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
             code_action_kinds: Some(vec![
                 CodeActionKind::QUICKFIX,
                 CodeActionKind::SOURCE_FIX_ALL,
+                CodeActionKind::REFACTOR,
             ]),
             work_done_progress_options: Default::default(),
             resolve_provider: Some(false),
@@ -34,6 +43,7 @@ pub fn create_server_capabilities() -> ServerCapabilities {
             commands: vec![
                 "andromeda.applyAutoFix".to_string(),
                 "andromeda.fixAll".to_string(),
+                "andromeda.organizeImports".to_string(),
             ],
             work_done_progress_options: Default::default(),
         }),
@@ -44,10 +54,18 @@ pub fn create_server_capabilities() -> ServerCapabilities {
             }),
             file_operations: None,
         }),
-        experimental: None,
-        // All other capabilities are set to None since they're not implemented
+        signature_help_provider: Some(SignatureHelpOptions {
+            trigger_characters: Some(vec!["(".to_string(), ",".to_string()]),
+            retrigger_characters: None,
+            work_done_progress_options: Default::default(),
+        }),
+        experimental: Some(serde_json::json!({
+            "supportedDiagnosticTags": ["unnecessary", "deprecated"],
+            "providesDiagnostics": true,
+            "providesAutoFix": true,
+        })),
+        // All other capabilities are set to None since they're not implemented yet
         selection_range_provider: None,
-        signature_help_provider: None,
         definition_provider: None,
         type_definition_provider: None,
         implementation_provider: None,

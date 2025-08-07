@@ -551,6 +551,640 @@ impl AndromedaBackend {
 
         None
     }
+
+    /// Get word at position for hover information
+    fn get_word_at_position(&self, content: &str, offset: usize) -> Option<String> {
+        let chars: Vec<char> = content.chars().collect();
+        if offset >= chars.len() {
+            return None;
+        }
+
+        // Find word boundaries
+        let mut start = offset;
+        let mut end = offset;
+
+        // Move start backwards to find word start
+        while start > 0
+            && (chars[start - 1].is_alphanumeric()
+                || chars[start - 1] == '_'
+                || chars[start - 1] == '.')
+        {
+            start -= 1;
+        }
+
+        // Move end forwards to find word end
+        while end < chars.len()
+            && (chars[end].is_alphanumeric() || chars[end] == '_' || chars[end] == '.')
+        {
+            end += 1;
+        }
+
+        if start < end {
+            Some(chars[start..end].iter().collect())
+        } else {
+            None
+        }
+    }
+
+    /// Get hover information for Andromeda APIs
+    async fn get_andromeda_api_hover(&self, word: &str) -> Option<Hover> {
+        let hover_info = match word {
+            "Andromeda" => Some((
+                "**Andromeda Runtime**",
+                "The Andromeda runtime provides built-in APIs for file system operations, environment variables, process management, and more.",
+            )),
+            "Andromeda.readTextFileSync" => Some((
+                "**Andromeda.readTextFileSync(path: string): string**",
+                "Reads a text file from the file system synchronously.\n\n**Parameters:**\n- `path`: The file path to read\n\n**Returns:** The file content as a string",
+            )),
+            "Andromeda.writeTextFileSync" => Some((
+                "**Andromeda.writeTextFileSync(path: string, data: string): void**",
+                "Writes a text file to the file system synchronously.\n\n**Parameters:**\n- `path`: The file path to write\n- `data`: The content to write",
+            )),
+            "Andromeda.sleep" => Some((
+                "**Andromeda.sleep(duration: number): Promise<void>**",
+                "Returns a Promise that resolves after the specified duration in milliseconds.\n\n**Parameters:**\n- `duration`: Sleep duration in milliseconds",
+            )),
+            "Andromeda.env" => Some((
+                "**Andromeda.env**",
+                "Environment variable operations.\n\n**Methods:**\n- `get(key: string): string` - Get environment variable\n- `set(key: string, value: string): void` - Set environment variable\n- `keys(): string[]` - Get all environment variable keys",
+            )),
+            "Andromeda.args" => Some((
+                "**Andromeda.args: string[]**",
+                "Command-line arguments passed to the program.\n\n**Type:** Array of strings containing the command-line arguments",
+            )),
+            "Andromeda.exit" => Some((
+                "**Andromeda.exit(code?: number): void**",
+                "Exits the program with an optional exit code.\n\n**Parameters:**\n- `code`: Optional exit code (default: 0)",
+            )),
+            _ => None,
+        };
+
+        if let Some((title, description)) = hover_info {
+            Some(Hover {
+                contents: HoverContents::Markup(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: format!("{title}\n\n{description}"),
+                }),
+                range: None,
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Get hover information for Web APIs
+    async fn get_web_api_hover(&self, word: &str) -> Option<Hover> {
+        let hover_info = match word {
+            "console" => Some((
+                "**console: Console**",
+                "The Console API provides access to the debugging console.\n\n**Methods:**\n- `log()` - Output messages\n- `error()` - Output error messages\n- `warn()` - Output warning messages\n- `info()` - Output info messages",
+            )),
+            "fetch" => Some((
+                "**fetch(input: RequestInfo, init?: RequestInit): Promise<Response>**",
+                "Fetch API for making HTTP requests.\n\n**Parameters:**\n- `input`: URL or Request object\n- `init`: Optional request configuration\n\n**Returns:** Promise that resolves to Response object",
+            )),
+            "performance" => Some((
+                "**performance: AndromedaPerformance**",
+                "High-resolution time measurements and performance monitoring.\n\n**Methods:**\n- `now()` - Get current high-resolution timestamp\n- `mark()` - Create performance mark\n- `measure()` - Measure between marks",
+            )),
+            "localStorage" => Some((
+                "**localStorage: Storage**",
+                "Local storage for persistent data.\n\n**Methods:**\n- `getItem(key)` - Get stored value\n- `setItem(key, value)` - Store value\n- `removeItem(key)` - Remove value\n- `clear()` - Clear all data",
+            )),
+            "sessionStorage" => Some((
+                "**sessionStorage: Storage**",
+                "Session storage for temporary data that persists only for the session.\n\n**Methods:**\n- `getItem(key)` - Get stored value\n- `setItem(key, value)` - Store value\n- `removeItem(key)` - Remove value\n- `clear()` - Clear all data",
+            )),
+            "crypto" => Some((
+                "**crypto: Crypto**",
+                "Web Crypto API for cryptographic operations.\n\n**Properties:**\n- `subtle` - SubtleCrypto interface for advanced crypto\n\n**Methods:**\n- `randomUUID()` - Generate random UUID\n- `getRandomValues()` - Fill array with random values",
+            )),
+            _ => None,
+        };
+
+        if let Some((title, description)) = hover_info {
+            Some(Hover {
+                contents: HoverContents::Markup(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: format!("{title}\n\n{description}"),
+                }),
+                range: None,
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Get context-specific hover information
+    async fn get_context_specific_hover(&self, word: &str, text_before: &str) -> Option<Hover> {
+        // Canvas context methods
+        if text_before.contains("getContext(\"2d\")") || text_before.contains("ctx.") {
+            match word {
+                "fillRect" => Some(Hover {
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: "**fillRect(x: number, y: number, width: number, height: number): void**\n\nDraws a filled rectangle.\n\n**Parameters:**\n- `x`: X coordinate\n- `y`: Y coordinate\n- `width`: Rectangle width\n- `height`: Rectangle height".to_string(),
+                    }),
+                    range: None,
+                }),
+                "strokeRect" => Some(Hover {
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: "**strokeRect(x: number, y: number, width: number, height: number): void**\n\nDraws a rectangle outline.\n\n**Parameters:**\n- `x`: X coordinate\n- `y`: Y coordinate\n- `width`: Rectangle width\n- `height`: Rectangle height".to_string(),
+                    }),
+                    range: None,
+                }),
+                "fillStyle" => Some(Hover {
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: "**fillStyle: string | CanvasGradient**\n\nSets or returns the color, gradient, or pattern used to fill the drawing.\n\n**Examples:**\n- `\"red\"`\n- `\"#FF0000\"`\n- `\"rgb(255, 0, 0)\"`".to_string(),
+                    }),
+                    range: None,
+                }),
+                _ => None,
+            }
+        }
+        // Database methods
+        else if text_before.contains("new Database(") || text_before.contains("db.") {
+            match word {
+                "prepare" => Some(Hover {
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: "**prepare(sql: string): StatementSync**\n\nPrepares a SQL statement for execution.\n\n**Parameters:**\n- `sql`: SQL statement to prepare\n\n**Returns:** Prepared statement object".to_string(),
+                    }),
+                    range: None,
+                }),
+                "exec" => Some(Hover {
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: "**exec(sql: string): void**\n\nExecutes SQL statements without returning results.\n\n**Parameters:**\n- `sql`: SQL statement to execute".to_string(),
+                    }),
+                    range: None,
+                }),
+                _ => None,
+            }
+        }
+        // Performance methods
+        else if text_before.contains("performance.") {
+            match word {
+                "now" => Some(Hover {
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: "**now(): number**\n\nReturns a high-resolution timestamp in milliseconds.\n\n**Returns:** Current time in milliseconds with sub-millisecond precision".to_string(),
+                    }),
+                    range: None,
+                }),
+                "mark" => Some(Hover {
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: "**mark(name: string, options?: PerformanceMarkOptions): PerformanceMark**\n\nCreates a named timestamp in the performance timeline.\n\n**Parameters:**\n- `name`: Name for the performance mark".to_string(),
+                    }),
+                    range: None,
+                }),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Get signature help information for function calls
+    async fn get_signature_help_info(&self, text_before: &str) -> Option<SignatureHelp> {
+        // Look for Andromeda API function calls
+        if let Some(captures) = regex::Regex::new(r"Andromeda\.(\w+)\s*\($")
+            .ok()?
+            .captures(text_before)
+        {
+            let function_name = captures.get(1)?.as_str();
+            return self.get_andromeda_signature_help(function_name).await;
+        }
+
+        // Look for Web API function calls
+        if let Some(captures) = regex::Regex::new(r"(\w+)\s*\($")
+            .ok()?
+            .captures(text_before)
+        {
+            let function_name = captures.get(1)?.as_str();
+            return self.get_web_api_signature_help(function_name).await;
+        }
+
+        None
+    }
+
+    /// Get signature help for Andromeda APIs
+    async fn get_andromeda_signature_help(&self, function_name: &str) -> Option<SignatureHelp> {
+        let signature_info = match function_name {
+            "readTextFileSync" => Some((
+                "readTextFileSync(path: string): string",
+                "Reads a text file from the file system synchronously.",
+                vec![ParameterInformation {
+                    label: ParameterLabel::Simple("path: string".to_string()),
+                    documentation: Some(Documentation::String("The file path to read".to_string())),
+                }],
+            )),
+            "writeTextFileSync" => Some((
+                "writeTextFileSync(path: string, data: string): void",
+                "Writes a text file to the file system synchronously.",
+                vec![
+                    ParameterInformation {
+                        label: ParameterLabel::Simple("path: string".to_string()),
+                        documentation: Some(Documentation::String(
+                            "The file path to write".to_string(),
+                        )),
+                    },
+                    ParameterInformation {
+                        label: ParameterLabel::Simple("data: string".to_string()),
+                        documentation: Some(Documentation::String(
+                            "The content to write".to_string(),
+                        )),
+                    },
+                ],
+            )),
+            "sleep" => Some((
+                "sleep(duration: number): Promise<void>",
+                "Returns a Promise that resolves after the specified duration in milliseconds.",
+                vec![ParameterInformation {
+                    label: ParameterLabel::Simple("duration: number".to_string()),
+                    documentation: Some(Documentation::String(
+                        "Sleep duration in milliseconds".to_string(),
+                    )),
+                }],
+            )),
+            _ => None,
+        };
+
+        if let Some((label, documentation, parameters)) = signature_info {
+            Some(SignatureHelp {
+                signatures: vec![SignatureInformation {
+                    label: label.to_string(),
+                    documentation: Some(Documentation::String(documentation.to_string())),
+                    parameters: Some(parameters),
+                    active_parameter: None,
+                }],
+                active_signature: Some(0),
+                active_parameter: Some(0),
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Get signature help for Web APIs
+    async fn get_web_api_signature_help(&self, function_name: &str) -> Option<SignatureHelp> {
+        let signature_info = match function_name {
+            "fetch" => Some((
+                "fetch(input: RequestInfo, init?: RequestInit): Promise<Response>",
+                "Fetch API for making HTTP requests.",
+                vec![
+                    ParameterInformation {
+                        label: ParameterLabel::Simple("input: RequestInfo".to_string()),
+                        documentation: Some(Documentation::String(
+                            "URL or Request object".to_string(),
+                        )),
+                    },
+                    ParameterInformation {
+                        label: ParameterLabel::Simple("init?: RequestInit".to_string()),
+                        documentation: Some(Documentation::String(
+                            "Optional request configuration".to_string(),
+                        )),
+                    },
+                ],
+            )),
+            "setTimeout" => Some((
+                "setTimeout(callback: () => void, delay?: number): number",
+                "Executes a function after a delay.",
+                vec![
+                    ParameterInformation {
+                        label: ParameterLabel::Simple("callback: () => void".to_string()),
+                        documentation: Some(Documentation::String(
+                            "Function to execute".to_string(),
+                        )),
+                    },
+                    ParameterInformation {
+                        label: ParameterLabel::Simple("delay?: number".to_string()),
+                        documentation: Some(Documentation::String(
+                            "Delay in milliseconds".to_string(),
+                        )),
+                    },
+                ],
+            )),
+            _ => None,
+        };
+
+        if let Some((label, documentation, parameters)) = signature_info {
+            Some(SignatureHelp {
+                signatures: vec![SignatureInformation {
+                    label: label.to_string(),
+                    documentation: Some(Documentation::String(documentation.to_string())),
+                    parameters: Some(parameters),
+                    active_parameter: None,
+                }],
+                active_signature: Some(0),
+                active_parameter: Some(0),
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Create code actions for a specific diagnostic
+    async fn create_code_actions_for_diagnostic(
+        &self,
+        uri: &Url,
+        diagnostic: &Diagnostic,
+        content: &str,
+    ) -> Option<Vec<CodeActionOrCommand>> {
+        let mut actions = Vec::new();
+
+        if let Some(NumberOrString::String(code_str)) = &diagnostic.code {
+            match code_str.as_str() {
+                "andromeda::lint::no-var" => {
+                    // Quick fix: Replace 'var' with 'let'
+                    if let Some(edit) = self.create_var_to_let_fix(uri, diagnostic, content) {
+                        actions.push(CodeActionOrCommand::CodeAction(CodeAction {
+                            title: "Replace 'var' with 'let'".to_string(),
+                            kind: Some(CodeActionKind::QUICKFIX),
+                            diagnostics: Some(vec![diagnostic.clone()]),
+                            edit: Some(edit),
+                            ..Default::default()
+                        }));
+                    }
+                }
+                "andromeda::lint::prefer-const" => {
+                    // Quick fix: Replace 'let' with 'const'
+                    if let Some(edit) = self.create_let_to_const_fix(uri, diagnostic, content) {
+                        actions.push(CodeActionOrCommand::CodeAction(CodeAction {
+                            title: "Replace 'let' with 'const'".to_string(),
+                            kind: Some(CodeActionKind::QUICKFIX),
+                            diagnostics: Some(vec![diagnostic.clone()]),
+                            edit: Some(edit),
+                            ..Default::default()
+                        }));
+                    }
+                }
+                "andromeda::lint::no-console" => {
+                    // Quick fix: Remove console statement
+                    if let Some(edit) = self.create_remove_console_fix(uri, diagnostic, content) {
+                        actions.push(CodeActionOrCommand::CodeAction(CodeAction {
+                            title: "Remove console statement".to_string(),
+                            kind: Some(CodeActionKind::QUICKFIX),
+                            diagnostics: Some(vec![diagnostic.clone()]),
+                            edit: Some(edit),
+                            ..Default::default()
+                        }));
+                    }
+                }
+                "andromeda::lint::no-empty" => {
+                    // Quick fix: Remove empty statement
+                    if let Some(edit) =
+                        self.create_remove_empty_statement_fix(uri, diagnostic, content)
+                    {
+                        actions.push(CodeActionOrCommand::CodeAction(CodeAction {
+                            title: "Remove empty statement".to_string(),
+                            kind: Some(CodeActionKind::QUICKFIX),
+                            diagnostics: Some(vec![diagnostic.clone()]),
+                            edit: Some(edit),
+                            ..Default::default()
+                        }));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if actions.is_empty() {
+            None
+        } else {
+            Some(actions)
+        }
+    }
+
+    /// Get general code actions not related to specific diagnostics
+    async fn get_general_code_actions(
+        &self,
+        uri: &Url,
+        _range: &Range,
+    ) -> Vec<CodeActionOrCommand> {
+        vec![CodeActionOrCommand::CodeAction(CodeAction {
+            title: "Fix all auto-fixable problems".to_string(),
+            kind: Some(CodeActionKind::SOURCE_FIX_ALL),
+            diagnostics: None,
+            command: Some(Command {
+                title: "Fix all".to_string(),
+                command: "andromeda.fixAll".to_string(),
+                arguments: Some(vec![serde_json::to_value(uri).unwrap()]),
+            }),
+            ..Default::default()
+        })]
+    }
+
+    /// Create a workspace edit to replace 'var' with 'let'
+    fn create_var_to_let_fix(
+        &self,
+        uri: &Url,
+        diagnostic: &Diagnostic,
+        content: &str,
+    ) -> Option<WorkspaceEdit> {
+        let range = diagnostic.range;
+        let line_text = self.get_line_text(content, range.start.line as usize)?;
+
+        if let Some(var_pos) = line_text.find("var ") {
+            let edit_range = Range {
+                start: Position {
+                    line: range.start.line,
+                    character: var_pos as u32,
+                },
+                end: Position {
+                    line: range.start.line,
+                    character: (var_pos + 3) as u32,
+                },
+            };
+
+            let text_edit = TextEdit {
+                range: edit_range,
+                new_text: "let".to_string(),
+            };
+
+            let mut changes = std::collections::HashMap::new();
+            changes.insert(uri.clone(), vec![text_edit]);
+
+            return Some(WorkspaceEdit {
+                changes: Some(changes),
+                ..Default::default()
+            });
+        }
+
+        None
+    }
+
+    /// Create a workspace edit to replace 'let' with 'const'
+    fn create_let_to_const_fix(
+        &self,
+        uri: &Url,
+        diagnostic: &Diagnostic,
+        content: &str,
+    ) -> Option<WorkspaceEdit> {
+        let range = diagnostic.range;
+        let line_text = self.get_line_text(content, range.start.line as usize)?;
+
+        if let Some(let_pos) = line_text.find("let ") {
+            let edit_range = Range {
+                start: Position {
+                    line: range.start.line,
+                    character: let_pos as u32,
+                },
+                end: Position {
+                    line: range.start.line,
+                    character: (let_pos + 3) as u32,
+                },
+            };
+
+            let text_edit = TextEdit {
+                range: edit_range,
+                new_text: "const".to_string(),
+            };
+
+            let mut changes = std::collections::HashMap::new();
+            changes.insert(uri.clone(), vec![text_edit]);
+
+            return Some(WorkspaceEdit {
+                changes: Some(changes),
+                ..Default::default()
+            });
+        }
+
+        None
+    }
+
+    /// Create a workspace edit to remove console statement
+    fn create_remove_console_fix(
+        &self,
+        uri: &Url,
+        diagnostic: &Diagnostic,
+        _content: &str,
+    ) -> Option<WorkspaceEdit> {
+        let range = diagnostic.range;
+
+        // Find the entire console statement line
+        let edit_range = Range {
+            start: Position {
+                line: range.start.line,
+                character: 0,
+            },
+            end: Position {
+                line: range.start.line + 1,
+                character: 0,
+            },
+        };
+
+        let text_edit = TextEdit {
+            range: edit_range,
+            new_text: String::new(),
+        };
+
+        let mut changes = std::collections::HashMap::new();
+        changes.insert(uri.clone(), vec![text_edit]);
+
+        Some(WorkspaceEdit {
+            changes: Some(changes),
+            ..Default::default()
+        })
+    }
+
+    /// Create a workspace edit to remove empty statement
+    fn create_remove_empty_statement_fix(
+        &self,
+        uri: &Url,
+        diagnostic: &Diagnostic,
+        _content: &str,
+    ) -> Option<WorkspaceEdit> {
+        let range = diagnostic.range;
+
+        let text_edit = TextEdit {
+            range,
+            new_text: String::new(),
+        };
+
+        let mut changes = std::collections::HashMap::new();
+        changes.insert(uri.clone(), vec![text_edit]);
+
+        Some(WorkspaceEdit {
+            changes: Some(changes),
+            ..Default::default()
+        })
+    }
+
+    /// Get the text of a specific line
+    fn get_line_text(&self, content: &str, line_number: usize) -> Option<String> {
+        content.lines().nth(line_number).map(|s| s.to_string())
+    }
+
+    /// Format document using dprint
+    async fn format_document(
+        &self,
+        content: &str,
+        _options: &FormattingOptions,
+    ) -> anyhow::Result<String> {
+        use dprint_core::configuration::{ConfigKeyValue, GlobalConfiguration, NewLineKind};
+        use dprint_plugin_typescript::{
+            FormatTextOptions as TsFormatTextOptions, configuration as ts_config,
+            format_text as ts_format,
+        };
+        use indexmap::IndexMap;
+
+        // Create basic dprint configuration
+        let mut config = IndexMap::new();
+        config.insert("indentWidth".to_string(), ConfigKeyValue::from_i32(2));
+        config.insert("lineWidth".to_string(), ConfigKeyValue::from_i32(100));
+        config.insert("useTabs".to_string(), ConfigKeyValue::from_bool(false));
+        config.insert("semiColons".to_string(), ConfigKeyValue::from_str("prefer"));
+        config.insert(
+            "quoteStyle".to_string(),
+            ConfigKeyValue::from_str("alwaysDouble"),
+        );
+        config.insert(
+            "trailingCommas".to_string(),
+            ConfigKeyValue::from_str("onlyMultiLine"),
+        );
+        config.insert("newLineKind".to_string(), ConfigKeyValue::from_str("lf"));
+
+        let global_config = GlobalConfiguration {
+            line_width: Some(100),
+            use_tabs: Some(false),
+            indent_width: Some(2),
+            new_line_kind: Some(NewLineKind::LineFeed),
+        };
+
+        let resolved_config = ts_config::resolve_config(config, &global_config);
+
+        if !resolved_config.diagnostics.is_empty() {
+            let error_msg = resolved_config
+                .diagnostics
+                .iter()
+                .map(|d| format!("{d}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            return Err(anyhow::anyhow!(
+                "Failed to resolve dprint TS configuration: {error_msg}"
+            ));
+        }
+
+        let config = resolved_config.config;
+        let format_options = TsFormatTextOptions {
+            path: std::path::Path::new("file.ts"),
+            extension: Some("ts"),
+            text: content.to_string(),
+            external_formatter: None,
+            config: &config,
+        };
+
+        match ts_format(format_options) {
+            Ok(Some(formatted)) => Ok(formatted),
+            Ok(None) => Ok(content.to_string()), // No changes needed
+            Err(e) => Err(anyhow::anyhow!("Formatting error: {}", e)),
+        }
+    }
 }
 
 /// When diagnostics should be triggered
@@ -756,18 +1390,73 @@ impl LanguageServer for AndromedaBackend {
         Ok(Some(CompletionResponse::Array(completions)))
     }
 
+    async fn signature_help(&self, params: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
+        debug!(
+            "Signature help request at: {:?}",
+            params.text_document_position_params
+        );
+
+        let uri = &params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+
+        // Get document content
+        let content = match self.get_document_content(uri).await {
+            Some(content) => content,
+            None => return Ok(None),
+        };
+
+        let offset = position_to_offset(position, &content);
+
+        // Get text before cursor to find function call context
+        let text_before = content.chars().take(offset).collect::<String>();
+
+        // Look for function call patterns
+        if let Some(signature_info) = self.get_signature_help_info(&text_before).await {
+            return Ok(Some(signature_info));
+        }
+
+        Ok(None)
+    }
+
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         debug!(
             "Hover request at: {:?}",
             params.text_document_position_params
         );
 
-        // TODO: Implement hover information
-        // This could provide:
-        // - Function signatures
-        // - Documentation
-        // - Type information
-        // - Examples
+        let uri = &params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+
+        // Get document content
+        let content = match self.get_document_content(uri).await {
+            Some(content) => content,
+            None => return Ok(None),
+        };
+
+        let offset = position_to_offset(position, &content);
+
+        // Get word under cursor
+        let word = self.get_word_at_position(&content, offset);
+
+        if let Some(word) = word {
+            debug!("Hover word: '{word}'");
+
+            // Check if it's an Andromeda API
+            if let Some(hover_info) = self.get_andromeda_api_hover(&word).await {
+                return Ok(Some(hover_info));
+            }
+
+            // Check if it's a Web API
+            if let Some(hover_info) = self.get_web_api_hover(&word).await {
+                return Ok(Some(hover_info));
+            }
+
+            // Check context-specific hovers
+            let text_before = content.chars().take(offset).collect::<String>();
+            if let Some(hover_info) = self.get_context_specific_hover(&word, &text_before).await {
+                return Ok(Some(hover_info));
+            }
+        }
 
         Ok(None)
     }
@@ -775,19 +1464,79 @@ impl LanguageServer for AndromedaBackend {
     async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
         debug!("Code action request for: {}", params.text_document.uri);
 
-        // TODO: Implement code actions
-        // This could provide:
-        // - Quick fixes for lint errors
-        // - Refactoring suggestions
-        // - Auto-imports
-        Ok(None)
+        let mut actions = Vec::new();
+
+        // Get document content
+        let content = match self.get_document_content(&params.text_document.uri).await {
+            Some(content) => content,
+            None => return Ok(None),
+        };
+
+        // Check if there are any diagnostics in the range
+        for diagnostic in &params.context.diagnostics {
+            if let Some(code_actions) = self
+                .create_code_actions_for_diagnostic(&params.text_document.uri, diagnostic, &content)
+                .await
+            {
+                actions.extend(code_actions);
+            }
+        }
+
+        // Add general code actions
+        actions.extend(
+            self.get_general_code_actions(&params.text_document.uri, &params.range)
+                .await,
+        );
+
+        if actions.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(actions))
+        }
     }
 
     async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
         debug!("Formatting request for: {}", params.text_document.uri);
 
-        // TODO: Implement formatting
-        Ok(None)
+        // Get document content
+        let content = match self.get_document_content(&params.text_document.uri).await {
+            Some(content) => content,
+            None => return Ok(None),
+        };
+
+        // Use dprint for formatting
+        match self.format_document(&content, &params.options).await {
+            Ok(formatted_content) => {
+                if formatted_content != content {
+                    // Calculate the range for the entire document
+                    let lines: Vec<&str> = content.lines().collect();
+                    let last_line = lines.len().saturating_sub(1) as u32;
+                    let last_char = lines.last().map(|line| line.len()).unwrap_or(0) as u32;
+
+                    let edit = TextEdit {
+                        range: Range {
+                            start: Position {
+                                line: 0,
+                                character: 0,
+                            },
+                            end: Position {
+                                line: last_line,
+                                character: last_char,
+                            },
+                        },
+                        new_text: formatted_content,
+                    };
+
+                    Ok(Some(vec![edit]))
+                } else {
+                    Ok(None)
+                }
+            }
+            Err(e) => {
+                warn!("Formatting failed: {e}");
+                Ok(None)
+            }
+        }
     }
 
     async fn range_formatting(
@@ -821,17 +1570,175 @@ impl LanguageServer for AndromedaBackend {
 
         match params.command.as_str() {
             "andromeda.applyAutoFix" => {
-                // TODO: Implement auto-fix command
+                // Apply a specific auto-fix
+                if !params.arguments.is_empty() {
+                    if let Some(uri_value) = params.arguments.first() {
+                        if let Ok(uri) = serde_json::from_value::<Url>(uri_value.clone()) {
+                            self.apply_auto_fix(&uri).await;
+                        }
+                    }
+                }
                 Ok(None)
             }
             "andromeda.fixAll" => {
-                // TODO: Implement fix-all command
+                // Apply all auto-fixes to a document
+                if !params.arguments.is_empty() {
+                    if let Some(uri_value) = params.arguments.first() {
+                        if let Ok(uri) = serde_json::from_value::<Url>(uri_value.clone()) {
+                            self.fix_all_problems(&uri).await;
+                        }
+                    }
+                }
                 Ok(None)
             }
             _ => {
                 warn!("Unknown command: {}", params.command);
                 Ok(None)
             }
+        }
+    }
+}
+
+impl AndromedaBackend {
+    /// Apply a single auto-fix to a document
+    async fn apply_auto_fix(&self, uri: &Url) {
+        debug!("Applying auto-fix to: {uri}");
+
+        // Get document content
+        if let Some(content) = self.get_document_content(uri).await {
+            let diagnostics = self.run_diagnostics(uri.clone(), &content).await;
+
+            // Find the first fixable diagnostic and apply the fix
+            for diagnostic in &diagnostics {
+                if let Some(actions) = self
+                    .create_code_actions_for_diagnostic(uri, diagnostic, &content)
+                    .await
+                {
+                    if let Some(CodeActionOrCommand::CodeAction(action)) = actions.first() {
+                        if let Some(edit) = &action.edit {
+                            self.apply_workspace_edit(edit).await;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Fix all auto-fixable problems in a document
+    async fn fix_all_problems(&self, uri: &Url) {
+        debug!("Fixing all problems in: {uri}");
+
+        // Get document content
+        if let Some(mut content) = self.get_document_content(uri).await {
+            let mut applied_fixes = 0;
+            const MAX_ITERATIONS: usize = 10; // Prevent infinite loops
+
+            // Keep applying fixes until no more can be applied
+            for _iteration in 0..MAX_ITERATIONS {
+                let diagnostics = self.run_diagnostics(uri.clone(), &content).await;
+                let mut fixed_any = false;
+
+                for diagnostic in &diagnostics {
+                    if let Some(actions) = self
+                        .create_code_actions_for_diagnostic(uri, diagnostic, &content)
+                        .await
+                    {
+                        if let Some(CodeActionOrCommand::CodeAction(action)) = actions.first() {
+                            if let Some(edit) = &action.edit {
+                                if let Some(changes) = &edit.changes {
+                                    if let Some(text_edits) = changes.get(uri) {
+                                        // Apply the edits to our local content
+                                        content =
+                                            self.apply_text_edits_to_content(&content, text_edits);
+                                        applied_fixes += 1;
+                                        fixed_any = true;
+                                        break; // Process one fix at a time to avoid conflicts
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if !fixed_any {
+                    break; // No more fixes to apply
+                }
+            }
+
+            if applied_fixes > 0 {
+                // Update the document in the editor
+                self.apply_full_document_edit(uri, &content).await;
+                info!("Applied {applied_fixes} auto-fixes to {uri}");
+            }
+        }
+    }
+
+    /// Apply text edits to content string
+    fn apply_text_edits_to_content(&self, content: &str, edits: &[TextEdit]) -> String {
+        let mut result = content.to_string();
+
+        // Sort edits by position (reverse order to apply from end to start)
+        let mut sorted_edits = edits.to_vec();
+        sorted_edits.sort_by(|a, b| {
+            b.range
+                .start
+                .line
+                .cmp(&a.range.start.line)
+                .then_with(|| b.range.start.character.cmp(&a.range.start.character))
+        });
+
+        for edit in sorted_edits {
+            if let Some(start_offset) = self.position_to_offset_sync(&result, edit.range.start) {
+                if let Some(end_offset) = self.position_to_offset_sync(&result, edit.range.end) {
+                    let mut chars: Vec<char> = result.chars().collect();
+                    chars.splice(start_offset..end_offset, edit.new_text.chars());
+                    result = chars.into_iter().collect();
+                }
+            }
+        }
+
+        result
+    }
+
+    /// Apply a workspace edit by sending it to the client
+    async fn apply_workspace_edit(&self, edit: &WorkspaceEdit) {
+        if let Err(e) = self.client.apply_edit(edit.clone()).await {
+            warn!("Failed to apply workspace edit: {e:?}");
+        }
+    }
+
+    /// Apply a full document edit
+    async fn apply_full_document_edit(&self, uri: &Url, new_content: &str) {
+        // Get current document to calculate the range
+        if let Some(current_content) = self.get_document_content(uri).await {
+            let lines: Vec<&str> = current_content.lines().collect();
+            let last_line = lines.len().saturating_sub(1) as u32;
+            let last_char = lines.last().map(|line| line.len()).unwrap_or(0) as u32;
+
+            let edit = TextEdit {
+                range: Range {
+                    start: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: last_line,
+                        character: last_char,
+                    },
+                },
+                new_text: new_content.to_string(),
+            };
+
+            let mut changes = std::collections::HashMap::new();
+            changes.insert(uri.clone(), vec![edit]);
+
+            let workspace_edit = WorkspaceEdit {
+                changes: Some(changes),
+                ..Default::default()
+            };
+
+            self.apply_workspace_edit(&workspace_edit).await;
         }
     }
 }
