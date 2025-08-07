@@ -203,12 +203,25 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
         let specifier = module_request.specifier(agent);
         let specifier_str = specifier.to_string_lossy(agent);
 
-        // For now, let's use the base_path as the referrer directory for relative imports
-        // TODO: Properly extract referrer path from host_defined when needed
-        let referrer_path = self.base_path.join("script.js");
+        // Extract referrer information properly from Nova VM
+        let referrer_info = referrer.host_defined(agent);
+        let base_path = if let Some(host_defined) = referrer_info {
+            // Try to get the referrer module path from host_defined
+            if let Some(path_rc) = host_defined.downcast_ref::<std::rc::Rc<String>>() {
+                PathBuf::from(path_rc.as_str())
+            } else if let Some(path_rc) = host_defined.downcast_ref::<std::rc::Rc<PathBuf>>() {
+                path_rc.as_ref().clone()
+            } else {
+                // Fallback to default base path
+                self.base_path.clone()
+            }
+        } else {
+            // Use runtime's base_path as fallback
+            self.base_path.clone()
+        };
 
-        // Resolve the module specifier
-        let resolved_specifier = self.resolve_module_specifier(&specifier_str, &referrer_path);
+        // Resolve the module specifier using the proper referrer path
+        let resolved_specifier = self.resolve_module_specifier(&specifier_str, &base_path);
 
         // For HTTP URLs, skip extension resolution; for file paths, try to resolve extensions
         let final_specifier = if resolved_specifier.starts_with("http://")
@@ -238,8 +251,6 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
                 }
             }
         };
-
-        // Check if module is already loaded - let Nova VM handle caching internally
 
         // Check if this is a JSON module
         let is_json = final_specifier.ends_with(".json");
@@ -323,7 +334,7 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
         // Get the realm from the referrer
         let realm = agent.current_realm(gc);
 
-        // Parse the module
+        // Parse the module with proper host_defined containing the resolved specifier
         let module_host_defined = Some(std::rc::Rc::new(final_specifier.clone()) as HostDefined);
         match parse_module(agent, source_string, realm, module_host_defined, gc) {
             Ok(module) => {
@@ -355,13 +366,67 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
 
     fn get_import_meta_properties<'gc>(
         &self,
-        _agent: &mut Agent,
-        _module_record: SourceTextModule,
-        _gc: NoGcScope<'gc, '_>,
+        agent: &mut Agent,
+        module_record: SourceTextModule,
+        gc: NoGcScope<'gc, '_>,
     ) -> Vec<(PropertyKey<'gc>, Value<'gc>)> {
-        // TODO: Implement import.meta.url when we can properly access host_defined
-        // For now, return empty properties
-        Vec::new()
+        let mut properties = Vec::new();
+
+        // Create import.meta.url property
+        let url_key = PropertyKey::from_str(agent, "url", gc);
+
+        // Get the module specifier from the module's host_defined data
+        // Convert SourceTextModule to Referrer to access host_defined
+        let referrer = Referrer::from(module_record);
+        let module_url = if let Some(host_defined) = referrer.host_defined(agent) {
+            // Try to get the module specifier from host_defined
+            if let Some(specifier_rc) = host_defined.downcast_ref::<std::rc::Rc<String>>() {
+                let specifier = specifier_rc.as_str();
+                // If it's already a full URL, use it as-is; otherwise make it a file:// URL
+                if specifier.starts_with("http://") || specifier.starts_with("https://") {
+                    specifier.to_string()
+                } else {
+                    format!(
+                        "file://{}",
+                        std::fs::canonicalize(specifier)
+                            .unwrap_or_else(|_| std::path::PathBuf::from(specifier))
+                            .to_string_lossy()
+                    )
+                }
+            } else if let Some(specifier_string) = host_defined.downcast_ref::<String>() {
+                // If it's already a full URL, use it as-is; otherwise make it a file:// URL
+                if specifier_string.starts_with("http://")
+                    || specifier_string.starts_with("https://")
+                {
+                    specifier_string.clone()
+                } else {
+                    format!(
+                        "file://{}",
+                        std::fs::canonicalize(specifier_string)
+                            .unwrap_or_else(|_| std::path::PathBuf::from(specifier_string))
+                            .to_string_lossy()
+                    )
+                }
+            } else {
+                // Fallback to base_path
+                format!(
+                    "file://{}",
+                    self.base_path.join("script.js").to_string_lossy()
+                )
+            }
+        } else {
+            // Fallback to base_path
+            format!(
+                "file://{}",
+                self.base_path.join("script.js").to_string_lossy()
+            )
+        };
+
+        let url_value = Value::from_string(agent, module_url, gc);
+
+        properties.push((url_key, url_value));
+
+        properties
     }
 
     fn finalize_import_meta<'gc>(
