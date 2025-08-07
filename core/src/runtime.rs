@@ -279,9 +279,6 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
         };
 
         // Resolve the module specifier using the proper referrer
-        println!(
-            "Resolving module specifier '{specifier_str}' relative to referrer '{referrer_str}'"
-        );
         let resolved_specifier =
             if referrer_str.starts_with("http://") || referrer_str.starts_with("https://") {
                 // Referrer is a URL, use URL-based resolution
