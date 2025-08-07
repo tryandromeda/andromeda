@@ -164,11 +164,7 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
                             // If URL joining fails, fall back to simple concatenation
                             // This shouldn't happen with valid URLs, but provides a fallback
                             if let Some(stripped) = specifier.strip_prefix("./") {
-                                format!(
-                                    "{}/{}",
-                                    referrer_url.trim_end_matches('/'),
-                                    stripped
-                                )
+                                format!("{}/{}", referrer_url.trim_end_matches('/'), stripped)
                             } else if let Some(stripped) = specifier.strip_prefix("../") {
                                 // Simple fallback for parent directory navigation
                                 let mut base = referrer_url.trim_end_matches('/');
