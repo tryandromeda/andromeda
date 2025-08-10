@@ -291,5 +291,92 @@ const populateRequest = () => {
  * @see https://fetch.spec.whatwg.org/#main-fetch
  */
 const mainFetch = (fetchParams: any) => {
-  console.log(fetchParams);
-};
+  // 1. Let request be fetchParams’s request.
+  // 2. Let response be null.
+  // 3. If request’s local-URLs-only flag is set and request’s current URL is not local, then set response to a network error.
+  // 4. Run report Content Security Policy violations for request.
+  // 5. Upgrade request to a potentially trustworthy URL, if appropriate.
+  // 6. Upgrade a mixed content request to a potentially trustworthy URL, if appropriate.
+  // 7. If should request be blocked due to a bad port, should fetching request be blocked as mixed content, should request be blocked by Content Security Policy, or should request be blocked by Integrity Policy Policy returns blocked, then set response to a network error.
+  // 8. If request’s referrer policy is the empty string, then set request’s referrer policy to request’s policy container’s referrer policy.
+  // 9. If request’s referrer is not "no-referrer", then set request’s referrer to the result of invoking determine request’s referrer. [REFERRER]
+  // NOTE: As stated in Referrer Policy, user agents can provide the end user with options to override request’s referrer to "no-referrer" or have it expose less sensitive information.
+  // 10. Set request’s current URL’s scheme to "https" if all of the following conditions are true:
+  //  - request’s current URL’s scheme is "http"
+  //  - request’s current URL’s host is a domain
+  //  - request’s current URL’s host’s public suffix is not "localhost" or "localhost."
+  //  - Matching request’s current URL’s host per Known HSTS Host Domain Name Matching results in either a superdomain match with an asserted includeSubDomains directive or a congruent match (with or without an asserted includeSubDomains directive) [HSTS]; or DNS resolution for the request finds a matching HTTPS RR per section 9.5 of [SVCB]. [HSTS] [SVCB]
+  // NOTE: As all DNS operations are generally implementation-defined, how it is determined that DNS resolution contains an HTTPS RR is also implementation-defined. As DNS operations are not traditionally performed until attempting to obtain a connection, user agents might need to perform DNS operations earlier, consult local DNS caches, or wait until later in the fetch algorithm and potentially unwind logic on discovering the need to change request’s current URL’s scheme.
+  // 11. If recursive is false, then run the remaining steps in parallel.
+  // 12. If response is null, then set response to the result of running the steps corresponding to the first matching statement:
+  // ↪︎ fetchParams’s preloaded response candidate is non-null
+  //  1. Wait until fetchParams’s preloaded response candidate is not "pending".
+  //  2. Assert: fetchParams’s preloaded response candidate is a response.
+  //  3. Return fetchParams’s preloaded response candidate.
+  // ↪︎ ︎︎︎request’s current URL’s origin is same origin with request’s origin, and request’s response tainting is "basic"
+  // ↪︎ request’s current URL’s scheme is "data"
+  // ↪︎ request’s mode is "navigate" or "websocket"
+  //  1. Set request’s response tainting to "basic".
+  //  2. Return the result of running scheme fetch given fetchParams.
+  // NOTE: HTML assigns any documents and workers created from URLs whose scheme is "data" a unique opaque origin. Service workers can only be created from URLs whose scheme is an HTTP(S) scheme. [HTML] [SW]
+  // ↪︎ request’s mode is "same-origin"
+  //    Return a network error.
+  // ↪︎ request’s mode is "no-cors"
+  //  1. If request’s redirect mode is not "follow", then return a network error.
+  //  2. Set request’s response tainting to "opaque".
+  //  3. Return the result of running scheme fetch given fetchParams.
+  // ↪︎ request’s current URL’s scheme is not an HTTP(S) scheme
+  //    Return a network error.
+  // ↪ request’s use-CORS-preflight flag is set
+  // ↪ request’s unsafe-request flag is set and either request’s method is not a CORS-safelisted method or CORS-unsafe request-header names with request’s header list is not empty
+  //  1. Set request’s response tainting to "cors".
+  //  2. Let corsWithPreflightResponse be the result of running HTTP fetch given fetchParams and true.
+  //  3. If corsWithPreflightResponse is a network error, then clear cache entries using request.
+  //  4. Return corsWithPreflightResponse.
+  // ↪ Otherwise
+  //  1. Set request’s response tainting to "cors".
+  //  2. Return the result of running HTTP fetch given fetchParams.
+  
+  // 13. If recursive is true, then return response.
+  
+  // 14. If response is not a network error and response is not a filtered response, then:
+  //  1.If request’s response tainting is "cors", then:
+  //    1. Let headerNames be the result of extracting header list values given `Access-Control-Expose-Headers` and response’s header list.
+  //    2. If request’s credentials mode is not "include" and headerNames contains `*`, then set response’s CORS-exposed header-name list to all unique header names in response’s header list.
+  //    3. Otherwise, if headerNames is non-null or failure, then set response’s CORS-exposed header-name list to headerNames.
+  // NOTE: One of the headerNames can still be `*` at this point, but will only match a header whose name is `*`.
+  //  2. Set response to the following filtered response with response as its internal response, depending on request’s response tainting:
+  // ↪︎ "basic"
+  //    basic filtered response
+  // ↪︎ "cors"
+  //    CORS filtered response
+  // "opaque"
+  //    opaque filtered response
+  // 15. Let internalResponse be response, if response is a network error; otherwise response’s internal response.
+  // 16. If internalResponse’s URL list is empty, then set it to a clone of request’s URL list.
+  // NOTE: A response’s URL list can be empty, e.g., when fetching an about: URL.
+  // 17. Set internalResponse’s redirect taint to request’s redirect-taint.
+  // 18. If request’s timing allow failed flag is unset, then set internalResponse’s timing allow passed flag.
+  // 19. If response is not a network error and any of the following returns blocked
+  //  - should internalResponse to request be blocked as mixed content
+  //  - should internalResponse to request be blocked by Content Security Policy
+  //  - should internalResponse to request be blocked due to its MIME type
+  //  - should internalResponse to request be blocked due to nosniff
+  // then set response and internalResponse to a network error.
+  
+  // 20. If response’s type is "opaque", internalResponse’s status is 206, internalResponse’s range-requested flag is set, and request’s header list does not contain `Range`, then set response and internalResponse to a network error.
+  // NOTE: Traditionally, APIs accept a ranged response even if a range was not requested. This prevents a partial response from an earlier ranged request being provided to an API that did not make a range request.
+
+  // 21. If response is not a network error and either request’s method is `HEAD` or `CONNECT`, or internalResponse’s status is a null body status, set internalResponse’s body to null and disregard any enqueuing toward it (if any).
+  // NOTE: This standardizes the error handling for servers that violate HTTP.
+  
+  // 22. If request’s integrity metadata is not the empty string, then:
+  //  1. Let processBodyError be this step: run fetch response handover given fetchParams and a network error.
+  //  2. If response’s body is null, then run processBodyError and abort these steps.
+  //  3. Let processBody given bytes be these steps:
+  //    1. If bytes do not match request’s integrity metadata, then run processBodyError and abort these steps. [SRI]
+  //    2. Set response’s body to bytes as a body.
+  //    3. Run fetch response handover given fetchParams and response.
+  //  4. Fully read response’s body given processBody and processBodyError.
+  // 23. Otherwise, run fetch response handover given fetchParams and response.
+  };
