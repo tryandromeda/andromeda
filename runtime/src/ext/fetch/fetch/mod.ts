@@ -2,13 +2,247 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-/**
- * Implementation of the fetch API for Andromeda
- * Based on: https://developer.mozilla.org/ja/docs/Web/API/Window/fetch
- * Spec: https://fetch.spec.whatwg.org/#fetch-method/
- */
+// TypeScript type definitions
+type RequestInfo = any;
 
-type RequestInfo = Request | URL;
+const networkError = () => ({
+  type: "error",
+  status: 0,
+  statusText: "",
+  headersList: [],
+  body: null,
+  urlList: [],
+});
+
+const isNetworkError = (response) => response?.type === "error";
+
+const isLocalURL = (url) => {
+  return ["about:", "blob:", "data:"].includes(url.protocol);
+};
+
+const determineRequestsReferrer = (request) => {
+  return request.referrer;
+};
+
+const shouldUpgradeToHTTPS = (request) => {
+  if (request.currentURL.protocol !== "http:") return false;
+  if (!request.currentURL.hostname) return false;
+  if (request.currentURL.hostname === "localhost" || 
+      request.currentURL.hostname === "localhost.") return false;
+  
+  return false;
+};
+
+const sameOrigin = (url1, url2) => {
+  return url1.origin === url2;
+};
+
+const isHTTPScheme = (url) => {
+  return url.protocol === "http:" || url.protocol === "https:";
+};
+
+const isCORSSafelistedMethod = (method) => {
+  return ["GET", "HEAD", "POST"].includes(method);
+};
+
+const hasCORSUnsafeRequestHeaders = (headersList) => {
+  return false;
+};
+
+const clearCacheEntries = (request) => {
+};
+
+const isFilteredResponse = (response) => {
+  return response.type === "basic" || response.type === "cors" || response.type === "opaque";
+};
+
+const extractHeaderListValues = (headerName, headersList) => {
+  return null;
+};
+
+const getAllUniqueHeaderNames = (headersList) => {
+  return [];
+};
+
+const createFilteredResponse = (response, tainting) => {
+  const filtered = {
+    ...response,
+    internalResponse: response,
+  };
+  
+  switch (tainting) {
+    case "basic":
+      filtered.type = "basic";
+      break;
+    case "cors":
+      filtered.type = "cors";
+      break;
+    case "opaque":
+      filtered.type = "opaque";
+      break;
+  }
+  
+  return filtered;
+};
+
+const shouldBlockAsMixedContent = (response, request) => false;
+const shouldBlockByCSP = (response, request) => false;
+const shouldBlockByMIMEType = (response, request) => false;
+const shouldBlockByNosniff = (response, request) => false;
+
+const isNullBodyStatus = (status) => {
+  return [101, 103, 204, 205, 304].includes(status);
+};
+
+const matchesIntegrityMetadata = (bytes, integrityMetadata) => {
+  return true;
+};
+
+const bytesAsBody = (bytes) => {
+  return bytes;
+};
+
+const fullyReadBody = (body, processBody, processBodyError) => {
+  processBody(new Uint8Array());
+};
+
+const fetchResponseHandover = (fetchParams, response) => {
+  if (fetchParams.processResponse) {
+    fetchParams.processResponse(response);
+  }
+};
+
+const getBlobURLEntry = (url) => {
+  return null;
+};
+
+const obtainBlobObject = (blobURLEntry, navigationOrEnvironment) => {
+  return null;
+};
+
+const isBlob = (obj) => {
+  return obj && typeof obj === "object" && "size" in obj && "type" in obj;
+};
+
+const safelyExtractBlob = (blob) => {
+  return { body: new Uint8Array(), type: blob.type };
+};
+
+const containsHeader = (headersList, name) => {
+  if (!headersList) return false;
+  if (typeof headersList.contains === "function") {
+    return headersList.contains(name);
+  }
+  return false;
+};
+
+const getHeader = (headersList, name) => {
+  if (!headersList) return null;
+  if (typeof headersList.get === "function") {
+    return headersList.get(name);
+  }
+  return null;
+};
+
+const parseSingleRangeHeaderValue = (rangeHeader, allowWhitespace) => {
+  if (!rangeHeader) return null;
+  return [0, 100];
+};
+
+const sliceBlob = (blob, start, end, type) => {
+  return { size: end - start, type };
+};
+
+const buildContentRange = (start, end, total) => {
+  return `bytes ${start}-${end}/${total}`;
+};
+
+const processDataURL = (url) => {
+  const urlString = url.href;
+  if (!urlString.startsWith("data:")) {
+    return null;
+  }
+  
+  const commaIndex = urlString.indexOf(",");
+  if (commaIndex === -1) {
+    return null;
+  }
+  
+  const mimeType = urlString.substring(5, commaIndex) || "text/plain;charset=US-ASCII";
+  const data = urlString.substring(commaIndex + 1);
+  
+  const body = new TextEncoder().encode(data);
+  
+  return { mimeType, body };
+};
+
+const shouldPerformCORSPreflight = (request) => {
+  if (!isCORSSafelistedMethod(request.method) || request.useCORSPreflightFlag) {
+    return true;
+  }
+  return hasCORSUnsafeRequestHeaders(request.headersList);
+};
+
+const corsPreflight = (fetchParams, request) => {
+  return { type: "basic", status: 200 };
+};
+
+const httpNetworkOrCacheFetch = (fetchParams) => {
+  return {
+    type: "basic",
+    status: 200,
+    statusText: "OK",
+    headersList: [],
+    body: null,
+    urlList: []
+  };
+};
+
+const corsCheck = (request, response) => {
+  if (response?.status === 304 || response?.status === 407) {
+    return true;
+  }
+  return true;
+};
+
+const taoCheck = (request, response) => {
+  return true;
+};
+
+const crossOriginResourcePolicyCheck = (request, internalResponse) => {
+  return "allowed";
+};
+
+const isRedirectStatus = (status) => {
+  if (!status) return false;
+  return [301, 302, 303, 307, 308].includes(status);
+};
+
+const httpRedirectFetch = (fetchParams, response) => {
+  return response;
+};
+
+const createOpaqueRedirectFilteredResponse = (internalResponse) => {
+  return {
+    type: "opaqueredirect",
+    status: 0,
+    statusText: "",
+    headersList: [],
+    body: null,
+    internalResponse
+  };
+};
+
+const createDeferredPromise = () => {
+  let res: any;
+  let rej: any;
+  const promise = new Promise((resolve, reject) => {
+    res = resolve;
+    rej = reject;
+  });
+
+  return { promise, resolve: res, reject: rej };
+};
 
 class Fetch {
   // TODO: Event
@@ -20,8 +254,15 @@ class Fetch {
   }
 }
 
-/** The fetch(input, init) method steps are: */
-const fetch = (input: RequestInfo, init = undefined) => {
+/**
+ * 
+ * Implementation of the fetch API for Andromeda
+ * Based on: https://developer.mozilla.org/ja/docs/Web/API/Window/fetch
+ * @see Spec: https://fetch.spec.whatwg.org/#fetch-method/
+ * 
+ * The fetch(input, init) method steps are:
+ */
+const andromedaFetch = (input: RequestInfo, init = undefined) => {
   // 1. Let p be a new promise.
   let p = createDeferredPromise();
 
@@ -31,9 +272,25 @@ const fetch = (input: RequestInfo, init = undefined) => {
   let request: any;
 
   try {
-    // 3. Let request be requestObject’s request.
-    // @ts-ignore deno lint stuff
-    request = new Request(input, init);
+    // 3. Let request be requestObject's request.
+    // For now, create a simple request object until Request is fully working
+    if (typeof input === "string") {
+      request = {
+        url: input,
+        method: "GET",
+        headers: {},
+        mode: "cors",
+        credentials: "same-origin",
+        cache: "default",
+        redirect: "follow",
+        referrer: "about:client",
+        referrerPolicy: "",
+        currentURL: new URL(input),
+        ...init
+      };
+    } else {
+      request = input;
+    }
   } catch (e) {
     p.reject(e);
     return p.promise;
@@ -98,18 +355,7 @@ const fetch = (input: RequestInfo, init = undefined) => {
   return p.promise;
 };
 
-(globalThis as unknown as { fetch: typeof fetch; }).fetch = fetch;
-
-function createDeferredPromise() {
-  let res: any;
-  let rej: any;
-  const promise = new Promise((resolve, reject) => {
-    res = resolve;
-    rej = reject;
-  });
-
-  return { promise, resolve: res, reject: rej };
-}
+globalThis.fetch = andromedaFetch;
 
 /**
  * To fetch, given a request request, an optional algorithm processRequestBodyChunkLength, an optional algorithm processRequestEndOfBody,
@@ -535,116 +781,6 @@ const mainFetch = (fetchParams: any, recursive = false) => {
   }
 };
 
-const networkError = () => ({
-  type: "error",
-  status: 0,
-  statusText: "",
-  headersList: [],
-  body: null,
-  urlList: [],
-});
-
-const isNetworkError = (response: any) => response?.type === "error";
-
-const isLocalURL = (url: URL) => {
-  return ["about:", "blob:", "data:"].includes(url.protocol);
-};
-
-const determineRequestsReferrer = (request: any) => {
-  return request.referrer;
-};
-
-const shouldUpgradeToHTTPS = (request: any) => {
-  if (request.currentURL.protocol !== "http:") return false;
-  if (!request.currentURL.hostname) return false;
-  if (request.currentURL.hostname === "localhost" || 
-      request.currentURL.hostname === "localhost.") return false;
-  
-  return false;
-};
-
-const sameOrigin = (url1: URL, url2: any) => {
-  return url1.origin === url2;
-};
-
-const isHTTPScheme = (url: URL) => {
-  return url.protocol === "http:" || url.protocol === "https:";
-};
-
-const isCORSSafelistedMethod = (method: string) => {
-  return ["GET", "HEAD", "POST"].includes(method);
-};
-
-const hasCORSUnsafeRequestHeaders = (headersList: any) => {
-  return false;
-};
-
-
-
-c
-
-const clearCacheEntries = (request: any) => {
-};
-
-const isFilteredResponse = (response: any) => {
-  return response.type === "basic" || response.type === "cors" || response.type === "opaque";
-};
-
-const extractHeaderListValues = (headerName: string, headersList: any) => {
-  return null;
-};
-
-const getAllUniqueHeaderNames = (headersList: any) => {
-  return [];
-};
-
-const createFilteredResponse = (response: any, tainting: string) => {
-  const filtered = {
-    ...response,
-    internalResponse: response,
-  };
-  
-  switch (tainting) {
-    case "basic":
-      filtered.type = "basic";
-      break;
-    case "cors":
-      filtered.type = "cors";
-      break;
-    case "opaque":
-      filtered.type = "opaque";
-      break;
-  }
-  
-  return filtered;
-};
-
-const shouldBlockAsMixedContent = (response: any, request: any) => false;
-const shouldBlockByCSP = (response: any, request: any) => false;
-const shouldBlockByMIMEType = (response: any, request: any) => false;
-const shouldBlockByNosniff = (response: any, request: any) => false;
-
-const isNullBodyStatus = (status: number) => {
-  return [101, 103, 204, 205, 304].includes(status);
-};
-
-const matchesIntegrityMetadata = (bytes: Uint8Array, integrityMetadata: string) => {
-  return true;
-};
-
-const bytesAsBody = (bytes: Uint8Array) => {
-  return bytes;
-};
-
-const fullyReadBody = (body: any, processBody: Function, processBodyError: Function) => {
-  processBody(new Uint8Array());
-};
-
-const fetchResponseHandover = (fetchParams: any, response: any) => {
-  if (fetchParams.processResponse) {
-    fetchParams.processResponse(response);
-  }
-};
 
 /**
  * @see https://fetch.spec.whatwg.org/#scheme-fetch
@@ -851,81 +987,126 @@ const schemeFetch = (fetchParams: any) => {
   return networkError();
 };
 
-// Helper functions for schemeFetch
-const getBlobURLEntry = (url: URL) => {
-  // TODO: Implement blob URL store lookup
-  return null;
-};
 
-const obtainBlobObject = (blobURLEntry: any, navigationOrEnvironment: any) => {
-  // TODO: Implement blob object obtaining
-  return null;
-};
+/**
+ * @see https://fetch.spec.whatwg.org/#http-fetch
+ * @description To HTTP fetch, given a fetch params fetchParams and an optional boolean makeCORSPreflight (default false), run these steps:
+ */
 
-const isBlob = (obj: any): boolean => {
-  // TODO: Implement proper Blob check
-  return obj && typeof obj === "object" && "size" in obj && "type" in obj;
-};
-
-const safelyExtractBlob = (blob: any) => {
-  // TODO: Implement safe blob extraction
-  return { body: new Uint8Array(), type: blob.type };
-};
-
-const containsHeader = (headersList: any, name: string): boolean => {
-  // TODO: Implement proper header list check
-  if (!headersList) return false;
-  if (typeof headersList.contains === "function") {
-    return headersList.contains(name);
-  }
-  return false;
-};
-
-const getHeader = (headersList: any, name: string): string | null => {
-  // TODO: Implement proper header retrieval
-  if (!headersList) return null;
-  if (typeof headersList.get === "function") {
-    return headersList.get(name);
-  }
-  return null;
-};
-
-const parseSingleRangeHeaderValue = (rangeHeader: string | null, allowWhitespace: boolean): [number | null, number | null] | null => {
-  // TODO: Implement Range header parsing
-  // This should parse headers like "bytes=200-1023" or "bytes=-500"
-  if (!rangeHeader) return null;
-  return [0, 100]; // Placeholder
-};
-
-const sliceBlob = (blob: any, start: number, end: number, type: string) => {
-  // TODO: Implement blob slicing
-  return { size: end - start, type };
-};
-
-const buildContentRange = (start: number, end: number, total: number): string => {
-  return `bytes ${start}-${end}/${total}`;
-};
-
-const processDataURL = (url: URL): { mimeType: string; body: Uint8Array } | null => {
-  // TODO: Implement data URL processing
-  // This should parse data URLs like "data:text/plain;base64,SGVsbG8sIFdvcmxkIQ=="
-  const urlString = url.href;
-  if (!urlString.startsWith("data:")) {
-    return null;
-  }
+const httpFetch = (fetchParams: any, makeCORSPreflight = false) => {
+  // 1. Let request be fetchParams's request.
+  const request = fetchParams.request;
   
-  // Basic implementation - should be expanded
-  const commaIndex = urlString.indexOf(",");
-  if (commaIndex === -1) {
-    return null;
-  }
-  
-  const mimeType = urlString.substring(5, commaIndex) || "text/plain;charset=US-ASCII";
-  const data = urlString.substring(commaIndex + 1);
-  
-  // TODO: Handle base64 encoding and other encodings
-  const body = new TextEncoder().encode(data);
-  
-  return { mimeType, body };
-};
+  // 2. Let response and internalResponse be null.
+  let response: any = null;
+  let internalResponse: any = null;
 
+  // 3. If request's service-workers mode is "all", then:
+  if (request.serviceWorkersMode === "all") {
+    // TODO: Service Workerl
+    // 1. Let requestForServiceWorker be a clone of request.
+    // 2. If requestForServiceWorker's body is non-null, then:
+    //    1. Let transformStream be a new TransformStream.
+    //    2. Let transformAlgorithm given chunk be these steps:
+    //      1. If fetchParams is canceled, then abort these steps.
+    //      2. If chunk is not a Uint8Array object, then terminate fetchParams's controller.
+    //      3. Otherwise, enqueue chunk in transformStream.
+    //    3. Set up transformStream with transformAlgorithm set to transformAlgorithm.
+    //    4. Set requestForServiceWorker's body's stream to the result of requestForServiceWorker's body's stream piped through transformStream.
+    // 3. Let serviceWorkerStartTime be the coarsened shared current time given fetchParams's cross-origin isolated capability.
+    // 4. Set response to the result of invoking handle fetch for requestForServiceWorker, with fetchParams's controller and fetchParams's cross-origin isolated capability. [HTML] [SW]
+    // 5. If response is non-null, then:
+    //    1. Set fetchParams's timing info's final service worker start time to serviceWorkerStartTime.
+    //    2. If request's body is non-null, then cancel request's body with undefined.
+    //    3. Set internalResponse to response, if response is not a filtered response; otherwise to response's internal response.
+    //    4. If one of the following is true
+    //      - response's type is "error"
+    //      - request's mode is "same-origin" and response's type is "cors"
+    //      - request's mode is not "no-cors" and response's type is "opaque"
+    //      - request's redirect mode is not "manual" and response's type is "opaqueredirect"
+    //      - request's redirect mode is not "follow" and response's URL list has more than one item.
+    //      then return a network error.
+    console.log("service-workers mode is all");
+  }
+
+  // 4. If response is null, then:
+  if (response === null) {
+    // 4.1. If makeCORSPreflight is true and one of these conditions is true:
+    //    - There is no method cache entry match for request's method using request, and either request's method is not a CORS-safelisted method or request's use-CORS-preflight flag is set.
+    //    - There is at least one item in the CORS-unsafe request-header names with request's header list for which there is no header-name cache entry match using request.
+    if (makeCORSPreflight && shouldPerformCORSPreflight(request)) {
+      // 1. Let preflightResponse be the result of running CORS-preflight fetch given request.
+      const preflightResponse = corsPreflight(fetchParams, request);
+      // 2. If preflightResponse is a network error, then return preflightResponse.
+      if (isNetworkError(preflightResponse)) {
+        return preflightResponse;
+      }
+    }
+    
+    // 4.2. If request's redirect mode is "follow", then set request's service-workers mode to "none".
+    // NOTE: Redirects coming from the network (as opposed to from a service worker) are not to be exposed to a service worker.
+    if (request.redirectMode === "follow") {
+      request.serviceWorkersMode = "none";
+    }
+    
+    // 4.3. Set response and internalResponse to the result of running HTTP-network-or-cache fetch given fetchParams.
+    const fetchResult = httpNetworkOrCacheFetch(fetchParams);
+    response = internalResponse = fetchResult;
+    
+    // 4.4. If request's response tainting is "cors" and a CORS check for request and response returns failure, then return a network error.
+    // NOTE: As the CORS check is not to be applied to responses whose status is 304 or 407, or responses from a service worker for that matter, it is applied here.
+    if (request.responseTainting === "cors" && !corsCheck(request, response)) {
+      return networkError();
+    }
+    
+    // 4.5. If the TAO check for request and response returns failure, then set request's timing allow failed flag.
+    if (!taoCheck(request, response)) {
+      request.timingAllowFailedFlag = true;
+    }
+  }
+
+  // 5. If either request's response tainting or response's type is "opaque", and the cross-origin resource policy check with request's origin, request's client, request's destination, and internalResponse returns blocked, then return a network error.
+  // NOTE: The cross-origin resource policy check runs for responses coming from the network and responses coming from the service worker. This is different from the CORS check, as request's client and the service worker can have different embedder policies.
+  if ((request.responseTainting === "opaque" || response?.type === "opaque") && 
+       crossOriginResourcePolicyCheck(request, internalResponse) === "blocked") {
+    return networkError();
+  }
+
+  // 6. If internalResponse's status is a redirect status:
+  if (isRedirectStatus(internalResponse?.status)) {
+    // 6.1. If internalResponse's status is not 303, request's body is non-null, and the connection uses HTTP/2, then user agents may, and are even encouraged to, transmit an RST_STREAM frame.
+    // NOTE: 303 is excluded as certain communities ascribe special status to it.
+    // TODO: HTTP/2 RST_STREAM処理
+    
+    // 6.2. Switch on request's redirect mode:
+    switch (request.redirectMode) {
+      // ↪︎ "error"
+      case "error":
+        // 1. Set response to a network error.
+        response = networkError();
+        break;
+        
+      // ↪︎ "manual"
+      case "manual":
+        // 1. If request's mode is "navigate", then set fetchParams's controller's next manual redirect steps to run HTTP-redirect fetch given fetchParams and response.
+        if (request.mode === "navigate") {
+          // TODO: manual redirect処理
+          fetchParams.controller.nextManualRedirectSteps = () => httpRedirectFetch(fetchParams, response);
+        }
+        // 2. Otherwise, set response to an opaque-redirect filtered response whose internal response is internalResponse.
+        else {
+          response = createOpaqueRedirectFilteredResponse(internalResponse);
+        }
+        break;
+        
+      // ↪︎ "follow"
+      case "follow":
+        // 1. Set response to the result of running HTTP-redirect fetch given fetchParams and response.
+        response = httpRedirectFetch(fetchParams, response);
+        break;
+    }
+  }
+
+  // 7. Return response. Typically internalResponse's body's stream is still being enqueued to after returning.
+  return response;
+};
