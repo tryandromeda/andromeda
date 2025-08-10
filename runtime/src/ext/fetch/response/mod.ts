@@ -273,3 +273,5 @@ function nullBodyStatus(status: number): boolean {
   return status === 101 || status === 103 || status === 204 || status === 205 ||
     status === 304;
 }
+
+export { Response, ResponseInit };

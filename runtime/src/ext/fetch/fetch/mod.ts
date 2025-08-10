@@ -295,7 +295,7 @@ const mainFetch = (fetchParams: any, recursive = false) => {
   const request = fetchParams.request;
   
   // 2. Let response be null.
-  let response = null;
+  let response:any = null;
 
   // 3. If request's local-URLs-only flag is set and request's current URL is not local, then set response to a network error.
   if (request.localURLsOnly && !isLocalURL(request.currentURL)) {
@@ -579,13 +579,9 @@ const hasCORSUnsafeRequestHeaders = (headersList: any) => {
   return false;
 };
 
-const schemeFetch = (fetchParams: any) => {
-  return { type: "basic", status: 200, statusText: "OK", headersList: [], body: null };
-};
 
-const httpFetch = (fetchParams: any, includeCredentials = false) => {
-  return { type: "basic", status: 200, statusText: "OK", headersList: [], body: null };
-};
+
+c
 
 const clearCacheEntries = (request: any) => {
 };
@@ -649,3 +645,287 @@ const fetchResponseHandover = (fetchParams: any, response: any) => {
     fetchParams.processResponse(response);
   }
 };
+
+/**
+ * @see https://fetch.spec.whatwg.org/#scheme-fetch
+ * @description To scheme fetch, given a fetch params fetchParams:
+ */
+const schemeFetch = (fetchParams: any) => {
+  // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
+  if (fetchParams.controller?.state === "aborted") {
+    return networkError();
+  }
+
+  // 2. Let request be fetchParams's request.
+  const request = fetchParams.request;
+
+  // 3. Switch on request's current URL's scheme and run the associated steps:
+  const scheme = request.currentURL?.protocol?.replace(":", "");
+
+  switch (scheme) {
+    // ↪︎ "about"
+    case "about": {
+      //    If request's current URL's path is the string "blank", then return a new response whose status message is `OK`, 
+      //    header list is « (`Content-Type`, `text/html;charset=utf-8`) », and body is the empty byte sequence as a body.
+      if (request.currentURL.pathname === "blank") {
+        return {
+          type: "basic",
+          status: 200,
+          statusText: "OK",
+          headersList: [["Content-Type", "text/html;charset=utf-8"]],
+          body: new Uint8Array(),
+          urlList: [request.currentURL]
+        };
+      }
+      //    NOTE: URLs such as "about:config" are handled during navigation and result in a network error in the context of fetching.
+      return networkError();
+    }
+
+    // ↪︎ "blob"
+    case "blob": {
+      //   1. Let blobURLEntry be request's current URL's blob URL entry.
+      const blobURLEntry = getBlobURLEntry(request.currentURL);
+      
+      //   2. If request's method is not `GET` or blobURLEntry is null, then return a network error. [FILEAPI]
+      //   NOTE: The `GET` method restriction serves no useful purpose other than being interoperable.
+      if (request.method !== "GET" || blobURLEntry === null) {
+        return networkError();
+      }
+
+      //   3. Let requestEnvironment be the result of determining the environment given request.
+      // TODO: Implement determining the environment
+      const requestEnvironment = null;
+
+      //   4. Let isTopLevelNavigation be true if request's destination is "document"; otherwise, false.
+      const isTopLevelNavigation = request.destination === "document";
+
+      //   5. If isTopLevelNavigation is false and requestEnvironment is null, then return a network error.
+      if (!isTopLevelNavigation && requestEnvironment === null) {
+        return networkError();
+      }
+
+      //   6. Let navigationOrEnvironment be the string "navigation" if isTopLevelNavigation is true; otherwise, requestEnvironment.
+      const navigationOrEnvironment = isTopLevelNavigation ? "navigation" : requestEnvironment;
+
+      //   7. Let blob be the result of obtaining a blob object given blobURLEntry and navigationOrEnvironment.
+      // TODO: Implement obtaining blob object
+      const blob = obtainBlobObject(blobURLEntry, navigationOrEnvironment);
+
+      //   8. If blob is not a Blob object, then return a network error.
+      if (!isBlob(blob)) {
+        return networkError();
+      }
+
+      //   9. Let response be a new response.
+      const response: any = {
+        type: "basic",
+        status: 200,
+        statusText: "OK",
+        headersList: [],
+        body: null,
+        urlList: [request.currentURL]
+      };
+
+      //   10. Let fullLength be blob's size.
+      const fullLength = blob.size;
+
+      //   11. Let serializedFullLength be fullLength, serialized and isomorphic encoded.
+      const serializedFullLength = String(fullLength);
+
+      //   12. Let type be blob's type.
+      const type = blob.type || "";
+
+      //   13. If request's header list does not contain `Range`:
+      if (!containsHeader(request.headersList, "Range")) {
+        //      1. Let bodyWithType be the result of safely extracting blob.
+        const bodyWithType = safelyExtractBlob(blob);
+        //      2. Set response's status message to `OK`.
+        response.statusText = "OK";
+        //      3. Set response's body to bodyWithType's body.
+        response.body = bodyWithType.body;
+        //      4. Set response's header list to « (`Content-Length`, serializedFullLength), (`Content-Type`, type) ».
+        response.headersList = [
+          ["Content-Length", serializedFullLength],
+          ["Content-Type", type]
+        ];
+      } 
+      //   14. Otherwise:
+      else {
+        //      1. Set response's range-requested flag.
+        response.rangeRequestedFlag = true;
+        //      2. Let rangeHeader be the result of getting `Range` from request's header list.
+        const rangeHeader = getHeader(request.headersList, "Range");
+        //      3. Let rangeValue be the result of parsing a single range header value given rangeHeader and true.
+        const rangeValue = parseSingleRangeHeaderValue(rangeHeader, true);
+        //      4. If rangeValue is failure, then return a network error.
+        if (rangeValue === null) {
+          return networkError();
+        }
+        //      5. Let (rangeStart, rangeEnd) be rangeValue.
+        let [rangeStart, rangeEnd] = rangeValue;
+        //      6. If rangeStart is null:
+        if (rangeStart === null) {
+          //        1. Set rangeStart to fullLength − rangeEnd.
+          rangeStart = fullLength - rangeEnd!;
+          //        2. Set rangeEnd to rangeStart + rangeEnd − 1.
+          rangeEnd = rangeStart + rangeEnd! - 1;
+        }
+        //      7. Otherwise:
+        else {
+          //        1. If rangeStart is greater than or equal to fullLength, then return a network error.
+          if (rangeStart >= fullLength) {
+            return networkError();
+          }
+          //        2. If rangeEnd is null or rangeEnd is greater than or equal to fullLength, then set rangeEnd to fullLength − 1.
+          if (rangeEnd === null || rangeEnd >= fullLength) {
+            rangeEnd = fullLength - 1;
+          }
+        }
+        //      8. Let slicedBlob be the result of invoking slice blob given blob, rangeStart, rangeEnd + 1, and type.
+        //         NOTE: A range header denotes an inclusive byte range, while the slice blob algorithm input range does not. 
+        //         To use the slice blob algorithm, we have to increment rangeEnd.
+        const slicedBlob = sliceBlob(blob, rangeStart, rangeEnd + 1, type);
+        //      9. Let slicedBodyWithType be the result of safely extracting slicedBlob.
+        const slicedBodyWithType = safelyExtractBlob(slicedBlob);
+        //     10. Set response's body to slicedBodyWithType's body.
+        response.body = slicedBodyWithType.body;
+        //     11. Let serializedSlicedLength be slicedBlob's size, serialized and isomorphic encoded.
+        const serializedSlicedLength = String(slicedBlob.size);
+        //     12. Let contentRange be the result of invoking build a content range given rangeStart, rangeEnd, and fullLength.
+        const contentRange = buildContentRange(rangeStart, rangeEnd, fullLength);
+        //     13. Set response's status to 206.
+        response.status = 206;
+        //     14. Set response's header list to « (`Content-Length`, serializedSlicedLength), (`Content-Type`, type), (`Content-Range`, contentRange) ».
+        response.headersList = [
+          ["Content-Length", serializedSlicedLength],
+          ["Content-Type", type],
+          ["Content-Range", contentRange]
+        ];
+      }
+      //   15. Return response.
+      return response;
+    }
+
+    // ↪︎ "data"
+    case "data": {
+      //   1. Let dataURLStruct be the result of running the data: URL processor on request's current URL.
+      const dataURLStruct = processDataURL(request.currentURL);
+      //   2. If dataURLStruct is failure, then return a network error.
+      if (dataURLStruct === null) {
+        return networkError();
+      }
+      //   3. Let mimeType be dataURLStruct's MIME type, serialized.
+      const mimeType = dataURLStruct.mimeType;
+      //   4. Return a new response whose status message is `OK`, header list is « (`Content-Type`, mimeType) », 
+      //      and body is dataURLStruct's body as a body.
+      return {
+        type: "basic",
+        status: 200,
+        statusText: "OK",
+        headersList: [["Content-Type", mimeType]],
+        body: dataURLStruct.body,
+        urlList: [request.currentURL]
+      };
+    }
+
+    // ↪︎ "file"
+    case "file": {
+      //    For now, unfortunate as it is, file: URLs are left as an exercise for the reader.
+      //    When in doubt, return a network error.
+      // TODO: Implement file: URL handling
+      return networkError();
+    }
+
+    // ↪︎ HTTP(S) scheme
+    case "http":
+    case "https": {
+      //    Return the result of running HTTP fetch given fetchParams.
+      return httpFetch(fetchParams);
+    }
+
+    default:
+      break;
+  }
+
+  //  4. Return a network error.
+  return networkError();
+};
+
+// Helper functions for schemeFetch
+const getBlobURLEntry = (url: URL) => {
+  // TODO: Implement blob URL store lookup
+  return null;
+};
+
+const obtainBlobObject = (blobURLEntry: any, navigationOrEnvironment: any) => {
+  // TODO: Implement blob object obtaining
+  return null;
+};
+
+const isBlob = (obj: any): boolean => {
+  // TODO: Implement proper Blob check
+  return obj && typeof obj === "object" && "size" in obj && "type" in obj;
+};
+
+const safelyExtractBlob = (blob: any) => {
+  // TODO: Implement safe blob extraction
+  return { body: new Uint8Array(), type: blob.type };
+};
+
+const containsHeader = (headersList: any, name: string): boolean => {
+  // TODO: Implement proper header list check
+  if (!headersList) return false;
+  if (typeof headersList.contains === "function") {
+    return headersList.contains(name);
+  }
+  return false;
+};
+
+const getHeader = (headersList: any, name: string): string | null => {
+  // TODO: Implement proper header retrieval
+  if (!headersList) return null;
+  if (typeof headersList.get === "function") {
+    return headersList.get(name);
+  }
+  return null;
+};
+
+const parseSingleRangeHeaderValue = (rangeHeader: string | null, allowWhitespace: boolean): [number | null, number | null] | null => {
+  // TODO: Implement Range header parsing
+  // This should parse headers like "bytes=200-1023" or "bytes=-500"
+  if (!rangeHeader) return null;
+  return [0, 100]; // Placeholder
+};
+
+const sliceBlob = (blob: any, start: number, end: number, type: string) => {
+  // TODO: Implement blob slicing
+  return { size: end - start, type };
+};
+
+const buildContentRange = (start: number, end: number, total: number): string => {
+  return `bytes ${start}-${end}/${total}`;
+};
+
+const processDataURL = (url: URL): { mimeType: string; body: Uint8Array } | null => {
+  // TODO: Implement data URL processing
+  // This should parse data URLs like "data:text/plain;base64,SGVsbG8sIFdvcmxkIQ=="
+  const urlString = url.href;
+  if (!urlString.startsWith("data:")) {
+    return null;
+  }
+  
+  // Basic implementation - should be expanded
+  const commaIndex = urlString.indexOf(",");
+  if (commaIndex === -1) {
+    return null;
+  }
+  
+  const mimeType = urlString.substring(5, commaIndex) || "text/plain;charset=US-ASCII";
+  const data = urlString.substring(commaIndex + 1);
+  
+  // TODO: Handle base64 encoding and other encodings
+  const body = new TextEncoder().encode(data);
+  
+  return { mimeType, body };
+};
+
