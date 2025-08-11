@@ -51,7 +51,7 @@ pub fn run_wpt_command(
         .join("tests")
         .join("Cargo.toml");
 
-    cmd.args(&["run", "--bin", "wpt", "--manifest-path"]);
+    cmd.args(&["run", "--bin", "wpt_test_runner", "--manifest-path"]);
     cmd.arg(&manifest_path);
     cmd.args(&["--", "run"]);
 
@@ -177,7 +177,7 @@ fn run_all_suites_except_skipped(
             .join("tests")
             .join("Cargo.toml");
         
-        cmd.args(&["run", "--bin", "wpt", "--manifest-path"]);
+        cmd.args(&["run", "--bin", "wpt_test_runner", "--manifest-path"]);
         cmd.arg(&manifest_path);
         cmd.args(&["--", "run"]);
         cmd.arg(suite_name);
@@ -261,33 +261,6 @@ fn run_all_suites_except_skipped(
     }
 }
 
-fn show_available_suites() -> Result<()> {
-    let skip_path = std::path::PathBuf::from("tests/skip.json");
-    let skipped_suites: std::collections::HashSet<String> = if skip_path.exists() {
-        match std::fs::read_to_string(&skip_path) {
-            Ok(skip_content) => {
-                match serde_json::from_str::<Value>(&skip_content) {
-                    Ok(skip_data) => {
-                        skip_data["skip"]
-                            .as_array()
-                            .map(|arr| {
-                                arr.iter()
-                                    .filter_map(|v| v.as_str().map(String::from))
-                                    .collect()
-                            })
-                            .unwrap_or_default()
-                    }
-                    Err(_) => std::collections::HashSet::new(),
-                }
-            }
-            Err(_) => std::collections::HashSet::new(),
-        }
-    } else {
-        std::collections::HashSet::new()
-    };
-    
-    show_available_suites_filtered(&skipped_suites)
-}
 
 fn show_available_suites_filtered(skipped_suites: &std::collections::HashSet<String>) -> Result<()> {
     println!("No suite specified. Available WPT suites:");

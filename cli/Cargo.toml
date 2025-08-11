@@ -8,6 +8,18 @@ license.workspace = true
 repository.workspace = true
 readme = "../README.md"
 
+[lib]
+name = "andromeda"
+path = "src/lib.rs"
+
+[[bin]]
+name = "andromeda"
+path = "src/main.rs"
+
+[[bin]]
+name = "wpt"
+path = "src/bin/wpt.rs"
+
 [dependencies]
 clap.workspace = true
 clap_complete.workspace = true

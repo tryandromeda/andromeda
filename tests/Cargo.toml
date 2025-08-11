@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [[bin]]
-name = "wpt"
+name = "wpt_test_runner"
 path = "wpt_runner.rs"
 
 [dependencies]

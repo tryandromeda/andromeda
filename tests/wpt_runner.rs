@@ -2,7 +2,7 @@ use clap::{Args as ClapArgs, Parser as ClapParser, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    fs::{File, self},
+    fs::File,
     io::Write,
     path::{PathBuf, Path},
     sync::{Arc, Mutex},
