@@ -183,3 +183,6 @@ function getHeader(list: [string, string][], name: string): string | null {
 //   setHeadersGuard,
 //   setHeadersList,
 // };
+
+// Export Headers to globalThis
+globalThis.Headers = Headers;

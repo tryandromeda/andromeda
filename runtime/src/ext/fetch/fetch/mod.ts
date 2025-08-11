@@ -2,13 +2,29 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-/**
- * Implementation of the fetch API for Andromeda
- * Based on: https://developer.mozilla.org/ja/docs/Web/API/Window/fetch
- * Spec: https://fetch.spec.whatwg.org/#fetch-method/
- */
+// TypeScript type definitions
+type RequestInfo = any;
 
-type RequestInfo = Request | URL;
+const networkError = () => ({
+  type: "error",
+  status: 0,
+  statusText: "",
+  headersList: [],
+  body: null,
+  urlList: [],
+});
+
+
+const createDeferredPromise = () => {
+  let res: any;
+  let rej: any;
+  const promise = new Promise((resolve, reject) => {
+    res = resolve;
+    rej = reject;
+  });
+
+  return { promise, resolve: res, reject: rej };
+};
 
 class Fetch {
   // TODO: Event
@@ -20,8 +36,15 @@ class Fetch {
   }
 }
 
-/** The fetch(input, init) method steps are: */
-const fetch = (input: RequestInfo, init = undefined) => {
+/**
+ * 
+ * Implementation of the fetch API for Andromeda
+ * Based on: https://developer.mozilla.org/ja/docs/Web/API/Window/fetch
+ * @see Spec: https://fetch.spec.whatwg.org/#fetch-method/
+ * 
+ * The fetch(input, init) method steps are:
+ */
+const andromedaFetch = (input: RequestInfo, init = undefined) => {
   // 1. Let p be a new promise.
   let p = createDeferredPromise();
 
@@ -31,9 +54,30 @@ const fetch = (input: RequestInfo, init = undefined) => {
   let request: any;
 
   try {
-    // 3. Let request be requestObject’s request.
-    // @ts-ignore deno lint stuff
-    request = new Request(input, init);
+    // 3. Let request be requestObject's request.
+    // For now, create a simple request object until Request is fully working
+    if (typeof input === "string") {
+      const currentURL = new URL(input);
+      request = {
+        url: input,
+        method: "GET",
+        headers: {},
+        mode: "cors",
+        credentials: "same-origin",
+        cache: "default",
+        redirect: "follow",
+        referrer: "about:client",
+        referrerPolicy: "",
+        currentURL: currentURL,
+        localURLsOnly: false,
+        urlList: [currentURL],
+        responseTainting: "basic",
+        redirectMode: "follow",
+        ...init
+      };
+    } else {
+      request = input;
+    }
   } catch (e) {
     p.reject(e);
     return p.promise;
@@ -83,8 +127,8 @@ const fetch = (input: RequestInfo, init = undefined) => {
   // 12. Set controller to the result of calling fetch given request
   //     and processResponse given response being these steps:
   //  1. If locallyAborted is true, then abort these steps.
-  //  2. If response’s aborted flag is set, then:
-  //    1. Let deserializedError be the result of deserialize a serialized abort reason given controller’s serialized abort reason and relevantRealm.
+  //  2. If response's aborted flag is set, then:
+  //    1. Let deserializedError be the result of deserialize a serialized abort reason given controller's serialized abort reason and relevantRealm.
   //    2. Abort the fetch() call with p, request, responseObject, and deserializedError.
   //    3. Abort these steps.
   //  3. If response is a network error, then reject p with a TypeError and abort these steps.
@@ -92,24 +136,46 @@ const fetch = (input: RequestInfo, init = undefined) => {
   //  5. Resolve p with responseObject.
   controller = fetching({
     request,
+    processResponse: (response: any) => {
+      if (locallyAborted) {
+        return;
+      }
+      
+      if (response?.type === "error") {
+        p.reject(new TypeError("Network error"));
+        return;
+      }
+      
+      // Create a simple Response-like object
+      responseObject = {
+        ok: response.status >= 200 && response.status < 300,
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headersList,
+        body: response.body,
+        url: response.urlList?.[0]?.href || request.url,
+        type: response.type
+      };
+      
+      p.resolve(responseObject);
+    }
   });
 
   // 13. Return p.
   return p.promise;
 };
 
-(globalThis as unknown as { fetch: typeof fetch; }).fetch = fetch;
+globalThis.fetch = andromedaFetch;
 
-function createDeferredPromise() {
-  let res: any;
-  let rej: any;
-  const promise = new Promise((resolve, reject) => {
-    res = resolve;
-    rej = reject;
-  });
-
-  return { promise, resolve: res, reject: rej };
-}
+/**
+ * @see https://fetch.spec.whatwg.org/#fetch-response-handover
+ */
+const fetchResponseHandover = (fetchParams: any, response: any) => {
+  // Run processResponse if available
+  if (fetchParams.processResponse) {
+    fetchParams.processResponse(response);
+  }
+};
 
 /**
  * To fetch, given a request request, an optional algorithm processRequestBodyChunkLength, an optional algorithm processRequestEndOfBody,
@@ -190,6 +256,7 @@ const fetching = (
   //    task destination is taskDestination,
   //    and cross-origin isolated capability is crossOriginIsolatedCapability.
   const fetchParams = {
+    request,
     controller: new Fetch(),
     timingInfo, // TODO
     processRequestBodyChunkLength,
@@ -268,23 +335,7 @@ const fetching = (
   return fetchParams.controller;
 };
 
-/**
- * To populate request from client given a request request:
- * @see https://fetch.spec.whatwg.org/#populate-request-from-client
- */
-const populateRequest = () => {
-  // 1. If request’s traversable for user prompts is "client":
-  //  1. Set request’s traversable for user prompts to "no-traversable".
-  //  2. If request’s client is non-null:
-  //    1. Let global be request’s client’s global object.
-  //    2. If global is a Window object and global’s navigable is not null, then set request’s traversable for user prompts to global’s navigable’s traversable navigable.
-  // 2. If request’s origin is "client":
-  //  1. Assert: request’s client is non-null.
-  //  2. Set request’s origin to request’s client’s origin.
-  // 3. If request’s policy container is "client":
-  //  1. If request’s client is non-null, then set request’s policy container to a clone of request’s client’s policy container. [HTML]
-  //  2. Otherwise, set request’s policy container to a new policy container.
-};
+
 
 /**
  * To main fetch, given a fetch params fetchParams and an optional boolean recursive (default false)
@@ -295,10 +346,10 @@ const mainFetch = (fetchParams: any, recursive = false) => {
   const request = fetchParams.request;
   
   // 2. Let response be null.
-  let response = null;
+  let response:any = null;
 
   // 3. If request's local-URLs-only flag is set and request's current URL is not local, then set response to a network error.
-  if (request.localURLsOnly && !isLocalURL(request.currentURL)) {
+  if (request.localURLsOnly && !["about:", "blob:", "data:"].includes(request.currentURL.protocol)) {
     response = networkError();
   }
 
@@ -320,7 +371,7 @@ const mainFetch = (fetchParams: any, recursive = false) => {
   // 9. If request's referrer is not "no-referrer", then set request's referrer to the result of invoking determine request's referrer. [REFERRER]
   // NOTE: As stated in Referrer Policy, user agents can provide the end user with options to override request's referrer to "no-referrer" or have it expose less sensitive information.
   if (request.referrer !== "no-referrer") {
-    request.referrer = determineRequestsReferrer(request);
+    request.referrer = request.referrer;
   }
 
   // 10. Set request's current URL's scheme to "https" if all of the following conditions are true:
@@ -329,7 +380,10 @@ const mainFetch = (fetchParams: any, recursive = false) => {
   //  - request's current URL's host's public suffix is not "localhost" or "localhost."
   //  - Matching request's current URL's host per Known HSTS Host Domain Name Matching results in either a superdomain match with an asserted includeSubDomains directive or a congruent match (with or without an asserted includeSubDomains directive) [HSTS]; or DNS resolution for the request finds a matching HTTPS RR per section 9.5 of [SVCB]. [HSTS] [SVCB]
   // NOTE: As all DNS operations are generally implementation-defined, how it is determined that DNS resolution contains an HTTPS RR is also implementation-defined. As DNS operations are not traditionally performed until attempting to obtain a connection, user agents might need to perform DNS operations earlier, consult local DNS caches, or wait until later in the fetch algorithm and potentially unwind logic on discovering the need to change request's current URL's scheme.
-  if (shouldUpgradeToHTTPS(request)) {
+  if (request.currentURL.protocol === "http:" && 
+      request.currentURL.hostname && 
+      request.currentURL.hostname !== "localhost" && 
+      request.currentURL.hostname !== "localhost.") {
     request.currentURL.protocol = "https:";
   }
 
@@ -347,7 +401,7 @@ const mainFetch = (fetchParams: any, recursive = false) => {
         return fetchParams.preloadedResponseCandidate;
       }
 
-      const isSameOrigin = sameOrigin(request.currentURL, request.origin);
+      const isSameOrigin = request.currentURL.origin === request.origin;
       const isDataScheme = request.currentURL.protocol === "data:";
       const isNavigateOrWebsocket = request.mode === "navigate" || request.mode === "websocket";
 
@@ -381,7 +435,7 @@ const mainFetch = (fetchParams: any, recursive = false) => {
         }
       }
       // ↪︎ request's current URL's scheme is not an HTTP(S) scheme
-      else if (!isHTTPScheme(request.currentURL)) {
+      else if (request.currentURL.protocol !== "http:" && request.currentURL.protocol !== "https:") {
         //    Return a network error.
         response = networkError();
       }
@@ -389,15 +443,15 @@ const mainFetch = (fetchParams: any, recursive = false) => {
       // ↪ request's unsafe-request flag is set and either request's method is not a CORS-safelisted method or CORS-unsafe request-header names with request's header list is not empty
       else if (request.useCORSPreflightFlag || 
                  (request.unsafeRequestFlag && 
-                  (!isCORSSafelistedMethod(request.method) || 
-                   hasCORSUnsafeRequestHeaders(request.headersList)))) {
+                  (!["GET", "HEAD", "POST"].includes(request.method) || 
+                   false))) {
         //  1. Set request's response tainting to "cors".
         request.responseTainting = "cors";
         //  2. Let corsWithPreflightResponse be the result of running HTTP fetch given fetchParams and true.
         const corsWithPreflightResponse = httpFetch(fetchParams, true);
         //  3. If corsWithPreflightResponse is a network error, then clear cache entries using request.
-        if (isNetworkError(corsWithPreflightResponse)) {
-          clearCacheEntries(request);
+        if (corsWithPreflightResponse?.type === "error") {
+          // Clear cache entries (no-op for now)
         }
         //  4. Return corsWithPreflightResponse.
         response = corsWithPreflightResponse;
@@ -417,14 +471,14 @@ const mainFetch = (fetchParams: any, recursive = false) => {
     }
 
     // 14. If response is not a network error and response is not a filtered response, then:
-    if (response && !isNetworkError(response) && !isFilteredResponse(response)) {
+    if (response && response?.type !== "error" && !(response.type === "basic" || response.type === "cors" || response.type === "opaque")) {
       //  1.If request's response tainting is "cors", then:
       if (request.responseTainting === "cors") {
         //    1. Let headerNames be the result of extracting header list values given `Access-Control-Expose-Headers` and response's header list.
-        const headerNames = extractHeaderListValues("Access-Control-Expose-Headers", response.headersList);
+        const headerNames = null;
         //    2. If request's credentials mode is not "include" and headerNames contains `*`, then set response's CORS-exposed header-name list to all unique header names in response's header list.
         if (request.credentialsMode !== "include" && headerNames?.includes("*")) {
-          response.CORSExposedHeaderNameList = getAllUniqueHeaderNames(response.headersList);
+          response.CORSExposedHeaderNameList = [];
         }
         //    3. Otherwise, if headerNames is non-null or failure, then set response's CORS-exposed header-name list to headerNames.
         else if (headerNames !== null && headerNames !== "failure") {
@@ -440,11 +494,28 @@ const mainFetch = (fetchParams: any, recursive = false) => {
       //    CORS filtered response
       // "opaque"
       //    opaque filtered response
-      response = createFilteredResponse(response, request.responseTainting);
+      const filtered = {
+        ...response,
+        internalResponse: response,
+      };
+      
+      switch (request.responseTainting) {
+        case "basic":
+          filtered.type = "basic";
+          break;
+        case "cors":
+          filtered.type = "cors";
+          break;
+        case "opaque":
+          filtered.type = "opaque";
+          break;
+      }
+      
+      response = filtered;
     }
 
     // 15. Let internalResponse be response, if response is a network error; otherwise response's internal response.
-    const internalResponse = isNetworkError(response) ? response : response.internalResponse;
+    const internalResponse = response?.type === "error" ? response : response.internalResponse;
 
     // 16. If internalResponse's URL list is empty, then set it to a clone of request's URL list.
     // NOTE: A response's URL list can be empty, e.g., when fetching an about: URL.
@@ -466,11 +537,8 @@ const mainFetch = (fetchParams: any, recursive = false) => {
     //  - should internalResponse to request be blocked due to its MIME type
     //  - should internalResponse to request be blocked due to nosniff
     // then set response and internalResponse to a network error.
-    if (!isNetworkError(response)) {
-      if (shouldBlockAsMixedContent(internalResponse, request) ||
-          shouldBlockByCSP(internalResponse, request) ||
-          shouldBlockByMIMEType(internalResponse, request) ||
-          shouldBlockByNosniff(internalResponse, request)) {
+    if (response?.type !== "error") {
+      if (false || false || false || false) {
         response = internalResponse = networkError();
       }
     }
@@ -486,10 +554,10 @@ const mainFetch = (fetchParams: any, recursive = false) => {
 
     // 21. If response is not a network error and either request's method is `HEAD` or `CONNECT`, or internalResponse's status is a null body status, set internalResponse's body to null and disregard any enqueuing toward it (if any).
     // NOTE: This standardizes the error handling for servers that violate HTTP.
-    if (!isNetworkError(response)) {
+    if (response?.type !== "error") {
       if (request.method === "HEAD" || 
           request.method === "CONNECT" || 
-          isNullBodyStatus(internalResponse.status)) {
+          [101, 103, 204, 205, 304].includes(internalResponse.status)) {
         internalResponse.body = null;
       }
     }
@@ -498,7 +566,9 @@ const mainFetch = (fetchParams: any, recursive = false) => {
     if (request.integrityMetadata !== "") {
       //  1. Let processBodyError be this step: run fetch response handover given fetchParams and a network error.
       const processBodyError = () => {
-        fetchResponseHandover(fetchParams, networkError());
+        if (fetchParams.processResponse) {
+          fetchParams.processResponse(networkError());
+        }
       };
 
       //  2. If response's body is null, then run processBodyError and abort these steps.
@@ -510,18 +580,20 @@ const mainFetch = (fetchParams: any, recursive = false) => {
       //  3. Let processBody given bytes be these steps:
       const processBody = (bytes: Uint8Array) => {
         //    1. If bytes do not match request's integrity metadata, then run processBodyError and abort these steps. [SRI]
-        if (!matchesIntegrityMetadata(bytes, request.integrityMetadata)) {
+        if (!true) {
           processBodyError();
           return;
         }
         //    2. Set response's body to bytes as a body.
-        response.body = bytesAsBody(bytes);
+        response.body = bytes;
         //    3. Run fetch response handover given fetchParams and response.
-        fetchResponseHandover(fetchParams, response);
+        if (fetchParams.processResponse) {
+          fetchParams.processResponse(response);
+        }
       };
 
       //  4. Fully read response's body given processBody and processBodyError.
-      fullyReadBody(response.body, processBody, processBodyError);
+      processBody(new Uint8Array());
     } else {
       // 23. Otherwise, run fetch response handover given fetchParams and response.
       fetchResponseHandover(fetchParams, response);
@@ -535,117 +607,356 @@ const mainFetch = (fetchParams: any, recursive = false) => {
   }
 };
 
-const networkError = () => ({
-  type: "error",
-  status: 0,
-  statusText: "",
-  headersList: [],
-  body: null,
-  urlList: [],
-});
 
-const isNetworkError = (response: any) => response?.type === "error";
-
-const isLocalURL = (url: URL) => {
-  return ["about:", "blob:", "data:"].includes(url.protocol);
-};
-
-const determineRequestsReferrer = (request: any) => {
-  return request.referrer;
-};
-
-const shouldUpgradeToHTTPS = (request: any) => {
-  if (request.currentURL.protocol !== "http:") return false;
-  if (!request.currentURL.hostname) return false;
-  if (request.currentURL.hostname === "localhost" || 
-      request.currentURL.hostname === "localhost.") return false;
-  
-  return false;
-};
-
-const sameOrigin = (url1: URL, url2: any) => {
-  return url1.origin === url2;
-};
-
-const isHTTPScheme = (url: URL) => {
-  return url.protocol === "http:" || url.protocol === "https:";
-};
-
-const isCORSSafelistedMethod = (method: string) => {
-  return ["GET", "HEAD", "POST"].includes(method);
-};
-
-const hasCORSUnsafeRequestHeaders = (headersList: any) => {
-  return false;
-};
-
+/**
+ * @see https://fetch.spec.whatwg.org/#scheme-fetch
+ * @description To scheme fetch, given a fetch params fetchParams:
+ */
 const schemeFetch = (fetchParams: any) => {
-  return { type: "basic", status: 200, statusText: "OK", headersList: [], body: null };
-};
+  // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
+  if (fetchParams.controller?.state === "aborted") {
+    return networkError();
+  }
 
-const httpFetch = (fetchParams: any, includeCredentials = false) => {
-  return { type: "basic", status: 200, statusText: "OK", headersList: [], body: null };
-};
+  // 2. Let request be fetchParams's request.
+  const request = fetchParams.request;
 
-const clearCacheEntries = (request: any) => {
-};
+  // 3. Switch on request's current URL's scheme and run the associated steps:
+  const scheme = request.currentURL?.protocol?.replace(":", "");
 
-const isFilteredResponse = (response: any) => {
-  return response.type === "basic" || response.type === "cors" || response.type === "opaque";
-};
+  switch (scheme) {
+    // ↪︎ "about"
+    case "about": {
+      //    If request's current URL's path is the string "blank", then return a new response whose status message is `OK`, 
+      //    header list is « (`Content-Type`, `text/html;charset=utf-8`) », and body is the empty byte sequence as a body.
+      if (request.currentURL.pathname === "blank") {
+        return {
+          type: "basic",
+          status: 200,
+          statusText: "OK",
+          headersList: [["Content-Type", "text/html;charset=utf-8"]],
+          body: new Uint8Array(),
+          urlList: [request.currentURL]
+        };
+      }
+      //    NOTE: URLs such as "about:config" are handled during navigation and result in a network error in the context of fetching.
+      return networkError();
+    }
 
-const extractHeaderListValues = (headerName: string, headersList: any) => {
-  return null;
-};
+    // ↪︎ "blob"
+    case "blob": {
+      //   1. Let blobURLEntry be request's current URL's blob URL entry.
+      const blobURLEntry = null;
+      
+      //   2. If request's method is not `GET` or blobURLEntry is null, then return a network error. [FILEAPI]
+      //   NOTE: The `GET` method restriction serves no useful purpose other than being interoperable.
+      if (request.method !== "GET" || blobURLEntry === null) {
+        return networkError();
+      }
 
-const getAllUniqueHeaderNames = (headersList: any) => {
-  return [];
-};
+      //   3. Let requestEnvironment be the result of determining the environment given request.
+      // TODO: Implement determining the environment
+      const requestEnvironment = null;
 
-const createFilteredResponse = (response: any, tainting: string) => {
-  const filtered = {
-    ...response,
-    internalResponse: response,
-  };
-  
-  switch (tainting) {
-    case "basic":
-      filtered.type = "basic";
-      break;
-    case "cors":
-      filtered.type = "cors";
-      break;
-    case "opaque":
-      filtered.type = "opaque";
+      //   4. Let isTopLevelNavigation be true if request's destination is "document"; otherwise, false.
+      const isTopLevelNavigation = request.destination === "document";
+
+      //   5. If isTopLevelNavigation is false and requestEnvironment is null, then return a network error.
+      if (!isTopLevelNavigation && requestEnvironment === null) {
+        return networkError();
+      }
+
+      //   6. Let navigationOrEnvironment be the string "navigation" if isTopLevelNavigation is true; otherwise, requestEnvironment.
+      const navigationOrEnvironment = isTopLevelNavigation ? "navigation" : requestEnvironment;
+
+      //   7. Let blob be the result of obtaining a blob object given blobURLEntry and navigationOrEnvironment.
+      // TODO: Implement obtaining blob object
+      const blob = null;
+
+      //   8. If blob is not a Blob object, then return a network error.
+      if (!(blob && typeof blob === "object" && "size" in blob && "type" in blob)) {
+        return networkError();
+      }
+
+      //   9. Let response be a new response.
+      const response: any = {
+        type: "basic",
+        status: 200,
+        statusText: "OK",
+        headersList: [],
+        body: null,
+        urlList: [request.currentURL]
+      };
+
+      //   10. Let fullLength be blob's size.
+      const fullLength = blob.size;
+
+      //   11. Let serializedFullLength be fullLength, serialized and isomorphic encoded.
+      const serializedFullLength = String(fullLength);
+
+      //   12. Let type be blob's type.
+      const type = blob.type || "";
+
+      //   13. If request's header list does not contain `Range`:
+      if (!(request.headersList && typeof request.headersList.contains === "function" && request.headersList.contains("Range"))) {
+        //      1. Let bodyWithType be the result of safely extracting blob.
+        const bodyWithType = { body: new Uint8Array(), type: blob.type };
+        //      2. Set response's status message to `OK`.
+        response.statusText = "OK";
+        //      3. Set response's body to bodyWithType's body.
+        response.body = bodyWithType.body;
+        //      4. Set response's header list to « (`Content-Length`, serializedFullLength), (`Content-Type`, type) ».
+        response.headersList = [
+          ["Content-Length", serializedFullLength],
+          ["Content-Type", type]
+        ];
+      } 
+      //   14. Otherwise:
+      else {
+        //      1. Set response's range-requested flag.
+        response.rangeRequestedFlag = true;
+        //      2. Let rangeHeader be the result of getting `Range` from request's header list.
+        const rangeHeader = (request.headersList && typeof request.headersList.get === "function") ? request.headersList.get("Range") : null;
+        //      3. Let rangeValue be the result of parsing a single range header value given rangeHeader and true.
+        const rangeValue = rangeHeader ? [0, 100] : null;
+        //      4. If rangeValue is failure, then return a network error.
+        if (rangeValue === null) {
+          return networkError();
+        }
+        //      5. Let (rangeStart, rangeEnd) be rangeValue.
+        let [rangeStart, rangeEnd] = rangeValue;
+        //      6. If rangeStart is null:
+        if (rangeStart === null) {
+          //        1. Set rangeStart to fullLength − rangeEnd.
+          rangeStart = fullLength - rangeEnd!;
+          //        2. Set rangeEnd to rangeStart + rangeEnd − 1.
+          rangeEnd = rangeStart + rangeEnd! - 1;
+        }
+        //      7. Otherwise:
+        else {
+          //        1. If rangeStart is greater than or equal to fullLength, then return a network error.
+          if (rangeStart >= fullLength) {
+            return networkError();
+          }
+          //        2. If rangeEnd is null or rangeEnd is greater than or equal to fullLength, then set rangeEnd to fullLength − 1.
+          if (rangeEnd === null || rangeEnd >= fullLength) {
+            rangeEnd = fullLength - 1;
+          }
+        }
+        //      8. Let slicedBlob be the result of invoking slice blob given blob, rangeStart, rangeEnd + 1, and type.
+        //         NOTE: A range header denotes an inclusive byte range, while the slice blob algorithm input range does not. 
+        //         To use the slice blob algorithm, we have to increment rangeEnd.
+        const slicedBlob = { size: (rangeEnd + 1) - rangeStart, type };
+        //      9. Let slicedBodyWithType be the result of safely extracting slicedBlob.
+        const slicedBodyWithType = { body: new Uint8Array(), type: slicedBlob.type };
+        //     10. Set response's body to slicedBodyWithType's body.
+        response.body = slicedBodyWithType.body;
+        //     11. Let serializedSlicedLength be slicedBlob's size, serialized and isomorphic encoded.
+        const serializedSlicedLength = String(slicedBlob.size);
+        //     12. Let contentRange be the result of invoking build a content range given rangeStart, rangeEnd, and fullLength.
+        const contentRange = `bytes ${rangeStart}-${rangeEnd}/${fullLength}`;
+        //     13. Set response's status to 206.
+        response.status = 206;
+        //     14. Set response's header list to « (`Content-Length`, serializedSlicedLength), (`Content-Type`, type), (`Content-Range`, contentRange) ».
+        response.headersList = [
+          ["Content-Length", serializedSlicedLength],
+          ["Content-Type", type],
+          ["Content-Range", contentRange]
+        ];
+      }
+      //   15. Return response.
+      return response;
+    }
+
+    // ↪︎ "data"
+    case "data": {
+      //   1. Let dataURLStruct be the result of running the data: URL processor on request's current URL.
+      const urlString = request.currentURL.href;
+      let dataURLStruct = null;
+      if (urlString.startsWith("data:")) {
+        const commaIndex = urlString.indexOf(",");
+        if (commaIndex !== -1) {
+          const mimeType = urlString.substring(5, commaIndex) || "text/plain;charset=US-ASCII";
+          const data = urlString.substring(commaIndex + 1);
+          const body = new TextEncoder().encode(data);
+          dataURLStruct = { mimeType, body };
+        }
+      }
+      //   2. If dataURLStruct is failure, then return a network error.
+      if (dataURLStruct === null) {
+        return networkError();
+      }
+      //   3. Let mimeType be dataURLStruct's MIME type, serialized.
+      const mimeType = dataURLStruct.mimeType;
+      //   4. Return a new response whose status message is `OK`, header list is « (`Content-Type`, mimeType) », 
+      //      and body is dataURLStruct's body as a body.
+      return {
+        type: "basic",
+        status: 200,
+        statusText: "OK",
+        headersList: [["Content-Type", mimeType]],
+        body: dataURLStruct.body,
+        urlList: [request.currentURL]
+      };
+    }
+
+    // ↪︎ "file"
+    case "file": {
+      //    For now, unfortunate as it is, file: URLs are left as an exercise for the reader.
+      //    When in doubt, return a network error.
+      // TODO: Implement file: URL handling
+      return networkError();
+    }
+
+    // ↪︎ HTTP(S) scheme
+    case "http":
+    case "https": {
+      //    Return the result of running HTTP fetch given fetchParams.
+      return httpFetch(fetchParams);
+    }
+
+    default:
       break;
   }
+
+  //  4. Return a network error.
+  return networkError();
+};
+
+
+/**
+ * @see https://fetch.spec.whatwg.org/#http-fetch
+ * @description To HTTP fetch, given a fetch params fetchParams and an optional boolean makeCORSPreflight (default false), run these steps:
+ */
+
+const httpFetch = (fetchParams: any, makeCORSPreflight = false) => {
+  // 1. Let request be fetchParams's request.
+  const request = fetchParams.request;
   
-  return filtered;
-};
+  // 2. Let response and internalResponse be null.
+  let response: any = null;
+  let internalResponse: any = null;
 
-const shouldBlockAsMixedContent = (response: any, request: any) => false;
-const shouldBlockByCSP = (response: any, request: any) => false;
-const shouldBlockByMIMEType = (response: any, request: any) => false;
-const shouldBlockByNosniff = (response: any, request: any) => false;
-
-const isNullBodyStatus = (status: number) => {
-  return [101, 103, 204, 205, 304].includes(status);
-};
-
-const matchesIntegrityMetadata = (bytes: Uint8Array, integrityMetadata: string) => {
-  return true;
-};
-
-const bytesAsBody = (bytes: Uint8Array) => {
-  return bytes;
-};
-
-const fullyReadBody = (body: any, processBody: Function, processBodyError: Function) => {
-  processBody(new Uint8Array());
-};
-
-const fetchResponseHandover = (fetchParams: any, response: any) => {
-  if (fetchParams.processResponse) {
-    fetchParams.processResponse(response);
+  // 3. If request's service-workers mode is "all", then:
+  if (request.serviceWorkersMode === "all") {
+    // TODO: Service Workerl
+    // 1. Let requestForServiceWorker be a clone of request.
+    // 2. If requestForServiceWorker's body is non-null, then:
+    //    1. Let transformStream be a new TransformStream.
+    //    2. Let transformAlgorithm given chunk be these steps:
+    //      1. If fetchParams is canceled, then abort these steps.
+    //      2. If chunk is not a Uint8Array object, then terminate fetchParams's controller.
+    //      3. Otherwise, enqueue chunk in transformStream.
+    //    3. Set up transformStream with transformAlgorithm set to transformAlgorithm.
+    //    4. Set requestForServiceWorker's body's stream to the result of requestForServiceWorker's body's stream piped through transformStream.
+    // 3. Let serviceWorkerStartTime be the coarsened shared current time given fetchParams's cross-origin isolated capability.
+    // 4. Set response to the result of invoking handle fetch for requestForServiceWorker, with fetchParams's controller and fetchParams's cross-origin isolated capability. [HTML] [SW]
+    // 5. If response is non-null, then:
+    //    1. Set fetchParams's timing info's final service worker start time to serviceWorkerStartTime.
+    //    2. If request's body is non-null, then cancel request's body with undefined.
+    //    3. Set internalResponse to response, if response is not a filtered response; otherwise to response's internal response.
+    //    4. If one of the following is true
+    //      - response's type is "error"
+    //      - request's mode is "same-origin" and response's type is "cors"
+    //      - request's mode is not "no-cors" and response's type is "opaque"
+    //      - request's redirect mode is not "manual" and response's type is "opaqueredirect"
+    //      - request's redirect mode is not "follow" and response's URL list has more than one item.
+    //      then return a network error.
+    console.log("service-workers mode is all");
   }
+
+  // 4. If response is null, then:
+  if (response === null) {
+    // 4.1. If makeCORSPreflight is true and one of these conditions is true:
+    //    - There is no method cache entry match for request's method using request, and either request's method is not a CORS-safelisted method or request's use-CORS-preflight flag is set.
+    //    - There is at least one item in the CORS-unsafe request-header names with request's header list for which there is no header-name cache entry match using request.
+    if (makeCORSPreflight && (!["GET", "HEAD", "POST"].includes(request.method) || request.useCORSPreflightFlag || false)) {
+      // 1. Let preflightResponse be the result of running CORS-preflight fetch given request.
+      const preflightResponse = { type: "basic", status: 200 };
+      // 2. If preflightResponse is a network error, then return preflightResponse.
+      if (preflightResponse?.type === "error") {
+        return preflightResponse;
+      }
+    }
+    
+    // 4.2. If request's redirect mode is "follow", then set request's service-workers mode to "none".
+    // NOTE: Redirects coming from the network (as opposed to from a service worker) are not to be exposed to a service worker.
+    if (request.redirectMode === "follow") {
+      request.serviceWorkersMode = "none";
+    }
+    
+    // 4.3. Set response and internalResponse to the result of running HTTP-network-or-cache fetch given fetchParams.
+    const fetchResult = {
+      type: "basic",
+      status: 200,
+      statusText: "OK",
+      headersList: [],
+      body: null,
+      urlList: []
+    };
+    response = internalResponse = fetchResult;
+    
+    // 4.4. If request's response tainting is "cors" and a CORS check for request and response returns failure, then return a network error.
+    // NOTE: As the CORS check is not to be applied to responses whose status is 304 or 407, or responses from a service worker for that matter, it is applied here.
+    if (request.responseTainting === "cors" && !(response?.status === 304 || response?.status === 407 || true)) {
+      return networkError();
+    }
+    
+    // 4.5. If the TAO check for request and response returns failure, then set request's timing allow failed flag.
+    if (!true) {
+      request.timingAllowFailedFlag = true;
+    }
+  }
+
+  // 5. If either request's response tainting or response's type is "opaque", and the cross-origin resource policy check with request's origin, request's client, request's destination, and internalResponse returns blocked, then return a network error.
+  // NOTE: The cross-origin resource policy check runs for responses coming from the network and responses coming from the service worker. This is different from the CORS check, as request's client and the service worker can have different embedder policies.
+  if ((request.responseTainting === "opaque" || response?.type === "opaque") && 
+       "allowed" === "blocked") {
+    return networkError();
+  }
+
+  // 6. If internalResponse's status is a redirect status:
+  if (internalResponse?.status && [301, 302, 303, 307, 308].includes(internalResponse.status)) {
+    // 6.1. If internalResponse's status is not 303, request's body is non-null, and the connection uses HTTP/2, then user agents may, and are even encouraged to, transmit an RST_STREAM frame.
+    // NOTE: 303 is excluded as certain communities ascribe special status to it.
+    // TODO: HTTP/2 RST_STREAM処理
+    
+    // 6.2. Switch on request's redirect mode:
+    switch (request.redirectMode) {
+      // ↪︎ "error"
+      case "error":
+        // 1. Set response to a network error.
+        response = networkError();
+        break;
+        
+      // ↪︎ "manual"
+      case "manual":
+        // 1. If request's mode is "navigate", then set fetchParams's controller's next manual redirect steps to run HTTP-redirect fetch given fetchParams and response.
+        if (request.mode === "navigate") {
+          // TODO: manual redirect処理
+          fetchParams.controller.nextManualRedirectSteps = () => response;
+        }
+        // 2. Otherwise, set response to an opaque-redirect filtered response whose internal response is internalResponse.
+        else {
+          response = {
+            type: "opaqueredirect",
+            status: 0,
+            statusText: "",
+            headersList: [],
+            body: null,
+            internalResponse
+          };
+        }
+        break;
+        
+      // ↪︎ "follow"
+      case "follow":
+        // 1. Set response to the result of running HTTP-redirect fetch given fetchParams and response.
+        response = response;
+        break;
+    }
+  }
+
+  // 7. Return response. Typically internalResponse's body's stream is still being enqueued to after returning.
+  return response;
 };

@@ -583,6 +583,9 @@ configureInterface(Request);
 const RequestPrototype = Request.prototype;
 // mixinBody(RequestPrototype, _body, _mimeType);
 
+// Export Request to globalThis
+globalThis.Request = Request;
+
 /** https://fetch.spec.whatwg.org/#concept-request-clone */
 function cloneInnerRequest(request: any, skipBody = false): any {
   const headerList = request.headerList.push(
