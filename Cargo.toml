@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["cli", "core", "runtime"]
+members = ["cli", "core", "runtime", "tests"]
 
 [workspace.package]
 authors = ["the Andromeda team"]

@@ -31,6 +31,7 @@ mod config;
 mod lsp;
 mod task;
 mod upgrade;
+mod wpt;
 use config::{AndromedaConfig, ConfigFormat, ConfigManager};
 use lsp::run_lsp_server;
 use task::run_task;
@@ -141,6 +142,48 @@ enum Command {
     Task {
         /// The task name to run. If not provided, lists all available tasks
         task_name: Option<String>,
+    },
+
+    /// Run WPT (Web Platform Tests) conformance tests
+    Wpt {
+        /// Path to WPT directory (default: tests/wpt)
+        #[arg(long)]
+        wpt_path: Option<PathBuf>,
+
+        /// Number of threads to use for parallel test execution
+        #[arg(long, default_value = "4")]
+        threads: usize,
+
+        /// Only run tests matching this pattern
+        #[arg(long)]
+        filter: Option<String>,
+
+        /// Skip tests matching this pattern
+        #[arg(long)]
+        skip: Option<String>,
+
+        /// Test specific directories (e.g., fetch, dom, streams)
+        #[arg(long)]
+        suite: Option<String>,
+
+        /// Save test results to files
+        #[arg(long)]
+        save_results: bool,
+
+        /// Directory to save results (default: tests/results)
+        #[arg(long)]
+        output_dir: Option<PathBuf>,
+    },
+
+    /// Display current metrics and WPT statistics
+    Metrics {
+        /// Show detailed metrics for each suite
+        #[arg(long)]
+        detailed: bool,
+
+        /// Show trend information
+        #[arg(long)]
+        trends: bool,
     },
 
     /// Configuration file management
@@ -421,6 +464,24 @@ fn run_main() -> Result<()> {
                 Ok(())
             }
             Command::Task { task_name } => run_task(task_name).map_err(|e| *e),
+            Command::Wpt {
+                wpt_path,
+                threads,
+                filter,
+                skip,
+                suite,
+                save_results,
+                output_dir,
+            } => wpt::run_wpt_command(
+                wpt_path,
+                threads,
+                filter,
+                skip,
+                suite,
+                save_results,
+                output_dir,
+            ),
+            Command::Metrics { detailed, trends } => wpt::display_metrics(detailed, trends),
             Command::Config { action } => handle_config_command(action),
         }
     });
@@ -487,7 +548,7 @@ impl From<ConfigFileFormat> for ConfigFormat {
     }
 }
 
-#[allow(clippy::result_large_err)]
+
 fn handle_config_command(action: ConfigAction) -> Result<()> {
     match action {
         ConfigAction::Init {

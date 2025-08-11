@@ -1,0 +1,68 @@
+{
+  "project": "andromeda",
+  "version": "0.1.0",
+  "last_updated": 1754928244,
+  "wpt": {
+    "overall": {
+      "total_tests": 697,
+      "pass": 0,
+      "fail": 0,
+      "crash": 697,
+      "timeout": 0,
+      "skip": 0,
+      "pass_rate": 0.0,
+      "last_run": 1754928244,
+      "duration_seconds": 0.003125208
+    },
+    "suites": {
+      "console": {
+        "total_tests": 13,
+        "pass": 0,
+        "fail": 0,
+        "crash": 13,
+        "timeout": 0,
+        "skip": 0,
+        "pass_rate": 0.0,
+        "last_run": 1754928243,
+        "duration_seconds": 0.0000745
+      },
+      "fetch": {
+        "total_tests": 650,
+        "pass": 0,
+        "fail": 0,
+        "crash": 650,
+        "timeout": 0,
+        "skip": 0,
+        "pass_rate": 0.0,
+        "last_run": 1754928243,
+        "duration_seconds": 0.002759208
+      },
+      "url": {
+        "total_tests": 34,
+        "pass": 0,
+        "fail": 0,
+        "crash": 34,
+        "timeout": 0,
+        "skip": 0,
+        "pass_rate": 0.0,
+        "last_run": 1754928244,
+        "duration_seconds": 0.0002915
+      }
+    },
+    "trend": {
+      "pass_rate_change": 0.0,
+      "tests_change": 0,
+      "performance_change": 0.0
+    }
+  },
+  "build": {
+    "last_successful_build": null,
+    "build_count": 0,
+    "failed_builds": 0
+  },
+  "runtime": {
+    "startup_time_ms": null,
+    "memory_usage_mb": null,
+    "gc_collections": null
+  }
+}
