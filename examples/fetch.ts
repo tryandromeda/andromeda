@@ -136,12 +136,17 @@ for (const redirect of redirectModes) {
 // Test 8: Invalid URL handling
 console.log("\n8. Error Handling Tests");
 
-try {
-  fetch("invalid://url");
-  logTest("Invalid URL scheme", false, "Should have thrown an error");
-} catch (e: any) {
-  logTest("Invalid URL scheme error handling", true, "Correctly threw error");
+// Test invalid URL scheme with async/await
+async function testInvalidScheme() {
+  try {
+    const response = await fetch("invalid://url");
+    logTest("Invalid URL scheme", false, "Should have thrown an error");
+  } catch (e: any) {
+    logTest("Invalid URL scheme error handling", true, "Correctly threw error");
+  }
 }
+
+testInvalidScheme();
 
 try {
   // @ts-ignore
@@ -270,9 +275,271 @@ for (const cache of cacheModes) {
   }
 }
 
-// Test 17: Real API call (commented out to avoid network dependency)
-console.log("\n17. Real API Test (JSONPlaceholder)");
-console.log("Attempting real fetch to jsonplaceholder.typicode.com...");
-fetch("https://jsonplaceholder.typicode.com/posts/1");
+// Test 17: Response object methods and properties
+console.log("\n17. Response Object Tests");
 
-console.log("\n=== Test Suite Complete ===");
+async function testResponse() {
+  try {
+    console.log("Testing response from successful request...");
+    const response = await fetch("https://example.com/test");
+    
+    // Test response properties
+    logTest("Response has ok property", typeof response.ok === "boolean");
+    logTest("Response has status property", typeof response.status === "number");
+    logTest("Response has statusText property", typeof response.statusText === "string");
+    logTest("Response has headers property", Array.isArray(response.headers) || typeof response.headers === "object");
+    logTest("Response has url property", typeof response.url === "string");
+    logTest("Response has type property", typeof response.type === "string");
+    
+    console.log(`  Status: ${response.status} ${response.statusText}`);
+    console.log(`  OK: ${response.ok}`);
+    console.log(`  Type: ${response.type}`);
+    console.log(`  URL: ${response.url}`);
+    
+    // Test response methods
+    logTest("Response has text method", typeof response.text === "function");
+    logTest("Response has json method", typeof response.json === "function");
+    logTest("Response has arrayBuffer method", typeof response.arrayBuffer === "function");
+    logTest("Response has blob method", typeof response.blob === "function");
+    
+    // Test text() method
+    try {
+      const text = await response.text();
+      logTest("Response.text() returns string", typeof text === "string");
+      console.log(`  Response text: ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}`);
+    } catch (e: any) {
+      logTest("Response.text() method", false, e.message);
+    }
+    
+  } catch (e: any) {
+    logTest("Response object creation", false, e.message);
+  }
+}
+
+testResponse();
+
+// Test 18: Error status codes
+console.log("\n18. HTTP Status Code Tests");
+
+async function testErrorStatuses() {
+  // Test 404 Not Found
+  try {
+    console.log("Testing 404 response...");
+    const response = await fetch("https://example.com/notfound");
+    logTest("404 response received", response.status === 404);
+    logTest("404 response not ok", !response.ok);
+    console.log(`  Status: ${response.status} ${response.statusText}`);
+    
+    const errorData = await response.text();
+    console.log(`  Error body: ${errorData}`);
+  } catch (e: any) {
+    logTest("404 status test", false, e.message);
+  }
+  
+  // Test 500 Internal Server Error
+  try {
+    console.log("Testing 500 response...");
+    const response = await fetch("https://example.com/error");
+    logTest("500 response received", response.status === 500);
+    logTest("500 response not ok", !response.ok);
+    console.log(`  Status: ${response.status} ${response.statusText}`);
+    
+    const errorData = await response.text();
+    console.log(`  Error body: ${errorData}`);
+  } catch (e: any) {
+    logTest("500 status test", false, e.message);
+  }
+}
+
+testErrorStatuses();
+
+// Test 19: JSON response parsing
+console.log("\n19. JSON Response Tests");
+
+async function testJsonResponse() {
+  try {
+    console.log("Testing JSON response parsing...");
+    const response = await fetch("https://example.com/api/data");
+    
+    if (response.ok) {
+      try {
+        const jsonData = await response.json();
+        logTest("JSON parsing successful", typeof jsonData === "object");
+        console.log("  Parsed JSON:", JSON.stringify(jsonData));
+      } catch (e: any) {
+        logTest("JSON parsing", false, e.message);
+      }
+    } else {
+      console.log(`  Response not OK: ${response.status}`);
+    }
+  } catch (e: any) {
+    logTest("JSON response test", false, e.message);
+  }
+}
+
+testJsonResponse();
+
+// Test 20: Request with different content types
+console.log("\n20. Content Type Tests");
+
+async function testContentTypes() {
+  // Test JSON request
+  try {
+    console.log("Testing JSON request...");
+    const response = await fetch("https://example.com/api/post", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name: "test",
+        value: 123,
+        active: true
+      })
+    });
+    
+    logTest("JSON POST request", response.ok);
+    console.log(`  Status: ${response.status}`);
+  } catch (e: any) {
+    logTest("JSON POST request", false, e.message);
+  }
+  
+  // Test form data request
+  try {
+    console.log("Testing form data request...");
+    const response = await fetch("https://example.com/api/form", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: "name=test&value=123&active=true"
+    });
+    
+    logTest("Form data POST request", response.ok);
+    console.log(`  Status: ${response.status}`);
+  } catch (e: any) {
+    logTest("Form data POST request", false, e.message);
+  }
+  
+  // Test plain text request
+  try {
+    console.log("Testing plain text request...");
+    const response = await fetch("https://example.com/api/text", {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain"
+      },
+      body: "This is plain text data for testing"
+    });
+    
+    logTest("Plain text POST request", response.ok);
+    console.log(`  Status: ${response.status}`);
+  } catch (e: any) {
+    logTest("Plain text POST request", false, e.message);
+  }
+}
+
+testContentTypes();
+
+// Test 21: ArrayBuffer and Blob responses
+console.log("\n21. Binary Response Tests");
+
+async function testBinaryResponses() {
+  try {
+    console.log("Testing arrayBuffer response...");
+    const response = await fetch("https://example.com/binary-data");
+    
+    if (response.ok) {
+      try {
+        const buffer = await response.arrayBuffer();
+        logTest("ArrayBuffer response", buffer instanceof ArrayBuffer);
+        console.log(`  Buffer size: ${buffer.byteLength} bytes`);
+      } catch (e: any) {
+        logTest("ArrayBuffer response", false, e.message);
+      }
+    }
+  } catch (e: any) {
+    logTest("ArrayBuffer test", false, e.message);
+  }
+  
+  try {
+    console.log("Testing blob response...");
+    const response = await fetch("https://example.com/blob-data");
+    
+    if (response.ok) {
+      try {
+        const blob = await response.blob();
+        logTest("Blob response", blob instanceof Blob);
+        console.log(`  Blob size: ${blob.size} bytes, type: ${blob.type}`);
+      } catch (e: any) {
+        logTest("Blob response", false, e.message);
+      }
+    }
+  } catch (e: any) {
+    logTest("Blob test", false, e.message);
+  }
+}
+
+testBinaryResponses();
+
+// Test 22: Network error simulation
+console.log("\n22. Network Error Tests");
+
+async function testNetworkErrors() {
+  // Test invalid protocol
+  try {
+    await fetch("ftp://example.com/file.txt");
+    logTest("Invalid protocol error", false, "Should have thrown an error");
+  } catch (e: any) {
+    logTest("Invalid protocol error handling", true, "Correctly threw error");
+    console.log(`  Error: ${e.message}`);
+  }
+  
+  // Test malformed URL
+  try {
+    await fetch("not-a-url");
+    logTest("Malformed URL error", false, "Should have thrown an error");
+  } catch (e: any) {
+    logTest("Malformed URL error handling", true, "Correctly threw error");
+    console.log(`  Error: ${e.message}`);
+  }
+}
+
+testNetworkErrors();
+
+// Test 23: Headers processing
+console.log("\n23. Headers Tests");
+
+async function testHeaders() {
+  try {
+    console.log("Testing request and response headers...");
+    const response = await fetch("https://example.com/headers-test", {
+      headers: {
+        "User-Agent": "Andromeda-Test/1.0",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cache-Control": "no-cache"
+      }
+    });
+    
+    logTest("Headers request sent", response.ok);
+    
+    // Check response headers
+    if (response.headers && Array.isArray(response.headers)) {
+      logTest("Response has headers array", true);
+      console.log("  Response headers:");
+      response.headers.forEach(([name, value]: [string, string]) => {
+        console.log(`    ${name}: ${value}`);
+      });
+    }
+    
+  } catch (e: any) {
+    logTest("Headers test", false, e.message);
+  }
+}
+
+testHeaders();
+
+console.log("\n=== Advanced HttpFetch Implementation Tests Complete ===");
+console.log("Note: These tests use mock responses from the httpNetworkFetch implementation.");
+console.log("In a production environment, these would make real network requests.");
