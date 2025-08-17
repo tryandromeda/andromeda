@@ -1,9 +1,8 @@
-
-use clap::{Parser as ClapParser, Args};
+use andromeda::{CliError, CliResult};
+use clap::{Args, Parser as ClapParser};
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::process::Command;
-use andromeda::{CliResult, CliError};
 
 #[derive(Debug, ClapParser)]
 #[command(name = "wpt")]
@@ -54,31 +53,29 @@ struct RunArgs {
 fn main() -> CliResult<()> {
     let cli = Cli::parse();
     let args = cli.run_args;
-    
+
     run_wpt_tests(args)
 }
 
 fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
-
     let update_expectations = args.update_expectations.unwrap_or(args.update);
     let update_metrics = args.update_metrics.unwrap_or(args.update);
-    
-    let current_dir = std::env::current_dir()
-        .map_err(|e| CliError::Io(e))?;
+
+    let current_dir = std::env::current_dir().map_err(|e| CliError::Io(e))?;
     let in_tests_dir = current_dir.ends_with("tests");
-    
+
     let wpt_dir = if in_tests_dir {
         args.wpt_dir.clone()
     } else {
         PathBuf::from("tests").join(&args.wpt_dir)
     };
-    
+
     let (mut cmd, using_cargo) = if in_tests_dir {
         let mut c = Command::new("cargo");
         c.arg("run");
         c.arg("--bin");
         c.arg("wpt_test_runner");
-        
+
         if std::env::args().any(|arg| arg == "--release") {
             c.arg("--release");
         }
@@ -86,7 +83,7 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
     } else {
         let test_runner_release = current_dir.join("target/release/wpt_test_runner");
         let test_runner_debug = current_dir.join("target/debug/wpt_test_runner");
-        
+
         if test_runner_release.exists() && std::env::args().any(|arg| arg == "--release") {
             let mut c = Command::new(test_runner_release);
             c.current_dir("tests");
@@ -102,7 +99,7 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
             c.arg("wpt_test_runner");
             c.arg("--manifest-path");
             c.arg("tests/Cargo.toml");
-            
+
             if std::env::args().any(|arg| arg == "--release") {
                 c.arg("--release");
             }
@@ -113,7 +110,7 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
     if using_cargo {
         cmd.arg("--");
     }
-    
+
     cmd.arg("run");
 
     let suites_to_run = if args.suites.is_empty() {
@@ -128,7 +125,11 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
     }
 
     if suites_to_run.len() > 1 {
-        println!("Running {} suites: {}", suites_to_run.len(), suites_to_run.join(", "));
+        println!(
+            "Running {} suites: {}",
+            suites_to_run.len(),
+            suites_to_run.join(", ")
+        );
         println!("═══════════════════════════════════════════════════");
     }
 
@@ -173,19 +174,21 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
         cmd.arg("--verbose");
     }
 
-    let status = cmd.status()
+    let status = cmd
+        .status()
         .map_err(|e| CliError::TestExecution(format!("Failed to run WPT test runner: {}", e)))?;
 
     if !status.success() {
-        return Err(CliError::TestExecution(
-            format!("WPT test runner failed with exit code: {}", status.code().unwrap_or(1))
-        ));
+        return Err(CliError::TestExecution(format!(
+            "WPT test runner failed with exit code: {}",
+            status.code().unwrap_or(1)
+        )));
     }
 
     if update_expectations || update_metrics {
         handle_updates(update_expectations, update_metrics);
     }
-    
+
     Ok(())
 }
 
@@ -296,16 +299,17 @@ fn get_non_skipped_suites(wpt_dir: &PathBuf) -> Vec<String> {
         for entry in entries.filter_map(|e| e.ok()) {
             if entry.file_type().ok().map_or(false, |t| t.is_dir()) {
                 if let Some(name) = entry.file_name().to_str() {
-                    if !name.starts_with('.') 
-                        && !name.starts_with("common") 
-                        && !skipped_suites.contains(name) {
+                    if !name.starts_with('.')
+                        && !name.starts_with("common")
+                        && !skipped_suites.contains(name)
+                    {
                         non_skipped.push(name.to_string());
                     }
                 }
             }
         }
     }
-    
+
     non_skipped.sort();
     non_skipped
 }

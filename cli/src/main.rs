@@ -487,7 +487,6 @@ impl From<ConfigFileFormat> for ConfigFormat {
     }
 }
 
-
 fn handle_config_command(action: ConfigAction) -> Result<()> {
     match action {
         ConfigAction::Init {
