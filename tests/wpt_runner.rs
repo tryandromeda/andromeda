@@ -193,16 +193,14 @@ pub struct TrendMetrics {
     pub performance_change: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BuildMetrics {
     pub last_successful_build: Option<u64>,
     pub build_count: u32,
     pub failed_builds: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RuntimeMetrics {
     pub startup_time_ms: Option<f64>,
     pub memory_usage_mb: Option<f64>,
@@ -959,8 +957,6 @@ impl Default for TrendMetrics {
     }
 }
 
-
-
 #[derive(ClapParser, Debug)]
 #[command(name = "wpt")]
 #[command(about = "Web Platform Tests runner for Andromeda")]
@@ -1094,9 +1090,7 @@ fn validate_expectations(
                 println!("   ✅ Expectations match current results");
             }
         } else {
-            println!(
-                "   ⚠️  Suite {suite_name} has expectations but no recent test results"
-            );
+            println!("   ⚠️  Suite {suite_name} has expectations but no recent test results");
             validation_failed = true;
         }
     }
@@ -1106,9 +1100,7 @@ fn validate_expectations(
         println!("┌─────────────────────────────────────────┐");
         println!("│ Test expectations are out of date!     │");
         println!("│                                         │");
-        println!(
-            "│ {outdated_expectations} out of {checked_suites} suites need updating       │"
-        );
+        println!("│ {outdated_expectations} out of {checked_suites} suites need updating       │");
         println!("│                                         │");
         println!("│ Please run the tests to update:        │");
         println!("│   cargo run --bin wpt_test_runner \\    │");
@@ -1118,9 +1110,7 @@ fn validate_expectations(
         std::process::exit(1);
     } else {
         println!("\n✅ VALIDATION PASSED");
-        println!(
-            "All {checked_suites} test suites have up-to-date expectations"
-        );
+        println!("All {checked_suites} test suites have up-to-date expectations");
         println!("Total failing tests tracked: {total_failing_tests}");
     }
 
