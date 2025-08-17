@@ -49,7 +49,7 @@ fn count_test_files(dir: &Path) -> usize {
                 && entry
                     .path()
                     .extension()
-                    .map_or(false, |ext| ext == "js" || ext == "html")
+                    .is_some_and(|ext| ext == "js" || ext == "html")
                 && !entry
                     .path()
                     .file_name()
@@ -194,6 +194,7 @@ pub struct TrendMetrics {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct BuildMetrics {
     pub last_successful_build: Option<u64>,
     pub build_count: u32,
@@ -201,6 +202,7 @@ pub struct BuildMetrics {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct RuntimeMetrics {
     pub startup_time_ms: Option<f64>,
     pub memory_usage_mb: Option<f64>,
@@ -243,8 +245,10 @@ pub struct WptRunner {
 
 impl WptRunner {
     pub fn new(wpt_path: impl AsRef<Path>) -> Self {
-        let mut config = WptRunnerConfig::default();
-        config.wpt_path = wpt_path.as_ref().to_path_buf();
+        let config = WptRunnerConfig {
+            wpt_path: wpt_path.as_ref().to_path_buf(),
+            ..Default::default()
+        };
         Self::with_config(config)
     }
 
@@ -310,7 +314,7 @@ impl WptRunner {
         }
 
         if !self.config.verbose {
-            println!("Running WPT suite: {}", suite_name);
+            println!("Running WPT suite: {suite_name}");
             std::io::stdout().flush().unwrap();
         }
         let start_time = Instant::now();
@@ -472,7 +476,7 @@ impl WptRunner {
         self.print_suite_result(&suite_result);
 
         if let Err(e) = self.save_run_results() {
-            eprintln!("Warning: Failed to save results: {}", e);
+            eprintln!("Warning: Failed to save results: {e}");
         }
 
         Ok(())
@@ -487,7 +491,7 @@ impl WptRunner {
         };
 
         println!("\n=== WPT Suite Results: {} ===", result.name);
-        println!("Total tests: {}", total);
+        println!("Total tests: {total}");
         println!("Pass: {} ({:.1}%)", result.pass_count, pass_rate);
         println!(
             "Fail: {} ({:.1}%)",
@@ -544,7 +548,7 @@ impl WptRunner {
                 for test in failed_tests.iter().take(5) {
                     println!("    • {}", test.name);
                     if let Some(ref msg) = test.message {
-                        println!("      └─ {}", msg);
+                        println!("      └─ {msg}");
                     }
                 }
                 if failed_tests.len() > 5 {
@@ -557,7 +561,7 @@ impl WptRunner {
                 for test in crashed_tests.iter().take(5) {
                     println!("    • {}", test.name);
                     if let Some(ref msg) = test.message {
-                        println!("      └─ {}", msg);
+                        println!("      └─ {msg}");
                     }
                 }
                 if crashed_tests.len() > 5 {
@@ -570,7 +574,7 @@ impl WptRunner {
                 for test in timeout_tests.iter().take(5) {
                     println!("    • {}", test.name);
                     if let Some(ref msg) = test.message {
-                        println!("      └─ {}", msg);
+                        println!("      └─ {msg}");
                     }
                 }
                 if timeout_tests.len() > 5 {
@@ -606,7 +610,7 @@ impl WptRunner {
                 total_skip += suite_result.skip_count;
                 total_duration += suite_result.total_duration;
 
-                let pass_rate = if suite_result.tests.len() > 0 {
+                let pass_rate = if !suite_result.tests.is_empty() {
                     (suite_result.pass_count as f64 / suite_result.tests.len() as f64) * 100.0
                 } else {
                     0.0
@@ -629,8 +633,8 @@ impl WptRunner {
         };
 
         println!("\nOverall Summary:");
-        println!("  Total: {}", total_tests);
-        println!("  Pass: {} ({:.1}%)", total_pass, overall_pass_rate);
+        println!("  Total: {total_tests}");
+        println!("  Pass: {total_pass} ({overall_pass_rate:.1}%)");
         println!(
             "  Fail: {} ({:.1}%)",
             total_fail,
@@ -833,7 +837,7 @@ impl WptRunner {
                 continue;
             }
 
-            let pass_rate = if suite_result.tests.len() > 0 {
+            let pass_rate = if !suite_result.tests.is_empty() {
                 (suite_result.pass_count as f64 / suite_result.tests.len() as f64) * 100.0
             } else {
                 0.0
@@ -955,25 +959,7 @@ impl Default for TrendMetrics {
     }
 }
 
-impl Default for BuildMetrics {
-    fn default() -> Self {
-        Self {
-            last_successful_build: None,
-            build_count: 0,
-            failed_builds: 0,
-        }
-    }
-}
 
-impl Default for RuntimeMetrics {
-    fn default() -> Self {
-        Self {
-            startup_time_ms: None,
-            memory_usage_mb: None,
-            gc_collections: None,
-        }
-    }
-}
 
 #[derive(ClapParser, Debug)]
 #[command(name = "wpt")]
@@ -1084,9 +1070,9 @@ fn validate_expectations(
             let expected_failing = suite_expectations.expectations.len();
             total_failing_tests += current_failing;
 
-            println!("\n📁 Suite: {}", suite_name);
-            println!("   Expected failing tests: {}", expected_failing);
-            println!("   Current failing tests: {}", current_failing);
+            println!("\n📁 Suite: {suite_name}");
+            println!("   Expected failing tests: {expected_failing}");
+            println!("   Current failing tests: {current_failing}");
 
             if expected_failing != current_failing {
                 println!("   ⚠️  MISMATCH: expectations need updating");
@@ -1109,8 +1095,7 @@ fn validate_expectations(
             }
         } else {
             println!(
-                "   ⚠️  Suite {} has expectations but no recent test results",
-                suite_name
+                "   ⚠️  Suite {suite_name} has expectations but no recent test results"
             );
             validation_failed = true;
         }
@@ -1122,8 +1107,7 @@ fn validate_expectations(
         println!("│ Test expectations are out of date!     │");
         println!("│                                         │");
         println!(
-            "│ {} out of {} suites need updating       │",
-            outdated_expectations, checked_suites
+            "│ {outdated_expectations} out of {checked_suites} suites need updating       │"
         );
         println!("│                                         │");
         println!("│ Please run the tests to update:        │");
@@ -1135,10 +1119,9 @@ fn validate_expectations(
     } else {
         println!("\n✅ VALIDATION PASSED");
         println!(
-            "All {} test suites have up-to-date expectations",
-            checked_suites
+            "All {checked_suites} test suites have up-to-date expectations"
         );
-        println!("Total failing tests tracked: {}", total_failing_tests);
+        println!("Total failing tests tracked: {total_failing_tests}");
     }
 
     Ok(())
@@ -1183,9 +1166,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let suite_path = run_args.wpt_dir.join(suite_name);
                         let count = count_test_files(&suite_path);
                         if skipped_suites.contains(suite_name) {
-                            println!("  {} ({} tests) [SKIPPED]", suite_name, count);
+                            println!("  {suite_name} ({count} tests) [SKIPPED]");
                         } else {
-                            println!("  {} ({} tests)", suite_name, count);
+                            println!("  {suite_name} ({count} tests)");
                         }
                     }
                 }
@@ -1197,7 +1180,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .into_iter()
                     .filter(|s| {
                         if skipped_suites.contains(s) {
-                            println!("Skipping suite '{}' as it's in skip.json", s);
+                            println!("Skipping suite '{s}' as it's in skip.json");
                             false
                         } else {
                             true
@@ -1207,7 +1190,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             for suite in &suites_to_run {
-                println!("\nRunning suite: {}", suite);
+                println!("\nRunning suite: {suite}");
                 runner.run_suite(suite)?;
             }
             runner.print_summary()?;

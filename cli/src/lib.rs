@@ -15,12 +15,12 @@ pub enum CliError {
 impl fmt::Display for CliError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CliError::Io(err) => write!(f, "I/O error: {}", err),
-            CliError::Json(err) => write!(f, "JSON error: {}", err),
-            CliError::TestExecution(msg) => write!(f, "Test execution error: {}", msg),
-            CliError::Config(msg) => write!(f, "Configuration error: {}", msg),
-            CliError::InvalidPath(msg) => write!(f, "Invalid path: {}", msg),
-            CliError::Timeout(msg) => write!(f, "Timeout: {}", msg),
+            CliError::Io(err) => write!(f, "I/O error: {err}"),
+            CliError::Json(err) => write!(f, "JSON error: {err}"),
+            CliError::TestExecution(msg) => write!(f, "Test execution error: {msg}"),
+            CliError::Config(msg) => write!(f, "Configuration error: {msg}"),
+            CliError::InvalidPath(msg) => write!(f, "Invalid path: {msg}"),
+            CliError::Timeout(msg) => write!(f, "Timeout: {msg}"),
         }
     }
 }

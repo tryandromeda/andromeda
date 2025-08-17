@@ -32,7 +32,7 @@ impl WptHarnessBuilder {
             harness.push_str(&self.build_console_optimization());
         }
 
-        harness.push_str("\n");
+        harness.push('\n');
         harness.push_str(test_content);
 
         harness.push_str(&self.build_result_output());

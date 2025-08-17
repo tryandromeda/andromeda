@@ -149,7 +149,7 @@ impl WptTestExecutor {
             Ok(Err(e)) => {
                 return Ok((
                     WptTestResult::Crash,
-                    Some(format!("Failed to execute test: {}", e)),
+                    Some(format!("Failed to execute test: {e}")),
                 ));
             }
             Err(_) => {
@@ -208,7 +208,7 @@ impl WptTestExecutor {
                     .map(|r| {
                         let name = r.get("name").and_then(|n| n.as_str()).unwrap_or("unknown");
                         let error = r.get("error").and_then(|e| e.as_str()).unwrap_or("failed");
-                        format!("{}: {}", name, error)
+                        format!("{name}: {error}")
                     })
                     .collect::<Vec<_>>()
                     .join("; ");

@@ -61,7 +61,7 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
     let update_expectations = args.update_expectations.unwrap_or(args.update);
     let update_metrics = args.update_metrics.unwrap_or(args.update);
 
-    let current_dir = std::env::current_dir().map_err(|e| CliError::Io(e))?;
+    let current_dir = std::env::current_dir().map_err(CliError::Io)?;
     let in_tests_dir = current_dir.ends_with("tests");
 
     let wpt_dir = if in_tests_dir {
@@ -176,7 +176,7 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
 
     let status = cmd
         .status()
-        .map_err(|e| CliError::TestExecution(format!("Failed to run WPT test runner: {}", e)))?;
+        .map_err(|e| CliError::TestExecution(format!("Failed to run WPT test runner: {e}")))?;
 
     if !status.success() {
         return Err(CliError::TestExecution(format!(
@@ -246,9 +246,9 @@ fn show_available_suites(wpt_dir: &PathBuf) {
 
         for suite in &suites {
             if skipped_suites.contains(suite) {
-                println!("  {} (skipped)", suite);
+                println!("  {suite} (skipped)");
             } else {
-                println!("  {}", suite);
+                println!("  {suite}");
             }
         }
 
@@ -261,7 +261,7 @@ fn show_available_suites(wpt_dir: &PathBuf) {
         println!("  wpt fetch dom");
         println!("  wpt -u console");
     } else {
-        eprintln!("Error: Could not read WPT directory at {:?}", wpt_dir);
+        eprintln!("Error: Could not read WPT directory at {wpt_dir:?}");
         std::process::exit(1);
     }
 }
@@ -297,7 +297,7 @@ fn get_non_skipped_suites(wpt_dir: &PathBuf) -> Vec<String> {
     let mut non_skipped = Vec::new();
     if let Ok(entries) = std::fs::read_dir(wpt_dir) {
         for entry in entries.filter_map(|e| e.ok()) {
-            if entry.file_type().ok().map_or(false, |t| t.is_dir()) {
+            if entry.file_type().ok().is_some_and(|t| t.is_dir()) {
                 if let Some(name) = entry.file_name().to_str() {
                     if !name.starts_with('.')
                         && !name.starts_with("common")
