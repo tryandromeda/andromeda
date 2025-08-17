@@ -66,8 +66,6 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
 
     let wpt_dir = if args.wpt_dir.is_absolute() {
         args.wpt_dir.clone()
-    } else if in_tests_dir {
-        current_dir.join(&args.wpt_dir)
     } else {
         current_dir.join(&args.wpt_dir)
     };
