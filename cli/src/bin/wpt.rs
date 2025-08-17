@@ -123,7 +123,7 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
 
     if suites_to_run.is_empty() {
         eprintln!("No suites to run (all suites are skipped or not found)");
-        eprintln!("WPT directory checked: {:?}", wpt_dir);
+        eprintln!("WPT directory checked: {wpt_dir:?}");
         eprintln!("Directory exists: {}", wpt_dir.exists());
         if wpt_dir.exists() {
             eprintln!("Directory is_dir: {}", wpt_dir.is_dir());
