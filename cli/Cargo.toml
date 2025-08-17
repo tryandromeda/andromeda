@@ -16,6 +16,10 @@ path = "src/lib.rs"
 name = "andromeda"
 path = "src/main.rs"
 
+[[bin]]
+name = "wpt"
+path = "src/bin/wpt.rs"
+
 [dependencies]
 clap.workspace = true
 clap_complete.workspace = true

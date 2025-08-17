@@ -1,52 +1,52 @@
 {
   "project": "andromeda",
   "version": "0.1.0",
-  "last_updated": 1755448541,
+  "last_updated": 1755453170,
   "wpt": {
     "overall": {
       "total_tests": 697,
-      "pass": 80,
-      "fail": 221,
+      "pass": 74,
+      "fail": 228,
       "crash": 393,
-      "timeout": 3,
+      "timeout": 2,
       "skip": 0,
-      "pass_rate": 11.477761836441895,
-      "last_run": 1755448541,
-      "duration_seconds": 345.95396233400004
+      "pass_rate": 10.616929698708752,
+      "last_run": 1755453170,
+      "duration_seconds": 247.01109912500002
     },
     "suites": {
-      "url": {
-        "total_tests": 34,
-        "pass": 10,
-        "fail": 20,
-        "crash": 4,
-        "timeout": 0,
-        "skip": 0,
-        "pass_rate": 29.411764705882355,
-        "last_run": 1755448541,
-        "duration_seconds": 1.803093417
-      },
       "console": {
         "total_tests": 13,
         "pass": 5,
-        "fail": 3,
+        "fail": 4,
         "crash": 4,
-        "timeout": 1,
+        "timeout": 0,
         "skip": 0,
         "pass_rate": 38.46153846153847,
-        "last_run": 1755448541,
-        "duration_seconds": 300.017274292
+        "last_run": 1755453170,
+        "duration_seconds": 208.793241625
+      },
+      "url": {
+        "total_tests": 34,
+        "pass": 6,
+        "fail": 24,
+        "crash": 4,
+        "timeout": 0,
+        "skip": 0,
+        "pass_rate": 17.647058823529413,
+        "last_run": 1755453170,
+        "duration_seconds": 0.796433334
       },
       "fetch": {
         "total_tests": 650,
-        "pass": 65,
-        "fail": 198,
+        "pass": 63,
+        "fail": 200,
         "crash": 385,
         "timeout": 2,
         "skip": 0,
-        "pass_rate": 10.0,
-        "last_run": 1755448541,
-        "duration_seconds": 44.133594625
+        "pass_rate": 9.692307692307692,
+        "last_run": 1755453170,
+        "duration_seconds": 37.421424166
       }
     },
     "trend": {
