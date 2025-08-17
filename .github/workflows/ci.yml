@@ -75,21 +75,8 @@ jobs:
         run: cargo build -p andromeda --release
       - name: Build WPT runner
         run: cargo build --bin wpt_test_runner --release
-      - name: Run WPT Console Tests
-        run: cargo run --bin wpt_test_runner --release -- run console --timeout 5000 --threads 4
-        timeout-minutes: 10
-        env:
-          RUST_BACKTRACE: 1
-      - name: Run WPT URL Tests
-        run: cargo run --bin wpt_test_runner --release -- run url --timeout 5000 --threads 4
-        timeout-minutes: 10
-        env:
-          RUST_BACKTRACE: 1
-      - name: Run WPT Fetch Tests
-        run: cargo run --bin wpt_test_runner --release -- run fetch --timeout 5000 --threads 4
-        timeout-minutes: 15
-        env:
-          RUST_BACKTRACE: 1
+      - name: Run WPT tests
+        run: cargo run --bin wpt --release
       - name: Generate test report
         if: always()
         run: cargo run --bin wpt_test_runner --release -- report --detailed
