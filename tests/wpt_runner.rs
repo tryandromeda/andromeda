@@ -1,3 +1,4 @@
+
 use clap::{Args as ClapArgs, Parser as ClapParser, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -6,9 +7,53 @@ use std::{
     io::Write,
     path::{PathBuf, Path},
     sync::{Arc, Mutex},
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use walkdir::WalkDir;
+use rayon::prelude::*;
+
+mod wpt_harness_builder;
+mod wpt_executor;
+
+use wpt_executor::{WptTestExecutor, TestExecutorConfig};
+
+fn get_available_suites(wpt_dir: &Path) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let mut suites = Vec::new();
+    
+    for entry in std::fs::read_dir(wpt_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        
+        if path.is_dir() {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if !name.starts_with('.') && !["common", "tools"].contains(&name) {
+                    suites.push(name.to_string());
+                }
+            }
+        }
+    }
+    
+    suites.sort();
+    Ok(suites)
+}
+
+fn count_test_files(dir: &Path) -> usize {
+    if !dir.is_dir() {
+        return 0;
+    }
+    
+    WalkDir::new(dir)
+        .into_iter()
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| {
+            entry.file_type().is_file() &&
+            entry.path().extension().map_or(false, |ext| {
+                ext == "js" || ext == "html"
+            }) &&
+            !entry.path().file_name().unwrap_or_default().to_str().unwrap_or("").starts_with('.')
+        })
+        .count()
+}
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "UPPERCASE")]
@@ -81,7 +126,6 @@ pub struct WptRunResult {
     pub total_duration: Duration,
 }
 
-// Helper functions for Duration serialization
 fn serialize_duration<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
@@ -148,79 +192,118 @@ pub struct RuntimeMetrics {
     pub gc_collections: Option<u32>,
 }
 
-#[derive(Debug)]
-pub struct WptRunner {
-    wpt_path: PathBuf,
-    results: Arc<Mutex<HashMap<String, WptSuiteResult>>>,
-    threads: usize,
-    filter: Option<String>,
-    skip: Option<String>,
-    timeout: Duration,
-    output_dir: Option<PathBuf>,
-    save_results: bool,
+#[derive(Debug, Clone)]
+pub struct WptRunnerConfig {
+    pub wpt_path: PathBuf,
+    pub threads: usize,
+    pub filter: Option<String>,
+    pub skip: Option<String>,
+    pub timeout: Duration,
+    pub output_dir: Option<PathBuf>,
+    pub save_results: bool,
+    pub verbose: bool,
 }
 
-impl WptRunner {
-    pub fn new(wpt_path: impl AsRef<Path>) -> Self {
+impl Default for WptRunnerConfig {
+    fn default() -> Self {
         Self {
-            wpt_path: wpt_path.as_ref().to_path_buf(),
-            results: Arc::new(Mutex::new(HashMap::new())),
+            wpt_path: PathBuf::from("./wpt"),
             threads: 4,
             filter: None,
             skip: None,
             timeout: Duration::from_secs(30),
             output_dir: None,
             save_results: false,
+            verbose: false,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct WptRunner {
+    config: WptRunnerConfig,
+    results: Arc<Mutex<HashMap<String, WptSuiteResult>>>,
+    executor: WptTestExecutor,
+}
+
+impl WptRunner {
+    pub fn new(wpt_path: impl AsRef<Path>) -> Self {
+        let mut config = WptRunnerConfig::default();
+        config.wpt_path = wpt_path.as_ref().to_path_buf();
+        Self::with_config(config)
+    }
+
+    pub fn with_config(config: WptRunnerConfig) -> Self {
+        let executor_config = TestExecutorConfig {
+            timeout: config.timeout,
+            optimize_console_log: true,
+            binary_path: None,
+        };
+        
+        Self {
+            config,
+            results: Arc::new(Mutex::new(HashMap::new())),
+            executor: WptTestExecutor::with_config(executor_config),
         }
     }
 
     pub fn with_threads(mut self, threads: usize) -> Self {
-        self.threads = threads;
+        self.config.threads = threads;
         self
     }
 
     pub fn with_filter(mut self, filter: String) -> Self {
-        self.filter = Some(filter);
+        self.config.filter = Some(filter);
         self
     }
 
     pub fn with_skip(mut self, skip: String) -> Self {
-        self.skip = Some(skip);
+        self.config.skip = Some(skip);
         self
     }
 
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = timeout;
+        self.config.timeout = timeout;
+
+        self.executor = self.executor.timeout(timeout);
         self
     }
 
     pub fn with_output_dir(mut self, output_dir: impl AsRef<Path>) -> Self {
-        self.output_dir = Some(output_dir.as_ref().to_path_buf());
-        self.save_results = true;
+        self.config.output_dir = Some(output_dir.as_ref().to_path_buf());
+        self.config.save_results = true;
         self
     }
 
     pub fn with_save_results(mut self, save: bool) -> Self {
-        self.save_results = save;
-        // Don't set a default output_dir, require it to be explicitly specified
+        self.config.save_results = save;
+        self
+    }
+
+    pub fn with_verbose(mut self, verbose: bool) -> Self {
+        self.config.verbose = verbose;
         self
     }
 
     pub fn run_suite(&self, suite_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let suite_path = self.wpt_path.join(suite_name);
+        let suite_path = self.config.wpt_path.join(suite_name);
         
         if !suite_path.exists() {
             return Err(format!("Suite {} not found at {}", suite_name, suite_path.display()).into());
         }
 
-        println!("Running WPT suite: {}", suite_name);
-        std::io::stdout().flush().unwrap();
+        if !self.config.verbose {
+            println!("Running WPT suite: {}", suite_name);
+            std::io::stdout().flush().unwrap();
+        }
         let start_time = Instant::now();
         
         let mut test_files = Vec::new();
         
-        println!("Scanning directory: {}", suite_path.display());
-        std::io::stdout().flush().unwrap();
+        if self.config.verbose {
+            println!("Scanning directory: {}", suite_path.display());
+            std::io::stdout().flush().unwrap();
+        }
         
         for entry in WalkDir::new(&suite_path)
             .into_iter()
@@ -230,22 +313,22 @@ impl WptRunner {
                 let path = entry.path();
                 let extension = path.extension();
                 
-                // Include various WPT test types
+        
                 if let Some(ext) = extension {
                     if ext == "html" || ext == "htm" || 
                        ext == "js" || ext == "any.js" || ext == "window.js" || ext == "worker.js" {
                         
-                        let relative_path = path.strip_prefix(&self.wpt_path)?;
+                        let relative_path = path.strip_prefix(&self.config.wpt_path)?;
                         let test_name = relative_path.to_string_lossy().to_string();
                         
-                        // Apply filtering
-                        if let Some(ref filter) = self.filter {
+
+                        if let Some(ref filter) = self.config.filter {
                             if !test_name.contains(filter) {
                                 continue;
                             }
                         }
                         
-                        if let Some(ref skip) = self.skip {
+                        if let Some(ref skip) = self.config.skip {
                             if test_name.contains(skip) {
                                 continue;
                             }
@@ -257,8 +340,13 @@ impl WptRunner {
             }
         }
 
-        println!("Found {} test files", test_files.len());
-        std::io::stdout().flush().unwrap();
+        if !self.config.verbose {
+            println!("Running {} test files with {} threads...", test_files.len(), self.config.threads);
+            std::io::stdout().flush().unwrap();
+        } else {
+            println!("Found {} test files", test_files.len());
+            std::io::stdout().flush().unwrap();
+        }
         
         let mut suite_result = WptSuiteResult {
             name: suite_name.to_string(),
@@ -271,36 +359,81 @@ impl WptRunner {
             total_duration: Duration::new(0, 0),
         };
 
-        for test_file in &test_files {
-            match self.run_test(test_file) {
-                Ok(test_cases) => {
-                    for test_case in test_cases {
-                        match test_case.result {
-                            WptTestResult::Pass => suite_result.pass_count += 1,
-                            WptTestResult::Fail => suite_result.fail_count += 1,
-                            WptTestResult::Crash => suite_result.crash_count += 1,
-                            WptTestResult::Timeout => suite_result.timeout_count += 1,
-                            WptTestResult::Skip => suite_result.skip_count += 1,
-                            WptTestResult::NotRun => {}
+        let thread_pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(self.config.threads)
+            .build()
+            .unwrap();
+
+        let progress_counter = Arc::new(Mutex::new(0));
+        let total_tests = test_files.len();
+
+        let parallel_results: Vec<Vec<WptTestCase>> = thread_pool.install(|| {
+            test_files.par_iter().map(|test_file| {
+                let result = match self.executor.execute_test(test_file) {
+                    Ok(test_cases) => {
+                        for test_case in &test_cases {
+                            if self.config.verbose {
+                                println!("    {} test: {} - {:?}", 
+                                    match test_case.result {
+                                        WptTestResult::Pass => "✅",
+                                        WptTestResult::Fail => "❌",
+                                        WptTestResult::Crash => "💥",
+                                        WptTestResult::Timeout => "⏰",
+                                        WptTestResult::Skip => "⏭️",
+                                        WptTestResult::NotRun => "⚪",
+                                    },
+                                    test_case.name,
+                                    test_case.result
+                                );
+                            }
                         }
-                        suite_result.total_duration += test_case.duration;
-                        suite_result.tests.push(test_case);
+                        test_cases
+                    }
+                    Err(e) => {
+                        if self.config.verbose {
+                            eprintln!("Error running test {}: {}", test_file.display(), e);
+                        }
+                        vec![WptTestCase {
+                            name: test_file.file_name()
+                                .unwrap_or_default()
+                                .to_string_lossy()
+                                .to_string(),
+                            result: WptTestResult::Crash,
+                            message: Some(e.to_string()),
+                            duration: Duration::new(0, 0),
+                        }]
+                    }
+                };
+
+                if !self.config.verbose {
+                    let mut counter = progress_counter.lock().unwrap();
+                    *counter += 1;
+                    if *counter % 10 == 0 || *counter == total_tests {
+                        print!("\rProgress: {}/{} tests completed", *counter, total_tests);
+                        std::io::stdout().flush().unwrap();
                     }
                 }
-                Err(e) => {
-                    eprintln!("Error running test {}: {}", test_file.display(), e);
-                    let test_case = WptTestCase {
-                        name: test_file.file_name()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                            .to_string(),
-                        result: WptTestResult::Crash,
-                        message: Some(e.to_string()),
-                        duration: Duration::new(0, 0),
-                    };
-                    suite_result.crash_count += 1;
-                    suite_result.tests.push(test_case);
+
+                result
+            }).collect()
+        });
+
+        if !self.config.verbose {
+            println!();
+        }
+
+        for test_cases in parallel_results {
+            for test_case in test_cases {
+                match test_case.result {
+                    WptTestResult::Pass => suite_result.pass_count += 1,
+                    WptTestResult::Fail => suite_result.fail_count += 1,
+                    WptTestResult::Crash => suite_result.crash_count += 1,
+                    WptTestResult::Timeout => suite_result.timeout_count += 1,
+                    WptTestResult::Skip => suite_result.skip_count += 1,
+                    WptTestResult::NotRun => {}
                 }
+                suite_result.total_duration += test_case.duration;
+                suite_result.tests.push(test_case);
             }
         }
 
@@ -310,8 +443,7 @@ impl WptRunner {
         self.results.lock().unwrap().insert(suite_name.to_string(), suite_result.clone());
         self.print_suite_result(&suite_result);
         
-        // Save metrics and expectations after each suite
-        // Individual result files are only saved if output_dir is specified
+
         if let Err(e) = self.save_run_results() {
             eprintln!("Warning: Failed to save results: {}", e);
         }
@@ -319,30 +451,7 @@ impl WptRunner {
         Ok(())
     }
 
-    fn run_test(&self, test_path: &Path) -> Result<Vec<WptTestCase>, Box<dyn std::error::Error>> {
-        let test_name = test_path.file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string();
 
-        let start_time = Instant::now();
-        
-        // For now, just mark all tests as "not implemented" to demonstrate the framework
-        // In a real implementation, this would execute the test properly
-        let result = WptTestResult::Crash;
-        let message = Some("Test execution not yet implemented".to_string());
-        let duration = start_time.elapsed();
-
-        println!("    Running test: {}", test_name);
-        std::io::stdout().flush().unwrap();
-
-        Ok(vec![WptTestCase {
-            name: test_name,
-            result,
-            message,
-            duration,
-        }])
-    }
 
     fn print_suite_result(&self, result: &WptSuiteResult) {
         let total = result.tests.len();
@@ -361,7 +470,7 @@ impl WptRunner {
         println!("Skip: {} ({:.1}%)", result.skip_count, (result.skip_count as f64 / total as f64) * 100.0);
         println!("Total time: {:.2}s", result.total_duration.as_secs_f64());
         
-        // Show detailed failure information
+
         let failures: Vec<_> = result.tests.iter()
             .filter(|t| matches!(t.result, WptTestResult::Fail | WptTestResult::Crash | WptTestResult::Timeout))
             .collect();
@@ -370,7 +479,7 @@ impl WptRunner {
             println!("\n❌ Failed Tests ({} total):", failures.len());
             println!("─────────────────────────");
             
-            // Group failures by result type
+
             let mut failed_tests = Vec::new();
             let mut crashed_tests = Vec::new();
             let mut timeout_tests = Vec::new();
@@ -384,7 +493,7 @@ impl WptRunner {
                 }
             }
             
-            // Display failures by category
+
             if !failed_tests.is_empty() {
                 println!("\n  Failed ({}):", failed_tests.len());
                 for test in failed_tests.iter().take(5) {
@@ -435,7 +544,7 @@ impl WptRunner {
         let mut total_skip = 0;
         let mut total_duration = Duration::new(0, 0);
 
-        // Explicitly scope the lock to avoid deadlock with save_run_results()
+
         {
             let results = self.results.lock().unwrap();
             if results.is_empty() {
@@ -466,7 +575,7 @@ impl WptRunner {
                     pass_rate
                 );
             }
-        } // Lock is released here before calling save_run_results()
+        }
 
         let overall_pass_rate = if total_tests > 0 {
             (total_pass as f64 / total_tests as f64) * 100.0
@@ -483,7 +592,7 @@ impl WptRunner {
         println!("  Skip: {} ({:.1}%)", total_skip, (total_skip as f64 / total_tests as f64) * 100.0);
         println!("  Total time: {:.2}s", total_duration.as_secs_f64());
 
-        // Save final results (metrics and expectations always, individual files only if output_dir specified)
+
         println!("💾 Saving results...");
         std::io::stdout().flush().unwrap();
         self.save_run_results()?;
@@ -494,8 +603,10 @@ impl WptRunner {
     }
 
     fn save_run_results(&self) -> Result<(), Box<dyn std::error::Error>> {
-        println!("🔄 Starting save_run_results...");
-        std::io::stdout().flush().unwrap();
+        if self.config.verbose {
+            println!("🔄 Starting save_run_results...");
+            std::io::stdout().flush().unwrap();
+        }
         
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)?
@@ -511,7 +622,7 @@ impl WptRunner {
         
         let mut suites = HashMap::new();
         
-        // Explicitly scope the lock to ensure it's released early
+
         {
             let results = self.results.lock().unwrap();
             for (suite_name, suite_result) in results.iter() {
@@ -525,7 +636,7 @@ impl WptRunner {
                 
                 suites.insert(suite_name.clone(), suite_result.clone());
             }
-        } // Lock is explicitly released here
+        }
         
         let overall_pass_rate = if total_tests > 0 {
             (total_pass as f64 / total_tests as f64) * 100.0
@@ -546,7 +657,7 @@ impl WptRunner {
             total_duration,
         };
         
-        // Always update metrics and expectations (not in results directory)
+
         self.update_metrics(&run_result)?;
         self.update_expectations(&run_result)?;
         
@@ -554,26 +665,20 @@ impl WptRunner {
     }
     
     fn update_expectations(&self, run_result: &WptRunResult) -> Result<(), Box<dyn std::error::Error>> {
-        println!("🔧 Starting update_expectations...");
-        std::io::stdout().flush().unwrap();
-        let expectation_path = PathBuf::from("tests/expectation.json");
+        if self.config.verbose {
+            println!("🔧 Starting update_expectations...");
+            std::io::stdout().flush().unwrap();
+        }
         
-        // Load skip.json to filter out skipped suites
-        let skip_path = PathBuf::from("tests/skip.json");
-        let skipped_suites: Vec<String> = if skip_path.exists() {
-            let skip_file = File::open(&skip_path)?;
-            let skip_data: serde_json::Value = serde_json::from_reader(skip_file)?;
-            skip_data["skip"]
-                .as_array()
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect()
-                })
-                .unwrap_or_default()
+
+        let expectation_path = if Path::new("expectation.json").exists() {
+            PathBuf::from("expectation.json")
         } else {
-            Vec::new()
+            PathBuf::from("tests/expectation.json")
         };
+        
+
+        let skipped_suites = Vec::<String>::new();
         
         let mut expectations = if expectation_path.exists() {
             let file = File::open(&expectation_path)?;
@@ -594,10 +699,9 @@ impl WptRunner {
             }
         };
         
-        // Update expectations based on test results, excluding skipped suites
-        // Don't clear existing expectations - merge them instead
+
         for (suite_name, suite_result) in &run_result.suites {
-            // Skip this suite if it's in the skip list
+
             if skipped_suites.contains(suite_name) {
                 continue;
             }
@@ -617,7 +721,7 @@ impl WptRunner {
                     WptTestResult::NotRun => "NOTRUN",
                 };
                 
-                // Only record non-passing tests
+
                 if test.result != WptTestResult::Pass {
                     suite_expectations.expectations.insert(test.name.clone(), expectation.to_string());
                 }
@@ -626,40 +730,39 @@ impl WptRunner {
         
         expectations.last_updated = Some(run_result.timestamp);
         
-        println!("📝 Creating expectations file...");
-        std::io::stdout().flush().unwrap();
+        if self.config.verbose {
+            println!("📝 Creating expectations file...");
+            std::io::stdout().flush().unwrap();
+        }
         let file = File::create(expectation_path)?;
-        println!("📄 Writing expectations to file...");
-        std::io::stdout().flush().unwrap();
+        if self.config.verbose {
+            println!("📄 Writing expectations to file...");
+            std::io::stdout().flush().unwrap();
+        }
         serde_json::to_writer_pretty(file, &expectations)?;
-        println!("💾 Expectations file saved successfully!");
-        std::io::stdout().flush().unwrap();
+        if self.config.verbose {
+            println!("💾 Expectations file saved successfully!");
+            std::io::stdout().flush().unwrap();
+        }
         
         Ok(())
     }
     
     fn update_metrics(&self, run_result: &WptRunResult) -> Result<(), Box<dyn std::error::Error>> {
-        println!("📊 Starting update_metrics...");
-        std::io::stdout().flush().unwrap();
-        // Always save metrics to tests/metrics.json, not in results directory
-        let metrics_file = PathBuf::from("tests/metrics.json");
+        if self.config.verbose {
+            println!("📊 Starting update_metrics...");
+            std::io::stdout().flush().unwrap();
+        }
         
-        // Load skip.json to filter out skipped suites
-        let skip_path = PathBuf::from("tests/skip.json");
-        let skipped_suites: Vec<String> = if skip_path.exists() {
-            let skip_file = File::open(&skip_path)?;
-            let skip_data: serde_json::Value = serde_json::from_reader(skip_file)?;
-            skip_data["skip"]
-                .as_array()
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect()
-                })
-                .unwrap_or_default()
+
+        let metrics_file = if Path::new("metrics.json").exists() {
+            PathBuf::from("metrics.json")
         } else {
-            Vec::new()
+            PathBuf::from("tests/metrics.json")
         };
+        
+
+        let skipped_suites = Vec::<String>::new();
             
         let mut metrics = if metrics_file.exists() {
             let file = File::open(&metrics_file)?;
@@ -668,9 +771,9 @@ impl WptRunner {
             Metrics::default()
         };
             
-        // Merge suite metrics - add new results to existing ones
+
         for (suite_name, suite_result) in &run_result.suites {
-            // Skip this suite if it's in the skip list
+
             if skipped_suites.contains(suite_name) {
                 continue;
             }
@@ -681,7 +784,7 @@ impl WptRunner {
                 0.0
             };
             
-            // Insert or update suite metrics
+
             metrics.wpt.suites.insert(suite_name.clone(), WptSuiteMetrics {
                 total_tests: suite_result.tests.len(),
                 pass: suite_result.pass_count,
@@ -695,7 +798,7 @@ impl WptRunner {
             });
         }
         
-        // Calculate overall metrics from all current suite metrics
+
         let mut total_tests = 0;
         let mut total_pass = 0;
         let mut total_fail = 0;
@@ -734,17 +837,24 @@ impl WptRunner {
             
         metrics.last_updated = Some(run_result.timestamp);
         
-        println!("📝 Creating metrics file...");
-        std::io::stdout().flush().unwrap();
+        if self.config.verbose {
+            println!("📝 Creating metrics file...");
+            std::io::stdout().flush().unwrap();
+        }
         let file = File::create(metrics_file)?;
-        println!("📄 Writing metrics to file...");
-        std::io::stdout().flush().unwrap();
+        if self.config.verbose {
+            println!("📄 Writing metrics to file...");
+            std::io::stdout().flush().unwrap();
+        }
         serde_json::to_writer_pretty(file, &metrics)?;
-        println!("💾 Metrics file saved successfully!");
-        std::io::stdout().flush().unwrap();
+        if self.config.verbose {
+            println!("💾 Metrics file saved successfully!");
+            std::io::stdout().flush().unwrap();
+        }
         
         Ok(())
     }
+
 }
 
 impl Default for Metrics {
@@ -810,27 +920,6 @@ impl Default for RuntimeMetrics {
     }
 }
 
-fn is_test_file(file_name: &str) -> bool {
-    // Include HTML files, JavaScript files, and worker files
-    (file_name.ends_with(".html") || file_name.ends_with(".htm") ||
-     file_name.ends_with(".js") || file_name.ends_with(".any.js") ||
-     file_name.ends_with(".window.js") || file_name.ends_with(".worker.js")) &&
-    // Exclude helper files and references
-    !file_name.contains("-ref.") && !file_name.contains("_FIXTURE")
-}
-
-fn count_test_files(path: PathBuf) -> usize {
-    WalkDir::new(&path)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|entry| entry.file_type().is_file())
-        .filter(|entry| {
-            entry.file_name()
-                .to_str()
-                .map_or(false, is_test_file)
-        })
-        .count()
-}
 
 #[derive(ClapParser, Debug)]
 #[command(name = "wpt")]
@@ -844,56 +933,158 @@ struct WptArgs {
 enum Commands {
     Run(RunArgs),
     Report(ReportArgs),
+    ValidateExpectations(ValidateExpectationsArgs),
 }
 
 #[derive(ClapArgs, Debug)]
 struct RunArgs {
-    /// WPT suite(s) to run (e.g., fetch, dom, streams)
+
     #[arg()]
     suites: Vec<String>,
     
-    /// Filter tests by pattern
+
     #[arg(long)]
     filter: Option<String>,
     
-    /// Skip tests matching pattern
+
     #[arg(long)]
     skip: Option<String>,
     
-    /// Number of parallel threads
+
     #[arg(short, long, default_value = "4")]
     threads: usize,
     
-    /// Test timeout in seconds
+
     #[arg(long, default_value = "30")]
     timeout: u64,
     
-    /// Output directory for results
+
     #[arg(short, long)]
     output: Option<PathBuf>,
     
     
-    /// Path to WPT directory
+
     #[arg(long, default_value = "./wpt")]
     wpt_dir: PathBuf,
     
-    /// Verbose output
+
     #[arg(short, long)]
     verbose: bool,
 }
 
 #[derive(ClapArgs, Debug)]
 struct ReportArgs {
-    /// Results directory
+
     #[arg(short, long, default_value = "./results")]
     results_dir: PathBuf,
     
-    /// Show detailed failures
+
     #[arg(long)]
     detailed: bool,
 }
 
-use std::time::{SystemTime, UNIX_EPOCH};
+#[derive(ClapArgs, Debug)]
+struct ValidateExpectationsArgs {
+
+    #[arg(long, default_value = "./wpt")]
+    wpt_dir: PathBuf,
+    
+
+    #[arg(long, default_value = "30")]
+    timeout: u64,
+}
+
+
+fn validate_expectations(_wpt_dir: &Path, _timeout: Duration) -> Result<(), Box<dyn std::error::Error>> {
+    println!("🔍 Validating test expectations...");
+    
+    let expectation_path = if Path::new("expectation.json").exists() {
+        PathBuf::from("expectation.json")
+    } else {
+        PathBuf::from("tests/expectation.json")
+    };
+    
+    let metrics_path = if Path::new("metrics.json").exists() {
+        PathBuf::from("metrics.json")
+    } else {
+        PathBuf::from("tests/metrics.json")
+    };
+    
+    if !expectation_path.exists() {
+        println!("❌ expectation.json not found");
+        return Err("expectation.json not found".into());
+    }
+    
+    if !metrics_path.exists() {
+        println!("❌ metrics.json not found - run tests first");
+        return Err("metrics.json not found - run tests first".into());
+    }
+    
+    let expectations_file = File::open(&expectation_path)?;
+    let expectations: ExpectationFile = serde_json::from_reader(expectations_file)?;
+    
+    let metrics_file = File::open(&metrics_path)?;
+    let metrics: Metrics = serde_json::from_reader(metrics_file)?;
+    
+    let mut validation_failed = false;
+    let mut checked_suites = 0;
+    let mut total_failing_tests = 0;
+    let mut outdated_expectations = 0;
+    
+    println!("\n📊 Checking expectations against current test results...");
+    
+    for (suite_name, suite_expectations) in &expectations.suites {
+        checked_suites += 1;
+        
+        if let Some(suite_metrics) = metrics.wpt.suites.get(suite_name) {
+            let current_failing = suite_metrics.fail + suite_metrics.crash + suite_metrics.timeout;
+            let expected_failing = suite_expectations.expectations.len();
+            total_failing_tests += current_failing;
+            
+            println!("\n📁 Suite: {}", suite_name);
+            println!("   Expected failing tests: {}", expected_failing);
+            println!("   Current failing tests: {}", current_failing);
+            
+            if expected_failing != current_failing {
+                println!("   ⚠️  MISMATCH: expectations need updating");
+                outdated_expectations += 1;
+                validation_failed = true;
+                
+                if current_failing < expected_failing {
+                    println!("   ✅ Good news: {} fewer tests are failing now!", expected_failing - current_failing);
+                } else {
+                    println!("   ❌ {} more tests are failing than expected", current_failing - expected_failing);
+                }
+            } else {
+                println!("   ✅ Expectations match current results");
+            }
+        } else {
+            println!("   ⚠️  Suite {} has expectations but no recent test results", suite_name);
+            validation_failed = true;
+        }
+    }
+    
+    if validation_failed {
+        println!("\n❌ VALIDATION FAILED");
+        println!("┌─────────────────────────────────────────┐");
+        println!("│ Test expectations are out of date!     │");
+        println!("│                                         │");
+        println!("│ {} out of {} suites need updating       │", outdated_expectations, checked_suites);
+        println!("│                                         │");
+        println!("│ Please run the tests to update:        │");
+        println!("│   cargo run --bin wpt_test_runner \\    │");
+        println!("│     -- run console --timeout 5000      │");
+        println!("└─────────────────────────────────────────┘");
+        
+        std::process::exit(1);
+    } else {
+        println!("\n✅ VALIDATION PASSED");
+        println!("All {} test suites have up-to-date expectations", checked_suites);
+        println!("Total failing tests tracked: {}", total_failing_tests);
+    }
+    
+    Ok(())
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = WptArgs::parse();
@@ -915,60 +1106,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(output) = run_args.output {
                 runner = runner.with_output_dir(output);
             }
-            // Only save results if output directory is explicitly specified
             
-            // Load skip.json to filter out skipped suites
-            let skip_path = PathBuf::from("tests/skip.json");
-            let skipped_suites: Vec<String> = if skip_path.exists() {
-            let skip_file = File::open(&skip_path)?;
-            let skip_data: serde_json::Value = serde_json::from_reader(skip_file)?;
-            skip_data["skip"]
-                .as_array()
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect()
-                })
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        };
+            let skipped_suites = Vec::<String>::new();
             
-            // Check if "all" is specified to run all suites
             let suites_to_run = if run_args.suites.len() == 1 && run_args.suites[0] == "all" {
-                // Get all available suites, excluding skipped ones
-                let mut all_suites = Vec::new();
-                if let Ok(entries) = std::fs::read_dir(&run_args.wpt_dir) {
-                    for entry in entries.flatten() {
-                        if entry.file_type().map_or(false, |t| t.is_dir()) {
-                            if let Some(name) = entry.file_name().to_str() {
-                                if !name.starts_with('.') && !name.starts_with("common") && !skipped_suites.contains(&name.to_string()) {
-                                    all_suites.push(name.to_string());
-                                }
-                            }
-                        }
-                    }
-                }
-                all_suites.sort();
+                let all_suites = get_available_suites(&run_args.wpt_dir)
+                    .unwrap_or_else(|_| Vec::new());
                 println!("Running {} WPT suites (excluding {} skipped)...", all_suites.len(), skipped_suites.len());
                 all_suites
             } else if run_args.suites.is_empty() {
                 println!("No suites specified. Available suites:");
-                if let Ok(entries) = std::fs::read_dir(&run_args.wpt_dir) {
-                    for entry in entries.flatten() {
-                        if entry.file_type().map_or(false, |t| t.is_dir()) {
-                            if let Some(name) = entry.file_name().to_str() {
-                                if !name.starts_with('.') {
-                                    let count = count_test_files(entry.path());
-                                    println!("  {} ({} tests)", name, count);
-                                }
-                            }
+                if let Ok(available_suites) = get_available_suites(&run_args.wpt_dir) {
+                    for suite_name in &available_suites {
+                        let suite_path = run_args.wpt_dir.join(suite_name);
+                        let count = count_test_files(&suite_path);
+                        if skipped_suites.contains(suite_name) {
+                            println!("  {} ({} tests) [SKIPPED]", suite_name, count);
+                        } else {
+                            println!("  {} ({} tests)", suite_name, count);
                         }
                     }
                 }
                 return Ok(());
             } else {
-                // Filter out skipped suites from the provided list
                 run_args.suites.clone()
                     .into_iter()
                     .filter(|s| {
@@ -982,7 +1142,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .collect()
             };
             
-            // Run the selected suites
             for suite in &suites_to_run {
                 println!("\nRunning suite: {}", suite);
                 runner.run_suite(suite)?;
@@ -993,7 +1152,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         
         Commands::Report(report_args) => {
-            // Generate report from metrics
             let metrics_file = PathBuf::from("tests/metrics.json");
             if !metrics_file.exists() {
                 return Err("No metrics found. Run tests first.".into());
@@ -1026,7 +1184,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         suite_metrics.pass_rate
                     );
                     
-                    // Show failure counts
                     if suite_metrics.fail > 0 || suite_metrics.crash > 0 {
                         if suite_metrics.fail > 0 {
                             println!("    FAIL: {} tests", suite_metrics.fail);
@@ -1037,6 +1194,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
+        }
+        
+        Commands::ValidateExpectations(validate_args) => {
+            validate_expectations(&validate_args.wpt_dir, Duration::from_secs(validate_args.timeout))?;
         }
     }
     

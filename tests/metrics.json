@@ -1,52 +1,52 @@
 {
   "project": "andromeda",
   "version": "0.1.0",
-  "last_updated": 1754951698,
+  "last_updated": 1755448541,
   "wpt": {
     "overall": {
       "total_tests": 697,
-      "pass": 0,
-      "fail": 0,
-      "crash": 697,
-      "timeout": 0,
+      "pass": 80,
+      "fail": 221,
+      "crash": 393,
+      "timeout": 3,
       "skip": 0,
-      "pass_rate": 0.0,
-      "last_run": 1754951698,
-      "duration_seconds": 0.004271541
+      "pass_rate": 11.477761836441895,
+      "last_run": 1755448541,
+      "duration_seconds": 345.95396233400004
     },
     "suites": {
-      "fetch": {
-        "total_tests": 650,
-        "pass": 0,
-        "fail": 0,
-        "crash": 650,
-        "timeout": 0,
-        "skip": 0,
-        "pass_rate": 0.0,
-        "last_run": 1754928243,
-        "duration_seconds": 0.002759208
-      },
       "url": {
         "total_tests": 34,
-        "pass": 0,
-        "fail": 0,
-        "crash": 34,
+        "pass": 10,
+        "fail": 20,
+        "crash": 4,
         "timeout": 0,
         "skip": 0,
-        "pass_rate": 0.0,
-        "last_run": 1754948932,
-        "duration_seconds": 0.000269333
+        "pass_rate": 29.411764705882355,
+        "last_run": 1755448541,
+        "duration_seconds": 1.803093417
       },
       "console": {
         "total_tests": 13,
-        "pass": 0,
-        "fail": 0,
-        "crash": 13,
-        "timeout": 0,
+        "pass": 5,
+        "fail": 3,
+        "crash": 4,
+        "timeout": 1,
         "skip": 0,
-        "pass_rate": 0.0,
-        "last_run": 1754951698,
-        "duration_seconds": 0.001243
+        "pass_rate": 38.46153846153847,
+        "last_run": 1755448541,
+        "duration_seconds": 300.017274292
+      },
+      "fetch": {
+        "total_tests": 650,
+        "pass": 65,
+        "fail": 198,
+        "crash": 385,
+        "timeout": 2,
+        "skip": 0,
+        "pass_rate": 10.0,
+        "last_run": 1755448541,
+        "duration_seconds": 44.133594625
       }
     },
     "trend": {

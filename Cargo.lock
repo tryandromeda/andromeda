@@ -4267,6 +4267,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yml",
+ "tempfile",
  "wait-timeout",
  "walkdir",
  "yaml-rust2",

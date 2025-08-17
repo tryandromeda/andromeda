@@ -52,3 +52,28 @@ jobs:
         run: |
           cargo clippy --all-targets -- -D warnings
           cargo clippy --all-targets --all-features -- -D warnings
+  wpt-tests:
+    name: WPT Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up cargo cache
+        uses: Swatinem/rust-cache@v2
+        if: github.ref != 'refs/heads/main'
+        with:
+          prefix-key: "andromeda-${{ runner.os }}"
+      - name: Install the rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.88.0
+          components: rustfmt, clippy
+      - name: Build project
+        run: cargo build --release
+      - name: Run WPT tests
+        run: |
+          cd tests
+          cargo run --bin wpt_test_runner -- run console --timeout 5000
+      - name: Validate test expectations
+        run: |
+          cd tests
+          cargo run --bin wpt_test_runner -- validate-expectations
