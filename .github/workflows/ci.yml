@@ -76,7 +76,7 @@ jobs:
       - name: Build WPT runner
         run: cargo build --bin wpt_test_runner --release
       - name: Run WPT tests
-        run: cargo run --bin wpt --release
+        run: cargo run --bin wpt --release -- --wpt-dir tests/wpt
       - name: Generate test report
         if: always()
         run: cargo run --bin wpt_test_runner --release -- report --detailed

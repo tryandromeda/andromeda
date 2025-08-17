@@ -64,10 +64,12 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
     let current_dir = std::env::current_dir().map_err(CliError::Io)?;
     let in_tests_dir = current_dir.ends_with("tests");
 
-    let wpt_dir = if in_tests_dir {
+    let wpt_dir = if args.wpt_dir.is_absolute() {
         args.wpt_dir.clone()
+    } else if in_tests_dir {
+        current_dir.join(&args.wpt_dir)
     } else {
-        PathBuf::from("tests").join(&args.wpt_dir)
+        current_dir.join(&args.wpt_dir)
     };
 
     let (mut cmd, using_cargo) = if in_tests_dir {
@@ -121,6 +123,11 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
 
     if suites_to_run.is_empty() {
         eprintln!("No suites to run (all suites are skipped or not found)");
+        eprintln!("WPT directory checked: {:?}", wpt_dir);
+        eprintln!("Directory exists: {}", wpt_dir.exists());
+        if wpt_dir.exists() {
+            eprintln!("Directory is_dir: {}", wpt_dir.is_dir());
+        }
         std::process::exit(1);
     }
 
