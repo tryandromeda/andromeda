@@ -487,6 +487,7 @@ impl From<ConfigFileFormat> for ConfigFormat {
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn handle_config_command(action: ConfigAction) -> Result<()> {
     match action {
         ConfigAction::Init {
