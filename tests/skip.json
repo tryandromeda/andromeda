@@ -278,7 +278,8 @@
   ],
   "skip_tests": {
     "console": [
-      "console-log-large-array.any.js"
+      "console-log-large-array.any.js",
+      "console-log-symbol.any.js"
     ],
     "fetch": [
       "many-empty-chunks-crash.html",

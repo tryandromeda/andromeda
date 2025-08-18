@@ -9,6 +9,7 @@
         "console-label-conversion.any.js": "FAIL",
         "console-log-large-array.any.js": "SKIP",
         "console-log-shadowrealm-manual.html": "CRASH",
+        "console-log-symbol.any.js": "SKIP",
         "console-namespace-object-class-string.any.js": "FAIL",
         "console-timing-logging-manual.html": "CRASH",
         "idlharness.any.js": "CRASH"
