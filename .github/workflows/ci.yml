@@ -8,6 +8,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.ref_name != 'main' }}
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -52,3 +56,30 @@ jobs:
         run: |
           cargo clippy --all-targets -- -D warnings
           cargo clippy --all-targets --all-features -- -D warnings
+  wpt:
+    name: Web Platform Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache on ${{ github.ref_name }}
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: wpt
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Checkout WPT submodule
+        run: git submodule update --init --recursive
+      - name: Build andromeda cli
+        run: cargo build -p andromeda --release
+      - name: Build WPT runner
+        run: cargo build --bin wpt_test_runner --release
+      - name: Run WPT tests
+        run: cargo run --bin wpt --release -- --wpt-dir tests/wpt --ci-mode
+      - name: Generate test report
+        if: always()
+        run: cargo run --bin wpt_test_runner --release -- report --detailed
+      - name: Validate test expectations
+        if: always()
+        run: cargo run --bin wpt_test_runner --release -- validate-expectations --wpt-dir tests/wpt

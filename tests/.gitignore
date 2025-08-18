@@ -1,0 +1,11 @@
+# Test output files
+/results/
+*.result.json
+
+# Temporary test files (should not be created anymore, but just in case)
+temp_wpt_*.js
+temp_*.js
+*.tmp
+
+# Test execution logs
+*.log
