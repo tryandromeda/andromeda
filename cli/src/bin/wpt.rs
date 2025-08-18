@@ -48,6 +48,18 @@ struct RunArgs {
 
     #[arg(short = 'v', long)]
     verbose: bool,
+
+    #[arg(long = "use-expectations")]
+    use_expectations: bool,
+
+    #[arg(long = "ci-mode")]
+    ci_mode: bool,
+
+    #[arg(long = "expectations-path")]
+    expectations_path: Option<PathBuf>,
+
+    #[arg(long = "skip-json-path")]
+    skip_json_path: Option<PathBuf>,
 }
 
 fn main() -> CliResult<()> {
@@ -61,13 +73,29 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
     let update_expectations = args.update_expectations.unwrap_or(args.update);
     let update_metrics = args.update_metrics.unwrap_or(args.update);
 
+    // In CI mode, automatically use expectations
+    let use_expectations = args.use_expectations || args.ci_mode;
+
     let current_dir = std::env::current_dir().map_err(CliError::Io)?;
     let in_tests_dir = current_dir.ends_with("tests");
 
     let wpt_dir = if args.wpt_dir.is_absolute() {
         args.wpt_dir.clone()
     } else {
-        current_dir.join(&args.wpt_dir)
+        // Try to resolve the wpt_dir relative to current directory
+        let candidate = current_dir.join(&args.wpt_dir);
+        if candidate.exists() {
+            candidate
+        } else {
+            // If not found, try relative to tests directory
+            let tests_candidate = current_dir.join("tests").join(&args.wpt_dir);
+            if tests_candidate.exists() {
+                tests_candidate
+            } else {
+                // Fallback to original path
+                candidate
+            }
+        }
     };
 
     let (mut cmd, using_cargo) = if in_tests_dir {
@@ -99,6 +127,9 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
             c.arg("wpt_test_runner");
             c.arg("--manifest-path");
             c.arg("tests/Cargo.toml");
+
+            // Set the working directory to tests for consistent paths
+            c.current_dir("tests");
 
             if std::env::args().any(|arg| arg == "--release") {
                 c.arg("--release");
@@ -161,10 +192,15 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
     cmd.arg(args.timeout.to_string());
 
     cmd.arg("--wpt-dir");
-    if in_tests_dir {
-        cmd.arg(&args.wpt_dir);
-    } else {
+    // Pass the actual wpt directory name (not the full path) to the test runner
+    if wpt_dir.ends_with("wpt") {
         cmd.arg("wpt");
+    } else if wpt_dir.ends_with("tests/wpt") {
+        // When running from repository root with tests/wpt
+        cmd.arg("wpt");
+    } else {
+        // Fallback to the provided argument
+        cmd.arg(&args.wpt_dir);
     }
 
     if let Some(output) = args.output {
@@ -177,6 +213,39 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
 
     if args.verbose {
         cmd.arg("--verbose");
+    }
+
+    if use_expectations {
+        cmd.arg("--use-expectations");
+        if let Some(ref path) = args.expectations_path {
+            cmd.arg("--expectations-path");
+            cmd.arg(path);
+        }
+    }
+
+    if args.ci_mode {
+        cmd.arg("--ci-mode");
+    }
+
+    // Pass skip.json path (use default if not specified)
+    if let Some(ref path) = args.skip_json_path {
+        cmd.arg("--skip-json-path");
+        cmd.arg(path);
+    } else {
+        // Default skip.json path
+        let skip_path = if in_tests_dir {
+            PathBuf::from("skip.json")
+        } else {
+            PathBuf::from("tests/skip.json")
+        };
+        if skip_path.exists() {
+            cmd.arg("--skip-json-path");
+            if in_tests_dir {
+                cmd.arg("skip.json");
+            } else {
+                cmd.arg("skip.json"); // wpt_test_runner runs in tests dir
+            }
+        }
     }
 
     let status = cmd
@@ -231,8 +300,10 @@ fn show_available_suites(wpt_dir: &PathBuf) {
         let skipped_suites: std::collections::HashSet<String> = if skip_path.exists() {
             if let Ok(content) = std::fs::read_to_string(&skip_path) {
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                    json["skip"]
+                    // Try new format first (skip_suites), fallback to old format (skip)
+                    json["skip_suites"]
                         .as_array()
+                        .or_else(|| json["skip"].as_array())
                         .map(|arr| {
                             arr.iter()
                                 .filter_map(|v| v.as_str().map(String::from))
@@ -281,8 +352,10 @@ fn get_non_skipped_suites(wpt_dir: &PathBuf) -> Vec<String> {
     let skipped_suites: std::collections::HashSet<String> = if skip_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&skip_path) {
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                json["skip"]
+                // Try new format first (skip_suites), fallback to old format (skip)
+                json["skip_suites"]
                     .as_array()
+                    .or_else(|| json["skip"].as_array())
                     .map(|arr| {
                         arr.iter()
                             .filter_map(|v| v.as_str().map(String::from))

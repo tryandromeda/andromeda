@@ -1,30 +1,41 @@
 {
   "project": "andromeda",
   "version": "0.1.0",
-  "last_updated": 1755453170,
+  "last_updated": 1755505510,
   "wpt": {
     "overall": {
       "total_tests": 697,
       "pass": 74,
-      "fail": 228,
+      "fail": 227,
       "crash": 393,
-      "timeout": 2,
-      "skip": 0,
+      "timeout": 0,
+      "skip": 3,
       "pass_rate": 10.616929698708752,
-      "last_run": 1755453170,
-      "duration_seconds": 247.01109912500002
+      "last_run": 1755505510,
+      "duration_seconds": 15.493715416
     },
     "suites": {
       "console": {
         "total_tests": 13,
         "pass": 5,
-        "fail": 4,
+        "fail": 3,
         "crash": 4,
         "timeout": 0,
-        "skip": 0,
+        "skip": 1,
         "pass_rate": 38.46153846153847,
-        "last_run": 1755453170,
-        "duration_seconds": 208.793241625
+        "last_run": 1755505510,
+        "duration_seconds": 0.291932916
+      },
+      "fetch": {
+        "total_tests": 650,
+        "pass": 63,
+        "fail": 200,
+        "crash": 385,
+        "timeout": 0,
+        "skip": 2,
+        "pass_rate": 9.692307692307692,
+        "last_run": 1755505510,
+        "duration_seconds": 14.342123
       },
       "url": {
         "total_tests": 34,
@@ -34,19 +45,8 @@
         "timeout": 0,
         "skip": 0,
         "pass_rate": 17.647058823529413,
-        "last_run": 1755453170,
-        "duration_seconds": 0.796433334
-      },
-      "fetch": {
-        "total_tests": 650,
-        "pass": 63,
-        "fail": 200,
-        "crash": 385,
-        "timeout": 2,
-        "skip": 0,
-        "pass_rate": 9.692307692307692,
-        "last_run": 1755453170,
-        "duration_seconds": 37.421424166
+        "last_run": 1755505510,
+        "duration_seconds": 0.8596595
       }
     },
     "trend": {

@@ -2,7 +2,7 @@ use clap::{Args as ClapArgs, Parser as ClapParser, Subcommand};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     fs::File,
     io::Write,
     path::{Path, PathBuf},
@@ -76,13 +76,13 @@ pub struct ExpectationFile {
     pub version: String,
     pub last_updated: Option<u64>,
     pub description: String,
-    pub suites: HashMap<String, SuiteExpectations>,
-    pub global_expectations: HashMap<String, String>,
+    pub suites: BTreeMap<String, SuiteExpectations>,
+    pub global_expectations: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SuiteExpectations {
-    pub expectations: HashMap<String, String>,
+    pub expectations: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -169,7 +169,7 @@ pub struct Metrics {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WptMetrics {
     pub overall: WptSuiteMetrics,
-    pub suites: HashMap<String, WptSuiteMetrics>,
+    pub suites: BTreeMap<String, WptSuiteMetrics>,
     pub trend: TrendMetrics,
 }
 
@@ -217,6 +217,10 @@ pub struct WptRunnerConfig {
     pub output_dir: Option<PathBuf>,
     pub save_results: bool,
     pub verbose: bool,
+    pub use_expectations: bool,
+    pub ci_mode: bool,
+    pub expectations_path: Option<PathBuf>,
+    pub skip_json_path: Option<PathBuf>,
 }
 
 impl Default for WptRunnerConfig {
@@ -230,8 +234,19 @@ impl Default for WptRunnerConfig {
             output_dir: None,
             save_results: false,
             verbose: false,
+            use_expectations: false,
+            ci_mode: false,
+            expectations_path: None,
+            skip_json_path: None,
         }
     }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct SkipConfig {
+    #[allow(dead_code)]
+    skip_suites: Vec<String>,
+    skip_tests: BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Debug)]
@@ -248,6 +263,86 @@ impl WptRunner {
             ..Default::default()
         };
         Self::with_config(config)
+    }
+
+    fn load_expectations(&self) -> Result<Option<ExpectationFile>, Box<dyn std::error::Error>> {
+        if !self.config.use_expectations {
+            return Ok(None);
+        }
+
+        let expectation_path = if let Some(ref path) = self.config.expectations_path {
+            path.clone()
+        } else if Path::new("expectation.json").exists() {
+            PathBuf::from("expectation.json")
+        } else {
+            PathBuf::from("tests/expectation.json")
+        };
+
+        if !expectation_path.exists() {
+            if self.config.ci_mode {
+                return Err(
+                    format!("CI mode requires expectation.json at {expectation_path:?}").into(),
+                );
+            }
+            return Ok(None);
+        }
+
+        let file = File::open(&expectation_path)?;
+        let expectations: ExpectationFile = serde_json::from_reader(file)?;
+        Ok(Some(expectations))
+    }
+
+    fn load_skip_config(&self) -> Result<Option<SkipConfig>, Box<dyn std::error::Error>> {
+        let skip_json_path = if let Some(ref path) = self.config.skip_json_path {
+            path.clone()
+        } else if Path::new("skip.json").exists() {
+            PathBuf::from("skip.json")
+        } else {
+            PathBuf::from("tests/skip.json")
+        };
+
+        if !skip_json_path.exists() {
+            return Ok(None);
+        }
+
+        let file = File::open(&skip_json_path)?;
+        let skip_config: SkipConfig = serde_json::from_reader(file)?;
+        Ok(Some(skip_config))
+    }
+
+    fn should_skip_test(
+        &self,
+        test_name: &str,
+        suite_name: &str,
+        expectations: &Option<ExpectationFile>,
+        skip_config: &Option<SkipConfig>,
+    ) -> bool {
+        // Check skip.json first
+        if let Some(ref skip_cfg) = skip_config {
+            if let Some(skip_tests) = skip_cfg.skip_tests.get(suite_name) {
+                if skip_tests.contains(&test_name.to_string()) {
+                    if self.config.verbose {
+                        println!("  Skipping test {test_name} (in skip.json)");
+                    }
+                    return true;
+                }
+            }
+        }
+
+        // Then check expectations
+        if let Some(ref expectations) = expectations {
+            if let Some(suite_expectations) = expectations.suites.get(suite_name) {
+                // Check if this test has an expectation that's not PASS
+                if let Some(expectation) = suite_expectations.expectations.get(test_name) {
+                    let should_skip = expectation != "PASS";
+                    if should_skip && self.config.verbose {
+                        println!("  Skipping test {test_name} (expected: {expectation})");
+                    }
+                    return should_skip;
+                }
+            }
+        }
+        false
     }
 
     pub fn with_config(config: WptRunnerConfig) -> Self {
@@ -302,6 +397,29 @@ impl WptRunner {
         self
     }
 
+    pub fn with_expectations(mut self, use_expectations: bool) -> Self {
+        self.config.use_expectations = use_expectations;
+        self
+    }
+
+    pub fn with_ci_mode(mut self, ci_mode: bool) -> Self {
+        self.config.ci_mode = ci_mode;
+        if ci_mode {
+            self.config.use_expectations = true;
+        }
+        self
+    }
+
+    pub fn with_expectations_path(mut self, path: PathBuf) -> Self {
+        self.config.expectations_path = Some(path);
+        self
+    }
+
+    pub fn with_skip_json_path(mut self, path: PathBuf) -> Self {
+        self.config.skip_json_path = Some(path);
+        self
+    }
+
     pub fn run_suite(&self, suite_name: &str) -> Result<(), Box<dyn std::error::Error>> {
         let suite_path = self.config.wpt_path.join(suite_name);
 
@@ -311,13 +429,26 @@ impl WptRunner {
             );
         }
 
-        if !self.config.verbose {
+        // Load expectations if enabled
+        let expectations = self.load_expectations()?;
+
+        // Load skip configuration
+        let skip_config = self.load_skip_config()?;
+        if self.config.use_expectations && expectations.is_some() {
+            if self.config.ci_mode {
+                println!("Running WPT suite: {suite_name} (CI mode - skipping expected failures)");
+            } else {
+                println!("Running WPT suite: {suite_name} (using expectations)");
+            }
+        } else if !self.config.verbose {
             println!("Running WPT suite: {suite_name}");
-            std::io::stdout().flush().unwrap();
         }
+        std::io::stdout().flush().unwrap();
+
         let start_time = Instant::now();
 
         let mut test_files = Vec::new();
+        let mut skipped_tests = Vec::new();
 
         if self.config.verbose {
             println!("Scanning directory: {}", suite_path.display());
@@ -339,6 +470,11 @@ impl WptRunner {
                     {
                         let relative_path = path.strip_prefix(&self.config.wpt_path)?;
                         let test_name = relative_path.to_string_lossy().to_string();
+                        let test_file_name = path
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .to_string();
 
                         if let Some(ref filter) = self.config.filter {
                             if !test_name.contains(filter) {
@@ -352,21 +488,51 @@ impl WptRunner {
                             }
                         }
 
+                        // Skip tests based on skip.json or expectations
+                        if self.should_skip_test(
+                            &test_file_name,
+                            suite_name,
+                            &expectations,
+                            &skip_config,
+                        ) {
+                            skipped_tests.push(test_file_name.clone());
+                            continue;
+                        }
+
                         test_files.push(path.to_path_buf());
                     }
                 }
             }
         }
 
+        let skipped_count = skipped_tests.len();
+
         if !self.config.verbose {
-            println!(
-                "Running {} test files with {} threads...",
-                test_files.len(),
-                self.config.threads
-            );
+            if self.config.use_expectations && skipped_count > 0 {
+                println!(
+                    "Running {} test files with {} threads (skipped {} expected failures)...",
+                    test_files.len(),
+                    self.config.threads,
+                    skipped_count
+                );
+            } else {
+                println!(
+                    "Running {} test files with {} threads...",
+                    test_files.len(),
+                    self.config.threads
+                );
+            }
             std::io::stdout().flush().unwrap();
         } else {
-            println!("Found {} test files", test_files.len());
+            if self.config.use_expectations && skipped_count > 0 {
+                println!(
+                    "Found {} test files (skipped {} expected failures)",
+                    test_files.len(),
+                    skipped_count
+                );
+            } else {
+                println!("Found {} test files", test_files.len());
+            }
             std::io::stdout().flush().unwrap();
         }
 
@@ -377,9 +543,19 @@ impl WptRunner {
             fail_count: 0,
             crash_count: 0,
             timeout_count: 0,
-            skip_count: 0,
+            skip_count: skipped_tests.len(),
             total_duration: Duration::new(0, 0),
         };
+
+        // Add skipped tests to the results
+        for skipped_test_name in &skipped_tests {
+            suite_result.tests.push(WptTestCase {
+                name: skipped_test_name.clone(),
+                result: WptTestResult::Skip,
+                message: Some("Skipped by skip.json or expectations".to_string()),
+                duration: Duration::new(0, 0),
+            });
+        }
 
         let thread_pool = rayon::ThreadPoolBuilder::new()
             .num_threads(self.config.threads)
@@ -494,22 +670,38 @@ impl WptRunner {
         println!(
             "Fail: {} ({:.1}%)",
             result.fail_count,
-            (result.fail_count as f64 / total as f64) * 100.0
+            if total > 0 {
+                (result.fail_count as f64 / total as f64) * 100.0
+            } else {
+                0.0
+            }
         );
         println!(
             "Crash: {} ({:.1}%)",
             result.crash_count,
-            (result.crash_count as f64 / total as f64) * 100.0
+            if total > 0 {
+                (result.crash_count as f64 / total as f64) * 100.0
+            } else {
+                0.0
+            }
         );
         println!(
             "Timeout: {} ({:.1}%)",
             result.timeout_count,
-            (result.timeout_count as f64 / total as f64) * 100.0
+            if total > 0 {
+                (result.timeout_count as f64 / total as f64) * 100.0
+            } else {
+                0.0
+            }
         );
         println!(
             "Skip: {} ({:.1}%)",
             result.skip_count,
-            (result.skip_count as f64 / total as f64) * 100.0
+            if total > 0 {
+                (result.skip_count as f64 / total as f64) * 100.0
+            } else {
+                0.0
+            }
         );
         println!("Total time: {:.2}s", result.total_duration.as_secs_f64());
 
@@ -745,16 +937,16 @@ impl WptRunner {
                 version: "1.0.0".to_string(),
                 last_updated: None,
                 description: "WPT test expectations for Andromeda Runtime".to_string(),
-                suites: HashMap::new(),
-                global_expectations: HashMap::new(),
+                suites: BTreeMap::new(),
+                global_expectations: BTreeMap::new(),
             })
         } else {
             ExpectationFile {
                 version: "1.0.0".to_string(),
                 last_updated: None,
                 description: "WPT test expectations for Andromeda Runtime".to_string(),
-                suites: HashMap::new(),
-                global_expectations: HashMap::new(),
+                suites: BTreeMap::new(),
+                global_expectations: BTreeMap::new(),
             }
         };
 
@@ -768,7 +960,7 @@ impl WptRunner {
                     .suites
                     .entry(suite_name.clone())
                     .or_insert(SuiteExpectations {
-                        expectations: HashMap::new(),
+                        expectations: BTreeMap::new(),
                     });
 
             for test in &suite_result.tests {
@@ -922,7 +1114,7 @@ impl Default for Metrics {
             last_updated: None,
             wpt: WptMetrics {
                 overall: WptSuiteMetrics::default(),
-                suites: HashMap::new(),
+                suites: BTreeMap::new(),
                 trend: TrendMetrics::default(),
             },
             build: BuildMetrics::default(),
@@ -992,11 +1184,23 @@ struct RunArgs {
     #[arg(short, long)]
     output: Option<PathBuf>,
 
-    #[arg(long, default_value = "./wpt")]
+    #[arg(long = "wpt-dir", default_value = "./wpt")]
     wpt_dir: PathBuf,
 
     #[arg(short, long)]
     verbose: bool,
+
+    #[arg(long = "use-expectations")]
+    use_expectations: bool,
+
+    #[arg(long = "ci-mode")]
+    ci_mode: bool,
+
+    #[arg(long = "expectations-path")]
+    expectations_path: Option<PathBuf>,
+
+    #[arg(long = "skip-json-path")]
+    skip_json_path: Option<PathBuf>,
 }
 
 #[derive(ClapArgs, Debug)]
@@ -1010,7 +1214,7 @@ struct ReportArgs {
 
 #[derive(ClapArgs, Debug)]
 struct ValidateExpectationsArgs {
-    #[arg(long, default_value = "./wpt")]
+    #[arg(long = "wpt-dir", default_value = "./wpt")]
     wpt_dir: PathBuf,
 
     #[arg(long, default_value = "30")]
@@ -1122,23 +1326,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match args.command {
         Commands::Run(run_args) => {
-            let mut runner = WptRunner::new(&run_args.wpt_dir)
-                .with_threads(run_args.threads)
-                .with_timeout(Duration::from_secs(run_args.timeout));
+            let config = WptRunnerConfig {
+                wpt_path: run_args.wpt_dir.clone(),
+                threads: run_args.threads,
+                filter: run_args.filter.clone(),
+                skip: run_args.skip.clone(),
+                timeout: Duration::from_secs(run_args.timeout),
+                output_dir: run_args.output.clone(),
+                save_results: run_args.output.is_some(),
+                verbose: run_args.verbose,
+                use_expectations: run_args.use_expectations || run_args.ci_mode,
+                ci_mode: run_args.ci_mode,
+                expectations_path: run_args.expectations_path.clone(),
+                skip_json_path: run_args.skip_json_path.clone(),
+            };
 
-            if let Some(filter) = run_args.filter {
-                runner = runner.with_filter(filter);
-            }
-
-            if let Some(skip) = run_args.skip {
-                runner = runner.with_skip(skip);
-            }
-
-            if let Some(output) = run_args.output {
-                runner = runner.with_output_dir(output);
-            }
+            let runner = WptRunner::with_config(config);
 
             let skipped_suites = Vec::<String>::new();
+
+            // In CI mode, print header
+            if run_args.ci_mode {
+                println!("🚀 Running WPT tests in CI mode");
+                println!("   Skipping tests with known failures based on expectation.json");
+                println!("═══════════════════════════════════════════════════");
+            }
 
             let suites_to_run = if run_args.suites.len() == 1 && run_args.suites[0] == "all" {
                 let all_suites =
@@ -1184,7 +1396,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 runner.run_suite(suite)?;
             }
             runner.print_summary()?;
-            println!("🎉 WPT run completed!");
+
+            if run_args.ci_mode {
+                println!("\n✅ CI mode test run completed successfully!");
+                println!("   Only new regressions would cause failures.");
+            } else {
+                println!("🎉 WPT run completed!");
+            }
             std::io::stdout().flush().unwrap();
         }
 

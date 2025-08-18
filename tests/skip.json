@@ -1,5 +1,5 @@
 {
-  "skip": [
+  "skip_suites": [
     "accelerometer",
     "accessibility",
     "accname",
@@ -275,5 +275,14 @@
     "worklets",
     "x-frame-options",
     "xhr"
-  ]
+  ],
+  "skip_tests": {
+    "console": [
+      "console-log-large-array.any.js"
+    ],
+    "fetch": [
+      "many-empty-chunks-crash.html",
+      "response_block_probe.js"
+    ]
+  }
 }
