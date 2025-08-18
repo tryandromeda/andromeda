@@ -1,7 +1,6 @@
 {
   "project": "andromeda",
   "version": "0.1.0",
-  "last_updated": 1755505510,
   "wpt": {
     "overall": {
       "total_tests": 697,
@@ -10,9 +9,7 @@
       "crash": 393,
       "timeout": 0,
       "skip": 3,
-      "pass_rate": 10.616929698708752,
-      "last_run": 1755505510,
-      "duration_seconds": 15.493715416
+      "pass_rate": 10.616929698708752
     },
     "suites": {
       "console": {
@@ -22,9 +19,7 @@
         "crash": 4,
         "timeout": 0,
         "skip": 1,
-        "pass_rate": 38.46153846153847,
-        "last_run": 1755505510,
-        "duration_seconds": 0.291932916
+        "pass_rate": 38.46153846153847
       },
       "fetch": {
         "total_tests": 650,
@@ -33,9 +28,7 @@
         "crash": 385,
         "timeout": 0,
         "skip": 2,
-        "pass_rate": 9.692307692307692,
-        "last_run": 1755505510,
-        "duration_seconds": 14.342123
+        "pass_rate": 9.692307692307692
       },
       "url": {
         "total_tests": 34,
@@ -44,9 +37,7 @@
         "crash": 4,
         "timeout": 0,
         "skip": 0,
-        "pass_rate": 17.647058823529413,
-        "last_run": 1755505510,
-        "duration_seconds": 0.8596595
+        "pass_rate": 17.647058823529413
       }
     },
     "trend": {

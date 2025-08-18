@@ -1,6 +1,5 @@
 {
   "version": "1.0.0",
-  "last_updated": 1755505510,
   "description": "WPT test expectations for Andromeda Runtime",
   "suites": {
     "console": {

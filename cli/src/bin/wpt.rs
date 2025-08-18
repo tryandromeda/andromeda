@@ -126,7 +126,7 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
             c.arg("--bin");
             c.arg("wpt_test_runner");
             c.arg("--manifest-path");
-            c.arg("Cargo.toml");  // Just Cargo.toml since we're setting current_dir to tests
+            c.arg("Cargo.toml"); // Just Cargo.toml since we're setting current_dir to tests
 
             // Set the working directory to tests for consistent paths
             c.current_dir("tests");

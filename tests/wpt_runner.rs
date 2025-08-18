@@ -74,7 +74,6 @@ pub enum WptTestExpectation {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExpectationFile {
     pub version: String,
-    pub last_updated: Option<u64>,
     pub description: String,
     pub suites: BTreeMap<String, SuiteExpectations>,
     pub global_expectations: BTreeMap<String, String>,
@@ -160,7 +159,6 @@ where
 pub struct Metrics {
     pub project: String,
     pub version: String,
-    pub last_updated: Option<u64>,
     pub wpt: WptMetrics,
     pub build: BuildMetrics,
     pub runtime: RuntimeMetrics,
@@ -182,8 +180,6 @@ pub struct WptSuiteMetrics {
     pub timeout: usize,
     pub skip: usize,
     pub pass_rate: f64,
-    pub last_run: Option<u64>,
-    pub duration_seconds: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -935,7 +931,6 @@ impl WptRunner {
             let file = File::open(&expectation_path)?;
             serde_json::from_reader(file).unwrap_or_else(|_| ExpectationFile {
                 version: "1.0.0".to_string(),
-                last_updated: None,
                 description: "WPT test expectations for Andromeda Runtime".to_string(),
                 suites: BTreeMap::new(),
                 global_expectations: BTreeMap::new(),
@@ -943,7 +938,6 @@ impl WptRunner {
         } else {
             ExpectationFile {
                 version: "1.0.0".to_string(),
-                last_updated: None,
                 description: "WPT test expectations for Andromeda Runtime".to_string(),
                 suites: BTreeMap::new(),
                 global_expectations: BTreeMap::new(),
@@ -980,8 +974,6 @@ impl WptRunner {
                 }
             }
         }
-
-        expectations.last_updated = Some(run_result.timestamp);
 
         if self.config.verbose {
             println!("📝 Creating expectations file...");
@@ -1043,8 +1035,6 @@ impl WptRunner {
                     timeout: suite_result.timeout_count,
                     skip: suite_result.skip_count,
                     pass_rate,
-                    last_run: Some(run_result.timestamp),
-                    duration_seconds: suite_result.total_duration.as_secs_f64(),
                 },
             );
         }
@@ -1055,7 +1045,6 @@ impl WptRunner {
         let mut total_crash = 0;
         let mut total_timeout = 0;
         let mut total_skip = 0;
-        let mut total_duration = 0.0;
 
         for suite_metrics in metrics.wpt.suites.values() {
             total_tests += suite_metrics.total_tests;
@@ -1064,7 +1053,6 @@ impl WptRunner {
             total_crash += suite_metrics.crash;
             total_timeout += suite_metrics.timeout;
             total_skip += suite_metrics.skip;
-            total_duration += suite_metrics.duration_seconds;
         }
 
         let overall_pass_rate = if total_tests > 0 {
@@ -1081,11 +1069,7 @@ impl WptRunner {
             timeout: total_timeout,
             skip: total_skip,
             pass_rate: overall_pass_rate,
-            last_run: Some(run_result.timestamp),
-            duration_seconds: total_duration,
         };
-
-        metrics.last_updated = Some(run_result.timestamp);
 
         if self.config.verbose {
             println!("📝 Creating metrics file...");
@@ -1111,7 +1095,6 @@ impl Default for Metrics {
         Self {
             project: "andromeda".to_string(),
             version: "0.1.0".to_string(),
-            last_updated: None,
             wpt: WptMetrics {
                 overall: WptSuiteMetrics::default(),
                 suites: BTreeMap::new(),
@@ -1133,8 +1116,6 @@ impl Default for WptSuiteMetrics {
             timeout: 0,
             skip: 0,
             pass_rate: 0.0,
-            last_run: None,
-            duration_seconds: 0.0,
         }
     }
 }
