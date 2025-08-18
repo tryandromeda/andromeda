@@ -1259,7 +1259,10 @@ fn validate_expectations(
         if let Some(suite_metrics) = metrics.wpt.suites.get(suite_name) {
             // Count all failing tests including skipped ones for validation
             // because expectations include tests that would fail if executed
-            let current_failing = suite_metrics.fail + suite_metrics.crash + suite_metrics.timeout + suite_metrics.skip;
+            let current_failing = suite_metrics.fail
+                + suite_metrics.crash
+                + suite_metrics.timeout
+                + suite_metrics.skip;
             let expected_failing = suite_expectations.expectations.len();
             total_failing_tests += current_failing;
 
@@ -1296,7 +1299,10 @@ fn validate_expectations(
             } else {
                 println!("   ✅ Expectations match current results");
                 if suite_name == "fetch" && current_failing != expected_failing {
-                    println!("   ℹ️  Note: {} duplicate test runs detected", current_failing - expected_failing);
+                    println!(
+                        "   ℹ️  Note: {} duplicate test runs detected",
+                        current_failing - expected_failing
+                    );
                 }
             }
         } else {
