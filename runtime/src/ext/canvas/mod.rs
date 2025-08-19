@@ -46,6 +46,9 @@ struct CanvasData<'gc> {
     stroke_style: FillStyle,
     line_width: f64,
     global_alpha: f32,
+    // Line dash state (segments and offset)
+    line_dash: Vec<f64>,
+    line_dash_offset: f64,
     // Path state for renderer
     current_path: Vec<renderer::Point>,
     path_started: bool,
@@ -142,6 +145,16 @@ impl CanvasExt {
                     2,
                 ),
                 ExtensionOp::new(
+                    "internal_canvas_set_line_dash",
+                    Self::internal_canvas_set_line_dash,
+                    2,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_line_dash",
+                    Self::internal_canvas_get_line_dash,
+                    1,
+                ),
+                ExtensionOp::new(
                     "internal_canvas_get_global_alpha",
                     Self::internal_canvas_get_global_alpha,
                     1,
@@ -230,6 +243,9 @@ impl CanvasExt {
             stroke_style: FillStyle::default(),
             line_width: 1.0,
             global_alpha: 1.0,
+            // Initialize dash state
+            line_dash: Vec::new(),
+            line_dash_offset: 0.0,
             current_path: Vec::new(),
             path_started: false,
             state_stack: Vec::new(),
@@ -267,10 +283,7 @@ impl CanvasExt {
         let global_alpha = data.global_alpha;
         drop(storage);
 
-        // Convert global_alpha (0.0-1.0) to integer representation for return
-        // We multiply by 1000 to preserve 3 decimal places precision
-        let alpha_int = (global_alpha * 1000.0) as i32;
-        Ok(Value::Integer(SmallInteger::from(alpha_int)))
+        Ok(Value::from_f64(agent, global_alpha as f64, gc.nogc()).unbind())
     }
 
     /// Internal op to set the globalAlpha of a canvas context
@@ -784,6 +797,114 @@ impl CanvasExt {
         drop(storage);
 
         Ok(Value::from_f64(agent, line_width, gc.nogc()).unbind())
+    }
+
+    /// Internal op to set the line dash pattern for a canvas context
+    fn internal_canvas_set_line_dash<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+
+        // Expect an array of numbers and optional offset (we accept an array and optional number)
+        let pattern_val = args.get(1);
+
+        // Parse pattern and optional offset before borrowing host storage to avoid
+        // borrowing Agent mutably while storage is borrowed.
+        let mut parsed_dash: Option<Vec<f64>> = None;
+        if !pattern_val.is_undefined() {
+            if let Ok(sv) = pattern_val.to_string(agent, gc.reborrow()) {
+                if let Some(s) = sv.as_str(agent) {
+                    let s_str = s.to_string();
+                    if let Ok(parsed) = serde_json::from_str::<Vec<f64>>(&s_str) {
+                        parsed_dash = Some(parsed);
+                    } else {
+                        let mut v = Vec::new();
+                        for part in s_str.split(',') {
+                            let part = part.trim();
+                            if part.is_empty() {
+                                continue;
+                            }
+                            if let Ok(n) = part.parse::<f64>() {
+                                v.push(n);
+                            }
+                        }
+                        parsed_dash = Some(v);
+                    }
+                }
+            }
+        }
+
+        let parsed_offset: Option<f64> = if args.get(2).is_number() {
+            if let Ok(offset_num) = args.get(2).to_number(agent, gc.reborrow()) {
+                Some(offset_num.into_f64(agent))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+        let mut data = res.canvases.get_mut(rid).unwrap();
+
+        // Apply parsed values to canvas data
+        if let Some(dash) = parsed_dash {
+            data.line_dash = dash;
+        }
+        if let Some(off) = parsed_offset {
+            data.line_dash_offset = off;
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to get the current line dash array and offset
+    fn internal_canvas_get_line_dash<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let data = res.canvases.get(rid).unwrap();
+
+        // Clone dash data out of storage then release the borrow so we can
+        // safely interact with the Agent/VM when creating return values.
+        let dash_clone = data.line_dash.clone();
+        let offset_clone = data.line_dash_offset;
+
+        drop(storage);
+
+        // Return a JSON string describing dash array and offset, e.g. {"dash":[4,2],"offset":1}
+        let mut s = String::from("{");
+        s.push_str("\"dash\":[");
+        for (i, v) in dash_clone.iter().enumerate() {
+            if i > 0 {
+                s.push(',');
+            }
+            s.push_str(&format!("{v}"));
+        }
+        s.push_str("],\"offset\":");
+        s.push_str(&format!("{offset_clone}"));
+        s.push('}');
+
+        Ok(Value::from_string(agent, s, gc.nogc()).unbind())
     }
 }
 

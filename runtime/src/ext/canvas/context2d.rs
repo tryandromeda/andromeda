@@ -996,7 +996,14 @@ pub fn internal_canvas_ellipse<'gc>(
         .to_number(agent, gc.reborrow())
         .unbind()
         .unwrap();
-    let counter_clockwise = false; // TODO: properly convert boolean from args.get(8)
+    let counter_clockwise = {
+        if args.get(8).is_number() || args.get(8).is_boolean() {
+            let v = args.get(8).to_int32(agent, gc.reborrow()).unwrap_or(0);
+            v != 0
+        } else {
+            false
+        }
+    };
 
     let host_data = agent
         .get_host_data()

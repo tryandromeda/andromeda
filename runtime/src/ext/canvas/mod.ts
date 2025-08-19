@@ -68,8 +68,7 @@ class CanvasRenderingContext2D {
    */
 
   get globalAlpha(): number {
-    // Convert integer representation back to float (divide by 1000)
-    return internal_canvas_get_global_alpha(this.#rid) / 1000;
+    return internal_canvas_get_global_alpha(this.#rid);
   }
 
   set globalAlpha(value: number) {
@@ -116,6 +115,43 @@ class CanvasRenderingContext2D {
 
   set lineWidth(value: number) {
     internal_canvas_set_line_width(this.#rid, value);
+  }
+
+  /**
+   * Sets the line dash pattern. Accepts an array of numbers or a JSON string.
+   */
+  setLineDash(segments: number[] | string, offset?: number): void {
+    internal_canvas_set_line_dash(this.#rid, segments, offset ?? 0);
+  }
+
+  /**
+   * Gets the line dash pattern as [segments, offset].
+   * The runtime returns a JSON string; parse it here and return a tuple.
+   */
+  getLineDash(): [number[], number] {
+    const json = internal_canvas_get_line_dash(this.#rid);
+    try {
+      const info = JSON.parse(json);
+      return [info.dash || [], info.offset || 0];
+    } catch (_e) {
+      if (typeof json === "string" && json.indexOf(",") !== -1) {
+        const parts = json.split(",").map(s => parseFloat(s.trim())).filter(n =>
+          !Number.isNaN(n)
+        );
+        return [parts, 0];
+      }
+      return [[], 0];
+    }
+  }
+
+  get lineDashOffset(): number {
+    const info = this.getLineDash();
+    return info[1];
+  }
+
+  set lineDashOffset(value: number) {
+    const info = this.getLineDash();
+    this.setLineDash(info[0], value);
   }
 
   /**

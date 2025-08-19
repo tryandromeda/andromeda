@@ -476,8 +476,26 @@ declare function internal_canvas_set_stroke_style(
 ): void;
 
 /**
+ * The `internal_canvas_set_line_dash` function sets the line dash pattern and optional offset
+ * for the specified canvas resource. The `pattern` argument may be an array-like value or
+ * a string; the runtime will accept either and coerce/parse it as needed.
+ */
+declare function internal_canvas_set_line_dash(
+  rid: number,
+  pattern: unknown,
+  offset?: number,
+): void;
+
+/**
+ * The `internal_canvas_get_line_dash` function returns the current line dash pattern and offset
+ * for the specified canvas resource. For compatibility the runtime returns a JSON string describing
+ * the dash pattern and offset (e.g. '{"dash":[5,3],"offset":2}').
+ */
+declare function internal_canvas_get_line_dash(rid: number): string;
+
+/**
  * The `internal_canvas_get_global_alpha` function gets the global alpha value of the canvas context.
- * Returns the global alpha as an integer (scaled by 1000).
+ * Returns the global alpha as a number (floating point between 0.0 and 1.0).
  */
 declare function internal_canvas_get_global_alpha(rid: number): number;
 

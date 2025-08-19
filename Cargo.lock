@@ -68,7 +68,7 @@ dependencies = [
 
 [[package]]
 name = "andromeda"
-version = "0.1.0-draft18"
+version = "0.1.0-draft19"
 dependencies = [
  "andromeda-core",
  "andromeda-runtime",
@@ -117,7 +117,7 @@ dependencies = [
 
 [[package]]
 name = "andromeda-core"
-version = "0.1.0-draft18"
+version = "0.1.0-draft19"
 dependencies = [
  "anyhow",
  "anymap",
@@ -139,7 +139,7 @@ dependencies = [
 
 [[package]]
 name = "andromeda-runtime"
-version = "0.1.0-draft18"
+version = "0.1.0-draft19"
 dependencies = [
  "andromeda-core",
  "anyhow",
