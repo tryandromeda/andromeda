@@ -1,5 +1,5 @@
-import { Queue } from "https://std.load1n9.deno.net/collections/mod.ts";
-import { flatten } from "https://std.load1n9.deno.net/data/mod.ts";
+import { Queue } from "https://tryandromeda.dev/std/collections/mod.ts";
+import { flatten } from "https://tryandromeda.dev/std/data/mod.ts";
 
 const queue = new Queue();
 queue.enqueue("first");
