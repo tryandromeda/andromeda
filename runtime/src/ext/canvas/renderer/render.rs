@@ -7,7 +7,6 @@ use wgpu::PollType;
 use crate::FillStyle;
 
 use super::*;
-
 pub struct Renderer {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
@@ -22,6 +21,52 @@ const U32_SIZE: u32 = std::mem::size_of::<u32>() as u32;
 
 #[allow(dead_code)]
 impl Renderer {
+    pub fn create_stroke_data(
+        &self,
+        render_state: &RenderState,
+        stroke_color: [f32; 4],
+        stroke_width: f32,
+    ) -> FillData {
+        FillData {
+            uniforms: Uniforms {
+                color: [0.0, 0.0, 0.0, 0.0],
+                gradient_start: (0.0, 0.0),
+                gradient_end: (0.0, 0.0),
+                fill_style: 0,
+                global_alpha: render_state.global_alpha,
+                radius_start: 0.0,
+                radius_end: 0.0,
+                stroke_color,
+                stroke_width,
+                is_stroke: 1,
+            },
+            gradient: vec![],
+        }
+    }
+
+    pub fn render_stroke_rect(
+        &mut self,
+        rect: Rect,
+        render_state: &RenderState,
+        stroke_color: [f32; 4],
+        stroke_width: f32,
+    ) {
+        let stroke_data = self.create_stroke_data(render_state, stroke_color, stroke_width);
+        let start = translate_coords(&rect.start, &self.dimensions);
+        let end = translate_coords(&rect.end, &self.dimensions);
+        let vertex = vec![
+            (start.0, start.1),
+            (end.0, start.1),
+            (end.0, end.1),
+            (start.0, end.1),
+            (start.0, start.1), // close the loop
+        ];
+        self.create_render_command(RenderData {
+            vertex,
+            fill_data: stroke_data,
+            length: 5,
+        });
+    }
     pub fn new(
         device: wgpu::Device,
         queue: wgpu::Queue,
@@ -246,7 +291,7 @@ impl Renderer {
         let uniforms = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Uniforms"),
             mapped_at_creation: false,
-            size: 48,
+            size: 80,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
         });
         self.queue
@@ -313,6 +358,9 @@ impl Renderer {
                     global_alpha: render_state.global_alpha,
                     radius_start: 0.0,
                     radius_end: 0.0,
+                    stroke_color: [0.0, 0.0, 0.0, 0.0],
+                    stroke_width: 0.0,
+                    is_stroke: 0,
                 },
                 gradient: vec![],
             },
@@ -325,6 +373,9 @@ impl Renderer {
                     global_alpha: render_state.global_alpha,
                     radius_start: 0.0,
                     radius_end: 0.0,
+                    stroke_color: [0.0, 0.0, 0.0, 0.0],
+                    stroke_width: 0.0,
+                    is_stroke: 0,
                 },
                 gradient: gradient.color_stops.clone(),
             },
@@ -337,6 +388,9 @@ impl Renderer {
                     global_alpha: render_state.global_alpha,
                     radius_start: gradient.start_radius,
                     radius_end: gradient.end_radius,
+                    stroke_color: [0.0, 0.0, 0.0, 0.0],
+                    stroke_width: 0.0,
+                    is_stroke: 0,
                 },
                 gradient: gradient.color_stops.clone(),
             },
@@ -349,6 +403,9 @@ impl Renderer {
                     global_alpha: render_state.global_alpha,
                     radius_start: gradient.start_angle,
                     radius_end: 0.0,
+                    stroke_color: [0.0, 0.0, 0.0, 0.0],
+                    stroke_width: 0.0,
+                    is_stroke: 0,
                 },
                 gradient: gradient.color_stops.clone(),
             },
@@ -366,7 +423,7 @@ impl Renderer {
             if chunk.len() == 4 {
                 // Convert BGRA -> RGBA
                 rgba_data.push(chunk[2]); // R
-                rgba_data.push(chunk[1]); // G  
+                rgba_data.push(chunk[1]); // G
                 rgba_data.push(chunk[0]); // B
                 rgba_data.push(chunk[3]); // A
             }
@@ -748,7 +805,7 @@ impl Renderer {
     }
 }
 
-pub fn translate_coords(point: &Point, dimensions: &Dimensions) -> Coordinate {
+pub fn translate_coords(point: &Point, dimensions: &Dimensions) -> (f32, f32) {
     let x = (point.x / (dimensions.width as f64) * 2.0 - 1.0) as f32;
     let y = (point.y / (dimensions.height as f64) * -2.0 + 1.0) as f32;
     (x, y)
