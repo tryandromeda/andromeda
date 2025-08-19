@@ -12,13 +12,13 @@ version = "0.1.0-draft19"
 [workspace.dependencies]
 andromeda-core = { path = "core" }
 andromeda-runtime = { path = "runtime", features = ["canvas", "crypto", "storage"] }
-anyhow = "1.0.98"
+anyhow = "1.0.99"
 anymap = "0.12.1"
-async-trait = "0.1.83"
+async-trait = "0.1.89"
 base64-simd = "0.8.0"
 chrono = { version = "0.4.41", features = ["serde"] }
-clap = { version = "4.5.43", features = ["derive"] }
-clap_complete = "4.5.55"
+clap = { version = "4.5.45", features = ["derive"] }
+clap_complete = "4.5.57"
 console = "0.16.0"
 dprint-core = "0.67.4"
 dprint-plugin-typescript = "0.95.9"
@@ -29,14 +29,14 @@ indexmap = "2.10.0"
 image = "0.25.6"
 lazy_static = "1.5.0"
 libsui = "0.10.0"
-log = "0.4.22"
+log = "0.4.27"
 lsp-types = "0.97.0"
-nova_vm = { git = "https://github.com/trynova/nova", rev = "a957ec141816824e7cbec07264dc98c8d948d5f2", features = [
+nova_vm = { git = "https://github.com/trynova/nova", rev = "67edb9ca77b1820dcd138580f27de66efe994938", features = [
     "typescript"
 ] }
 nu-ansi-term = "0.50.1"
-oxc_codegen = "0.80.0"
 owo-colors = "4.2.2"
+oxc_codegen = "0.80.0"
 oxc_ast = "0.80.0"
 oxc_minifier = "0.80.0"
 oxc_mangler = "0.80.0"
@@ -54,18 +54,18 @@ ring = "0.17.14"
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 saffron = "0.1.0"
 serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.142"
+serde_json = "1.0.143"
 serde_yaml = "0.9.34-deprecated"
 toml = "0.9.5"
 signal-hook = "0.3.18"
-thiserror = "2.0.12"
-tempfile = "3.13.0"
+thiserror = "2.0.15"
+tempfile = "3.20.0"
 tokio = { version = "1.47.1", features = ["rt", "sync", "time", "fs"] }
 tokio-test = "0.4.4"
 tower-lsp = "0.20.0"
-ureq = { version = "3.0.12", features = ["json"] }
+ureq = { version = "3.1.0", features = ["json"] }
 url = { version = "2.5.4", features = ["serde", "expose_internals"] }
-uuid = { version = "1.17.0", features = ["v4"] }
+uuid = { version = "1.18.0", features = ["v4"] }
 wgpu = { version = "26.0.1", features = ["wgsl", "webgpu"] }
 
 [profile.release]
