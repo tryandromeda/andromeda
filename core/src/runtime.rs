@@ -676,9 +676,18 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                     Ok(script) => script,
                     Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", builtin),
                 };
-                match script_evaluation(agent, script.unbind(), gc.reborrow()) {
+                let eval_result = script_evaluation(agent, script.unbind(), gc.reborrow()).unbind();
+                match eval_result {
                     Ok(_) => (),
-                    Err(_) => println!("Error in runtime"),
+                    Err(e) => {
+                        let error_value = e.value();
+                        let message = error_value
+                            .string_repr(agent, gc.reborrow())
+                            .as_str(agent)
+                            .unwrap_or("<non-string error>")
+                            .to_string();
+                        println!("Error in runtime: {message}");
+                    }
                 }
             }
         });

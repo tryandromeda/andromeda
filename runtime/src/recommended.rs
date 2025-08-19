@@ -13,8 +13,8 @@ use nova_vm::{
 };
 
 use crate::{
-    BroadcastChannelExt, ConsoleExt, CronExt, FetchExt, FileExt, FsExt, HeadersExt, ProcessExt,
-    RequestExt, ResponseExt, RuntimeMacroTask, StreamsExt, TimeExt, URLExt, WebExt,
+    BroadcastChannelExt, ConsoleExt, CronExt, FetchExt, FileExt, FsExt, ProcessExt,
+    RuntimeMacroTask, StreamsExt, TimeExt, URLExt, WebExt,
 };
 
 pub fn recommended_extensions() -> Vec<Extension> {
@@ -27,10 +27,7 @@ pub fn recommended_extensions() -> Vec<Extension> {
         URLExt::new_extension(),
         WebExt::new_extension(),
         FileExt::new_extension(),
-        HeadersExt::new_extension(),
         BroadcastChannelExt::new_extension(),
-        RequestExt::new_extension(),
-        ResponseExt::new_extension(),
         FetchExt::new_extension(),
         StreamsExt::new_extension(),
         #[cfg(feature = "canvas")]

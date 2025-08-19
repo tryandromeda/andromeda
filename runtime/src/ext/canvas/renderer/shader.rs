@@ -18,6 +18,9 @@ struct Uniforms {
     global_alpha: f32,
     radius_start: f32,
     radius_end: f32,
+    stroke_color: vec4f,
+    stroke_width: f32,
+    is_stroke: u32,
 };
 
 struct VertexOutput {
@@ -36,20 +39,26 @@ fn vs_main(@location(0) position: vec2f) -> VertexOutput {
     return out;
 }
 
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    if(uniforms.fill_style == 0) {
+    if (uniforms.is_stroke == 1u) {
+        var color = uniforms.stroke_color;
+        color.w *= uniforms.global_alpha;
+        return color;
+    }
+    if(uniforms.fill_style == 0u) {
         var color = uniforms.color;
         color.w *= uniforms.global_alpha;
         return color;
     } else {
-	  	var color = gradient[0].color;
+        var color = gradient[0].color;
         var ratio = 0f;
-        if(uniforms.fill_style == 1) {
+        if(uniforms.fill_style == 1u) {
             var pos_vec = in.position.xy - uniforms.gradient_start;
             var grad_vec = uniforms.gradient_end - uniforms.gradient_start;
             ratio = dot(pos_vec, grad_vec) / pow(length(grad_vec), 2);
-        } else if(uniforms.fill_style == 2) {
+        } else if(uniforms.fill_style == 2u) {
             var pos_vec = in.position.xy - uniforms.gradient_start;
             var grad_vec = uniforms.gradient_end - uniforms.gradient_start;
             var b = -2 * dot(pos_vec, grad_vec) / length(pos_vec);
@@ -66,13 +75,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
                 determinant(mat2x2f(pos_vec, start_vec))
             ) / radians(360) + 0.5;
         }
-	  	for(var i = 0u; i < arrayLength(&gradient) - 1; i++) {
-		  color = mix(
-			color, 
-			gradient[i + 1].color, 
-			smoothstep(gradient[i].offset, gradient[i + 1].offset, ratio)
-		  );
-		}
+        for(var i = 0u; i < arrayLength(&gradient) - 1; i++) {
+            color = mix(
+                color, 
+                gradient[i + 1].color, 
+                smoothstep(gradient[i].offset, gradient[i + 1].offset, ratio)
+            );
+        }
         color.w *= uniforms.global_alpha;
         return color;
     }
@@ -116,6 +125,9 @@ pub struct Uniforms {
     pub global_alpha: f32,
     pub radius_start: f32,
     pub radius_end: f32,
+    pub stroke_color: Color,
+    pub stroke_width: f32,
+    pub is_stroke: u32,
 }
 
 pub trait EncodeGPU {
@@ -181,6 +193,9 @@ impl EncodeGPU for Uniforms {
             self.global_alpha.to_ne_bytes().to_vec(),
             self.radius_start.to_ne_bytes().to_vec(),
             self.radius_end.to_ne_bytes().to_vec(),
+            self.stroke_color.encode_gpu(),
+            self.stroke_width.to_ne_bytes().to_vec(),
+            self.is_stroke.to_ne_bytes().to_vec(),
         ]
         .concat()
     }
