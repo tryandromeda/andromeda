@@ -13,12 +13,7 @@ impl FetchExt {
             name: "fetch",
             ops: vec![],
             storage: None,
-            files: vec![
-                include_str!("./headers/mod.ts"),
-                include_str!("./request/mod.ts"),
-                include_str!("./response/mod.ts"),
-                include_str!("./fetch/mod.ts"),
-            ],
+            files: vec![include_str!("./fetch/mod.ts")],
         }
     }
 }

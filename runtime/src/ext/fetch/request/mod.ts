@@ -3,6 +3,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import type { RequestInit as RequestInitType, HeadersInit } from "../types.ts";
+import { Headers, setHeadersList, setHeadersGuard, getHeadersList, fillHeaders } from "../headers/mod.ts";
+
 // @ts-ignore deno lint stuff
 type RequestInfo = Request;
 
@@ -25,7 +28,7 @@ const KNOWN_METHODS = {
 };
 
 /** @category Fetch */
-interface RequestInit {
+interface RequestInit extends RequestInitType {
   /**
    * A BodyInit object or null to set request's body.
    */
@@ -41,11 +44,6 @@ interface RequestInit {
    * credentials.
    */
   credentials?: RequestCredentials;
-  /**
-   * A Headers object, an object literal, or an array of two-item arrays to set
-   * request's headers.
-   */
-  headers?: HeadersInit;
   /**
    * A cryptographic hash of the resource to be fetched by request. Sets
    * request's integrity.
@@ -97,8 +95,7 @@ const bodySymbol = Symbol("[[body]]");
 // @ts-ignore deno lint stuff
 class Request {
   [requestSymbol]: any;
-  // TODO: comment in nova support module
-  // #headers;
+  #headers: Headers;
   [signalSymbol]: AbortSignal | null = null;
   [bodySymbol]: any = null;
 
@@ -315,11 +312,11 @@ class Request {
     //   this[_signalCache] = createDependentAbortSignal([signal], prefix);
     // }
 
-    // 31. Set this’s headers to a new Headers object with this’s relevant realm,
-    //     whose header list is request’s header list and guard is "request".
-    // TODO: removed nova support module
-    // setHeadersList(this.#headers, request.headersList);
-    // setHeadersGuard(this.#headers, "request");
+    // 31. Set this's headers to a new Headers object with this's relevant realm,
+    //     whose header list is request's header list and guard is "request".
+    this.#headers = new Headers();
+    setHeadersList(this.#headers, request.headersList || []);
+    setHeadersGuard(this.#headers, "request");
 
     // 32. If this’s request’s mode is "no-cors", then:
     const corsSafeListedMethods = ["GET", "HEAD", "POST"] as const;
@@ -332,24 +329,22 @@ class Request {
           `'${request.method} is unsupported in no-cors mode.`,
         );
       }
-      // 2. Set this’s headers’s guard to "request-no-cors".
-      // TODO: removed nova support module
-      // setHeadersGuard(this.#headers, "request-no-cors");
+      // 2. Set this's headers's guard to "request-no-cors".
+      setHeadersGuard(this.#headers, "request-no-cors");
     }
 
     // 33.
-    // TODO: removed nova support module
-    // if (init.headers || Object.keys(init).length > 0) {
-    //   const headerList = getHeadersList(this.#headers);
-    //   const headers = init.headers ?? headerList.slice(
-    //     0,
-    //     headerList.length,
-    //   );
-    //   if (headerList.length !== 0) {
-    //     headerList.splice(0, headerList.length);
-    //   }
-    //   fillHeaders(this.#headers, headers);
-    // }
+    if (init.headers || Object.keys(init).length > 0) {
+      const headerList = getHeadersList(this.#headers);
+      const headers = init.headers ?? headerList.slice(
+        0,
+        headerList.length,
+      );
+      if (headerList.length !== 0) {
+        headerList.splice(0, headerList.length);
+      }
+      fillHeaders(this.#headers, headers);
+    }
 
     // 34. Let inputBody be input’s request’s body if input is a Request object; otherwise null.
     let inputBody: any = null;
@@ -416,9 +411,9 @@ class Request {
   // Returns a Headers object consisting of the headers associated with request.
   // Note that headers added in the network layer by the user agent will not
   // be accounted for in this object, e.g., the "Host" header.
-  // get headers() {
-  //   return this.#headers;
-  // }
+  get headers() {
+    return this.#headers;
+  }
 
   // Returns the kind of resource requested by request, e.g., "document"
   // or "script".
@@ -557,6 +552,12 @@ function newInnerRequest(
     set headerList(value) {
       this.headerListInner = value;
     },
+    get headersList() {
+      return this.headerList;
+    },
+    set headersList(value) {
+      this.headerList = value;
+    },
     body,
     redirectMode: "follow",
     redirectCount: 0,
@@ -585,6 +586,9 @@ const RequestPrototype = Request.prototype;
 
 // Export Request to globalThis
 globalThis.Request = Request;
+
+// Export for ES module support
+export { Request, configureInterface, configureProperties, validateAndNormalizeMethod };
 
 /** https://fetch.spec.whatwg.org/#concept-request-clone */
 function cloneInnerRequest(request: any, skipBody = false): any {
@@ -644,7 +648,6 @@ function validateAndNormalizeMethod(m: string): string {
   return upperCase;
 }
 
-// TODO: removed nova support module
 function configureInterface(interface_: any) {
   configureProperties(interface_);
   configureProperties(interface_.prototype);
@@ -658,7 +661,6 @@ function configureInterface(interface_: any) {
   });
 }
 
-// TODO: removed nova support module
 function configureProperties(obj: any) {
   const descriptors = Object.getOwnPropertyDescriptors(obj);
   for (const key in descriptors) {

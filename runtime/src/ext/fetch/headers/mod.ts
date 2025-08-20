@@ -3,13 +3,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // deno-lint-ignore-file no-unused-vars
 
-type Header = [string, string];
-
-type HeaderList = Header[];
+import type { Header, HeaderList, HeadersGuard } from "../types.ts";
 
 class Headers {
-  #guard: "immutable" | "request" | "request-no-cors" | "response" | "none" =
-    "none";
+  #guard: HeadersGuard = "none";
   #headerList: HeaderList = [];
 
   // TODO: this is HeaderList type
@@ -43,14 +40,14 @@ class Headers {
 
   static getHeadersGuard(
     o: Headers,
-    guard: "immutable" | "request" | "request-no-cors" | "response" | "none",
+    guard: HeadersGuard,
   ) {
     return o.#guard;
   }
 
   static setHeadersGuard(
     o: Headers,
-    guard: "immutable" | "request" | "request-no-cors" | "response" | "none",
+    guard: HeadersGuard,
   ) {
     o.#guard = guard;
   }
@@ -174,15 +171,16 @@ function getHeader(list: [string, string][], name: string): string | null {
   }
 }
 
-// TODO: nova support module
-// export {
-//   fillHeaders,
-//   getHeadersGuard,
-//   getHeadersList,
-//   type HeaderList,
-//   setHeadersGuard,
-//   setHeadersList,
-// };
+// Export functions and types for ES module support
+export {
+  Headers,
+  fillHeaders,
+  getHeadersGuard,
+  getHeadersList,
+  setHeadersGuard,
+  setHeadersList,
+};
+export type { Header, HeaderList, HeadersGuard };
 
 // Export Headers to globalThis
 globalThis.Headers = Headers;
