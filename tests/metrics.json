@@ -4,12 +4,12 @@
   "wpt": {
     "overall": {
       "total_tests": 697,
-      "pass": 73,
-      "fail": 227,
-      "crash": 393,
+      "pass": 69,
+      "fail": 225,
+      "crash": 399,
       "timeout": 0,
       "skip": 4,
-      "pass_rate": 10.473457675753227
+      "pass_rate": 9.899569583931134
     },
     "suites": {
       "console": {
@@ -23,12 +23,12 @@
       },
       "fetch": {
         "total_tests": 650,
-        "pass": 63,
-        "fail": 200,
-        "crash": 385,
+        "pass": 59,
+        "fail": 198,
+        "crash": 391,
         "timeout": 0,
         "skip": 2,
-        "pass_rate": 9.692307692307692
+        "pass_rate": 9.076923076923077
       },
       "url": {
         "total_tests": 34,
