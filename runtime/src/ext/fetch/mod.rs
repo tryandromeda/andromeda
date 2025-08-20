@@ -13,9 +13,7 @@ impl FetchExt {
             name: "fetch",
             ops: vec![],
             storage: None,
-            files: vec![
-                include_str!("./fetch/mod.ts"),
-            ],
+            files: vec![include_str!("./fetch/mod.ts")],
         }
     }
 }
