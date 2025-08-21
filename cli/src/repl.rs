@@ -289,7 +289,7 @@ fn initialize_global_object(agent: &mut Agent, global_object: Object, mut gc: Gc
             }
         }
 
-        // Load extension ops (native functions)
+        // Register native ops
         for op in &extension.ops {
             let function = create_builtin_function(
                 agent,
@@ -309,6 +309,14 @@ fn initialize_global_object(agent: &mut Agent, global_object: Object, mut gc: Gc
                     gc.reborrow(),
                 )
                 .unwrap();
+        }
+
+        // Run storage initializer for the extension (if any) so extension storage types are inserted
+        if let Some(storage_hook) = extension.storage.take() {
+            let host_data = agent.get_host_data();
+            let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+            let mut storage = host_data.storage.borrow_mut();
+            (storage_hook)(&mut storage)
         }
     }
 }

@@ -61,6 +61,21 @@ impl<T> ResourceTable<T> {
         }
     }
 
+    /// Returns true if the table contains the given Rid.
+    pub fn contains(&self, rid: Rid) -> bool {
+        self.table.borrow().contains_key(&rid)
+    }
+
+    /// Returns the number of resources currently stored.
+    pub fn len(&self) -> usize {
+        self.table.borrow().len()
+    }
+
+    /// Returns true if the resource table has no entries.
+    pub fn is_empty(&self) -> bool {
+        self.table.borrow().is_empty()
+    }
+
     pub fn push(&self, value: T) -> Rid {
         let rid = *self.next_rid.borrow();
         let new_rid = Rid(rid.index() + 1);

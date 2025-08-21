@@ -15,7 +15,7 @@ pub fn bundle(input: &str, output: &str) -> Result<(), Box<dyn std::error::Error
         mangle: Some(MangleOptions::default()),
         compress: Some(CompressOptions::smallest()),
     };
-    let minified = Minifier::new(options).build(&allocator, &mut program);
+    let minified = Minifier::new(options).minify(&allocator, &mut program);
     let code = oxc_codegen::Codegen::new()
         .with_options(oxc_codegen::CodegenOptions {
             minify: true,

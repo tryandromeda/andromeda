@@ -368,8 +368,19 @@ impl ConsoleExt {
             let host_data = agent.get_host_data();
             let host_data: &HostData<crate::RuntimeMacroTask> = host_data.downcast_ref().unwrap();
             let storage = host_data.storage.borrow();
-            let console_storage: &ConsoleStorage = storage.get().unwrap();
-            console_storage.group_indent_level
+            // Be defensive: storage.get() may be None in some runtime states (e.g., REPL),
+            // avoid unwrap() to prevent panics and return a sensible default (0).
+            match storage.get::<ConsoleStorage>() {
+                Some(console_storage) => console_storage.group_indent_level,
+                None => {
+                    let error = AndromedaError::runtime_error(
+                        "Console storage missing when querying group indent; defaulting to 0"
+                            .to_string(),
+                    );
+                    ErrorReporter::print_error(&error);
+                    0
+                }
+            }
         };
         Ok(Value::from_f64(agent, indent_level as f64, gc.nogc()).unbind())
     }
