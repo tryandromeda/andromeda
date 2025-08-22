@@ -7,7 +7,7 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.0-draft20"
+version = "0.1.0-draft21"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
@@ -31,22 +31,22 @@ lazy_static = "1.5.0"
 libsui = "0.10.0"
 log = "0.4.27"
 lsp-types = "0.97.0"
-nova_vm = { git = "https://github.com/trynova/nova", rev = "4609f17953dc531ba99d236d2b03e42971e49b1e", features = [
+nova_vm = { git = "https://github.com/trynova/nova", rev = "73a35f81b30c95fcca269644529fdb5d4165421c", features = [
     "typescript"
 ] }
 nu-ansi-term = "0.50.1"
 owo-colors = "4.2.2"
-oxc_codegen = "0.82.2"
-oxc_ast = "0.82.2"
-oxc_minifier = "0.82.2"
-oxc_mangler = "0.82.2"
-oxc_allocator = "0.82.2"
-oxc_diagnostics = "0.82.2"
+oxc_codegen = "0.82.3"
+oxc_ast = "0.82.3"
+oxc_minifier = "0.82.3"
+oxc_mangler = "0.82.3"
+oxc_allocator = "0.82.3"
+oxc_diagnostics = "0.82.3"
 oxc-miette = { version = "2.4.0", features = ["fancy"] }
-oxc_parser = "0.82.2"
-oxc_semantic = "0.82.2"
-oxc_span = "0.82.2"
-oxc_transformer = "0.82.2"
+oxc_parser = "0.82.3"
+oxc_semantic = "0.82.3"
+oxc_span = "0.82.3"
+oxc_transformer = "0.82.3"
 rand = "0.9.2"
 reedline = "0.41.0"
 regex = "1.11.1"
@@ -64,7 +64,7 @@ tokio = { version = "1.47.1", features = ["rt", "sync", "time", "fs"] }
 tokio-test = "0.4.4"
 tower-lsp = "0.20.0"
 ureq = { version = "3.1.0", features = ["json"] }
-url = { version = "2.5.4", features = ["serde", "expose_internals"] }
+url = { version = "2.5.6", features = ["serde", "expose_internals"] }
 uuid = { version = "1.18.0", features = ["v4"] }
 wgpu = { version = "26.0.1", features = ["wgsl", "webgpu"] }
 
