@@ -137,7 +137,7 @@ declare function internal_real_path(path: string): string;
 declare function internal_read_dir(
   path: string,
 ): Array<
-  { name: string; isFile: boolean; isDirectory: boolean; isSymlink: boolean; }
+  { name: string; isFile: boolean; isDirectory: boolean; isSymlink: boolean }
 >;
 
 /**
@@ -252,6 +252,14 @@ declare function internal_url_parse(url: string, base: string): string;
  * The `internal_url_parse_no_base` function to parse a URL string without a base URL.
  */
 declare function internal_url_parse_no_base(url: string): string;
+declare function internal_url_get_origin(url: string): string;
+declare function internal_url_set_hostname(url: string, v: string): string;
+declare function internal_url_set_port(url: string, v: string): string;
+declare function internal_url_set_pathname(url: string, v: string): string;
+declare function internal_url_set_search(url: string, v: string): string;
+declare function internal_url_set_hash(url: string, v: string): string;
+declare function internal_url_set_username(url: string, v: string): string;
+declare function internal_url_set_password(url: string, v: string): string;
 
 /**
  * The `internal_url_get_protocol` function returns the protocol (scheme) of a URL string.
