@@ -113,14 +113,25 @@ pub fn recommended_eventloop_handler(
                 }
             });
         }
-        RuntimeMacroTask::ResolvePromiseWithBytes(root_value, _bytes_value) => {
+        RuntimeMacroTask::ResolvePromiseWithBytes(root_value, bytes_value) => {
+            let hex_string_global = agent
+                .run_in_realm(realm_root, |agent, gc| {
+                    let mut hex_content = String::new();
+                    for b in &bytes_value {
+                        use std::fmt::Write;
+                        write!(&mut hex_content, "{b:02x}").unwrap();
+                    }
+                    let string_val = Value::from_string(agent, hex_content, gc.nogc());
+                    Some(Global::new(agent, string_val.into_value().unbind()))
+                })
+                .unwrap();
+
             agent.run_in_realm(realm_root, |agent, gc| {
-                let value = root_value.take(agent);
-                if let Value::Promise(promise) = value {
+                let promise_value = root_value.take(agent);
+                let string_value = hex_string_global.take(agent);
+                if let Value::Promise(promise) = promise_value {
                     let promise_capability = PromiseCapability::from_promise(promise, false);
-                    // TODO: Implement bytes to Uint8Array conversion
-                    let undefined_val = Value::Undefined;
-                    promise_capability.resolve(agent, undefined_val, gc);
+                    promise_capability.resolve(agent, string_value, gc);
                 } else {
                     panic!("Attempted to resolve a non-promise value");
                 }
