@@ -19,7 +19,13 @@ nova_vm.workspace = true
 anymap.workspace = true
 async-trait.workspace = true
 chrono.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = [
+    "net",
+    "rt-multi-thread",
+    "io-util",
+    "sync",
+    "time"
+] }
 oxc-miette.workspace = true
 oxc_diagnostics.workspace = true
 saffron.workspace = true
@@ -36,3 +42,8 @@ lazy_static.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 wgpu = { workspace = true, optional = true }
+rustls.workspace = true
+tokio-rustls.workspace = true
+webpki-roots.workspace = true
+rustls-pemfile.workspace = true
+rustls-pki-types.workspace = true

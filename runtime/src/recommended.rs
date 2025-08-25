@@ -14,7 +14,7 @@ use nova_vm::{
 
 use crate::{
     BroadcastChannelExt, ConsoleExt, CronExt, FetchExt, FileExt, FsExt, ProcessExt,
-    RuntimeMacroTask, StreamsExt, TimeExt, URLExt, WebExt,
+    RuntimeMacroTask, StreamsExt, TimeExt, TlsExt, URLExt, WebExt,
 };
 
 pub fn recommended_extensions() -> Vec<Extension> {
@@ -30,6 +30,7 @@ pub fn recommended_extensions() -> Vec<Extension> {
         BroadcastChannelExt::new_extension(),
         FetchExt::new_extension(),
         StreamsExt::new_extension(),
+        TlsExt::new_extension(),
         #[cfg(feature = "canvas")]
         crate::CanvasExt::new_extension(),
         #[cfg(feature = "crypto")]
@@ -129,6 +130,40 @@ pub fn recommended_eventloop_handler(
             agent.run_in_realm(realm_root, |agent, gc| {
                 let promise_value = root_value.take(agent);
                 let string_value = hex_string_global.take(agent);
+                if let Value::Promise(promise) = promise_value {
+                    let promise_capability = PromiseCapability::from_promise(promise, false);
+                    promise_capability.resolve(agent, string_value, gc);
+                } else {
+                    panic!("Attempted to resolve a non-promise value");
+                }
+            });
+        }
+        RuntimeMacroTask::RegisterTlsStream(root_value, tls_stream) => {
+            // Insert the tls stream into the runtime storage resources and resolve the promise
+            let rid = {
+                let storage = host_data.storage.borrow();
+                let resources: &crate::ext::tls::TlsResources = storage.get().unwrap();
+                // Wrap tls_stream into Arc<Mutex<..>> so it can be shared across tasks
+                // tls_stream is boxed in the macro task; move the boxed stream out and store in Arc/Mutex
+                let boxed = std::sync::Arc::new(tokio::sync::Mutex::new(*tls_stream));
+                resources
+                    .streams
+                    .push(crate::ext::tls::TlsResource::Client(boxed))
+            };
+
+            // Resolve the original promise with the numeric rid as string. Pre-create the string value
+            // in a separate realm call to avoid borrow conflicts.
+            let string_global = agent
+                .run_in_realm(realm_root, |agent, gc| {
+                    let rid_str = rid.index().to_string();
+                    let string_val = Value::from_string(agent, rid_str, gc.nogc());
+                    Some(Global::new(agent, string_val.into_value().unbind()))
+                })
+                .unwrap();
+
+            agent.run_in_realm(realm_root, |agent, gc| {
+                let promise_value = root_value.take(agent);
+                let string_value = string_global.take(agent);
                 if let Value::Promise(promise) = promise_value {
                     let promise_capability = PromiseCapability::from_promise(promise, false);
                     promise_capability.resolve(agent, string_value, gc);

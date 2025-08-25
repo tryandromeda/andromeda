@@ -34,6 +34,7 @@ nova_vm.workspace = true
 andromeda-core.workspace = true
 andromeda-runtime.workspace = true
 anyhow.workspace = true
+rustls.workspace = true
 oxc_ast.workspace = true
 oxc_allocator.workspace = true
 oxc_parser.workspace = true
