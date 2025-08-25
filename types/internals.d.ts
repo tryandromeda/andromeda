@@ -1185,3 +1185,11 @@ declare function cron(
   schedule: string,
   handler: () => void | Promise<void>,
 ): Promise<void>;
+
+type Rid = string;
+
+declare function internal_tls_connect(host: string, port: number): Promise<Rid>;
+declare function internal_tls_close(rid: Rid): Promise<string>;
+declare function internal_tls_read(rid: Rid, len: number): Promise<string>;
+declare function internal_tls_write(rid: Rid, data: string): Promise<string>;
+declare function internal_tls_get_peer_certificate(rid: Rid): Promise<string>;

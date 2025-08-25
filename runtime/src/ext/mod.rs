@@ -21,6 +21,7 @@ mod process;
 mod sqlite;
 mod streams;
 mod time;
+pub mod tls;
 mod url;
 mod web;
 
@@ -43,5 +44,6 @@ pub use process::*;
 pub use sqlite::*;
 pub use streams::*;
 pub use time::*;
+pub use tls::*;
 pub use url::*;
 pub use web::*;

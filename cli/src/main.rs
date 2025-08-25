@@ -195,6 +195,10 @@ fn main() {
     // Also initialize the enhanced error reporting from core
     andromeda_core::ErrorReporter::init();
 
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .expect("failed to install default rustls CryptoProvider");
+
     if let Err(error) = run_main() {
         print_error(error);
         std::process::exit(1);
@@ -247,6 +251,7 @@ fn run_main() -> Result<()> {
 
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_time()
+        .enable_io()
         .build()
         .map_err(|e| {
             error::AndromedaError::config_error(
@@ -440,13 +445,18 @@ fn generate_completions(shell: Option<Shell>) {
 
     match shell {
         Some(shell) => {
-            generate(shell, &mut cmd, bin_name, &mut io::stdout());
+            let mut out = io::stdout();
+            generate(shell, &mut cmd, bin_name, &mut out as &mut dyn io::Write);
         }
         None => {
-            // If no shell is specified, try to detect it from environment
-            // This mimics Deno's behavior
             if let Some(detected_shell) = detect_shell() {
-                generate(detected_shell, &mut cmd, bin_name, &mut io::stdout());
+                let mut out = io::stdout();
+                generate(
+                    detected_shell,
+                    &mut cmd,
+                    bin_name,
+                    &mut out as &mut dyn io::Write,
+                );
             } else {
                 eprintln!(
                     "Error: Could not detect shell. Please specify one of: bash, zsh, fish, powershell"

@@ -4,6 +4,8 @@
 
 use crate::ext::{cron::CronId, interval::IntervalId, timeout::TimeoutId};
 use nova_vm::{ecmascript::types::Value, engine::Global};
+use tokio::net::TcpStream;
+use tokio_rustls::client::TlsStream;
 
 pub enum RuntimeMacroTask {
     /// Run an interval.
@@ -26,4 +28,6 @@ pub enum RuntimeMacroTask {
     ResolvePromiseWithBytes(Global<Value<'static>>, Vec<u8>),
     /// Reject a promise with an error message.
     RejectPromise(Global<Value<'static>>, String),
+    /// Register a TLS stream into the runtime resource table and resolve a promise with its rid.
+    RegisterTlsStream(Global<Value<'static>>, Box<TlsStream<TcpStream>>),
 }
