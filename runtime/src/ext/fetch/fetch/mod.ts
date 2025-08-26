@@ -2,8 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// TypeScript type definitions
-type RequestInfo = any;
+import type { RequestInfo } from "../types.ts";
 
 const networkError = () => ({
   type: "error",
@@ -1360,4 +1359,486 @@ const httpNetworkFetch = (
 
   // 17. Return response.
   return response || networkError();
+};
+/**
+ * @see https://fetch.spec.whatwg.org/#http-redirect-fetch
+ * @description To HTTP-redirect fetch, given a fetch params fetchParams and a response response, run these steps:
+ */
+const httpRedirectFetch = (fetchParams: any, response: any) => {
+  // 1. Let request be fetchParams's request.
+  const request = fetchParams.request;
+
+  // 2. Let internalResponse be response, if response is not a filtered response; otherwise response's internal response.
+  const internalResponse = response?.internalResponse || response;
+
+  // 3. Let locationURL be internalResponse's location URL given request's current URL's fragment.
+  let locationURL = null;
+  const locationHeader = internalResponse.headersList?.find(
+    ([name]: [string, string]) => name.toLowerCase() === "location"
+  );
+  if (locationHeader && locationHeader[1]) {
+    try {
+      locationURL = new URL(locationHeader[1], request.currentURL);
+      // Preserve fragment from request's current URL if exists
+      if (request.currentURL.hash) {
+        locationURL.hash = request.currentURL.hash;
+      }
+    } catch (e) {
+      // Invalid URL, will be handled as failure
+      locationURL = "failure";
+    }
+  }
+
+  // 4. If locationURL is null, then return response.
+  if (locationURL === null) {
+    return response;
+  }
+
+  // 5. If locationURL is failure, then return a network error.
+  if (locationURL === "failure") {
+    return networkError();
+  }
+
+  // 6. If locationURL's scheme is not an HTTP(S) scheme, then return a network error.
+  if (locationURL.protocol !== "http:" && locationURL.protocol !== "https:") {
+    return networkError();
+  }
+
+  // 7. If request's redirect count is 20, then return a network error.
+  if (!request.redirectCount) {
+    request.redirectCount = 0;
+  }
+  if (request.redirectCount >= 20) {
+    return networkError();
+  }
+
+  // 8. Increase request's redirect count by 1.
+  request.redirectCount++;
+
+  // 9. If request's mode is "cors", locationURL includes credentials, and request's origin is not same origin with locationURL's origin, then return a network error.
+  if (
+    request.mode === "cors" &&
+    (locationURL.username || locationURL.password) &&
+    request.origin !== locationURL.origin
+  ) {
+    return networkError();
+  }
+
+  // 10. If request's response tainting is "cors" and locationURL includes credentials, then return a network error.
+  //     Note: This catches a cross-origin resource redirecting to a same-origin URL.
+  if (
+    request.responseTainting === "cors" &&
+    (locationURL.username || locationURL.password)
+  ) {
+    return networkError();
+  }
+
+  // 11. If internalResponse's status is not 303, request's body is non-null, and request's body's source is null, then return a network error.
+  if (
+    internalResponse.status !== 303 &&
+    request.body !== null &&
+    request.body?.source === null
+  ) {
+    return networkError();
+  }
+
+  // 12. If one of the following is true
+  //     - internalResponse's status is 301 or 302 and request's method is `POST`
+  //     - internalResponse's status is 303 and request's method is not `GET` or `HEAD`
+  //     then:
+  if (
+    ((internalResponse.status === 301 || internalResponse.status === 302) &&
+      request.method === "POST") ||
+    (internalResponse.status === 303 &&
+      request.method !== "GET" &&
+      request.method !== "HEAD")
+  ) {
+    // 12.1. Set request's method to `GET` and request's body to null.
+    request.method = "GET";
+    request.body = null;
+
+    // 12.2. For each headerName of request-body-header name, delete headerName from request's header list.
+    const requestBodyHeaders = [
+      "content-encoding",
+      "content-language",
+      "content-location",
+      "content-type",
+      "content-length"
+    ];
+    if (request.headers) {
+      for (const header of requestBodyHeaders) {
+        delete request.headers[header];
+      }
+    }
+  }
+
+  // 13. If request's current URL's origin is not same origin with locationURL's origin, then for each headerName of CORS non-wildcard request-header name, delete headerName from request's header list.
+  //     Note: I.e., the moment another origin is seen after the initial request, the `Authorization` header is removed.
+  if (request.currentURL.origin !== locationURL.origin) {
+    // CORS non-wildcard request-header names include at minimum "authorization"
+    const corsNonWildcardHeaders = ["authorization"];
+    if (request.headers) {
+      for (const header of corsNonWildcardHeaders) {
+        delete request.headers[header];
+      }
+    }
+  }
+
+  // 14. If request's body is non-null, then set request's body to the body of the result of safely extracting request's body's source.
+  //     Note: request's body's source's nullity has already been checked.
+  if (request.body !== null && request.body.source) {
+    // Simplified - keeping existing body since safely extracting is complex
+    // In a full implementation, this would properly extract and recreate the body
+  }
+
+  // 15. Let timingInfo be fetchParams's timing info.
+  const timingInfo = fetchParams.timingInfo;
+
+  // 16. Set timingInfo's redirect end time and post-redirect start time to the coarsened shared current time given fetchParams's cross-origin isolated capability.
+  if (timingInfo) {
+    timingInfo.redirectEndTime = Date.now();
+    timingInfo.postRedirectStartTime = Date.now();
+  }
+
+  // 17. If timingInfo's redirect start time is 0, then set timingInfo's redirect start time to timingInfo's start time.
+  if (timingInfo && timingInfo.redirectStartTime === 0) {
+    timingInfo.redirectStartTime = timingInfo.startTime;
+  }
+
+  // 18. Append locationURL to request's URL list.
+  if (!request.urlList) {
+    request.urlList = [];
+  }
+  request.urlList.push(locationURL);
+
+  // 19. Invoke set request's referrer policy on redirect on request and internalResponse. [REFERRER]
+  // TODO: Implement proper referrer policy handling on redirect
+  // This would check for Referrer-Policy header in the response and update request's referrer policy
+
+  // 20. Let recursive be true.
+  let recursive = true;
+
+  // 21. If request's redirect mode is "manual", then:
+  if (request.redirectMode === "manual") {
+    // 21.1. Assert: request's mode is "navigate".
+    if (request.mode !== "navigate") {
+      throw new Error("Assertion failed: manual redirect mode requires navigate mode");
+    }
+    // 21.2. Set recursive to false.
+    recursive = false;
+  }
+
+  // 22. Return the result of running main fetch given fetchParams and recursive.
+  //     Note: This has to invoke main fetch to get request's response tainting correct.
+  request.currentURL = locationURL;
+  return mainFetch(fetchParams, recursive);
+};
+
+/**
+ * @see https://fetch.spec.whatwg.org/#http-network-or-cache-fetch
+ * @description To HTTP-network-or-cache fetch, given a fetch params fetchParams, an optional boolean isAuthenticationFetch (default false), and an optional boolean isNewConnectionFetch (default false), run these steps:
+ */
+const httpNetworkOrCacheFetch = (
+  fetchParams: any,
+  isAuthenticationFetch = false,
+  isNewConnectionFetch = false,
+) => {
+  // 1. Let request be fetchParams's request.
+  const request = fetchParams.request;
+
+  // 2. Let httpFetchParams be null.
+  let httpFetchParams = null;
+
+  // 3. Let httpRequest be null.
+  let httpRequest = null;
+
+  // 4. Let response be null.
+  let response = null;
+
+  // 5. Let storedResponse be null.
+  let storedResponse = null;
+
+  // 6. Let httpCache be null.
+  let httpCache = null;
+
+  // 7. Let the revalidatingFlag be unset.
+  let revalidatingFlag = false;
+
+  // 8. Run these steps, but abort when fetchParams is canceled:
+  //  1. If request's traversable for user prompts is "no-traversable" and request's redirect mode is "error", then set httpFetchParams to fetchParams and httpRequest to request.
+  if (request.traversable === "no-traversable" && request.redirectMode === "error") {
+    httpFetchParams = fetchParams;
+    httpRequest = request;
+  } else {
+    //  2. Otherwise:
+    //     1. Set httpRequest to a clone of request.
+    httpRequest = { ...request };
+    //     2. Set httpFetchParams to a copy of fetchParams.
+    httpFetchParams = { ...fetchParams };
+    //     3. Set httpFetchParams's request to httpRequest.
+    httpFetchParams.request = httpRequest;
+  }
+
+  //  3. Let includeCredentials be true if one of
+  //     - request's credentials mode is "include"
+  //     - request's credentials mode is "same-origin" and request's response tainting is "basic"
+  //     is true; otherwise false.
+  let includeCredentials =
+    httpRequest.credentialsMode === "include" ||
+    (httpRequest.credentialsMode === "same-origin" &&
+      httpRequest.responseTainting === "basic");
+
+  //  4. If Cross-Origin-Embedder-Policy allows credentials with request returns false, then set includeCredentials to false.
+  // TODO: Implement Cross-Origin-Embedder-Policy check
+
+  //  5. Let contentLength be httpRequest's body's length, if httpRequest's body is non-null; otherwise null.
+  const contentLength = httpRequest.body?.length || null;
+
+  //  6. Let contentLengthHeaderValue be null.
+  let contentLengthHeaderValue = null;
+
+  //  7. If httpRequest's body is null and httpRequest's method is `POST` or `PUT`, then set contentLengthHeaderValue to `0`.
+  if (
+    httpRequest.body === null &&
+    (httpRequest.method === "POST" || httpRequest.method === "PUT")
+  ) {
+    contentLengthHeaderValue = "0";
+  }
+
+  //  8. If contentLength is non-null, then set contentLengthHeaderValue to contentLength, serialized and isomorphic encoded.
+  if (contentLength !== null) {
+    contentLengthHeaderValue = String(contentLength);
+  }
+
+  //  9. If contentLengthHeaderValue is non-null, then append (`Content-Length`, contentLengthHeaderValue) to httpRequest's header list.
+  if (contentLengthHeaderValue !== null) {
+    if (!httpRequest.headers) {
+      httpRequest.headers = {};
+    }
+    httpRequest.headers["Content-Length"] = contentLengthHeaderValue;
+  }
+
+  // 10. If contentLength is non-null and httpRequest's keepalive is true, then:
+  if (contentLength !== null && httpRequest.keepalive === true) {
+    //  1. Let inflightKeepaliveBytes be 0.
+    let inflightKeepaliveBytes = 0;
+    
+    //  2. Let group be httpRequest's client's fetch group.
+    //  3. Let inflightRecords be the set of fetch records in group whose request's keepalive is true and done flag is unset.
+    //  4. For each fetchRecord of inflightRecords:
+    // TODO: Implement keepalive tracking
+    
+    //  5. If the sum of contentLength and inflightKeepaliveBytes is greater than 64 kibibytes, then return a network error.
+    if (contentLength + inflightKeepaliveBytes > 65536) {
+      return networkError();
+    }
+  }
+
+  // 11. If httpRequest's referrer is a URL, then:
+  if (httpRequest.referrer && typeof httpRequest.referrer !== "string") {
+    //  1. Let referrerValue be httpRequest's referrer, serialized and isomorphic encoded.
+    const referrerValue = httpRequest.referrer.toString();
+    //  2. Append (`Referer`, referrerValue) to httpRequest's header list.
+    if (!httpRequest.headers) {
+      httpRequest.headers = {};
+    }
+    httpRequest.headers["Referer"] = referrerValue;
+  }
+
+  // 12. Append a request `Origin` header for httpRequest.
+  // TODO: Implement proper Origin header handling
+
+  // 13. Append the Fetch metadata headers for httpRequest. [FETCH-METADATA]
+  // TODO: Implement Fetch metadata headers
+
+  // 14. If httpRequest's initiator is "prefetch", then set a structured field value given (`Sec-Purpose`, the token prefetch) in httpRequest's header list.
+  if (httpRequest.initiator === "prefetch") {
+    if (!httpRequest.headers) {
+      httpRequest.headers = {};
+    }
+    httpRequest.headers["Sec-Purpose"] = "prefetch";
+  }
+
+  // 15. If httpRequest's header list does not contain `User-Agent`, then user agents should append (`User-Agent`, default `User-Agent` value) to httpRequest's header list.
+  if (!httpRequest.headers?.["User-Agent"]) {
+    if (!httpRequest.headers) {
+      httpRequest.headers = {};
+    }
+    httpRequest.headers["User-Agent"] = "Andromeda/1.0";
+  }
+
+  // 16. If httpRequest's cache mode is "default" and httpRequest's header list contains `If-Modified-Since`, `If-None-Match`, `If-Unmodified-Since`, `If-Match`, or `If-Range`, then set httpRequest's cache mode to "no-store".
+  if (
+    httpRequest.cacheMode === "default" &&
+    httpRequest.headers &&
+    (httpRequest.headers["If-Modified-Since"] ||
+     httpRequest.headers["If-None-Match"] ||
+     httpRequest.headers["If-Unmodified-Since"] ||
+     httpRequest.headers["If-Match"] ||
+     httpRequest.headers["If-Range"])
+  ) {
+    httpRequest.cacheMode = "no-store";
+  }
+
+  // 17. If httpRequest's cache mode is "no-cache", httpRequest's prevent no-cache cache-control header modification flag is unset, and httpRequest's header list does not contain `Cache-Control`, then append (`Cache-Control`, `max-age=0`) to httpRequest's header list.
+  if (
+    httpRequest.cacheMode === "no-cache" &&
+    !httpRequest.preventNoCacheCacheControlHeaderModificationFlag &&
+    !httpRequest.headers?.["Cache-Control"]
+  ) {
+    if (!httpRequest.headers) {
+      httpRequest.headers = {};
+    }
+    httpRequest.headers["Cache-Control"] = "max-age=0";
+  }
+
+  // 18. If httpRequest's cache mode is "no-store" or "reload", then:
+  if (httpRequest.cacheMode === "no-store" || httpRequest.cacheMode === "reload") {
+    //  1. If httpRequest's header list does not contain `Pragma`, then append (`Pragma`, `no-cache`) to httpRequest's header list.
+    if (!httpRequest.headers?.["Pragma"]) {
+      if (!httpRequest.headers) {
+        httpRequest.headers = {};
+      }
+      httpRequest.headers["Pragma"] = "no-cache";
+    }
+    //  2. If httpRequest's header list does not contain `Cache-Control`, then append (`Cache-Control`, `no-cache`) to httpRequest's header list.
+    if (!httpRequest.headers?.["Cache-Control"]) {
+      if (!httpRequest.headers) {
+        httpRequest.headers = {};
+      }
+      httpRequest.headers["Cache-Control"] = "no-cache";
+    }
+  }
+
+  // 19. If httpRequest's header list contains `Range`, then append (`Accept-Encoding`, `identity`) to httpRequest's header list.
+  if (httpRequest.headers?.["Range"]) {
+    httpRequest.headers["Accept-Encoding"] = "identity";
+  }
+
+  // 20. Modify httpRequest's header list per HTTP. Do not append a given header if httpRequest's header list contains that header's name.
+  // TODO: Implement additional HTTP headers (Accept-Encoding, Connection, DNT, Host)
+
+  // 21. If includeCredentials is true, then:
+  if (includeCredentials) {
+    //  1. Append a request `Cookie` header for httpRequest.
+    // TODO: Implement Cookie handling
+    
+    //  2. If httpRequest's header list does not contain `Authorization`, then:
+    if (!httpRequest.headers?.["Authorization"]) {
+      // TODO: Implement Authorization header handling
+    }
+  }
+
+  // 22. If there's a proxy-authentication entry, use it as appropriate.
+  // TODO: Implement proxy authentication
+
+  // 23. Set httpCache to the result of determining the HTTP cache partition, given httpRequest.
+  // TODO: Implement cache partitioning
+  httpCache = null;
+
+  // 24. If httpCache is null, then set httpRequest's cache mode to "no-store".
+  if (httpCache === null) {
+    httpRequest.cacheMode = "no-store";
+  }
+
+  // 25. If httpRequest's cache mode is neither "no-store" nor "reload", then:
+  if (httpRequest.cacheMode !== "no-store" && httpRequest.cacheMode !== "reload") {
+    // TODO: Implement cache logic (steps 1 and 2)
+    // This includes cache lookup, stale-while-revalidate handling, and cache validation
+  }
+
+  // 9. If aborted, then return the appropriate network error for fetchParams.
+  if (fetchParams.controller?.state === "aborted") {
+    return networkError();
+  }
+
+  // 10. If response is null, then:
+  if (response === null) {
+    // 10.1. If httpRequest's cache mode is "only-if-cached", then return a network error.
+    if (httpRequest.cacheMode === "only-if-cached") {
+      return networkError();
+    }
+
+    // 10.2. Let forwardResponse be the result of running HTTP-network fetch given httpFetchParams, includeCredentials, and isNewConnectionFetch.
+    const forwardResponse = httpNetworkFetch(httpFetchParams, includeCredentials, isNewConnectionFetch);
+
+    // 10.3. If httpRequest's method is unsafe and forwardResponse's status is in the range 200 to 399, inclusive, invalidate appropriate stored responses in httpCache, as per the "Invalidating Stored Responses" chapter of HTTP Caching, and set storedResponse to null. [HTTP-CACHING]
+    if (
+      ["POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"].includes(httpRequest.method) &&
+      forwardResponse?.status >= 200 &&
+      forwardResponse?.status <= 399
+    ) {
+      // TODO: Invalidate cache
+      storedResponse = null;
+    }
+
+    // 10.4. If the revalidatingFlag is set and forwardResponse's status is 304, then:
+    if (revalidatingFlag && forwardResponse?.status === 304) {
+      // TODO: Update stored response with validation
+      // 10.4.1. Update storedResponse's header list using forwardResponse's header list
+      // 10.4.2. Set response to storedResponse
+      // 10.4.3. Set response's cache state to "validated"
+    }
+
+    // 10.5. If response is null, then:
+    if (response === null) {
+      // 10.5.1. Set response to forwardResponse.
+      response = forwardResponse;
+      // 10.5.2. Store httpRequest and forwardResponse in httpCache
+      // TODO: Store in cache
+    }
+  }
+
+  // 11. Set response's URL list to a clone of httpRequest's URL list.
+  if (response && httpRequest.urlList) {
+    response.urlList = [...httpRequest.urlList];
+  }
+
+  // 12. If httpRequest's header list contains `Range`, then set response's range-requested flag.
+  if (httpRequest.headers?.["Range"]) {
+    response.rangeRequestedFlag = true;
+  }
+
+  // 13. Set response's request-includes-credentials to includeCredentials.
+  if (response) {
+    response.requestIncludesCredentials = includeCredentials;
+  }
+
+  // 14. If response's status is 401, httpRequest's response tainting is not "cors", includeCredentials is true, and request's window is an environment settings object, then:
+  if (
+    response?.status === 401 &&
+    httpRequest.responseTainting !== "cors" &&
+    includeCredentials &&
+    request.window
+  ) {
+    // TODO: Implement authentication challenge handling
+    // This would show authentication dialog and retry request
+  }
+
+  // 15. If response's status is 407, then:
+  if (response?.status === 407) {
+    // TODO: Implement proxy authentication challenge handling
+  }
+
+  // 16. If all of the following are true
+  //     - response's status is 421
+  //     - isNewConnectionFetch is false
+  //     - request's body is null, or request's body is non-null and request's body's source is non-null
+  //     then:
+  if (
+    response?.status === 421 &&
+    !isNewConnectionFetch &&
+    (request.body === null || (request.body && request.body.source))
+  ) {
+    // TODO: Implement HTTP/2 connection coalescing retry logic
+    // This would retry the request on a new connection
+  }
+
+  // 17. If isAuthenticationFetch is true, then create an authentication entry for request and the given realm.
+  if (isAuthenticationFetch) {
+    // TODO: Create authentication entry
+  }
+
+  // 18. Return response.
+  return response;
 };
