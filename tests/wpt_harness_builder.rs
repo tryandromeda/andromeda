@@ -45,17 +45,17 @@ impl WptHarnessBuilder {
     }
 
     fn build_core_harness(&self) -> String {
-        self.load_js_file("js/wpt_harness.js")
+        self.load_js_file("tests/js/wpt_harness.js")
             .unwrap_or_else(|_| include_str!("js/wpt_harness.js").to_string())
     }
 
     fn build_console_optimization(&self) -> String {
-        self.load_js_file("js/console_optimization.js")
+        self.load_js_file("tests/js/console_optimization.js")
             .unwrap_or_else(|_| include_str!("js/console_optimization.js").to_string())
     }
 
     fn build_result_output(&self) -> String {
-        self.load_js_file("js/result_output.js")
+        self.load_js_file("tests/js/result_output.js")
             .unwrap_or_else(|_| include_str!("js/result_output.js").to_string())
     }
 }

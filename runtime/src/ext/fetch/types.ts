@@ -35,3 +35,5 @@ export type HeadersInit =
   | Headers 
   | [string, string][] 
   | Record<string, string>;
+
+export type RequestInfo = Request | string | URL;
