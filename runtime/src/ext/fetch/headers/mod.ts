@@ -30,6 +30,82 @@ class Headers {
     return appendHeader(this, name, value);
   }
 
+  // https://fetch.spec.whatwg.org/#dom-headers-set
+  set(name: string, value: string) {
+    value = normalizeHeaderValue(value);
+    
+    if (this.#guard === "immutable") {
+      throw new TypeError("Cannot change header: headers are immutable");
+    }
+    
+    const lowercaseName = byteLowerCase(name);
+    let found = false;
+    
+    // Remove all existing headers with this name and add the new one
+    for (let i = this.#headerList.length - 1; i >= 0; i--) {
+      if (byteLowerCase(this.#headerList[i][0]) === lowercaseName) {
+        if (!found) {
+          this.#headerList[i] = [this.#headerList[i][0], value];
+          found = true;
+        } else {
+          this.#headerList.splice(i, 1);
+        }
+      }
+    }
+    
+    if (!found) {
+      this.#headerList.push([name, value]);
+    }
+  }
+
+  // https://fetch.spec.whatwg.org/#dom-headers-has
+  has(name: string): boolean {
+    const lowercaseName = byteLowerCase(name);
+    for (const [headerName] of this.#headerList) {
+      if (byteLowerCase(headerName) === lowercaseName) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // https://fetch.spec.whatwg.org/#dom-headers-delete
+  delete(name: string) {
+    if (this.#guard === "immutable") {
+      throw new TypeError("Cannot change header: headers are immutable");
+    }
+    
+    const lowercaseName = byteLowerCase(name);
+    for (let i = this.#headerList.length - 1; i >= 0; i--) {
+      if (byteLowerCase(this.#headerList[i][0]) === lowercaseName) {
+        this.#headerList.splice(i, 1);
+      }
+    }
+  }
+
+  // Iterator methods
+  *entries(): IterableIterator<[string, string]> {
+    for (const header of this.#headerList) {
+      yield [header[0], header[1]];
+    }
+  }
+
+  *keys(): IterableIterator<string> {
+    for (const [name] of this.#headerList) {
+      yield name;
+    }
+  }
+
+  *values(): IterableIterator<string> {
+    for (const [, value] of this.#headerList) {
+      yield value;
+    }
+  }
+
+  [Symbol.iterator](): IterableIterator<[string, string]> {
+    return this.entries();
+  }
+
   get headerList() {
     return this.#headerList;
   }
@@ -171,14 +247,79 @@ function getHeader(list: [string, string][], name: string): string | null {
   }
 }
 
+// Helper function to set a header on a request object
+// This handles both Headers objects and plain objects/headersList
+function setRequestHeader(request: any, name: string, value: string) {
+  if (request.headers instanceof Headers) {
+    request.headers.set(name, value);
+  } else {
+    // Fallback to plain object
+    if (!request.headers) {
+      request.headers = {};
+    }
+    request.headers[name] = value;
+    
+    // Also update headersList if it exists
+    if (request.headersList && Array.isArray(request.headersList)) {
+      const lowerName = name.toLowerCase();
+      const existingIndex = request.headersList.findIndex(
+        ([headerName]) => headerName.toLowerCase() === lowerName
+      );
+      if (existingIndex >= 0) {
+        request.headersList[existingIndex] = [name, value];
+      } else {
+        request.headersList.push([name, value]);
+      }
+    }
+  }
+}
+
+// Helper function to check if a header exists on a request object
+function hasRequestHeader(request: any, name: string): boolean {
+  if (request.headers instanceof Headers) {
+    return request.headers.has(name);
+  } else if (request.headers && typeof request.headers === "object") {
+    return name in request.headers || name.toLowerCase() in request.headers;
+  }
+  return false;
+}
+
+// Helper function to get headers as a list from various representations
+function getHeadersAsList(headers: any): HeaderList {
+  const headersList: HeaderList = [];
+  
+  if (headers instanceof Headers) {
+    for (const [name, value] of headers.entries()) {
+      headersList.push([name, value]);
+    }
+  } else if (Array.isArray(headers)) {
+    headersList.push(...headers);
+  } else if (headers && typeof headers === "object") {
+    for (const [name, value] of Object.entries(headers)) {
+      headersList.push([name, String(value)]);
+    }
+  }
+  
+  return headersList;
+}
+
 // Export functions and types for ES module support
 export {
   Headers,
   fillHeaders,
+  getHeader,
   getHeadersGuard,
   getHeadersList,
+  hasRequestHeader,
   setHeadersGuard,
   setHeadersList,
+  setRequestHeader,
+  getHeadersAsList,
+  appendHeader,
+  byteLowerCase,
+  httpTrim,
+  isHttpWhitespace,
+  normalizeHeaderValue,
 };
 export type { Header, HeaderList, HeadersGuard };
 

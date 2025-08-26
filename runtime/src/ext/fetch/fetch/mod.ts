@@ -3,6 +3,14 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import type { RequestInfo } from "../types.ts";
+import { 
+  Headers, 
+  setRequestHeader, 
+  hasRequestHeader,
+  getHeadersAsList 
+} from "../headers/mod.ts";
+import { Request } from "../request/mod.ts";
+import { Response } from "../response/mod.ts";
 
 const networkError = () => ({
   type: "error",
@@ -48,33 +56,62 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
   // 2. Let requestObject be the result of invoking the initial value
   // of Request as constructor with input and init as arguments.
   // If this throws an exception, reject p with it and return p.
+  let requestObject: any;
   let request: any;
 
   try {
+    // Create a Request object
+    requestObject = new Request(input, init);
+    
     // 3. Let request be requestObject's request.
-    // For now, create a simple request object until Request is fully working
-    if (typeof input === "string") {
-      const currentURL = new URL(input);
-      request = {
-        url: input,
-        method: "GET",
-        headers: {},
-        mode: "cors",
-        credentials: "same-origin",
-        cache: "default",
-        redirect: "follow",
-        referrer: "about:client",
-        referrerPolicy: "",
-        currentURL: currentURL,
-        localURLsOnly: false,
-        urlList: [currentURL],
-        responseTainting: "basic",
-        redirectMode: "follow",
-        ...init,
-      };
-    } else {
-      request = input;
-    }
+    // Build internal request structure from Request object's public API
+    const url = new URL(requestObject.url);
+    
+    // Extract headers from the Headers object
+    const headersList = getHeadersAsList(requestObject.headers);
+    
+    request = {
+      url: requestObject.url,
+      method: requestObject.method,
+      headersList: headersList,
+      headers: headers,
+      mode: requestObject.mode,
+      credentials: requestObject.credentials,
+      cache: requestObject.cache,
+      redirect: requestObject.redirect,
+      referrer: requestObject.referrer,
+      referrerPolicy: requestObject.referrerPolicy,
+      integrity: requestObject.integrity,
+      keepalive: requestObject.keepalive,
+      currentURL: url,
+      localURLsOnly: false,
+      urlList: [url],
+      responseTainting: "basic",
+      redirectMode: requestObject.redirect || "follow",
+      redirectCount: 0,
+      body: requestObject.body,
+      signal: requestObject.signal,
+      client: null,
+      window: null,
+      origin: "client",
+      policyContainer: null,
+      serviceWorkersMode: "all",
+      destination: requestObject.destination || "",
+      priority: null,
+      internalPriority: null,
+      timingAllowFailedFlag: false,
+      preventNoCacheCacheControlHeaderModificationFlag: false,
+      done: false,
+      reloadNavigation: false,
+      historyNavigation: false,
+      userActivation: false,
+      renderBlocking: false,
+      initiator: "",
+      unsafeRequestFlag: false,
+      useCORSPreflightFlag: false,
+      credentialsMode: requestObject.credentials || "same-origin",
+      CORSExposedHeaderNameList: [],
+    };
   } catch (e) {
     p.reject(e);
     return p.promise;
@@ -143,44 +180,41 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
         return;
       }
 
-      // Create a simple Response-like object
-      responseObject = {
-        ok: response.status >= 200 && response.status < 300,
+      // Create a Response object using the Response class
+      const headers = new Headers();
+      if (response.headersList && Array.isArray(response.headersList)) {
+        for (const [name, value] of response.headersList) {
+          headers.append(name, value);
+        }
+      }
+
+      responseObject = new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
-        headers: response.headersList,
-        body: response.body,
-        url: response.urlList?.[0]?.href || request.url,
-        type: response.type,
-        redirected: response.redirected || false,
-        // Add response body methods
-        text: async () => {
-          if (response.body instanceof Uint8Array) {
-            return new TextDecoder().decode(response.body);
-          }
-          return response.body?.toString() || "";
-        },
-        json: async () => {
-          const text = await responseObject.text();
-          try {
-            return JSON.parse(text);
-          } catch (error) {
-            throw new TypeError("Failed to parse JSON");
-          }
-        },
-        arrayBuffer: async () => {
-          if (response.body instanceof Uint8Array) {
-            return response.body.buffer;
-          }
-          return new Uint8Array().buffer;
-        },
-        blob: async () => {
-          if (response.body instanceof Uint8Array) {
-            return new Blob([response.body]);
-          }
-          return new Blob();
-        },
-      };
+        headers: headers,
+      });
+
+      // Add additional properties that might be needed
+      Object.defineProperty(responseObject, "url", {
+        value: response.urlList?.[0]?.href || request.url,
+        writable: false,
+        enumerable: true,
+        configurable: true,
+      });
+
+      Object.defineProperty(responseObject, "type", {
+        value: response.type || "basic",
+        writable: false,
+        enumerable: true,
+        configurable: true,
+      });
+
+      Object.defineProperty(responseObject, "redirected", {
+        value: response.redirected || false,
+        writable: false,
+        enumerable: true,
+        configurable: true,
+      });
 
       p.resolve(responseObject);
     },
@@ -1106,12 +1140,7 @@ const httpNetworkFetch = (
     }
 
     // Prepare headers for request
-    const headers: [string, string][] = [];
-    if (request.headers) {
-      for (const [name, value] of Object.entries(request.headers)) {
-        headers.push([name, String(value)]);
-      }
-    }
+    const headers = request.headersList || getHeadersAsList(request.headers);
 
     // Simulate HTTP response processing
     let status = 200;
@@ -1465,10 +1494,14 @@ const httpRedirectFetch = (fetchParams: any, response: any) => {
       "content-type",
       "content-length"
     ];
-    if (request.headers) {
+    if (request.headers instanceof Headers) {
       for (const header of requestBodyHeaders) {
-        delete request.headers[header];
+        request.headers.delete(header);
       }
+    } else if (request.headersList && Array.isArray(request.headersList)) {
+      request.headersList = request.headersList.filter(
+        ([name]) => !requestBodyHeaders.includes(name.toLowerCase())
+      );
     }
   }
 
@@ -1477,10 +1510,14 @@ const httpRedirectFetch = (fetchParams: any, response: any) => {
   if (request.currentURL.origin !== locationURL.origin) {
     // CORS non-wildcard request-header names include at minimum "authorization"
     const corsNonWildcardHeaders = ["authorization"];
-    if (request.headers) {
+    if (request.headers instanceof Headers) {
       for (const header of corsNonWildcardHeaders) {
-        delete request.headers[header];
+        request.headers.delete(header);
       }
+    } else if (request.headersList && Array.isArray(request.headersList)) {
+      request.headersList = request.headersList.filter(
+        ([name]) => !corsNonWildcardHeaders.includes(name.toLowerCase())
+      );
     }
   }
 
@@ -1573,6 +1610,10 @@ const httpNetworkOrCacheFetch = (
     //  2. Otherwise:
     //     1. Set httpRequest to a clone of request.
     httpRequest = { ...request };
+    // Properly clone headers if they're a Headers object
+    if (request.headers instanceof Headers) {
+      httpRequest.headers = new Headers(request.headers);
+    }
     //     2. Set httpFetchParams to a copy of fetchParams.
     httpFetchParams = { ...fetchParams };
     //     3. Set httpFetchParams's request to httpRequest.
@@ -1612,10 +1653,7 @@ const httpNetworkOrCacheFetch = (
 
   //  9. If contentLengthHeaderValue is non-null, then append (`Content-Length`, contentLengthHeaderValue) to httpRequest's header list.
   if (contentLengthHeaderValue !== null) {
-    if (!httpRequest.headers) {
-      httpRequest.headers = {};
-    }
-    httpRequest.headers["Content-Length"] = contentLengthHeaderValue;
+    setRequestHeader(httpRequest, "Content-Length", contentLengthHeaderValue);
   }
 
   // 10. If contentLength is non-null and httpRequest's keepalive is true, then:
@@ -1639,10 +1677,7 @@ const httpNetworkOrCacheFetch = (
     //  1. Let referrerValue be httpRequest's referrer, serialized and isomorphic encoded.
     const referrerValue = httpRequest.referrer.toString();
     //  2. Append (`Referer`, referrerValue) to httpRequest's header list.
-    if (!httpRequest.headers) {
-      httpRequest.headers = {};
-    }
-    httpRequest.headers["Referer"] = referrerValue;
+    setRequestHeader(httpRequest, "Referer", referrerValue);
   }
 
   // 12. Append a request `Origin` header for httpRequest.
@@ -1653,29 +1688,22 @@ const httpNetworkOrCacheFetch = (
 
   // 14. If httpRequest's initiator is "prefetch", then set a structured field value given (`Sec-Purpose`, the token prefetch) in httpRequest's header list.
   if (httpRequest.initiator === "prefetch") {
-    if (!httpRequest.headers) {
-      httpRequest.headers = {};
-    }
-    httpRequest.headers["Sec-Purpose"] = "prefetch";
+    setRequestHeader(httpRequest, "Sec-Purpose", "prefetch");
   }
 
   // 15. If httpRequest's header list does not contain `User-Agent`, then user agents should append (`User-Agent`, default `User-Agent` value) to httpRequest's header list.
-  if (!httpRequest.headers?.["User-Agent"]) {
-    if (!httpRequest.headers) {
-      httpRequest.headers = {};
-    }
-    httpRequest.headers["User-Agent"] = "Andromeda/1.0";
+  if (!hasRequestHeader(httpRequest, "User-Agent")) {
+    setRequestHeader(httpRequest, "User-Agent", "Andromeda/1.0");
   }
 
   // 16. If httpRequest's cache mode is "default" and httpRequest's header list contains `If-Modified-Since`, `If-None-Match`, `If-Unmodified-Since`, `If-Match`, or `If-Range`, then set httpRequest's cache mode to "no-store".
   if (
     httpRequest.cacheMode === "default" &&
-    httpRequest.headers &&
-    (httpRequest.headers["If-Modified-Since"] ||
-     httpRequest.headers["If-None-Match"] ||
-     httpRequest.headers["If-Unmodified-Since"] ||
-     httpRequest.headers["If-Match"] ||
-     httpRequest.headers["If-Range"])
+    (hasRequestHeader(httpRequest, "If-Modified-Since") ||
+     hasRequestHeader(httpRequest, "If-None-Match") ||
+     hasRequestHeader(httpRequest, "If-Unmodified-Since") ||
+     hasRequestHeader(httpRequest, "If-Match") ||
+     hasRequestHeader(httpRequest, "If-Range"))
   ) {
     httpRequest.cacheMode = "no-store";
   }
@@ -1684,35 +1712,26 @@ const httpNetworkOrCacheFetch = (
   if (
     httpRequest.cacheMode === "no-cache" &&
     !httpRequest.preventNoCacheCacheControlHeaderModificationFlag &&
-    !httpRequest.headers?.["Cache-Control"]
+    !hasRequestHeader(httpRequest, "Cache-Control")
   ) {
-    if (!httpRequest.headers) {
-      httpRequest.headers = {};
-    }
-    httpRequest.headers["Cache-Control"] = "max-age=0";
+    setRequestHeader(httpRequest, "Cache-Control", "max-age=0");
   }
 
   // 18. If httpRequest's cache mode is "no-store" or "reload", then:
   if (httpRequest.cacheMode === "no-store" || httpRequest.cacheMode === "reload") {
     //  1. If httpRequest's header list does not contain `Pragma`, then append (`Pragma`, `no-cache`) to httpRequest's header list.
-    if (!httpRequest.headers?.["Pragma"]) {
-      if (!httpRequest.headers) {
-        httpRequest.headers = {};
-      }
-      httpRequest.headers["Pragma"] = "no-cache";
+    if (!hasRequestHeader(httpRequest, "Pragma")) {
+      setRequestHeader(httpRequest, "Pragma", "no-cache");
     }
     //  2. If httpRequest's header list does not contain `Cache-Control`, then append (`Cache-Control`, `no-cache`) to httpRequest's header list.
-    if (!httpRequest.headers?.["Cache-Control"]) {
-      if (!httpRequest.headers) {
-        httpRequest.headers = {};
-      }
-      httpRequest.headers["Cache-Control"] = "no-cache";
+    if (!hasRequestHeader(httpRequest, "Cache-Control")) {
+      setRequestHeader(httpRequest, "Cache-Control", "no-cache");
     }
   }
 
   // 19. If httpRequest's header list contains `Range`, then append (`Accept-Encoding`, `identity`) to httpRequest's header list.
-  if (httpRequest.headers?.["Range"]) {
-    httpRequest.headers["Accept-Encoding"] = "identity";
+  if (hasRequestHeader(httpRequest, "Range")) {
+    setRequestHeader(httpRequest, "Accept-Encoding", "identity");
   }
 
   // 20. Modify httpRequest's header list per HTTP. Do not append a given header if httpRequest's header list contains that header's name.
@@ -1724,7 +1743,7 @@ const httpNetworkOrCacheFetch = (
     // TODO: Implement Cookie handling
     
     //  2. If httpRequest's header list does not contain `Authorization`, then:
-    if (!httpRequest.headers?.["Authorization"]) {
+    if (!hasRequestHeader(httpRequest, "Authorization")) {
       // TODO: Implement Authorization header handling
     }
   }
@@ -1795,7 +1814,7 @@ const httpNetworkOrCacheFetch = (
   }
 
   // 12. If httpRequest's header list contains `Range`, then set response's range-requested flag.
-  if (httpRequest.headers?.["Range"]) {
+  if (hasRequestHeader(httpRequest, "Range")) {
     response.rangeRequestedFlag = true;
   }
 
