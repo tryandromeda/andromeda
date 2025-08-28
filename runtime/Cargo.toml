@@ -36,7 +36,7 @@ base64-simd.workspace = true
 image = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 ring = { workspace = true, optional = true }
-rusqlite = { workspace = true, optional = true, features = ["bundled"] }
+rusqlite = { workspace = true, optional = true, features = ["bundled", "functions", "load_extension"] }
 signal-hook.workspace = true
 lazy_static.workspace = true
 thiserror.workspace = true

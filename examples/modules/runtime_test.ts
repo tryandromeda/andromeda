@@ -9,6 +9,6 @@ console.log(`2 + 3 = ${add(2, 3)}`);
 // Test timer API provided by runtime
 console.time("test");
 setTimeout(() => {
-    console.timeEnd("test");
-    console.log("Timer callback executed");
+  console.timeEnd("test");
+  console.log("Timer callback executed");
 }, 100);

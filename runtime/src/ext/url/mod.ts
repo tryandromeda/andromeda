@@ -66,9 +66,9 @@ class URL {
   constructor(url: string, base?: string) {
     this.url = url;
     this.base = base;
-    this.serialized = base
-      ? internal_url_parse(url, base)
-      : internal_url_parse_no_base(url);
+    this.serialized = base ?
+      internal_url_parse(url, base) :
+      internal_url_parse_no_base(url);
   }
 
   toString() {

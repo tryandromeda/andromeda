@@ -14,8 +14,8 @@ console.log("  X-Custom-Header:", headers.get("X-Custom-Header"));
 const request = new Request("https://example.com/api", {
   method: "POST",
   headers: {
-    "Authorization": "Bearer token123"
-  }
+    "Authorization": "Bearer token123",
+  },
 });
 
 console.log("\nRequest created:");
@@ -28,8 +28,8 @@ const response = new Response(JSON.stringify({ message: "Hello" }), {
   status: 200,
   statusText: "OK",
   headers: {
-    "Content-Type": "application/json"
-  }
+    "Content-Type": "application/json",
+  },
 });
 
 console.log("\nResponse created:");

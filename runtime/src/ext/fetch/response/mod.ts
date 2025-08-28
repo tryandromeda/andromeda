@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
-import type { ResponseInit, HeadersInit } from "../types.ts";
-import { Headers, setHeadersList, setHeadersGuard } from "../headers/mod.ts";
 import { extractBody } from "../body/mod.ts";
+import { Headers, setHeadersGuard, setHeadersList } from "../headers/mod.ts";
+import type { HeadersInit, ResponseInit } from "../types.ts";
 
 class Response {
   #response;
@@ -159,7 +159,6 @@ function initializeAResponse(
     // 3. If body's type is non-null and response's header list does not contain `Content-Type`, then append (`Content-Type`, body's type) to response's header list.
   }
 }
-
 
 // Check whether |statusText| is a ByteString and
 // matches the Reason-Phrase token production.

@@ -3,8 +3,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import type { RequestInit as RequestInitType, HeadersInit } from "../types.ts";
-import { Headers, setHeadersList, setHeadersGuard, getHeadersList, fillHeaders } from "../headers/mod.ts";
+import {
+  fillHeaders,
+  getHeadersList,
+  Headers,
+  setHeadersGuard,
+  setHeadersList,
+} from "../headers/mod.ts";
+import type { HeadersInit, RequestInit as RequestInitType } from "../types.ts";
 
 // @ts-ignore deno lint stuff
 type RequestInfo = Request;
@@ -588,7 +594,12 @@ const RequestPrototype = Request.prototype;
 globalThis.Request = Request;
 
 // Export for ES module support
-export { Request, configureInterface, configureProperties, validateAndNormalizeMethod };
+export {
+  configureInterface,
+  configureProperties,
+  Request,
+  validateAndNormalizeMethod,
+};
 
 /** https://fetch.spec.whatwg.org/#concept-request-clone */
 function cloneInnerRequest(request: any, skipBody = false): any {

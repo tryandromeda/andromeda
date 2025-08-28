@@ -61,21 +61,29 @@ class DatabaseSync {
     this.#dbId = sqlite_database_sync_constructor(filename, options);
   }
 
-  // TODO: Implement applyChangeset
+  // TODO: Implement applyChangeset with proper session extension support
   applyChangeset(
     _changeset: Uint8Array,
     _options?: ApplyChangesetOptions,
   ): void {
-    throw new Error("Not implemented yet");
+    // For now, throw an error indicating this is not yet implemented
+    // Full implementation would require SQLite session extension integration
+    throw new Error(
+      "applyChangeset is not yet implemented - requires session extension support",
+    );
   }
 
   close(): void {
     sqlite_database_sync_close(this.#dbId);
   }
 
-  // TODO: Implement createSession
+  // TODO: Implement createSession with proper session extension support
   createSession(_options?: CreateSessionOptions): Session {
-    throw new Error("Not implemented yet");
+    // For now, throw an error indicating this is not yet implemented
+    // Full implementation would require SQLite session extension integration
+    throw new Error(
+      "createSession is not yet implemented - requires session extension support",
+    );
   }
 
   enableLoadExtension(enabled: boolean): void {

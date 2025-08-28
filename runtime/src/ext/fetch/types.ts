@@ -6,11 +6,11 @@
 export type Header = [string, string];
 export type HeaderList = Header[];
 
-export type HeadersGuard = 
-  | "immutable" 
-  | "request" 
-  | "request-no-cors" 
-  | "response" 
+export type HeadersGuard =
+  | "immutable"
+  | "request"
+  | "request-no-cors"
+  | "response"
   | "none";
 
 export type RequestInit = {
@@ -31,9 +31,9 @@ export type ResponseInit = {
   headers?: HeadersInit;
 };
 
-export type HeadersInit = 
-  | Headers 
-  | [string, string][] 
+export type HeadersInit =
+  | Headers
+  | [string, string][]
   | Record<string, string>;
 
 export type RequestInfo = Request | string | URL;

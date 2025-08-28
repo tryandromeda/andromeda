@@ -2,6 +2,6 @@
 console.log("Testing if fetch is available:");
 console.log("typeof fetch:", typeof fetch);
 
-if (typeof fetch !== 'undefined') {
-    console.log("fetch is available!");
+if (typeof fetch !== "undefined") {
+  console.log("fetch is available!");
 }

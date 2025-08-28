@@ -83,35 +83,37 @@ console.log(
 );
 
 // Additional checks
-const u = new URL('https://user:pass@developer.mozilla.org:8080/en-US/docs?foo=bar#sec');
+const u = new URL(
+  "https://user:pass@developer.mozilla.org:8080/en-US/docs?foo=bar#sec",
+);
 console.log(`href: ${u.href}`);
 console.log(`origin: ${u.origin}`);
 console.log(`protocol: ${u.protocol}`);
 console.log(`toJSON: ${u.toString()}`);
 
 // Mutate some properties (TS shim will call into host ops we must implement)
-u.hostname = 'example.org';
-u.port = '3000';
-u.pathname = '/new/path';
-u.search = '?a=1&b=2';
-u.hash = '#changed';
-u.username = 'alice';
-u.password = 's3cr3t';
+u.hostname = "example.org";
+u.port = "3000";
+u.pathname = "/new/path";
+u.search = "?a=1&b=2";
+u.hash = "#changed";
+u.username = "alice";
+u.password = "s3cr3t";
 
 console.log(`mutated href: ${u.href}`);
 console.log(`mutated origin: ${u.origin}`);
-console.log('--- URLSearchParams tests ---');
-const p = new URLSearchParams('?a=1&b=2');
-console.log('p.get(a):', p.get('a'));
-p.append('c', '3');
-console.log('p.toString after append c=3:', p.toString());
-p.set('a', '9');
-console.log('p.getAll(a):', p.getAll('a'));
-p.delete('b');
-console.log('p.toString after delete b:', p.toString());
+console.log("--- URLSearchParams tests ---");
+const p = new URLSearchParams("?a=1&b=2");
+console.log("p.get(a):", p.get("a"));
+p.append("c", "3");
+console.log("p.toString after append c=3:", p.toString());
+p.set("a", "9");
+console.log("p.getAll(a):", p.getAll("a"));
+p.delete("b");
+console.log("p.toString after delete b:", p.toString());
 
 // test integration with URL.search
-const u2 = new URL('https://example.com/path?x=1');
-console.log('u2.search initially:', u2.search);
-u2.searchParams.append('y', '2');
-console.log('u2.search after append y=2:', u2.search);
+const u2 = new URL("https://example.com/path?x=1");
+console.log("u2.search initially:", u2.search);
+u2.searchParams.append("y", "2");
+console.log("u2.search after append y=2:", u2.search);
