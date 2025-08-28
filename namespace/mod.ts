@@ -740,13 +740,17 @@ function atob(input: string): string {
 function encodeURIComponent(input: string): string {
   const encoder = new TextEncoder();
   const bytes = encoder.encode(String(input));
-  let out = '';
+  let out = "";
   for (const b of bytes) {
     // unreserved characters A-Z a-z 0-9 - _ . ~
-    if ((b >= 0x30 && b <= 0x39) || (b >= 0x41 && b <= 0x5A) || (b >= 0x61 && b <= 0x7A) || b === 0x2D || b === 0x5F || b === 0x2E || b === 0x7E) {
+    if (
+      (b >= 0x30 && b <= 0x39) || (b >= 0x41 && b <= 0x5A) ||
+      (b >= 0x61 && b <= 0x7A) || b === 0x2D || b === 0x5F || b === 0x2E ||
+      b === 0x7E
+    ) {
       out += String.fromCharCode(b);
     } else {
-      out += '%' + b.toString(16).toUpperCase().padStart(2, '0');
+      out += "%" + b.toString(16).toUpperCase().padStart(2, "0");
     }
   }
   return out;
@@ -757,7 +761,7 @@ function decodeURIComponent(input: string): string {
   const bytes: number[] = [];
   for (let i = 0; i < s.length; i++) {
     const ch = s[i];
-    if (ch === '%') {
+    if (ch === "%") {
       const hex = s.slice(i + 1, i + 3);
       const val = parseInt(hex, 16);
       if (!Number.isNaN(val)) {
@@ -775,16 +779,16 @@ function decodeURIComponent(input: string): string {
 function encodeURI(input: string): string {
   // encodeURIComponent then revert reserved characters: ; , / ? : @ & = + $
   return encodeURIComponent(input)
-    .replace(/%3B/g, ';')
-    .replace(/%2C/g, ',')
-    .replace(/%2F/g, '/')
-    .replace(/%3F/g, '?')
-    .replace(/%3A/g, ':')
-    .replace(/%40/g, '@')
-    .replace(/%26/g, '&')
-    .replace(/%3D/g, '=')
-    .replace(/%2B/g, '+')
-    .replace(/%24/g, '$');
+    .replace(/%3B/g, ";")
+    .replace(/%2C/g, ",")
+    .replace(/%2F/g, "/")
+    .replace(/%3F/g, "?")
+    .replace(/%3A/g, ":")
+    .replace(/%40/g, "@")
+    .replace(/%26/g, "&")
+    .replace(/%3D/g, "=")
+    .replace(/%2B/g, "+")
+    .replace(/%24/g, "$");
 }
 
 function decodeURI(input: string): string {

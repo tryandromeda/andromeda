@@ -33,14 +33,14 @@ class Headers {
   // https://fetch.spec.whatwg.org/#dom-headers-set
   set(name: string, value: string) {
     value = normalizeHeaderValue(value);
-    
+
     if (this.#guard === "immutable") {
       throw new TypeError("Cannot change header: headers are immutable");
     }
-    
+
     const lowercaseName = byteLowerCase(name);
     let found = false;
-    
+
     // Remove all existing headers with this name and add the new one
     for (let i = this.#headerList.length - 1; i >= 0; i--) {
       if (byteLowerCase(this.#headerList[i][0]) === lowercaseName) {
@@ -52,7 +52,7 @@ class Headers {
         }
       }
     }
-    
+
     if (!found) {
       this.#headerList.push([name, value]);
     }
@@ -74,7 +74,7 @@ class Headers {
     if (this.#guard === "immutable") {
       throw new TypeError("Cannot change header: headers are immutable");
     }
-    
+
     const lowercaseName = byteLowerCase(name);
     for (let i = this.#headerList.length - 1; i >= 0; i--) {
       if (byteLowerCase(this.#headerList[i][0]) === lowercaseName) {
@@ -258,12 +258,12 @@ function setRequestHeader(request: any, name: string, value: string) {
       request.headers = {};
     }
     request.headers[name] = value;
-    
+
     // Also update headersList if it exists
     if (request.headersList && Array.isArray(request.headersList)) {
       const lowerName = name.toLowerCase();
       const existingIndex = request.headersList.findIndex(
-        ([headerName]) => headerName.toLowerCase() === lowerName
+        ([headerName]) => headerName.toLowerCase() === lowerName,
       );
       if (existingIndex >= 0) {
         request.headersList[existingIndex] = [name, value];
@@ -287,7 +287,7 @@ function hasRequestHeader(request: any, name: string): boolean {
 // Helper function to get headers as a list from various representations
 function getHeadersAsList(headers: any): HeaderList {
   const headersList: HeaderList = [];
-  
+
   if (headers instanceof Headers) {
     for (const [name, value] of headers.entries()) {
       headersList.push([name, value]);
@@ -299,27 +299,27 @@ function getHeadersAsList(headers: any): HeaderList {
       headersList.push([name, String(value)]);
     }
   }
-  
+
   return headersList;
 }
 
 // Export functions and types for ES module support
 export {
-  Headers,
+  appendHeader,
+  byteLowerCase,
   fillHeaders,
   getHeader,
+  getHeadersAsList,
   getHeadersGuard,
   getHeadersList,
   hasRequestHeader,
-  setHeadersGuard,
-  setHeadersList,
-  setRequestHeader,
-  getHeadersAsList,
-  appendHeader,
-  byteLowerCase,
+  Headers,
   httpTrim,
   isHttpWhitespace,
   normalizeHeaderValue,
+  setHeadersGuard,
+  setHeadersList,
+  setRequestHeader,
 };
 export type { Header, HeaderList, HeadersGuard };
 

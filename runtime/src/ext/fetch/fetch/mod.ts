@@ -2,15 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import type { RequestInfo } from "../types.ts";
-import { 
-  Headers, 
-  setRequestHeader, 
+import {
+  getHeadersAsList,
   hasRequestHeader,
-  getHeadersAsList 
+  Headers,
+  setRequestHeader,
 } from "../headers/mod.ts";
 import { Request } from "../request/mod.ts";
 import { Response } from "../response/mod.ts";
+import type { RequestInfo } from "../types.ts";
 
 const networkError = () => ({
   type: "error",
@@ -62,14 +62,14 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
   try {
     // Create a Request object
     requestObject = new Request(input, init);
-    
+
     // 3. Let request be requestObject's request.
     // Build internal request structure from Request object's public API
     const url = new URL(requestObject.url);
-    
+
     // Extract headers from the Headers object
     const headersList = getHeadersAsList(requestObject.headers);
-    
+
     request = {
       url: requestObject.url,
       method: requestObject.method,
@@ -799,11 +799,10 @@ const schemeFetch = (fetchParams: any) => {
         //      1. Set response's range-requested flag.
         response.rangeRequestedFlag = true;
         //      2. Let rangeHeader be the result of getting `Range` from request's header list.
-        const rangeHeader =
-          (request.headersList &&
-              typeof request.headersList.get === "function") ?
-            request.headersList.get("Range") :
-            null;
+        const rangeHeader = (request.headersList &&
+            typeof request.headersList.get === "function") ?
+          request.headersList.get("Range") :
+          null;
         //      3. Let rangeValue be the result of parsing a single range header value given rangeHeader and true.
         const rangeValue = rangeHeader ? [0, 100] : null;
         //      4. If rangeValue is failure, then return a network error.
@@ -1403,7 +1402,7 @@ const httpRedirectFetch = (fetchParams: any, response: any) => {
   // 3. Let locationURL be internalResponse's location URL given request's current URL's fragment.
   let locationURL = null;
   const locationHeader = internalResponse.headersList?.find(
-    ([name]: [string, string]) => name.toLowerCase() === "location"
+    ([name]: [string, string]) => name.toLowerCase() === "location",
   );
   if (locationHeader && locationHeader[1]) {
     try {
@@ -1492,7 +1491,7 @@ const httpRedirectFetch = (fetchParams: any, response: any) => {
       "content-language",
       "content-location",
       "content-type",
-      "content-length"
+      "content-length",
     ];
     if (request.headers instanceof Headers) {
       for (const header of requestBodyHeaders) {
@@ -1500,7 +1499,7 @@ const httpRedirectFetch = (fetchParams: any, response: any) => {
       }
     } else if (request.headersList && Array.isArray(request.headersList)) {
       request.headersList = request.headersList.filter(
-        ([name]) => !requestBodyHeaders.includes(name.toLowerCase())
+        ([name]) => !requestBodyHeaders.includes(name.toLowerCase()),
       );
     }
   }
@@ -1516,7 +1515,7 @@ const httpRedirectFetch = (fetchParams: any, response: any) => {
       }
     } else if (request.headersList && Array.isArray(request.headersList)) {
       request.headersList = request.headersList.filter(
-        ([name]) => !corsNonWildcardHeaders.includes(name.toLowerCase())
+        ([name]) => !corsNonWildcardHeaders.includes(name.toLowerCase()),
       );
     }
   }
@@ -1559,7 +1558,9 @@ const httpRedirectFetch = (fetchParams: any, response: any) => {
   if (request.redirectMode === "manual") {
     // 21.1. Assert: request's mode is "navigate".
     if (request.mode !== "navigate") {
-      throw new Error("Assertion failed: manual redirect mode requires navigate mode");
+      throw new Error(
+        "Assertion failed: manual redirect mode requires navigate mode",
+      );
     }
     // 21.2. Set recursive to false.
     recursive = false;
@@ -1603,7 +1604,9 @@ const httpNetworkOrCacheFetch = (
 
   // 8. Run these steps, but abort when fetchParams is canceled:
   //  1. If request's traversable for user prompts is "no-traversable" and request's redirect mode is "error", then set httpFetchParams to fetchParams and httpRequest to request.
-  if (request.traversable === "no-traversable" && request.redirectMode === "error") {
+  if (
+    request.traversable === "no-traversable" && request.redirectMode === "error"
+  ) {
     httpFetchParams = fetchParams;
     httpRequest = request;
   } else {
@@ -1624,8 +1627,7 @@ const httpNetworkOrCacheFetch = (
   //     - request's credentials mode is "include"
   //     - request's credentials mode is "same-origin" and request's response tainting is "basic"
   //     is true; otherwise false.
-  let includeCredentials =
-    httpRequest.credentialsMode === "include" ||
+  let includeCredentials = httpRequest.credentialsMode === "include" ||
     (httpRequest.credentialsMode === "same-origin" &&
       httpRequest.responseTainting === "basic");
 
@@ -1660,12 +1662,12 @@ const httpNetworkOrCacheFetch = (
   if (contentLength !== null && httpRequest.keepalive === true) {
     //  1. Let inflightKeepaliveBytes be 0.
     let inflightKeepaliveBytes = 0;
-    
+
     //  2. Let group be httpRequest's client's fetch group.
     //  3. Let inflightRecords be the set of fetch records in group whose request's keepalive is true and done flag is unset.
     //  4. For each fetchRecord of inflightRecords:
     // TODO: Implement keepalive tracking
-    
+
     //  5. If the sum of contentLength and inflightKeepaliveBytes is greater than 64 kibibytes, then return a network error.
     if (contentLength + inflightKeepaliveBytes > 65536) {
       return networkError();
@@ -1700,10 +1702,10 @@ const httpNetworkOrCacheFetch = (
   if (
     httpRequest.cacheMode === "default" &&
     (hasRequestHeader(httpRequest, "If-Modified-Since") ||
-     hasRequestHeader(httpRequest, "If-None-Match") ||
-     hasRequestHeader(httpRequest, "If-Unmodified-Since") ||
-     hasRequestHeader(httpRequest, "If-Match") ||
-     hasRequestHeader(httpRequest, "If-Range"))
+      hasRequestHeader(httpRequest, "If-None-Match") ||
+      hasRequestHeader(httpRequest, "If-Unmodified-Since") ||
+      hasRequestHeader(httpRequest, "If-Match") ||
+      hasRequestHeader(httpRequest, "If-Range"))
   ) {
     httpRequest.cacheMode = "no-store";
   }
@@ -1718,7 +1720,9 @@ const httpNetworkOrCacheFetch = (
   }
 
   // 18. If httpRequest's cache mode is "no-store" or "reload", then:
-  if (httpRequest.cacheMode === "no-store" || httpRequest.cacheMode === "reload") {
+  if (
+    httpRequest.cacheMode === "no-store" || httpRequest.cacheMode === "reload"
+  ) {
     //  1. If httpRequest's header list does not contain `Pragma`, then append (`Pragma`, `no-cache`) to httpRequest's header list.
     if (!hasRequestHeader(httpRequest, "Pragma")) {
       setRequestHeader(httpRequest, "Pragma", "no-cache");
@@ -1741,7 +1745,7 @@ const httpNetworkOrCacheFetch = (
   if (includeCredentials) {
     //  1. Append a request `Cookie` header for httpRequest.
     // TODO: Implement Cookie handling
-    
+
     //  2. If httpRequest's header list does not contain `Authorization`, then:
     if (!hasRequestHeader(httpRequest, "Authorization")) {
       // TODO: Implement Authorization header handling
@@ -1761,7 +1765,9 @@ const httpNetworkOrCacheFetch = (
   }
 
   // 25. If httpRequest's cache mode is neither "no-store" nor "reload", then:
-  if (httpRequest.cacheMode !== "no-store" && httpRequest.cacheMode !== "reload") {
+  if (
+    httpRequest.cacheMode !== "no-store" && httpRequest.cacheMode !== "reload"
+  ) {
     // TODO: Implement cache logic (steps 1 and 2)
     // This includes cache lookup, stale-while-revalidate handling, and cache validation
   }
@@ -1779,11 +1785,16 @@ const httpNetworkOrCacheFetch = (
     }
 
     // 10.2. Let forwardResponse be the result of running HTTP-network fetch given httpFetchParams, includeCredentials, and isNewConnectionFetch.
-    const forwardResponse = httpNetworkFetch(httpFetchParams, includeCredentials, isNewConnectionFetch);
+    const forwardResponse = httpNetworkFetch(
+      httpFetchParams,
+      includeCredentials,
+      isNewConnectionFetch,
+    );
 
     // 10.3. If httpRequest's method is unsafe and forwardResponse's status is in the range 200 to 399, inclusive, invalidate appropriate stored responses in httpCache, as per the "Invalidating Stored Responses" chapter of HTTP Caching, and set storedResponse to null. [HTTP-CACHING]
     if (
-      ["POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"].includes(httpRequest.method) &&
+      ["POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"]
+        .includes(httpRequest.method) &&
       forwardResponse?.status >= 200 &&
       forwardResponse?.status <= 399
     ) {
