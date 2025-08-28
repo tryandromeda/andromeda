@@ -1,19 +1,20 @@
+// deno-lint-ignore-file no-explicit-any
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 // Type definitions for fetch API
-export type Header = [string, string];
-export type HeaderList = Header[];
+type Header = [string, string];
+type HeaderList = Header[];
 
-export type HeadersGuard =
+type HeadersGuard =
   | "immutable"
   | "request"
   | "request-no-cors"
   | "response"
   | "none";
 
-export type RequestInit = {
+type RequestInit = {
   method?: string;
   headers?: HeadersInit;
   body?: any;
@@ -25,15 +26,15 @@ export type RequestInit = {
   integrity?: string;
 };
 
-export type ResponseInit = {
+type ResponseInit = {
   status?: number;
   statusText?: string;
   headers?: HeadersInit;
 };
 
-export type HeadersInit =
+type HeadersInit =
   | Headers
   | [string, string][]
   | Record<string, string>;
 
-export type RequestInfo = Request | string | URL;
+type RequestInfo = Request | string | URL;

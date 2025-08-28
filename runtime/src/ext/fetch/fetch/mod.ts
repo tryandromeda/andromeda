@@ -2,16 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import {
-  getHeadersAsList,
-  hasRequestHeader,
-  Headers,
-  setRequestHeader,
-} from "../headers/mod.ts";
-import { Request } from "../request/mod.ts";
-import { Response } from "../response/mod.ts";
-import type { RequestInfo } from "../types.ts";
-
 const networkError = () => ({
   type: "error",
   status: 0,

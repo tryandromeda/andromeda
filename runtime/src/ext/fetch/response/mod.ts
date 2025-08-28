@@ -1,7 +1,4 @@
 // deno-lint-ignore-file no-explicit-any
-import { extractBody } from "../body/mod.ts";
-import { Headers, setHeadersGuard, setHeadersList } from "../headers/mod.ts";
-import type { HeadersInit, ResponseInit } from "../types.ts";
 
 class Response {
   #response;
@@ -193,6 +190,3 @@ function nullBodyStatus(status: number): boolean {
 
 // Export Response to globalThis
 globalThis.Response = Response;
-
-// Export for ES module support
-export { Response };

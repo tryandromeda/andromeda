@@ -1,13 +1,14 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// deno-lint-ignore-file no-unused-vars no-explicit-any
 
 /**
  * To extract a body with type from a byte sequence or BodyInit object,
  * with an optional boolean keepalive (default false)
  * @see https://fetch.spec.whatwg.org/#concept-bodyinit-extract
  */
-export function extractBody(object: any, _keepalive = false) {
+function extractBody(object: any, _keepalive = false) {
   // 1. Let stream be null.
   // deno-lint-ignore prefer-const
   let stream = null;

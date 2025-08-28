@@ -3,8 +3,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // deno-lint-ignore-file no-unused-vars
 
-import type { Header, HeaderList, HeadersGuard } from "../types.ts";
-
 class Headers {
   #guard: HeadersGuard = "none";
   #headerList: HeaderList = [];
@@ -302,26 +300,6 @@ function getHeadersAsList(headers: any): HeaderList {
 
   return headersList;
 }
-
-// Export functions and types for ES module support
-export {
-  appendHeader,
-  byteLowerCase,
-  fillHeaders,
-  getHeader,
-  getHeadersAsList,
-  getHeadersGuard,
-  getHeadersList,
-  hasRequestHeader,
-  Headers,
-  httpTrim,
-  isHttpWhitespace,
-  normalizeHeaderValue,
-  setHeadersGuard,
-  setHeadersList,
-  setRequestHeader,
-};
-export type { Header, HeaderList, HeadersGuard };
 
 // Export Headers to globalThis
 globalThis.Headers = Headers;
