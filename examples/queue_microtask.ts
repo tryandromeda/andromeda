@@ -20,5 +20,5 @@ console.log("All microtasks queued. They will execute asynchronously...");
 
 // Wait a bit to see the results
 setTimeout(() => {
-  console.log("✓ Test completed - error reporting working correctly!");
+  console.log("✓ Error reporting working correctly!");
 }, 50);
