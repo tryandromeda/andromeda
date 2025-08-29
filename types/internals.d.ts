@@ -59,6 +59,16 @@ declare function internal_mk_dir(path: string): void;
 declare function internal_mk_dir_all(path: string): void;
 
 /**
+ * The `internal_mk_dir_async` function asynchronously creates a directory in the file system.
+ */
+declare function internal_mk_dir_async(path: string): Promise<void>;
+
+/**
+ * The `internal_mk_dir_all_async` function asynchronously creates a directory and all its parent directories in the file system.
+ */
+declare function internal_mk_dir_all_async(path: string): Promise<void>;
+
+/**
  * The `internal_read_file` function reads a file as binary data from the file system.
  */
 declare function internal_read_file(path: string): Uint8Array;
@@ -97,14 +107,29 @@ declare function internal_remove_async(path: string): Promise<string>;
 declare function internal_remove_all(path: string): void;
 
 /**
+ * The `internal_remove_all_async` function asynchronously removes a file or directory recursively from the file system.
+ */
+declare function internal_remove_all_async(path: string): Promise<void>;
+
+/**
  * The `internal_rename` function renames/moves a file or directory in the file system.
  */
 declare function internal_rename(oldPath: string, newPath: string): void;
 
 /**
+ * The `internal_rename_async` function asynchronously renames/moves a file or directory in the file system.
+ */
+declare function internal_rename_async(oldPath: string, newPath: string): Promise<void>;
+
+/**
  * The `internal_exists` function checks if a file or directory exists in the file system.
  */
 declare function internal_exists(path: string): boolean;
+
+/**
+ * The `internal_exists_async` function asynchronously checks if a file or directory exists in the file system.
+ */
+declare function internal_exists_async(path: string): Promise<boolean>;
 
 /**
  * The `internal_truncate` function truncates a file to a specified length.
