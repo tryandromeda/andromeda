@@ -218,6 +218,16 @@ declare namespace Andromeda {
   function removeAllSync(path: string): void;
 
   /**
+   * removeAll asynchronously removes a file or directory recursively from the file system.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.removeAll("my_directory");
+   * ```
+   */
+  function removeAll(path: string): Promise<void>;
+
+  /**
    * renameSync renames/moves a file or directory in the file system.
    *
    * @example
@@ -226,6 +236,16 @@ declare namespace Andromeda {
    * ```
    */
   function renameSync(oldPath: string, newPath: string): void;
+
+  /**
+   * rename asynchronously renames/moves a file or directory in the file system.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.rename("old_name.txt", "new_name.txt");
+   * ```
+   */
+  function rename(oldPath: string, newPath: string): Promise<void>;
 
   /**
    * existsSync checks if a file or directory exists in the file system.
@@ -238,6 +258,18 @@ declare namespace Andromeda {
    * ```
    */
   function existsSync(path: string): boolean;
+
+  /**
+   * exists asynchronously checks if a file or directory exists in the file system.
+   *
+   * @example
+   * ```ts
+   * if (await Andromeda.exists("hello.txt")) {
+   *   console.log("File exists!");
+   * }
+   * ```
+   */
+  function exists(path: string): Promise<boolean>;
 
   /**
    * truncateSync truncates a file to a specified length.
@@ -280,6 +312,36 @@ declare namespace Andromeda {
    * ```
    */
   function mkdirSync(path: string): void;
+
+  /**
+   * mkdir asynchronously creates a directory in the file system.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.mkdir("hello");
+   * ```
+   */
+  function mkdir(path: string): Promise<void>;
+
+  /**
+   * mkdirAllSync creates a directory and all its parent directories.
+   *
+   * @example
+   * ```ts
+   * Andromeda.mkdirAllSync("path/to/deep/directory");
+   * ```
+   */
+  function mkdirAllSync(path: string): void;
+
+  /**
+   * mkdirAll asynchronously creates a directory and all its parent directories.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.mkdirAll("path/to/deep/directory");
+   * ```
+   */
+  function mkdirAll(path: string): Promise<void>;
 
   // System operations
   /**

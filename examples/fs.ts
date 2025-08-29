@@ -33,17 +33,17 @@ console.log("Read binary data:", readBinary);
 // ----------------- CHECKING FILE EXISTENCE -----------------
 
 // Check if files exist
-console.log("Does raven.txt exist?", Andromeda.existsSync("raven.txt"));
+console.log("Does raven.txt exist?", await Andromeda.exists("raven.txt"));
 console.log(
   "Does nonexistent.txt exist?",
-  Andromeda.existsSync("nonexistent.txt"),
+  await Andromeda.exists("nonexistent.txt"),
 );
 
 // ----------------- DIRECTORY OPERATIONS -----------------
 
 // Create a directory
 try {
-  Andromeda.mkdirSync("test_dir");
+  await Andromeda.mkdir("test_dir");
   console.log("Created test_dir directory");
   // deno-lint-ignore no-explicit-any
 } catch (e: any) {
@@ -51,7 +51,7 @@ try {
 }
 
 // Write a file in the new directory
-Andromeda.writeTextFileSync("test_dir/hello.txt", "Hello from Andromeda!");
+await Andromeda.writeTextFile("test_dir/hello.txt", "Hello from Andromeda!");
 console.log("Created file in test_dir/hello.txt");
 
 // List directory contents (not yet available - commented out)
@@ -64,11 +64,11 @@ console.log(
 // ----------------- FILE OPERATIONS -----------------
 
 // Copy a file
-Andromeda.copyFileSync("raven.txt", "raven_copy.txt");
+await Andromeda.copyFile("raven.txt", "raven_copy.txt");
 console.log("Copied raven.txt to raven_copy.txt");
 
 // Rename a file
-Andromeda.renameSync("raven_copy.txt", "poe_poem.txt");
+await Andromeda.rename("raven_copy.txt", "poe_poem.txt");
 console.log("Renamed raven_copy.txt to poe_poem.txt");
 
 // Get file stats (not yet available - commented out)
@@ -79,11 +79,11 @@ console.log("File stats not yet available - internal function not registered");
 // ----------------- CLEANUP -----------------
 
 // Remove files
-Andromeda.removeSync("binary.dat");
+await Andromeda.remove("binary.dat");
 console.log("Removed binary.dat");
 
 // Remove directory recursively
-Andromeda.removeAllSync("test_dir");
+await Andromeda.removeAll("test_dir");
 console.log("Removed test_dir and its contents");
 
 // ----------------- DEMONSTRATION COMPLETE -----------------

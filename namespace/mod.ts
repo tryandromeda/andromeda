@@ -317,6 +317,18 @@ const Andromeda = {
   },
 
   /**
+   * The removeAll function asynchronously removes a file or directory recursively from the file system.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.removeAll("my_directory");
+   * ```
+   */
+  async removeAll(path: string): Promise<void> {
+    await internal_remove_all_async(path);
+  },
+
+  /**
    * The renameSync function renames/moves a file or directory in the file system.
    *
    * @example
@@ -326,6 +338,18 @@ const Andromeda = {
    */
   renameSync(oldPath: string, newPath: string): void {
     internal_rename(oldPath, newPath);
+  },
+
+  /**
+   * The rename function asynchronously renames/moves a file or directory in the file system.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.rename("old_name.txt", "new_name.txt");
+   * ```
+   */
+  async rename(oldPath: string, newPath: string): Promise<void> {
+    await internal_rename_async(oldPath, newPath);
   },
 
   /**
@@ -340,6 +364,20 @@ const Andromeda = {
    */
   existsSync(path: string): boolean {
     return internal_exists(path);
+  },
+
+  /**
+   * The exists function asynchronously checks if a file or directory exists in the file system.
+   *
+   * @example
+   * ```ts
+   * if (await Andromeda.exists("hello.txt")) {
+   *   console.log("File exists!");
+   * }
+   * ```
+   */
+  async exists(path: string): Promise<boolean> {
+    return await internal_exists_async(path);
   },
 
   /**
@@ -377,6 +415,18 @@ const Andromeda = {
    */
   mkdirSync(path: string): void {
     internal_mk_dir(path);
+  },
+
+  /**
+   * The mkdir function asynchronously creates a directory in the file system.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.mkdir("hello");
+   * ```
+   */
+  async mkdir(path: string): Promise<void> {
+    await internal_mk_dir_async(path);
   },
 
   /**
@@ -428,6 +478,18 @@ const Andromeda = {
    */
   mkdirAllSync(path: string): void {
     internal_mk_dir_all(path);
+  },
+
+  /**
+   * The mkdirAll function asynchronously creates a directory and all its parent directories.
+   *
+   * @example
+   * ```ts
+   * await Andromeda.mkdirAll("path/to/deep/directory");
+   * ```
+   */
+  async mkdirAll(path: string): Promise<void> {
+    await internal_mk_dir_all_async(path);
   },
 
   /**

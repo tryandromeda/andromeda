@@ -101,6 +101,19 @@ impl FsExt {
                     Self::internal_create_file_async,
                     1,
                 ),
+                ExtensionOp::new("internal_mk_dir_async", Self::internal_mk_dir_async, 1),
+                ExtensionOp::new(
+                    "internal_mk_dir_all_async",
+                    Self::internal_mk_dir_all_async,
+                    1,
+                ),
+                ExtensionOp::new("internal_exists_async", Self::internal_exists_async, 1),
+                ExtensionOp::new("internal_rename_async", Self::internal_rename_async, 2),
+                ExtensionOp::new(
+                    "internal_remove_all_async",
+                    Self::internal_remove_all_async,
+                    1,
+                ),
             ],
             storage: Some(Box::new(|storage: &mut OpsStorage| {
                 storage.insert(FsExtResources {
@@ -1181,6 +1194,226 @@ impl FsExt {
                 }
                 Err(e) => {
                     let error = AndromedaError::fs_error(e, "create_file_async", &path_string);
+                    let error_msg = ErrorReporter::format_error(&error);
+                    macro_task_tx
+                        .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                            root_value,
+                            format!("Error: {error_msg}"),
+                        )))
+                        .unwrap();
+                }
+            }
+        });
+
+        Ok(Value::Promise(promise_capability.promise()).unbind())
+    }
+
+    /// Create a directory asynchronously.
+    pub fn internal_mk_dir_async<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path_string = binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+
+        let promise_capability = PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let macro_task_tx = host_data.macro_task_tx();
+
+        host_data.spawn_macro_task(async move {
+            let result = tokio::fs::create_dir(&path_string).await;
+            match result {
+                Ok(_) => {
+                    macro_task_tx
+                        .send(MacroTask::ResolvePromise(root_value))
+                        .unwrap();
+                }
+                Err(e) => {
+                    let error = AndromedaError::fs_error(e, "mk_dir_async", &path_string);
+                    let error_msg = ErrorReporter::format_error(&error);
+                    macro_task_tx
+                        .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                            root_value,
+                            format!("Error: {error_msg}"),
+                        )))
+                        .unwrap();
+                }
+            }
+        });
+
+        Ok(Value::Promise(promise_capability.promise()).unbind())
+    }
+
+    /// Create a directory recursively asynchronously (mkdir -p equivalent).
+    pub fn internal_mk_dir_all_async<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path_string = binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+
+        let promise_capability = PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let macro_task_tx = host_data.macro_task_tx();
+
+        host_data.spawn_macro_task(async move {
+            let result = tokio::fs::create_dir_all(&path_string).await;
+            match result {
+                Ok(_) => {
+                    macro_task_tx
+                        .send(MacroTask::ResolvePromise(root_value))
+                        .unwrap();
+                }
+                Err(e) => {
+                    let error = AndromedaError::fs_error(e, "mk_dir_all_async", &path_string);
+                    let error_msg = ErrorReporter::format_error(&error);
+                    macro_task_tx
+                        .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                            root_value,
+                            format!("Error: {error_msg}"),
+                        )))
+                        .unwrap();
+                }
+            }
+        });
+
+        Ok(Value::Promise(promise_capability.promise()).unbind())
+    }
+
+    /// Check if a file or directory exists asynchronously.
+    pub fn internal_exists_async<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path_string = binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+
+        let promise_capability = PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let macro_task_tx = host_data.macro_task_tx();
+
+        host_data.spawn_macro_task(async move {
+            let exists = tokio::fs::try_exists(&path_string).await.unwrap_or(false);
+            macro_task_tx
+                .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
+                    root_value,
+                    exists.to_string(),
+                )))
+                .unwrap();
+        });
+
+        Ok(Value::Promise(promise_capability.promise()).unbind())
+    }
+
+    /// Rename/move a file or directory asynchronously.
+    pub fn internal_rename_async<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let from_binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let to_binding = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+
+        let from_string = from_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+        let to_string = to_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+
+        let promise_capability = PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let macro_task_tx = host_data.macro_task_tx();
+
+        host_data.spawn_macro_task(async move {
+            let result = tokio::fs::rename(&from_string, &to_string).await;
+            match result {
+                Ok(_) => {
+                    macro_task_tx
+                        .send(MacroTask::ResolvePromise(root_value))
+                        .unwrap();
+                }
+                Err(e) => {
+                    let error = AndromedaError::fs_error(e, "rename_async", &from_string);
+                    let error_msg = ErrorReporter::format_error(&error);
+                    macro_task_tx
+                        .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                            root_value,
+                            format!("Error: {error_msg}"),
+                        )))
+                        .unwrap();
+                }
+            }
+        });
+
+        Ok(Value::Promise(promise_capability.promise()).unbind())
+    }
+
+    /// Remove a file or directory recursively asynchronously.
+    pub fn internal_remove_all_async<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let path_string = binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+
+        let promise_capability = PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let macro_task_tx = host_data.macro_task_tx();
+
+        host_data.spawn_macro_task(async move {
+            // Check if it's a directory first
+            let result = if tokio::fs::metadata(&path_string)
+                .await
+                .map(|m| m.is_dir())
+                .unwrap_or(false)
+            {
+                tokio::fs::remove_dir_all(&path_string).await
+            } else {
+                tokio::fs::remove_file(&path_string).await
+            };
+
+            match result {
+                Ok(_) => {
+                    macro_task_tx
+                        .send(MacroTask::ResolvePromise(root_value))
+                        .unwrap();
+                }
+                Err(e) => {
+                    let error = AndromedaError::fs_error(e, "remove_all_async", &path_string);
                     let error_msg = ErrorReporter::format_error(&error);
                     macro_task_tx
                         .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
