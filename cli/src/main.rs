@@ -27,6 +27,8 @@ mod helper;
 use helper::find_formattable_files;
 mod lint;
 use lint::lint_file_with_config;
+mod check;
+use check::check_files_with_config;
 mod config;
 mod lsp;
 mod task;
@@ -130,6 +132,13 @@ enum Command {
     /// Lint JavaScript/TypeScript files
     Lint {
         /// The file(s) or directory(ies) to lint
+        #[arg(required = false)]
+        paths: Vec<PathBuf>,
+    },
+
+    /// Type-check TypeScript files
+    Check {
+        /// The file(s) or directory(ies) to type-check
         #[arg(required = false)]
         paths: Vec<PathBuf>,
     },
@@ -412,6 +421,12 @@ fn run_main() -> Result<()> {
                 } else {
                     Ok(())
                 }
+            }
+            Command::Check { paths } => {
+                // Load configuration
+                let config = ConfigManager::load_or_default(None);
+
+                check_files_with_config(&paths, Some(config))
             }
             Command::Lsp => {
                 run_lsp_server().map_err(|e| {
