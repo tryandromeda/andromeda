@@ -435,8 +435,11 @@ class Request {
       return "about:client";
     }
 
-    // Return this’s request’s referrer, serialized.
-    return this[requestSymbol].referrer.toString();
+    // Return this's request's referrer, serialized.
+    const referrer = this[requestSymbol].referrer;
+    if (!referrer) return "";
+    if (typeof referrer === "string") return referrer;
+    return referrer.href || String(referrer);
   }
 
   // Returns the referrer policy associated with request.

@@ -112,23 +112,15 @@ class Headers {
     return this.#guard;
   }
 
-  static getHeadersGuard(
-    o: Headers,
-    guard: HeadersGuard,
-  ) {
+  static getHeadersGuard(o: Headers, guard: HeadersGuard) {
     return o.#guard;
   }
 
-  static setHeadersGuard(
-    o: Headers,
-    guard: HeadersGuard,
-  ) {
+  static setHeadersGuard(o: Headers, guard: HeadersGuard) {
     o.#guard = guard;
   }
 
-  static getHeadersList(
-    target: Headers,
-  ) {
+  static getHeadersList(target: Headers) {
     return target.#headerList;
   }
 
@@ -164,8 +156,8 @@ function fillHeaders(headers: Headers, object: any) {
 
 function byteLowerCase(s: string): string {
   // NOTE: correct since all callers convert to ByteString first
-  // TODO(@AaronO): maybe prefer a ByteString_Lower webidl converter
-  return s;
+  // TODO: Header implementation should be imported from standard library when available
+  return s.toLowerCase();
 }
 
 //  https://fetch.spec.whatwg.org/#concept-headers-append
