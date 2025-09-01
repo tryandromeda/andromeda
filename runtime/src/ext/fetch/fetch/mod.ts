@@ -2,6 +2,60 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+// Note: Request, Response, and Headers are expected to be available globally
+
+// Helper functions
+function getHeadersAsList(headers: any): [string, string][] {
+  const headersList: [string, string][] = [];
+
+  if (headers instanceof Headers) {
+    for (const [name, value] of headers.entries()) {
+      headersList.push([name, value]);
+    }
+  } else if (Array.isArray(headers)) {
+    headersList.push(...headers);
+  } else if (headers && typeof headers === "object") {
+    for (const [name, value] of Object.entries(headers)) {
+      headersList.push([name, String(value)]);
+    }
+  }
+
+  return headersList;
+}
+
+function setRequestHeader(request: any, name: string, value: string) {
+  if (request.headers instanceof Headers) {
+    request.headers.set(name, value);
+  } else {
+    if (!request.headers) {
+      request.headers = {};
+    }
+    request.headers[name] = value;
+
+    if (request.headersList && Array.isArray(request.headersList)) {
+      const lowerName = name.toLowerCase();
+      const existingIndex = request.headersList.findIndex(
+        ([headerName]: [string, string]) =>
+          headerName.toLowerCase() === lowerName,
+      );
+      if (existingIndex >= 0) {
+        request.headersList[existingIndex] = [name, value];
+      } else {
+        request.headersList.push([name, value]);
+      }
+    }
+  }
+}
+
+function hasRequestHeader(request: any, name: string): boolean {
+  if (request.headers instanceof Headers) {
+    return request.headers.has(name);
+  } else if (request.headers && typeof request.headers === "object") {
+    return name in request.headers || name.toLowerCase() in request.headers;
+  }
+  return false;
+}
+
 const networkError = () => ({
   type: "error",
   status: 0,
@@ -32,6 +86,7 @@ class Fetch {
   }
 }
 
+
 /**
  * Implementation of the fetch API for Andromeda
  * Based on: https://developer.mozilla.org/ja/docs/Web/API/Window/fetch
@@ -53,40 +108,75 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
     // Create a Request object
     requestObject = new Request(input, init);
 
+
     // 3. Let request be requestObject's request.
     // Build internal request structure from Request object's public API
-    const url = new URL(requestObject.url);
+    // Handle the case where requestObject.url might be an object with serialized property
+    let urlString: string;
+    if (typeof requestObject.url === "string") {
+      urlString = requestObject.url;
+    } else if (requestObject.url && typeof requestObject.url === "object") {
+      urlString = requestObject.url.serialized || requestObject.url.href || String(requestObject.url);
+    } else {
+      throw new TypeError("Invalid URL");
+    }
+
+    const url = new URL(urlString);
 
     // Extract headers from the Headers object
     const headersList = getHeadersAsList(requestObject.headers);
 
+    // Safely access properties
+    let mode,
+      credentials,
+      cache,
+      redirect,
+      referrer,
+      referrerPolicy,
+      integrity,
+      keepalive,
+      body,
+      signal,
+      destination;
+    mode = requestObject.mode || "cors";
+    credentials = requestObject.credentials || "same-origin";
+    cache = requestObject.cache || "default";
+    redirect = requestObject.redirect || "follow";
+    referrer = requestObject.referrer || "about:client";
+    referrerPolicy = requestObject.referrerPolicy || "";
+    integrity = requestObject.integrity || "";
+    keepalive = requestObject.keepalive || false;
+    body = requestObject.body || null;
+    signal = requestObject.signal || null;
+    destination = requestObject.destination || "";
+
     request = {
-      url: requestObject.url,
-      method: requestObject.method,
+      url: urlString,
+      method: requestObject.method || "GET",
       headersList: headersList,
-      headers: headers,
-      mode: requestObject.mode,
-      credentials: requestObject.credentials,
-      cache: requestObject.cache,
-      redirect: requestObject.redirect,
-      referrer: requestObject.referrer,
-      referrerPolicy: requestObject.referrerPolicy,
-      integrity: requestObject.integrity,
-      keepalive: requestObject.keepalive,
+      headers: requestObject.headers,
+      mode: mode,
+      credentials: credentials,
+      cache: cache,
+      redirect: redirect,
+      referrer: referrer,
+      referrerPolicy: referrerPolicy,
+      integrity: integrity,
+      keepalive: keepalive,
       currentURL: url,
       localURLsOnly: false,
       urlList: [url],
       responseTainting: "basic",
-      redirectMode: requestObject.redirect || "follow",
+      redirectMode: redirect,
       redirectCount: 0,
-      body: requestObject.body,
-      signal: requestObject.signal,
+      body: body,
+      signal: signal,
       client: null,
       window: null,
       origin: "client",
       policyContainer: null,
       serviceWorkersMode: "all",
-      destination: requestObject.destination || "",
+      destination: destination,
       priority: null,
       internalPriority: null,
       timingAllowFailedFlag: false,
@@ -99,11 +189,14 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
       initiator: "",
       unsafeRequestFlag: false,
       useCORSPreflightFlag: false,
-      credentialsMode: requestObject.credentials || "same-origin",
+      credentialsMode: credentials,
       CORSExposedHeaderNameList: [],
     };
   } catch (e) {
-    p.reject(e);
+    const errorToReject = e instanceof Error ?
+      e :
+      new Error("Unknown error creating request");
+    p.reject(errorToReject);
     return p.promise;
   }
 
@@ -171,17 +264,29 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
       }
 
       // Create a Response object using the Response class
-      const headers = new Headers();
-      if (response.headersList && Array.isArray(response.headersList)) {
-        for (const [name, value] of response.headersList) {
-          headers.append(name, value);
+      // Convert body object to Uint8Array if needed
+      let bodyData = null;
+      if (response.body) {
+        if (response.body instanceof Uint8Array) {
+          bodyData = response.body;
+        } else if (
+          typeof response.body === "object" &&
+          "length" in response.body
+        ) {
+          // Convert object with numeric keys to Uint8Array
+          const length = response.body.length ||
+            Object.keys(response.body).length;
+          bodyData = new Uint8Array(length);
+          for (let i = 0; i < length; i++) {
+            bodyData[i] = response.body[i] || 0;
+          }
         }
       }
 
-      responseObject = new Response(response.body, {
+      responseObject = new Response(bodyData, {
         status: response.status,
         statusText: response.statusText,
-        headers: headers,
+        headersList: response.headersList || [],
       });
 
       // Add additional properties that might be needed
@@ -242,25 +347,23 @@ const fetchResponseHandover = (fetchParams: any, response: any) => {
  *
  * @see https://fetch.spec.whatwg.org/#fetching
  */
-const fetching = (
-  {
-    request,
-    processRequestBodyChunkLength,
-    processRequestEndOfBody,
-    processResponse,
-    processResponseEndOfBody,
-    processResponseConsumeBody,
-    processEarlyHintsResponse,
-  }: {
-    request: any;
-    processRequestBodyChunkLength?: any;
-    processRequestEndOfBody?: any;
-    processResponse?: any;
-    processResponseEndOfBody?: any;
-    processResponseConsumeBody?: any;
-    processEarlyHintsResponse?: any;
-  },
-) => {
+const fetching = ({
+  request,
+  processRequestBodyChunkLength,
+  processRequestEndOfBody,
+  processResponse,
+  processResponseEndOfBody,
+  processResponseConsumeBody,
+  processEarlyHintsResponse,
+}: {
+  request: any;
+  processRequestBodyChunkLength?: any;
+  processRequestEndOfBody?: any;
+  processResponse?: any;
+  processResponseEndOfBody?: any;
+  processResponseConsumeBody?: any;
+  processEarlyHintsResponse?: any;
+}) => {
   // 1. Assert: request’s mode is "navigate" or processEarlyHintsResponse is null.
   // NOTE: Processing of early hints (responses whose status is 103) is only vetted for navigations.
   if (request.mode === "navigate") {
@@ -388,7 +491,7 @@ const fetching = (
  * To main fetch, given a fetch params fetchParams and an optional boolean recursive (default false)
  * @see https://fetch.spec.whatwg.org/#main-fetch
  */
-const mainFetch = (fetchParams: any, recursive = false) => {
+const mainFetch = async (fetchParams: any, recursive = false) => {
   // 1. Let request be fetchParams's request.
   const request = fetchParams.request;
 
@@ -396,11 +499,15 @@ const mainFetch = (fetchParams: any, recursive = false) => {
   let response: any = null;
 
   // 3. If request's local-URLs-only flag is set and request's current URL is not local, then set response to a network error.
-  if (
-    request.localURLsOnly &&
-    !["about:", "blob:", "data:"].includes(request.currentURL.protocol)
-  ) {
-    response = networkError();
+  if (request.localURLsOnly) {
+    const urlForScheme = request.currentURL?.serialized ||
+      request.currentURL?.url ||
+      String(request.currentURL);
+    const parsedURL = new URL(urlForScheme);
+    const isLocal = ["about:", "blob:", "data:"].includes(parsedURL.protocol);
+    if (!isLocal) {
+      response = networkError();
+    }
   }
 
   // 4. Run report Content Security Policy violations for request.
@@ -431,31 +538,64 @@ const mainFetch = (fetchParams: any, recursive = false) => {
   //  - request's current URL's host's public suffix is not "localhost" or "localhost."
   //  - Matching request's current URL's host per Known HSTS Host Domain Name Matching results in either a superdomain match with an asserted includeSubDomains directive or a congruent match (with or without an asserted includeSubDomains directive) [HSTS]; or DNS resolution for the request finds a matching HTTPS RR per section 9.5 of [SVCB]. [HSTS] [SVCB]
   // NOTE: As all DNS operations are generally implementation-defined, how it is determined that DNS resolution contains an HTTPS RR is also implementation-defined. As DNS operations are not traditionally performed until attempting to obtain a connection, user agents might need to perform DNS operations earlier, consult local DNS caches, or wait until later in the fetch algorithm and potentially unwind logic on discovering the need to change request's current URL's scheme.
+
+  // Handle URL object structure for HTTPS upgrade check
+  const currentUrlString = request.currentURL?.serialized ||
+    request.currentURL?.url ||
+    String(request.currentURL);
+  const currentParsedURL = new URL(currentUrlString);
+
   if (
-    request.currentURL.protocol === "http:" &&
-    request.currentURL.hostname &&
-    request.currentURL.hostname !== "localhost" &&
-    request.currentURL.hostname !== "localhost."
+    currentParsedURL.protocol === "http:" &&
+    currentParsedURL.hostname &&
+    currentParsedURL.hostname !== "localhost" &&
+    currentParsedURL.hostname !== "localhost."
   ) {
-    request.currentURL.protocol = "https:";
+    // Update the URL object
+    const httpsUrl = currentUrlString.replace(/^http:/, "https:");
+    request.currentURL = new URL(httpsUrl);
   }
 
   // 11. If recursive is false, then run the remaining steps in parallel.
-  const runRemainingSteps = () => {
+  const runRemainingSteps = async () => {
     // 12. If response is null, then set response to the result of running the steps corresponding to the first matching statement:
     if (response === null) {
       // ↪︎ fetchParams's preloaded response candidate is non-null
-      if (fetchParams.preloadedResponseCandidate !== null) {
+      if (
+        fetchParams.preloadedResponseCandidate !== null &&
+        fetchParams.preloadedResponseCandidate !== undefined
+      ) {
         //  1. Wait until fetchParams's preloaded response candidate is not "pending".
+        let loopCount = 0;
         while (fetchParams.preloadedResponseCandidate === "pending") {
+          loopCount++;
+          if (loopCount > 1000) {
+            console.error("Infinite loop detected in preloaded response wait");
+            response = networkError();
+            break;
+          }
         }
         //  2. Assert: fetchParams's preloaded response candidate is a response.
         //  3. Return fetchParams's preloaded response candidate.
         return fetchParams.preloadedResponseCandidate;
       }
 
-      const isSameOrigin = request.currentURL.origin === request.origin;
-      const isDataScheme = request.currentURL.protocol === "data:";
+      // Parse URL properly to access protocol and origin
+      const currentUrlString = request.currentURL?.serialized ||
+        request.currentURL?.url ||
+        String(request.currentURL);
+
+      let currentParsedURL;
+      try {
+        currentParsedURL = new URL(currentUrlString);
+      } catch (e) {
+        console.error("URL parsing failed:", e);
+        response = networkError();
+        return;
+      }
+
+      const isSameOrigin = currentParsedURL.origin === request.origin;
+      const isDataScheme = currentParsedURL.protocol === "data:";
       const isNavigateOrWebsocket = request.mode === "navigate" ||
         request.mode === "websocket";
 
@@ -471,7 +611,7 @@ const mainFetch = (fetchParams: any, recursive = false) => {
         request.responseTainting = "basic";
         //  2. Return the result of running scheme fetch given fetchParams.
         // NOTE: HTML assigns any documents and workers created from URLs whose scheme is "data" a unique opaque origin. Service workers can only be created from URLs whose scheme is an HTTP(S) scheme. [HTML] [SW]
-        response = schemeFetch(fetchParams);
+        response = await schemeFetch(fetchParams);
       } // ↪︎ request's mode is "same-origin"
       else if (request.mode === "same-origin") {
         //    Return a network error.
@@ -485,12 +625,12 @@ const mainFetch = (fetchParams: any, recursive = false) => {
           //  2. Set request's response tainting to "opaque".
           request.responseTainting = "opaque";
           //  3. Return the result of running scheme fetch given fetchParams.
-          response = schemeFetch(fetchParams);
+          response = await schemeFetch(fetchParams);
         }
       } // ↪︎ request's current URL's scheme is not an HTTP(S) scheme
       else if (
-        request.currentURL.protocol !== "http:" &&
-        request.currentURL.protocol !== "https:"
+        currentParsedURL.protocol !== "http:" &&
+        currentParsedURL.protocol !== "https:"
       ) {
         //    Return a network error.
         response = networkError();
@@ -499,13 +639,12 @@ const mainFetch = (fetchParams: any, recursive = false) => {
       else if (
         request.useCORSPreflightFlag ||
         (request.unsafeRequestFlag &&
-          (!["GET", "HEAD", "POST"].includes(request.method) ||
-            false))
+          (!["GET", "HEAD", "POST"].includes(request.method) || false))
       ) {
         //  1. Set request's response tainting to "cors".
         request.responseTainting = "cors";
         //  2. Let corsWithPreflightResponse be the result of running HTTP fetch given fetchParams and true.
-        const corsWithPreflightResponse = httpFetch(fetchParams, true);
+        const corsWithPreflightResponse = await httpFetch(fetchParams, true);
         //  3. If corsWithPreflightResponse is a network error, then clear cache entries using request.
         if (corsWithPreflightResponse?.type === "error") {
           // Clear cache entries (no-op for now)
@@ -517,7 +656,7 @@ const mainFetch = (fetchParams: any, recursive = false) => {
         //  1. Set request's response tainting to "cors".
         request.responseTainting = "cors";
         //  2. Return the result of running HTTP fetch given fetchParams.
-        response = httpFetch(fetchParams);
+        response = await httpFetch(fetchParams);
       }
     }
 
@@ -527,18 +666,22 @@ const mainFetch = (fetchParams: any, recursive = false) => {
     }
 
     // 14. If response is not a network error and response is not a filtered response, then:
-    if (
-      response && response?.type !== "error" &&
-      !(response.type === "basic" || response.type === "cors" ||
-        response.type === "opaque")
-    ) {
+    const responseIsValid = response && response.type !== "error";
+    const responseIsFiltered = response &&
+      (response.type === "basic" ||
+        response.type === "cors" ||
+        response.type === "opaque");
+    const shouldProcessComplexResponse = responseIsValid && !responseIsFiltered;
+
+    if (shouldProcessComplexResponse) {
       //  1.If request's response tainting is "cors", then:
       if (request.responseTainting === "cors") {
         //    1. Let headerNames be the result of extracting header list values given `Access-Control-Expose-Headers` and response's header list.
         const headerNames = null;
         //    2. If request's credentials mode is not "include" and headerNames contains `*`, then set response's CORS-exposed header-name list to all unique header names in response's header list.
         if (
-          request.credentialsMode !== "include" && headerNames?.includes("*")
+          request.credentialsMode !== "include" &&
+          headerNames?.includes("*")
         ) {
           response.CORSExposedHeaderNameList = [];
         } //    3. Otherwise, if headerNames is non-null or failure, then set response's CORS-exposed header-name list to headerNames.
@@ -578,19 +721,24 @@ const mainFetch = (fetchParams: any, recursive = false) => {
     // 15. Let internalResponse be response, if response is a network error; otherwise response's internal response.
     const internalResponse = response?.type === "error" ?
       response :
-      response.internalResponse;
+      response?.internalResponse || response;
 
     // 16. If internalResponse's URL list is empty, then set it to a clone of request's URL list.
     // NOTE: A response's URL list can be empty, e.g., when fetching an about: URL.
-    if (!internalResponse.urlList || internalResponse.urlList.length === 0) {
+    if (
+      internalResponse &&
+      (!internalResponse.urlList || internalResponse.urlList.length === 0)
+    ) {
       internalResponse.urlList = [...request.urlList];
     }
 
     // 17. Set internalResponse's redirect taint to request's redirect-taint.
-    internalResponse.redirectTaint = request.redirectTaint;
+    if (internalResponse) {
+      internalResponse.redirectTaint = request.redirectTaint;
+    }
 
     // 18. If request's timing allow failed flag is unset, then set internalResponse's timing allow passed flag.
-    if (!request.timingAllowFailedFlag) {
+    if (!request.timingAllowFailedFlag && internalResponse) {
       internalResponse.timingAllowPassedFlag = true;
     }
 
@@ -609,17 +757,17 @@ const mainFetch = (fetchParams: any, recursive = false) => {
     // 20. If response's type is "opaque", internalResponse's status is 206, internalResponse's range-requested flag is set, and request's header list does not contain `Range`, then set response and internalResponse to a network error.
     // NOTE: Traditionally, APIs accept a ranged response even if a range was not requested. This prevents a partial response from an earlier ranged request being provided to an API that did not make a range request.
     if (
-      response.type === "opaque" &&
-      internalResponse.status === 206 &&
-      internalResponse.rangeRequestedFlag &&
-      !request.headersList.contains("Range")
+      response?.type === "opaque" &&
+      internalResponse?.status === 206 &&
+      internalResponse?.rangeRequestedFlag &&
+      !request.headersList?.contains?.("Range")
     ) {
       response = internalResponse = networkError();
     }
 
     // 21. If response is not a network error and either request's method is `HEAD` or `CONNECT`, or internalResponse's status is a null body status, set internalResponse's body to null and disregard any enqueuing toward it (if any).
     // NOTE: This standardizes the error handling for servers that violate HTTP.
-    if (response?.type !== "error") {
+    if (response?.type !== "error" && internalResponse) {
       if (
         request.method === "HEAD" ||
         request.method === "CONNECT" ||
@@ -630,7 +778,7 @@ const mainFetch = (fetchParams: any, recursive = false) => {
     }
 
     // 22. If request's integrity metadata is not the empty string, then:
-    if (request.integrityMetadata !== "") {
+    if (request.integrityMetadata && request.integrityMetadata !== "") {
       //  1. Let processBodyError be this step: run fetch response handover given fetchParams and a network error.
       const processBodyError = () => {
         if (fetchParams.processResponse) {
@@ -668,9 +816,10 @@ const mainFetch = (fetchParams: any, recursive = false) => {
   };
 
   if (!recursive) {
-    setTimeout(runRemainingSteps, 0);
+    runRemainingSteps();
+    // Don't return anything - the response will be handled via processResponse callback
   } else {
-    return runRemainingSteps();
+    return await runRemainingSteps();
   }
 };
 
@@ -678,7 +827,7 @@ const mainFetch = (fetchParams: any, recursive = false) => {
  * @see https://fetch.spec.whatwg.org/#scheme-fetch
  * @description To scheme fetch, given a fetch params fetchParams:
  */
-const schemeFetch = (fetchParams: any) => {
+const schemeFetch = async (fetchParams: any) => {
   // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
   if (fetchParams.controller?.state === "aborted") {
     return networkError();
@@ -688,7 +837,21 @@ const schemeFetch = (fetchParams: any) => {
   const request = fetchParams.request;
 
   // 3. Switch on request's current URL's scheme and run the associated steps:
-  const scheme = request.currentURL?.protocol?.replace(":", "");
+
+  // Handle URL object that might have different structure
+  let urlForScheme;
+  if (typeof request.currentURL === "string") {
+    urlForScheme = request.currentURL;
+  } else if (request.currentURL?.serialized) {
+    urlForScheme = request.currentURL.serialized;
+  } else if (request.currentURL?.url) {
+    urlForScheme = request.currentURL.url;
+  } else {
+    urlForScheme = String(request.currentURL);
+  }
+
+  const parsedURL = new URL(urlForScheme);
+  const scheme = parsedURL.protocol.slice(0, -1); // Remove the trailing colon
 
   switch (scheme) {
     // ↪︎ "about"
@@ -769,9 +932,11 @@ const schemeFetch = (fetchParams: any) => {
 
       //   13. If request's header list does not contain `Range`:
       if (
-        !(request.headersList &&
+        !(
+          request.headersList &&
           typeof request.headersList.contains === "function" &&
-          request.headersList.contains("Range"))
+          request.headersList.contains("Range")
+        )
       ) {
         //      1. Let bodyWithType be the result of safely extracting blob.
         const bodyWithType = { body: new Uint8Array(), type: blob.type };
@@ -789,10 +954,10 @@ const schemeFetch = (fetchParams: any) => {
         //      1. Set response's range-requested flag.
         response.rangeRequestedFlag = true;
         //      2. Let rangeHeader be the result of getting `Range` from request's header list.
-        const rangeHeader = (request.headersList &&
-            typeof request.headersList.get === "function") ?
-          request.headersList.get("Range") :
-          null;
+        const rangeHeader =
+          request.headersList && typeof request.headersList.get === "function" ?
+            request.headersList.get("Range") :
+            null;
         //      3. Let rangeValue be the result of parsing a single range header value given rangeHeader and true.
         const rangeValue = rangeHeader ? [0, 100] : null;
         //      4. If rangeValue is failure, then return a network error.
@@ -821,7 +986,7 @@ const schemeFetch = (fetchParams: any) => {
         //      8. Let slicedBlob be the result of invoking slice blob given blob, rangeStart, rangeEnd + 1, and type.
         //         NOTE: A range header denotes an inclusive byte range, while the slice blob algorithm input range does not.
         //         To use the slice blob algorithm, we have to increment rangeEnd.
-        const slicedBlob = { size: (rangeEnd + 1) - rangeStart, type };
+        const slicedBlob = { size: rangeEnd + 1 - rangeStart, type };
         //      9. Let slicedBodyWithType be the result of safely extracting slicedBlob.
         const slicedBodyWithType = {
           body: new Uint8Array(),
@@ -891,7 +1056,7 @@ const schemeFetch = (fetchParams: any) => {
     case "http":
     case "https": {
       //    Return the result of running HTTP fetch given fetchParams.
-      return httpFetch(fetchParams);
+      return await httpFetch(fetchParams);
     }
 
     default:
@@ -907,7 +1072,7 @@ const schemeFetch = (fetchParams: any) => {
  * @description To HTTP fetch, given a fetch params fetchParams and an optional boolean makeCORSPreflight (default false), run these steps:
  */
 
-const httpFetch = (fetchParams: any, makeCORSPreflight = false) => {
+const httpFetch = async (fetchParams: any, makeCORSPreflight = false) => {
   // 1. Let request be fetchParams's request.
   const request = fetchParams.request;
 
@@ -940,7 +1105,7 @@ const httpFetch = (fetchParams: any, makeCORSPreflight = false) => {
     //      - request's redirect mode is not "manual" and response's type is "opaqueredirect"
     //      - request's redirect mode is not "follow" and response's URL list has more than one item.
     //      then return a network error.
-    console.log("service-workers mode is all");
+    // service-workers mode is all
   }
 
   // 4. If response is null, then:
@@ -951,7 +1116,8 @@ const httpFetch = (fetchParams: any, makeCORSPreflight = false) => {
     if (
       makeCORSPreflight &&
       (!["GET", "HEAD", "POST"].includes(request.method) ||
-        request.useCORSPreflightFlag || false)
+        request.useCORSPreflightFlag ||
+        false)
     ) {
       // 1. Let preflightResponse be the result of running CORS-preflight fetch given request.
       const preflightResponse = { type: "basic", status: 200 };
@@ -968,7 +1134,7 @@ const httpFetch = (fetchParams: any, makeCORSPreflight = false) => {
     }
 
     // 4.3. Set response and internalResponse to the result of running HTTP-network-or-cache fetch given fetchParams.
-    const fetchResult = httpNetworkOrCacheFetch(fetchParams);
+    const fetchResult = await httpNetworkOrCacheFetch(fetchParams);
     response = internalResponse = fetchResult;
 
     // 4.4. If request's response tainting is "cors" and a CORS check for request and response returns failure, then return a network error.
@@ -1048,7 +1214,7 @@ const httpFetch = (fetchParams: any, makeCORSPreflight = false) => {
  * @see SPEC https://fetch.spec.whatwg.org/#http-redirect-fetch
  * @description To HTTP-network fetch, given a fetch params fetchParams, an optional boolean includeCredentials (default false), and an optional boolean forceNewConnection (default false), run these steps:
  */
-const httpNetworkFetch = (
+const httpNetworkFetch = async (
   fetchParams: any,
   includeCredentials = false,
   forceNewConnection = false,
@@ -1107,7 +1273,8 @@ const httpNetworkFetch = (
 
   //  3. If connection is an HTTP/1.x connection, request's body is non-null, and request's body's source is null, then return a network error.
   if (
-    connection.type === "http" && request.body !== null &&
+    connection.type === "http" &&
+    request.body !== null &&
     request.body?.source === null
   ) {
     return networkError();
@@ -1120,7 +1287,7 @@ const httpNetworkFetch = (
 
   //  5. Set response to the result of making an HTTP request over connection using request with the following caveats:
   try {
-    // Make HTTP request simulation
+    // Make HTTP request
     const requestStartTime = Date.now();
 
     // Set timingInfo's final network-response start time
@@ -1131,16 +1298,7 @@ const httpNetworkFetch = (
     // Prepare headers for request
     const headers = request.headersList || getHeadersAsList(request.headers);
 
-    // Simulate HTTP response processing
-    let status = 200;
-    let statusText = "OK";
-    let responseBody: Uint8Array | null = null;
-    let responseHeaders: [string, string][] = [
-      ["Content-Type", "application/json"],
-      ["Date", new Date().toUTCString()],
-    ];
-
-    // Basic request validation and response simulation
+    // Check protocol
     if (
       request.currentURL.protocol !== "http:" &&
       request.currentURL.protocol !== "https:"
@@ -1148,19 +1306,128 @@ const httpNetworkFetch = (
       return networkError();
     }
 
-    // Simulate different response scenarios based on URL
-    if (request.currentURL.pathname.includes("/error")) {
-      status = 500;
-      statusText = "Internal Server Error";
-      responseBody = new TextEncoder().encode('{"error": "Server error"}');
-    } else if (request.currentURL.pathname.includes("/notfound")) {
-      status = 404;
-      statusText = "Not Found";
-      responseBody = new TextEncoder().encode('{"error": "Not found"}');
+    let status = 200;
+    let statusText = "OK";
+    let responseBody: Uint8Array | null = null;
+    let responseHeaders: [string, string][] = [];
+
+    // Use TLS for HTTPS connections
+    if (request.currentURL.protocol === "https:") {
+      try {
+        const host = request.currentURL.hostname;
+        const port = request.currentURL.port || 443;
+
+        // Connect with TLS
+        const rid = await internal_tls_connect(host, port);
+
+        // Format HTTP request
+        const method = request.method || "GET";
+        const path = request.currentURL.pathname + request.currentURL.search;
+
+        // Build HTTP request string
+        let httpRequest = `${method} ${path} HTTP/1.1\r\n`;
+        httpRequest += `Host: ${host}\r\n`;
+
+        // Add headers
+        if (headers && Array.isArray(headers)) {
+          for (const [name, value] of headers) {
+            httpRequest += `${name}: ${value}\r\n`;
+          }
+        }
+
+        // Add body if present
+        let bodyData = "";
+        if (request.body) {
+          if (request.body instanceof Uint8Array) {
+            bodyData = new TextDecoder().decode(request.body);
+          } else if (typeof request.body === "string") {
+            bodyData = request.body;
+          }
+
+          if (!hasRequestHeader(request, "Content-Length")) {
+            httpRequest += `Content-Length: ${bodyData.length}\r\n`;
+          }
+        }
+
+        httpRequest += `Connection: close\r\n`;
+        httpRequest += `\r\n`;
+        httpRequest += bodyData;
+
+        // Send request
+        await internal_tls_write(rid, httpRequest);
+
+        // Read response
+        let responseHex = "";
+        const maxRetries = 100;
+        let retries = 0;
+
+        while (retries < maxRetries) {
+          try {
+            const chunk = await internal_tls_read(rid, 4096);
+            if (!chunk || chunk.length === 0) break;
+            responseHex += chunk;
+          } catch (e) {
+            console.error("TLS read error:", e);
+            break;
+          }
+          retries++;
+        }
+
+        // Close connection
+        await internal_tls_close(rid);
+
+        // Convert hex to bytes
+        function hexToUtf8(hex: string) {
+          if (!hex) return "";
+          const bytes = new Uint8Array(
+            hex.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)),
+          );
+          return new TextDecoder().decode(bytes);
+        }
+
+        // Parse response
+        const responseText = hexToUtf8(responseHex);
+        const [headerPart, ...bodyParts] = responseText.split("\r\n\r\n");
+        const bodyText = bodyParts.join("\r\n\r\n");
+
+        // Parse status line
+        const lines = headerPart.split("\r\n");
+        const statusLine = lines[0];
+        const statusMatch = statusLine.match(/HTTP\/\d\.\d (\d+) (.+)/);
+
+        if (statusMatch) {
+          status = parseInt(statusMatch[1]);
+          statusText = statusMatch[2];
+        }
+
+        // Parse headers
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i];
+          const colonIndex = line.indexOf(":");
+          if (colonIndex > 0) {
+            const name = line.substring(0, colonIndex).trim();
+            const value = line.substring(colonIndex + 1).trim();
+            responseHeaders.push([name, value]);
+          }
+        }
+
+        // Set response body
+        if (bodyText) {
+          responseBody = new TextEncoder().encode(bodyText);
+        }
+      } catch (error) {
+        return networkError();
+      }
     } else {
-      // Default successful response
-      responseBody = new TextEncoder().encode('{"message": "Success"}');
-      responseHeaders.push(["Content-Length", String(responseBody.length)]);
+      // For HTTP (non-TLS), return a simple mock response for now
+      responseBody = new TextEncoder().encode(
+        '{"message": "HTTP not implemented yet"}',
+      );
+      responseHeaders = [
+        ["Content-Type", "application/json"],
+        ["Content-Length", String(responseBody.length)],
+        ["Date", new Date().toUTCString()],
+      ];
     }
 
     // Handle interim responses (100-199 range)
@@ -1317,9 +1584,9 @@ const httpNetworkFetch = (
   // 15. If includeCredentials is true, parse and store Set-Cookie headers
   if (includeCredentials && response) {
     // Simplified - in real implementation would parse Set-Cookie headers
-    const setCookieHeaders = response.headersList.filter((
-      [name]: [string, string],
-    ) => name.toLowerCase() === "set-cookie");
+    const setCookieHeaders = response.headersList.filter(
+      ([name]: [string, string]) => name.toLowerCase() === "set-cookie",
+    );
     // Store cookies (simplified)
   }
 
@@ -1332,9 +1599,10 @@ const httpNetworkFetch = (
         const bytes = response.body;
 
         // Extract Content-Encoding header
-        const contentEncodingHeader = response.headersList.find((
-          [name]: [string, string],
-        ) => name.toLowerCase() === "content-encoding");
+        const contentEncodingHeader = response.headersList.find(
+          ([name]: [string, string]) =>
+            name.toLowerCase() === "content-encoding",
+        );
         const codings = contentEncodingHeader ? [contentEncodingHeader[1]] : [];
 
         let filteredCoding = "";
@@ -1382,7 +1650,7 @@ const httpNetworkFetch = (
  * @see https://fetch.spec.whatwg.org/#http-redirect-fetch
  * @description To HTTP-redirect fetch, given a fetch params fetchParams and a response response, run these steps:
  */
-const httpRedirectFetch = (fetchParams: any, response: any) => {
+const httpRedirectFetch = async (fetchParams: any, response: any) => {
   // 1. Let request be fetchParams's request.
   const request = fetchParams.request;
 
@@ -1559,14 +1827,14 @@ const httpRedirectFetch = (fetchParams: any, response: any) => {
   // 22. Return the result of running main fetch given fetchParams and recursive.
   //     Note: This has to invoke main fetch to get request's response tainting correct.
   request.currentURL = locationURL;
-  return mainFetch(fetchParams, recursive);
+  return await mainFetch(fetchParams, recursive);
 };
 
 /**
  * @see https://fetch.spec.whatwg.org/#http-network-or-cache-fetch
  * @description To HTTP-network-or-cache fetch, given a fetch params fetchParams, an optional boolean isAuthenticationFetch (default false), and an optional boolean isNewConnectionFetch (default false), run these steps:
  */
-const httpNetworkOrCacheFetch = (
+const httpNetworkOrCacheFetch = async (
   fetchParams: any,
   isAuthenticationFetch = false,
   isNewConnectionFetch = false,
@@ -1595,7 +1863,8 @@ const httpNetworkOrCacheFetch = (
   // 8. Run these steps, but abort when fetchParams is canceled:
   //  1. If request's traversable for user prompts is "no-traversable" and request's redirect mode is "error", then set httpFetchParams to fetchParams and httpRequest to request.
   if (
-    request.traversable === "no-traversable" && request.redirectMode === "error"
+    request.traversable === "no-traversable" &&
+    request.redirectMode === "error"
   ) {
     httpFetchParams = fetchParams;
     httpRequest = request;
@@ -1667,7 +1936,7 @@ const httpNetworkOrCacheFetch = (
   // 11. If httpRequest's referrer is a URL, then:
   if (httpRequest.referrer && typeof httpRequest.referrer !== "string") {
     //  1. Let referrerValue be httpRequest's referrer, serialized and isomorphic encoded.
-    const referrerValue = httpRequest.referrer.toString();
+    const referrerValue = httpRequest.referrer.href || String(httpRequest.referrer);
     //  2. Append (`Referer`, referrerValue) to httpRequest's header list.
     setRequestHeader(httpRequest, "Referer", referrerValue);
   }
@@ -1711,7 +1980,8 @@ const httpNetworkOrCacheFetch = (
 
   // 18. If httpRequest's cache mode is "no-store" or "reload", then:
   if (
-    httpRequest.cacheMode === "no-store" || httpRequest.cacheMode === "reload"
+    httpRequest.cacheMode === "no-store" ||
+    httpRequest.cacheMode === "reload"
   ) {
     //  1. If httpRequest's header list does not contain `Pragma`, then append (`Pragma`, `no-cache`) to httpRequest's header list.
     if (!hasRequestHeader(httpRequest, "Pragma")) {
@@ -1756,7 +2026,8 @@ const httpNetworkOrCacheFetch = (
 
   // 25. If httpRequest's cache mode is neither "no-store" nor "reload", then:
   if (
-    httpRequest.cacheMode !== "no-store" && httpRequest.cacheMode !== "reload"
+    httpRequest.cacheMode !== "no-store" &&
+    httpRequest.cacheMode !== "reload"
   ) {
     // TODO: Implement cache logic (steps 1 and 2)
     // This includes cache lookup, stale-while-revalidate handling, and cache validation
@@ -1775,7 +2046,7 @@ const httpNetworkOrCacheFetch = (
     }
 
     // 10.2. Let forwardResponse be the result of running HTTP-network fetch given httpFetchParams, includeCredentials, and isNewConnectionFetch.
-    const forwardResponse = httpNetworkFetch(
+    const forwardResponse = await httpNetworkFetch(
       httpFetchParams,
       includeCredentials,
       isNewConnectionFetch,
@@ -1783,8 +2054,15 @@ const httpNetworkOrCacheFetch = (
 
     // 10.3. If httpRequest's method is unsafe and forwardResponse's status is in the range 200 to 399, inclusive, invalidate appropriate stored responses in httpCache, as per the "Invalidating Stored Responses" chapter of HTTP Caching, and set storedResponse to null. [HTTP-CACHING]
     if (
-      ["POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"]
-        .includes(httpRequest.method) &&
+      [
+        "POST",
+        "PUT",
+        "DELETE",
+        "CONNECT",
+        "OPTIONS",
+        "TRACE",
+        "PATCH",
+      ].includes(httpRequest.method) &&
       forwardResponse?.status >= 200 &&
       forwardResponse?.status <= 399
     ) {
