@@ -37,20 +37,29 @@ function extractBody(object: any, _keepalive = false) {
     // scalar value string:
     // Set source to the UTF-8 encoding of object.
     // Set type to `text/plain;charset=UTF-8`.
-    source = object;
+    const encoder = new TextEncoder();
+    source = encoder.encode(object);
     type = "text/plain;charset=UTF-8";
+    length = source.byteLength;
+  } else if (object instanceof Uint8Array) {
+    // BufferSource:
+    // Set source to a copy of the bytes held by object.
+    source = object;
+    length = object.byteLength;
+  } else if (object instanceof ArrayBuffer) {
+    // BufferSource:
+    // Set source to a copy of the bytes held by object.
+    source = new Uint8Array(object);
+    length = object.byteLength;
+  } else if (object === null || object === undefined) {
+    // null or undefined - no body
+    source = null;
   } else {
     console.error("TODO: these are not yet supported");
     // Blob
     // Set source to object.
     // Set length to object's size.
     // If object's type attribute is not the empty byte sequence, set type to its value.
-
-    // byte sequence:
-    // Set source to object.
-
-    // BufferSource:
-    // Set source to a copy of the bytes held by object.
 
     // FormData:
     // Set action to this step: run the multipart/form-data encoding algorithm, with object's entry list and UTF-8.

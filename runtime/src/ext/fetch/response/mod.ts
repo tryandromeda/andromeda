@@ -77,6 +77,54 @@ class Response {
   get body() {
     return this.#response.body;
   }
+
+  /**
+   * Returns a promise that resolves with the result of parsing the response body as text.
+   */
+  async text(): Promise<string> {
+    const body = this.#response.body;
+    if (!body) {
+      return "";
+    }
+
+    // Handle body object with source property (from extractBody)
+    let actualBody = body;
+    if (body && typeof body === "object" && "source" in body) {
+      actualBody = body.source;
+    }
+
+    // If body is a Uint8Array, decode it as UTF-8
+    if (actualBody instanceof Uint8Array) {
+      const decoder = new TextDecoder();
+      return decoder.decode(actualBody);
+    }
+
+    // If body is already a string
+    if (typeof actualBody === "string") {
+      return actualBody;
+    }
+
+    // Handle object with numeric keys (like the one we get from TLS)
+    if (typeof actualBody === "object" && actualBody !== null) {
+      const length = actualBody.length || Object.keys(actualBody).length;
+      const uint8Array = new Uint8Array(length);
+      for (let i = 0; i < length; i++) {
+        uint8Array[i] = actualBody[i] || 0;
+      }
+      const decoder = new TextDecoder();
+      return decoder.decode(uint8Array);
+    }
+
+    return String(actualBody);
+  }
+
+  /**
+   * Returns a promise that resolves with the result of parsing the response body as JSON.
+   */
+  async json(): Promise<any> {
+    const text = await this.text();
+    return JSON.parse(text);
+  }
 }
 
 const { getResponse } = Response;
@@ -119,7 +167,7 @@ function initializeAResponse(
   // 2. If init["statusText"] is not the empty string and does not match the reason-phrase token production, then throw a TypeError.
   // TODO: implement RegExp.
   if (
-    init.statusText && isValidReasonPhrase(init.statusText)
+    init.statusText && !isValidReasonPhrase(init.statusText)
   ) {
     throw new TypeError(
       `Invalid status text: "${init.statusText}"`,
@@ -138,8 +186,16 @@ function initializeAResponse(
 
   // 5. If init["headers"] exists, then fill response's headers with init["headers"].
   if (init.headers != null) {
-    // TODO: get headerlist
-    getResponse(response).headers = init.headers;
+    // Fill the headers object with the provided headers
+    fillHeaders(response.headers, init.headers);
+  }
+
+  // Handle headersList if provided
+  if (init.headersList != null && Array.isArray(init.headersList)) {
+    // Update the internal response headersList
+    getResponse(response).headersList = init.headersList;
+    // Also update the Headers object
+    setHeadersList(response.headers, init.headersList);
   }
 
   // 6. If body is non-null, then:
