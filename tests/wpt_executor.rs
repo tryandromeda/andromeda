@@ -226,11 +226,24 @@ impl WptTestExecutor {
         if let Some(ref path) = self.config.binary_path {
             path.clone()
         } else {
-            std::env::current_dir()
-                .unwrap()
-                .parent()
-                .unwrap()
-                .join("target/debug/andromeda")
+            // Try to find the binary in common locations
+            let possible_paths = vec![
+                std::path::PathBuf::from("target/debug/andromeda"),
+                std::path::PathBuf::from("../target/debug/andromeda"),
+                std::path::PathBuf::from("../../target/debug/andromeda"),
+                std::env::current_dir()
+                    .unwrap()
+                    .join("target/debug/andromeda"),
+            ];
+
+            for path in possible_paths {
+                if path.exists() {
+                    return path;
+                }
+            }
+
+            // Fallback to the most likely location
+            std::path::PathBuf::from("target/debug/andromeda")
         }
     }
 }
