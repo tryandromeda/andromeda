@@ -7,7 +7,7 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.0-draft24"
+version = "0.1.0-draft25"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
@@ -21,7 +21,7 @@ clap = { version = "4.5.45", features = ["derive"] }
 clap_complete = "4.5.57"
 console = "0.16.0"
 dprint-core = "0.67.4"
-dprint-plugin-typescript = "0.95.10"
+dprint-plugin-typescript = "0.95.11"
 dprint-plugin-json = "0.20.0"
 env_logger = "0.11.5"
 futures = "0.3.31"
@@ -68,7 +68,7 @@ tokio-rustls = "0.26.2"
 tokio-test = "0.4.4"
 tower-lsp = "0.20.0"
 ureq = { version = "3.1.0", features = ["json"] }
-url = { version = "2.5.6", features = ["serde", "expose_internals"] }
+url = { version = "2.5.7", features = ["serde", "expose_internals"] }
 uuid = { version = "1.18.0", features = ["v4"] }
 webpki-roots = "1.0.2"
 wgpu = { version = "26.0.1", features = ["wgsl", "webgpu"] }
