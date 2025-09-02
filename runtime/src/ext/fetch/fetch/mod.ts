@@ -2,59 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// Note: Request, Response, and Headers are expected to be available globally
-
-// Helper functions
-function getHeadersAsList(headers: any): [string, string][] {
-  const headersList: [string, string][] = [];
-
-  if (headers instanceof Headers) {
-    for (const [name, value] of headers.entries()) {
-      headersList.push([name, value]);
-    }
-  } else if (Array.isArray(headers)) {
-    headersList.push(...headers);
-  } else if (headers && typeof headers === "object") {
-    for (const [name, value] of Object.entries(headers)) {
-      headersList.push([name, String(value)]);
-    }
-  }
-
-  return headersList;
-}
-
-function setRequestHeader(request: any, name: string, value: string) {
-  if (request.headers instanceof Headers) {
-    request.headers.set(name, value);
-  } else {
-    if (!request.headers) {
-      request.headers = {};
-    }
-    request.headers[name] = value;
-
-    if (request.headersList && Array.isArray(request.headersList)) {
-      const lowerName = name.toLowerCase();
-      const existingIndex = request.headersList.findIndex(
-        ([headerName]: [string, string]) =>
-          headerName.toLowerCase() === lowerName,
-      );
-      if (existingIndex >= 0) {
-        request.headersList[existingIndex] = [name, value];
-      } else {
-        request.headersList.push([name, value]);
-      }
-    }
-  }
-}
-
-function hasRequestHeader(request: any, name: string): boolean {
-  if (request.headers instanceof Headers) {
-    return request.headers.has(name);
-  } else if (request.headers && typeof request.headers === "object") {
-    return name in request.headers || name.toLowerCase() in request.headers;
-  }
-  return false;
-}
+// Get helpers - using functions to avoid timing issues
+const getHeaderHelpers = () =>
+  globalThis[Symbol.for("andromeda.headers.helpers")] || {};
+const getBodyHelpers = () =>
+  globalThis[Symbol.for("andromeda.body.helpers")] || {};
+const getEventHelpers = () =>
+  globalThis[Symbol.for("andromeda.event.helpers")] || {};
 
 const networkError = () => ({
   type: "error",
@@ -77,15 +31,42 @@ const createDeferredPromise = () => {
 };
 
 class Fetch {
-  // TODO: Event
+  state: string;
+  abortReason: any;
+  controller: any;
+
   constructor() {
+    this.state = "ongoing";
+    this.abortReason = undefined;
+    this.controller = null;
     (this as any).dispatcher = {};
     (this as any).connection = null;
     (this as any).dump = false;
-    (this as any).state = "ongoing";
+  }
+
+  abort(reason?: any) {
+    if (this.state !== "ongoing") {
+      return;
+    }
+
+    this.state = "aborted";
+    this.abortReason = reason;
+
+    // Close any active connections
+    if ((this as any).connection) {
+      // Connection cleanup would happen here
+    }
+  }
+
+  terminate() {
+    if (this.state !== "ongoing") {
+      return;
+    }
+
+    this.state = "terminated";
+    this.abortReason = new TypeError("Fetch terminated");
   }
 }
-
 
 /**
  * Implementation of the fetch API for Andromeda
@@ -108,7 +89,6 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
     // Create a Request object
     requestObject = new Request(input, init);
 
-
     // 3. Let request be requestObject's request.
     // Build internal request structure from Request object's public API
     // Handle the case where requestObject.url might be an object with serialized property
@@ -116,7 +96,9 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
     if (typeof requestObject.url === "string") {
       urlString = requestObject.url;
     } else if (requestObject.url && typeof requestObject.url === "object") {
-      urlString = requestObject.url.serialized || requestObject.url.href || String(requestObject.url);
+      urlString = requestObject.url.serialized ||
+        requestObject.url.href ||
+        String(requestObject.url);
     } else {
       throw new TypeError("Invalid URL");
     }
@@ -124,7 +106,9 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
     const url = new URL(urlString);
 
     // Extract headers from the Headers object
-    const headersList = getHeadersAsList(requestObject.headers);
+    const headersList = getHeaderHelpers().getHeadersAsList(
+      requestObject.headers,
+    );
 
     // Safely access properties
     let mode,
@@ -200,22 +184,22 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
     return p.promise;
   }
 
-  // 4. If requestObject’s signal is aborted, then:
-  // if (request.signal.aborted) {
-  // 1. Abort the fetch() call with p, request, null, and
-  // requestObject’s signal’s abort reason.
-  //
-  // TODO: abortFetch
-  //
-  // 2. Return p.
-  // return p.promise;
-  // }
+  // 4. If requestObject's signal is aborted, then:
+  if (requestObject.signal && requestObject.signal.aborted) {
+    // 1. Abort the fetch() call with p, request, null, and
+    // requestObject's signal's abort reason.
+    const reason = requestObject.signal.reason ||
+      new DOMException("The operation was aborted.", "AbortError");
+    p.reject(reason);
+    // 2. Return p.
+    return p.promise;
+  }
 
-  // 5. Let globalObject be request’s client’s global object.
+  // 5. Let globalObject be request's client's global object.
   // const globalObject = request.client.globalObject;
 
   // 6. If globalObject is a ServiceWorkerGlobalScope object,
-  // then set request’s service-workers mode to "none".
+  // then set request's service-workers mode to "none".
   // if (globalObject?.constructor?.name === "ServiceWorkerGlobalScope") {
   //   request.serviceWorkers = "none";
   // }
@@ -223,7 +207,7 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
   // 7. Let responseObject be null.
   let responseObject = null;
 
-  // 8. Let relevantRealm be this’s relevant realm.
+  // 8. Let relevantRealm be this's relevant realm.
   // 9. Let locallyAborted be false.
   // NOTE: This lets us reject promises with predictable timing,
   // when the request to abort comes from the same thread as
@@ -233,13 +217,27 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
   // 10. Let controller be null.
   let controller = null;
 
-  // TODO: abort controller
-  // 11. Add the following abort steps to requestObject’s signal:
-  //  1. Set locallyAborted to true.
-  //  2. Assert: controller is non-null.
-  //  3. Abort controller with requestObject’s signal’s abort reason.
-  //  4. Abort the fetch() call with p, request, responseObject,
-  //     and requestObject’s signal’s abort reason.
+  // 11. Add the following abort steps to requestObject's signal:
+  if (requestObject.signal) {
+    const abortHandler = () => {
+      // 1. Set locallyAborted to true.
+      locallyAborted = true;
+      // 2. Assert: controller is non-null.
+      if (controller) {
+        // 3. Abort controller with requestObject's signal's abort reason.
+        const reason = requestObject.signal.reason ||
+          new DOMException("The operation was aborted.", "AbortError");
+        controller.abort(reason);
+        // 4. Abort the fetch() call with p, request, responseObject,
+        //     and requestObject's signal's abort reason.
+        if (!responseObject) {
+          p.reject(reason);
+        }
+      }
+    };
+
+    requestObject.signal.addEventListener("abort", abortHandler);
+  }
 
   // 12. Set controller to the result of calling fetch given request
   //     and processResponse given response being these steps:
@@ -255,6 +253,14 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
     request,
     processResponse: (response: any) => {
       if (locallyAborted) {
+        return;
+      }
+
+      if (response?.aborted) {
+        p.reject(
+          controller.abortReason ||
+            new DOMException("The operation was aborted.", "AbortError"),
+        );
         return;
       }
 
@@ -830,7 +836,11 @@ const mainFetch = async (fetchParams: any, recursive = false) => {
 const schemeFetch = async (fetchParams: any) => {
   // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
   if (fetchParams.controller?.state === "aborted") {
-    return networkError();
+    return {
+      ...networkError(),
+      aborted: true,
+      abortReason: fetchParams.controller.abortReason,
+    };
   }
 
   // 2. Let request be fetchParams's request.
@@ -1257,7 +1267,11 @@ const httpNetworkFetch = async (
 
   // Check if fetchParams is canceled
   if (fetchParams.controller?.state === "aborted") {
-    return networkError();
+    return {
+      ...networkError(),
+      aborted: true,
+      abortReason: fetchParams.controller.abortReason,
+    };
   }
 
   //  1. If connection is failure, then return a network error.
@@ -1296,7 +1310,8 @@ const httpNetworkFetch = async (
     }
 
     // Prepare headers for request
-    const headers = request.headersList || getHeadersAsList(request.headers);
+    const headers = request.headersList ||
+      getHeaderHelpers().getHeadersAsList(request.headers);
 
     // Check protocol
     if (
@@ -1344,7 +1359,7 @@ const httpNetworkFetch = async (
             bodyData = request.body;
           }
 
-          if (!hasRequestHeader(request, "Content-Length")) {
+          if (!getHeaderHelpers().hasRequestHeader(request, "Content-Length")) {
             httpRequest += `Content-Length: ${bodyData.length}\r\n`;
           }
         }
@@ -1362,6 +1377,16 @@ const httpNetworkFetch = async (
         let retries = 0;
 
         while (retries < maxRetries) {
+          // Check for abort
+          if (fetchParams.controller?.state === "aborted") {
+            await internal_tls_close(rid);
+            return {
+              ...networkError(),
+              aborted: true,
+              abortReason: fetchParams.controller.abortReason,
+            };
+          }
+
           try {
             const chunk = await internal_tls_read(rid, 4096);
             if (!chunk || chunk.length === 0) break;
@@ -1914,7 +1939,11 @@ const httpNetworkOrCacheFetch = async (
 
   //  9. If contentLengthHeaderValue is non-null, then append (`Content-Length`, contentLengthHeaderValue) to httpRequest's header list.
   if (contentLengthHeaderValue !== null) {
-    setRequestHeader(httpRequest, "Content-Length", contentLengthHeaderValue);
+    getHeaderHelpers().setRequestHeader(
+      httpRequest,
+      "Content-Length",
+      contentLengthHeaderValue,
+    );
   }
 
   // 10. If contentLength is non-null and httpRequest's keepalive is true, then:
@@ -1936,9 +1965,10 @@ const httpNetworkOrCacheFetch = async (
   // 11. If httpRequest's referrer is a URL, then:
   if (httpRequest.referrer && typeof httpRequest.referrer !== "string") {
     //  1. Let referrerValue be httpRequest's referrer, serialized and isomorphic encoded.
-    const referrerValue = httpRequest.referrer.href || String(httpRequest.referrer);
+    const referrerValue = httpRequest.referrer.href ||
+      String(httpRequest.referrer);
     //  2. Append (`Referer`, referrerValue) to httpRequest's header list.
-    setRequestHeader(httpRequest, "Referer", referrerValue);
+    getHeaderHelpers().setRequestHeader(httpRequest, "Referer", referrerValue);
   }
 
   // 12. Append a request `Origin` header for httpRequest.
@@ -1949,22 +1979,26 @@ const httpNetworkOrCacheFetch = async (
 
   // 14. If httpRequest's initiator is "prefetch", then set a structured field value given (`Sec-Purpose`, the token prefetch) in httpRequest's header list.
   if (httpRequest.initiator === "prefetch") {
-    setRequestHeader(httpRequest, "Sec-Purpose", "prefetch");
+    getHeaderHelpers().setRequestHeader(httpRequest, "Sec-Purpose", "prefetch");
   }
 
   // 15. If httpRequest's header list does not contain `User-Agent`, then user agents should append (`User-Agent`, default `User-Agent` value) to httpRequest's header list.
-  if (!hasRequestHeader(httpRequest, "User-Agent")) {
-    setRequestHeader(httpRequest, "User-Agent", "Andromeda/1.0");
+  if (!getHeaderHelpers().hasRequestHeader(httpRequest, "User-Agent")) {
+    getHeaderHelpers().setRequestHeader(
+      httpRequest,
+      "User-Agent",
+      "Andromeda/1.0",
+    );
   }
 
   // 16. If httpRequest's cache mode is "default" and httpRequest's header list contains `If-Modified-Since`, `If-None-Match`, `If-Unmodified-Since`, `If-Match`, or `If-Range`, then set httpRequest's cache mode to "no-store".
   if (
     httpRequest.cacheMode === "default" &&
-    (hasRequestHeader(httpRequest, "If-Modified-Since") ||
-      hasRequestHeader(httpRequest, "If-None-Match") ||
-      hasRequestHeader(httpRequest, "If-Unmodified-Since") ||
-      hasRequestHeader(httpRequest, "If-Match") ||
-      hasRequestHeader(httpRequest, "If-Range"))
+    (getHeaderHelpers().hasRequestHeader(httpRequest, "If-Modified-Since") ||
+      getHeaderHelpers().hasRequestHeader(httpRequest, "If-None-Match") ||
+      getHeaderHelpers().hasRequestHeader(httpRequest, "If-Unmodified-Since") ||
+      getHeaderHelpers().hasRequestHeader(httpRequest, "If-Match") ||
+      getHeaderHelpers().hasRequestHeader(httpRequest, "If-Range"))
   ) {
     httpRequest.cacheMode = "no-store";
   }
@@ -1973,9 +2007,13 @@ const httpNetworkOrCacheFetch = async (
   if (
     httpRequest.cacheMode === "no-cache" &&
     !httpRequest.preventNoCacheCacheControlHeaderModificationFlag &&
-    !hasRequestHeader(httpRequest, "Cache-Control")
+    !getHeaderHelpers().hasRequestHeader(httpRequest, "Cache-Control")
   ) {
-    setRequestHeader(httpRequest, "Cache-Control", "max-age=0");
+    getHeaderHelpers().setRequestHeader(
+      httpRequest,
+      "Cache-Control",
+      "max-age=0",
+    );
   }
 
   // 18. If httpRequest's cache mode is "no-store" or "reload", then:
@@ -1984,18 +2022,26 @@ const httpNetworkOrCacheFetch = async (
     httpRequest.cacheMode === "reload"
   ) {
     //  1. If httpRequest's header list does not contain `Pragma`, then append (`Pragma`, `no-cache`) to httpRequest's header list.
-    if (!hasRequestHeader(httpRequest, "Pragma")) {
-      setRequestHeader(httpRequest, "Pragma", "no-cache");
+    if (!getHeaderHelpers().hasRequestHeader(httpRequest, "Pragma")) {
+      getHeaderHelpers().setRequestHeader(httpRequest, "Pragma", "no-cache");
     }
     //  2. If httpRequest's header list does not contain `Cache-Control`, then append (`Cache-Control`, `no-cache`) to httpRequest's header list.
-    if (!hasRequestHeader(httpRequest, "Cache-Control")) {
-      setRequestHeader(httpRequest, "Cache-Control", "no-cache");
+    if (!getHeaderHelpers().hasRequestHeader(httpRequest, "Cache-Control")) {
+      getHeaderHelpers().setRequestHeader(
+        httpRequest,
+        "Cache-Control",
+        "no-cache",
+      );
     }
   }
 
   // 19. If httpRequest's header list contains `Range`, then append (`Accept-Encoding`, `identity`) to httpRequest's header list.
-  if (hasRequestHeader(httpRequest, "Range")) {
-    setRequestHeader(httpRequest, "Accept-Encoding", "identity");
+  if (getHeaderHelpers().hasRequestHeader(httpRequest, "Range")) {
+    getHeaderHelpers().setRequestHeader(
+      httpRequest,
+      "Accept-Encoding",
+      "identity",
+    );
   }
 
   // 20. Modify httpRequest's header list per HTTP. Do not append a given header if httpRequest's header list contains that header's name.
@@ -2007,7 +2053,7 @@ const httpNetworkOrCacheFetch = async (
     // TODO: Implement Cookie handling
 
     //  2. If httpRequest's header list does not contain `Authorization`, then:
-    if (!hasRequestHeader(httpRequest, "Authorization")) {
+    if (!getHeaderHelpers().hasRequestHeader(httpRequest, "Authorization")) {
       // TODO: Implement Authorization header handling
     }
   }
@@ -2093,7 +2139,7 @@ const httpNetworkOrCacheFetch = async (
   }
 
   // 12. If httpRequest's header list contains `Range`, then set response's range-requested flag.
-  if (hasRequestHeader(httpRequest, "Range")) {
+  if (getHeaderHelpers().hasRequestHeader(httpRequest, "Range")) {
     response.rangeRequestedFlag = true;
   }
 

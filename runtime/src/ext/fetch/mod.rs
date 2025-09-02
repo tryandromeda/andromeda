@@ -14,8 +14,8 @@ impl FetchExt {
             ops: vec![],
             storage: None,
             files: vec![
-                include_str!("./body/mod.ts"),
                 include_str!("./headers/mod.ts"),
+                include_str!("./body/mod.ts"),
                 include_str!("./request/mod.ts"),
                 include_str!("./response/mod.ts"),
                 include_str!("./fetch/mod.ts"),

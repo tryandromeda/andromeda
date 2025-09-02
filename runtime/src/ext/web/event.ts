@@ -1355,3 +1355,58 @@ function signalAbort(signal: AbortSignal, reason: any): void {
 }
 
 // DOMException implementation for abort-related errors
+
+// Export classes to globalThis
+globalThis.Event = Event;
+globalThis.ErrorEvent = ErrorEvent;
+globalThis.CloseEvent = CloseEvent;
+globalThis.MessageEvent = MessageEvent;
+globalThis.ProgressEvent = ProgressEvent;
+globalThis.PromiseRejectionEvent = PromiseRejectionEvent;
+globalThis.EventTarget = EventTarget;
+globalThis.AbortSignal = AbortSignal;
+globalThis.AbortController = AbortController;
+
+globalThis[Symbol.for("andromeda.event.helpers")] = {
+  Event,
+  ErrorEvent,
+  CloseEvent,
+  MessageEvent,
+  ProgressEvent,
+  PromiseRejectionEvent,
+  EventTarget,
+  AbortSignal,
+  AbortController,
+  signalAbort,
+  defineEventHandler,
+  listenerCount,
+  // Internal accessors
+  getDispatched,
+  getPath,
+  getStopImmediatePropagation,
+  setCurrentTarget,
+  setIsTrusted,
+  setDispatched,
+  setEventPhase,
+  setInPassiveListener,
+  setPath,
+  setRelatedTarget,
+  setTarget,
+  setStopImmediatePropagation,
+  // Constants
+  DOCUMENT_FRAGMENT_NODE,
+  // Private symbols
+  _attributes,
+  _canceledFlag,
+  _stopPropagationFlag,
+  _stopImmediatePropagationFlag,
+  _inPassiveListener,
+  _dispatched,
+  _isTrusted,
+  _path,
+  _aborted,
+  _abortReason,
+  _abortAlgorithms,
+  _eventHandlers,
+  eventTargetData,
+};

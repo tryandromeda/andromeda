@@ -1,5 +1,11 @@
 // deno-lint-ignore-file no-explicit-any
 
+// Get helpers - using functions to avoid timing issues
+const getHeaderHelpers = () =>
+  globalThis[Symbol.for("andromeda.headers.helpers")] || {};
+const getBodyHelpers = () =>
+  globalThis[Symbol.for("andromeda.body.helpers")] || {};
+
 class Response {
   #response;
   #headers: any;
@@ -13,15 +19,18 @@ class Response {
 
     // 2. Set this's headers to a new Headers object with this's relevant realm, whose header list is this's response's header list and guard is "response".
     this.#headers = new Headers();
-    setHeadersList(this.#headers, this.#response.headersList || []);
-    setHeadersGuard(this.#headers, "response");
+    getHeaderHelpers().setHeadersList(
+      this.#headers,
+      this.#response.headersList || [],
+    );
+    getHeaderHelpers().setHeadersGuard(this.#headers, "response");
 
     // 3. Let bodyWithType be null.
     let bodyWithType = null;
 
     // 4. If body is non-null, then set bodyWithType to the result of extracting body.
     if (body != null) {
-      const [extractedBody, type] = extractBody(body);
+      const [extractedBody, type] = getBodyHelpers().extractBody(body);
       bodyWithType = { body: extractedBody, type };
     }
     // 5. Perform initialize a response given this, init, and bodyWithType.
@@ -187,7 +196,7 @@ function initializeAResponse(
   // 5. If init["headers"] exists, then fill response's headers with init["headers"].
   if (init.headers != null) {
     // Fill the headers object with the provided headers
-    fillHeaders(response.headers, init.headers);
+    getHeaderHelpers().fillHeaders(response.headers, init.headers);
   }
 
   // Handle headersList if provided
@@ -195,7 +204,7 @@ function initializeAResponse(
     // Update the internal response headersList
     getResponse(response).headersList = init.headersList;
     // Also update the Headers object
-    setHeadersList(response.headers, init.headersList);
+    getHeaderHelpers().setHeadersList(response.headers, init.headersList);
   }
 
   // 6. If body is non-null, then:
@@ -244,5 +253,4 @@ function nullBodyStatus(status: number): boolean {
     status === 304;
 }
 
-// Export Response to globalThis
 globalThis.Response = Response;

@@ -93,3 +93,7 @@ function extractBody(object: any, _keepalive = false) {
   // 14. Return (body, type).
   return [body, type];
 }
+
+globalThis[Symbol.for("andromeda.body.helpers")] = {
+  extractBody,
+};

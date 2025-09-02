@@ -293,5 +293,18 @@ function getHeadersAsList(headers: any): HeaderList {
   return headersList;
 }
 
-// Export Headers to globalThis
 globalThis.Headers = Headers;
+
+globalThis[Symbol.for("andromeda.headers.helpers")] = {
+  setRequestHeader,
+  hasRequestHeader,
+  getHeadersAsList,
+  byteLowerCase,
+  normalizeHeaderValue,
+  getHeader,
+  appendHeader,
+  fillHeaders,
+  setHeadersList,
+  setHeadersGuard,
+  getHeadersList,
+};

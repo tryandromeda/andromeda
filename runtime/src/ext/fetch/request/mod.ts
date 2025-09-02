@@ -3,6 +3,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+// Get header helpers - using function to avoid timing issues
+const getHeaderHelpers = () =>
+  globalThis[Symbol.for("andromeda.headers.helpers")] || {};
+
 // @ts-ignore deno lint stuff
 type RequestInfo = Request;
 
@@ -150,7 +154,7 @@ class Request {
     //    then set traversableForUserPrompts to request’s traversable for user prompts.
     // 10. If init["window"] exists and is non-null, then throw a TypeError.
     if (init.window != null) {
-      throw new TypeError(`'window' option '${window}' must be null`);
+      throw new TypeError(`'window' option '${init.window}' must be null`);
     }
     // 11. If init["window"] exists, then set traversableForUserPrompts to "no-traversable".
 
@@ -312,8 +316,8 @@ class Request {
     // 31. Set this's headers to a new Headers object with this's relevant realm,
     //     whose header list is request's header list and guard is "request".
     this.#headers = new Headers();
-    setHeadersList(this.#headers, request.headersList || []);
-    setHeadersGuard(this.#headers, "request");
+    getHeaderHelpers().setHeadersList(this.#headers, request.headersList || []);
+    getHeaderHelpers().setHeadersGuard(this.#headers, "request");
 
     // 32. If this’s request’s mode is "no-cors", then:
     const corsSafeListedMethods = ["GET", "HEAD", "POST"] as const;
@@ -327,12 +331,12 @@ class Request {
         );
       }
       // 2. Set this's headers's guard to "request-no-cors".
-      setHeadersGuard(this.#headers, "request-no-cors");
+      getHeaderHelpers().setHeadersGuard(this.#headers, "request-no-cors");
     }
 
     // 33.
     if (init.headers || Object.keys(init).length > 0) {
-      const headerList = getHeadersList(this.#headers);
+      const headerList = getHeaderHelpers().getHeadersList(this.#headers);
       const headers = init.headers ?? headerList.slice(
         0,
         headerList.length,
@@ -340,7 +344,7 @@ class Request {
       if (headerList.length !== 0) {
         headerList.splice(0, headerList.length);
       }
-      fillHeaders(this.#headers, headers);
+      getHeaderHelpers().fillHeaders(this.#headers, headers);
     }
 
     // 34. Let inputBody be input’s request’s body if input is a Request object; otherwise null.
@@ -584,7 +588,6 @@ configureInterface(Request);
 const RequestPrototype = Request.prototype;
 // mixinBody(RequestPrototype, _body, _mimeType);
 
-// Export Request to globalThis
 globalThis.Request = Request;
 
 /** https://fetch.spec.whatwg.org/#concept-request-clone */
