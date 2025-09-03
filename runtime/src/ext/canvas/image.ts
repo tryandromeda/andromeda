@@ -47,8 +47,8 @@ class ImageBitmap {
  * @param path The file path or URL to load.
  */
 function createImageBitmap(path: string): ImageBitmap {
-  const rid = internal_image_bitmap_create(path);
-  const width = internal_image_bitmap_get_width(rid);
-  const height = internal_image_bitmap_get_height(rid);
+  const rid = __andromeda__.internal_image_bitmap_create(path);
+  const width = __andromeda__.internal_image_bitmap_get_width(rid);
+  const height = __andromeda__.internal_image_bitmap_get_height(rid);
   return new ImageBitmap(rid, width, height);
 }

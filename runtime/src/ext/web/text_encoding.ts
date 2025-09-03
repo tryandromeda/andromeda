@@ -18,7 +18,7 @@ class TextEncoder {
    * Encodes a string into a Uint8Array of UTF-8 bytes.
    */
   encode(input: string = ""): Uint8Array {
-    const bytesStr = internal_text_encode(input);
+    const bytesStr = __andromeda__.internal_text_encode(input);
 
     if (bytesStr === "") {
       return new Uint8Array(0);
@@ -41,7 +41,7 @@ class TextEncoder {
 
     const destStr = Array.from(destination).join(",");
 
-    const result = internal_text_encode_into(
+    const result = __andromeda__.internal_text_encode_into(
       source,
       destStr,
       destination.length,
@@ -185,6 +185,10 @@ class TextDecoder {
     const bytesStr = bytes.join(",");
 
     // Call native decoder
-    return internal_text_decode(bytesStr, this.#encoding, this.#fatal);
+    return __andromeda__.internal_text_decode(
+      bytesStr,
+      this.#encoding,
+      this.#fatal,
+    );
   }
 }

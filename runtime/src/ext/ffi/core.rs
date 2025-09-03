@@ -25,6 +25,7 @@ pub enum NativeType {
     Pointer,
     Buffer,
     Function(Box<CallbackDefinition>),
+    Struct(Box<StructDefinition>),
 }
 
 impl NativeType {
@@ -70,6 +71,7 @@ impl NativeType {
             NativeType::Pointer => middle::Type::pointer(),
             NativeType::Buffer => middle::Type::pointer(),
             NativeType::Function(_) => middle::Type::pointer(),
+            NativeType::Struct(_) => middle::Type::pointer(),
         }
     }
 }
@@ -120,6 +122,12 @@ pub struct CallbackDefinition {
     pub result: Box<NativeType>,
 }
 
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct StructDefinition {
+    pub fields: Vec<NativeType>,
+}
+
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct FfiSymbol {
@@ -127,6 +135,12 @@ pub struct FfiSymbol {
     pub definition: ForeignFunction,
     pub pointer: *const c_void,
 }
+
+#[allow(clippy::non_send_fields_in_send_ty)]
+// SAFETY: unsafe trait must have unsafe implementation
+unsafe impl Send for FfiSymbol {}
+// SAFETY: unsafe trait must have unsafe implementation
+unsafe impl Sync for FfiSymbol {}
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]

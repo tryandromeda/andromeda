@@ -28,7 +28,7 @@ class WritableStreamDefaultController {
 
   error(_e?: unknown): void {
     // TODO: Implement proper error handling
-    internal_writable_stream_abort(this.#streamId);
+    __andromeda__.internal_writable_stream_abort(this.#streamId);
   }
 }
 
@@ -65,7 +65,7 @@ class WritableStreamDefaultWriter<W = unknown> {
 
   abort(_reason?: unknown): Promise<void> {
     return new Promise((resolve) => {
-      internal_writable_stream_abort(this.#streamId);
+      __andromeda__.internal_writable_stream_abort(this.#streamId);
       resolve();
     });
   }
@@ -82,7 +82,7 @@ class WritableStreamDefaultWriter<W = unknown> {
             reject(error);
           });
         } else {
-          internal_writable_stream_close(this.#streamId);
+          __andromeda__.internal_writable_stream_close(this.#streamId);
           resolve();
         }
       } catch (error) {
@@ -136,7 +136,7 @@ class WritableStreamDefaultWriter<W = unknown> {
           bytesString = Array.from(bytes).join(",");
         }
 
-        const result = internal_writable_stream_write(
+        const result = __andromeda__.internal_writable_stream_write(
           this.#streamId,
           bytesString,
         );
@@ -165,7 +165,7 @@ class WritableStream<W = unknown> {
     underlyingSink?: WritableStreamUnderlyingSink<W>,
     _strategy?: QueuingStrategy<W>,
   ) {
-    this.#streamId = internal_writable_stream_create();
+    this.#streamId = __andromeda__.internal_writable_stream_create();
     this.#underlyingSink = underlyingSink || null;
 
     // Create controller
@@ -193,7 +193,7 @@ class WritableStream<W = unknown> {
 
   abort(_reason?: unknown): Promise<void> {
     return new Promise((resolve) => {
-      internal_writable_stream_abort(this.#streamId);
+      __andromeda__.internal_writable_stream_abort(this.#streamId);
       resolve();
     });
   }
@@ -206,19 +206,19 @@ class WritableStream<W = unknown> {
           const result = this.#underlyingSink.close();
           if (result instanceof Promise) {
             result.finally(() => {
-              internal_writable_stream_close(this.#streamId);
+              __andromeda__.internal_writable_stream_close(this.#streamId);
               resolve();
             });
           } else {
-            internal_writable_stream_close(this.#streamId);
+            __andromeda__.internal_writable_stream_close(this.#streamId);
             resolve();
           }
         } catch (error) {
-          internal_writable_stream_close(this.#streamId);
+          __andromeda__.internal_writable_stream_close(this.#streamId);
           resolve();
         }
       } else {
-        internal_writable_stream_close(this.#streamId);
+        __andromeda__.internal_writable_stream_close(this.#streamId);
         resolve();
       }
     });

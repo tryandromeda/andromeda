@@ -27,29 +27,33 @@ impl WebExt {
         Extension {
             name: "web",
             ops: vec![
-                ExtensionOp::new("internal_btoa", Self::internal_btoa, 1),
-                ExtensionOp::new("internal_atob", Self::internal_atob, 1),
-                ExtensionOp::new("internal_text_encode", Self::internal_text_encode, 1),
-                ExtensionOp::new("internal_text_decode", Self::internal_text_decode, 3),
+                ExtensionOp::new("internal_btoa", Self::internal_btoa, 1, false),
+                ExtensionOp::new("internal_atob", Self::internal_atob, 1, false),
+                ExtensionOp::new("internal_text_encode", Self::internal_text_encode, 1, false),
+                ExtensionOp::new("internal_text_decode", Self::internal_text_decode, 3, false),
                 ExtensionOp::new(
                     "internal_text_encode_into",
                     Self::internal_text_encode_into,
                     2,
+                    false,
                 ),
                 ExtensionOp::new(
                     "internal_performance_now",
                     Self::internal_performance_now,
                     0,
+                    false,
                 ),
                 ExtensionOp::new(
                     "internal_performance_time_origin",
                     Self::internal_performance_time_origin,
                     0,
+                    false,
                 ),
                 ExtensionOp::new(
                     "internal_navigator_user_agent",
                     Self::internal_navigator_user_agent,
                     0,
+                    false,
                 ),
             ],
             storage: None,

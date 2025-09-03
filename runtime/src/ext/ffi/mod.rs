@@ -43,24 +43,30 @@ impl FfiExt {
         Extension {
             name: "ffi",
             ops: vec![
-                ExtensionOp::new("ffi_dlopen", Self::ffi_dlopen, 2),
-                ExtensionOp::new("ffi_dlopen_get_symbol", Self::ffi_dlopen_get_symbol, 3),
-                ExtensionOp::new("ffi_call_symbol", Self::ffi_call_symbol, 3),
-                ExtensionOp::new("ffi_dlclose", Self::ffi_dlclose, 1),
-                ExtensionOp::new("ffi_create_callback", Self::ffi_create_callback, 2),
+                ExtensionOp::new("ffi_dlopen", Self::ffi_dlopen, 2, false),
+                ExtensionOp::new(
+                    "ffi_dlopen_get_symbol",
+                    Self::ffi_dlopen_get_symbol,
+                    3,
+                    false,
+                ),
+                ExtensionOp::new("ffi_call_symbol", Self::ffi_call_symbol, 3, false),
+                ExtensionOp::new("ffi_dlclose", Self::ffi_dlclose, 1, false),
+                ExtensionOp::new("ffi_create_callback", Self::ffi_create_callback, 2, false),
                 ExtensionOp::new(
                     "ffi_get_callback_pointer",
                     Self::ffi_get_callback_pointer,
                     1,
+                    false,
                 ),
-                ExtensionOp::new("ffi_callback_close", Self::ffi_callback_close, 1),
-                ExtensionOp::new("ffi_pointer_create", Self::ffi_pointer_create, 1),
-                ExtensionOp::new("ffi_pointer_equals", Self::ffi_pointer_equals, 2),
-                ExtensionOp::new("ffi_pointer_offset", Self::ffi_pointer_offset, 2),
-                ExtensionOp::new("ffi_pointer_value", Self::ffi_pointer_value, 1),
-                ExtensionOp::new("ffi_pointer_of", Self::ffi_pointer_of, 1),
-                ExtensionOp::new("ffi_read_memory", Self::ffi_read_memory, 3),
-                ExtensionOp::new("ffi_write_memory", Self::ffi_write_memory, 3),
+                ExtensionOp::new("ffi_callback_close", Self::ffi_callback_close, 1, false),
+                ExtensionOp::new("ffi_pointer_create", Self::ffi_pointer_create, 1, false),
+                ExtensionOp::new("ffi_pointer_equals", Self::ffi_pointer_equals, 2, false),
+                ExtensionOp::new("ffi_pointer_offset", Self::ffi_pointer_offset, 2, false),
+                ExtensionOp::new("ffi_pointer_value", Self::ffi_pointer_value, 1, false),
+                ExtensionOp::new("ffi_pointer_of", Self::ffi_pointer_of, 1, false),
+                ExtensionOp::new("ffi_read_memory", Self::ffi_read_memory, 3, false),
+                ExtensionOp::new("ffi_write_memory", Self::ffi_write_memory, 3, false),
             ],
             storage: Some(Box::new(|storage: &mut OpsStorage| {
                 storage.insert(LibraryMap::new());
@@ -95,6 +101,10 @@ impl FfiExt {
             NativeType::F64 => ffi_parse_f64_arg(agent, gc.reborrow(), value),
             NativeType::Pointer => ffi_parse_pointer_arg(value, gc.reborrow()),
             NativeType::Buffer => ffi_parse_buffer_arg(value),
+            NativeType::Struct(_) => {
+                // TODO: Handle struct pointers properly
+                ffi_parse_pointer_arg(value, gc.reborrow())
+            }
             NativeType::Function(_) => {
                 // TODO: Handle function pointers properly
                 ffi_parse_pointer_arg(value, gc.reborrow())
@@ -131,9 +141,10 @@ impl FfiExt {
                 NativeType::ISize => ffi_args.push(middle::arg(unsafe { &arg.isize_value })),
                 NativeType::F32 => ffi_args.push(middle::arg(unsafe { &arg.f32_value })),
                 NativeType::F64 => ffi_args.push(middle::arg(unsafe { &arg.f64_value })),
-                NativeType::Pointer | NativeType::Buffer | NativeType::Function(_) => {
-                    ffi_args.push(middle::arg(unsafe { &arg.pointer }))
-                }
+                NativeType::Pointer
+                | NativeType::Buffer
+                | NativeType::Function(_)
+                | NativeType::Struct(_) => ffi_args.push(middle::arg(unsafe { &arg.pointer })),
                 NativeType::Void => {}
             }
         }
@@ -196,7 +207,10 @@ impl FfiExt {
                 result as f64
             }
             NativeType::F64 => unsafe { cif.call(code_ptr, &ffi_args) },
-            NativeType::Pointer | NativeType::Buffer | NativeType::Function(_) => {
+            NativeType::Pointer
+            | NativeType::Buffer
+            | NativeType::Function(_)
+            | NativeType::Struct(_) => {
                 let result: *const c_void = unsafe { cif.call(code_ptr, &ffi_args) };
                 result as usize as f64
             }
@@ -339,7 +353,9 @@ impl FfiExt {
         };
 
         let definition = args.get(2);
-        let parsed_def = match parse_foreign_function(agent, definition, gc.reborrow()) {
+        // TODO: Implement full symbol definition parsing
+        let types = (vec![NativeType::I32], NativeType::I32);
+        let parsed_def = match parse_foreign_function(agent, definition, types, gc.reborrow()) {
             Ok(def) => def,
             Err(_) => {
                 return Err(agent
@@ -501,11 +517,12 @@ impl FfiExt {
                         NativeType::ISize => NativeValue { isize_value: 0 },
                         NativeType::F32 => NativeValue { f32_value: 0.0 },
                         NativeType::F64 => NativeValue { f64_value: 0.0 },
-                        NativeType::Pointer | NativeType::Buffer | NativeType::Function(_) => {
-                            NativeValue {
-                                pointer: ptr::null_mut(),
-                            }
-                        }
+                        NativeType::Pointer
+                        | NativeType::Buffer
+                        | NativeType::Function(_)
+                        | NativeType::Struct(_) => NativeValue {
+                            pointer: ptr::null_mut(),
+                        },
                         NativeType::Void => NativeValue { void_value: () },
                     };
                     native_args.push(default_arg);
@@ -531,11 +548,12 @@ impl FfiExt {
                         NativeType::ISize => NativeValue { isize_value: 0 },
                         NativeType::F32 => NativeValue { f32_value: 0.0 },
                         NativeType::F64 => NativeValue { f64_value: 0.0 },
-                        NativeType::Pointer | NativeType::Buffer | NativeType::Function(_) => {
-                            NativeValue {
-                                pointer: ptr::null_mut(),
-                            }
-                        }
+                        NativeType::Pointer
+                        | NativeType::Buffer
+                        | NativeType::Function(_)
+                        | NativeType::Struct(_) => NativeValue {
+                            pointer: ptr::null_mut(),
+                        },
                         NativeType::Void => continue, // Skip void parameters
                     };
                     native_args.push(default_arg);

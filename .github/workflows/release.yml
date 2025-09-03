@@ -27,11 +27,6 @@ jobs:
             rust-target: aarch64-unknown-linux-gnu
             asset-name: andromeda-linux-arm64
 
-          # Linux (x86_64 MUSL - static binary)
-          - os: ubuntu-latest
-            rust-target: x86_64-unknown-linux-musl
-            asset-name: andromeda-linux-amd64-musl
-
           # macOS (Intel)
           - os: macos-latest
             rust-target: x86_64-apple-darwin
@@ -68,9 +63,6 @@ jobs:
           if [[ "${{ matrix.rust-target }}" == *"aarch64"* && "${{ matrix.rust-target }}" == *"linux"* ]]; then
             sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
           fi
-          if [[ "${{ matrix.rust-target }}" == *"musl"* ]]; then
-            sudo apt-get install -y musl-tools
-          fi
 
       - name: Install pkg-config (for cross-compilation)
         if: matrix.os == 'ubuntu-latest'
@@ -84,8 +76,6 @@ jobs:
           # Cross-compilation environment variables
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
-          # MUSL targets
-          CC_x86_64_unknown_linux_musl: musl-gcc
           # PKG_CONFIG settings for cross-compilation
           PKG_CONFIG_ALLOW_CROSS: 1
 

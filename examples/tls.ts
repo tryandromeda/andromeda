@@ -10,17 +10,17 @@ const host = "example.org";
 const port = 443;
 
 console.log(`Connecting to ${host}:${port}...`);
-const rid = await internal_tls_connect(host, port);
+const rid = await __andromeda__.internal_tls_connect(host, port);
 console.log(`Connected, rid=${rid}`);
 
 const httpReq = `GET / HTTP/1.1\r\nHost: ${host}\r\nConnection: close\r\n\r\n`;
 console.log(`Writing request (${httpReq.length} bytes)`);
-await internal_tls_write(rid, httpReq);
+await __andromeda__.internal_tls_write(rid, httpReq);
 
 let out = "";
 while (true) {
   try {
-    const chunk = await internal_tls_read(rid, 4096);
+    const chunk = await __andromeda__.internal_tls_read(rid, 4096);
     if (!chunk || chunk.length === 0) break;
     out += chunk;
   } catch (e) {
@@ -49,7 +49,7 @@ try {
 }
 
 try {
-  const certHex = await internal_tls_get_peer_certificate(rid);
+  const certHex = await __andromeda__.internal_tls_get_peer_certificate(rid);
   console.log("Peer certificate (hex):", certHex);
   try {
     console.log(
@@ -64,5 +64,5 @@ try {
   );
 }
 
-await internal_tls_close(rid);
+await __andromeda__.internal_tls_close(rid);
 console.log("Closed.");

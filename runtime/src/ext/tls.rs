@@ -46,14 +46,15 @@ impl TlsExt {
         Extension {
             name: "tls",
             ops: vec![
-                ExtensionOp::new("internal_tls_connect", Self::internal_tls_connect, 2),
-                ExtensionOp::new("internal_tls_close", Self::internal_tls_close, 1),
-                ExtensionOp::new("internal_tls_read", Self::internal_tls_read, 2),
-                ExtensionOp::new("internal_tls_write", Self::internal_tls_write, 2),
+                ExtensionOp::new("internal_tls_connect", Self::internal_tls_connect, 2, false),
+                ExtensionOp::new("internal_tls_close", Self::internal_tls_close, 1, false),
+                ExtensionOp::new("internal_tls_read", Self::internal_tls_read, 2, false),
+                ExtensionOp::new("internal_tls_write", Self::internal_tls_write, 2, false),
                 ExtensionOp::new(
                     "internal_tls_get_peer_certificate",
                     Self::internal_tls_get_peer_certificate,
                     1,
+                    false,
                 ),
             ],
             storage: Some(Box::new(|storage: &mut OpsStorage| {

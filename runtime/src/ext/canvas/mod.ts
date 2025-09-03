@@ -10,21 +10,21 @@
 class OffscreenCanvas {
   #rid: number;
   constructor(width: number, height: number) {
-    this.#rid = internal_canvas_create(width, height);
+    this.#rid = __andromeda__.internal_canvas_create(width, height);
   }
 
   /**
    * Get the width of the canvas.
    */
   getWidth(): number {
-    return internal_canvas_get_width(this.#rid);
+    return __andromeda__.internal_canvas_get_width(this.#rid);
   }
 
   /**
    * Get the height of the canvas.
    */
   getHeight(): number {
-    return internal_canvas_get_height(this.#rid);
+    return __andromeda__.internal_canvas_get_height(this.#rid);
   }
 
   /**
@@ -42,7 +42,7 @@ class OffscreenCanvas {
    * Returns true if rendering was successful, false otherwise.
    */
   render(): boolean {
-    return internal_canvas_render(this.#rid);
+    return __andromeda__.internal_canvas_render(this.#rid);
   }
 
   /**
@@ -50,7 +50,9 @@ class OffscreenCanvas {
    * Returns true if save was successful, false otherwise.
    */
   saveAsPng(path: string): boolean {
-    return this.render() ? internal_canvas_save_as_png(this.#rid, path) : false;
+    return this.render() ?
+      __andromeda__.internal_canvas_save_as_png(this.#rid, path) :
+      false;
   }
 }
 
@@ -68,11 +70,11 @@ class CanvasRenderingContext2D {
    */
 
   get globalAlpha(): number {
-    return internal_canvas_get_global_alpha(this.#rid);
+    return __andromeda__.internal_canvas_get_global_alpha(this.#rid);
   }
 
   set globalAlpha(value: number) {
-    internal_canvas_set_global_alpha(this.#rid, value);
+    __andromeda__.internal_canvas_set_global_alpha(this.#rid, value);
   }
 
   /**
@@ -80,7 +82,7 @@ class CanvasRenderingContext2D {
    * Accepts CSS color strings like '#ff0000', 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'red', etc.
    */
   get fillStyle(): string | CanvasGradient {
-    const fillStyle = internal_canvas_get_fill_style(this.#rid);
+    const fillStyle = __andromeda__.internal_canvas_get_fill_style(this.#rid);
     if (typeof fillStyle == "number") {
       return new CanvasGradient(fillStyle);
     } else {
@@ -90,9 +92,9 @@ class CanvasRenderingContext2D {
 
   set fillStyle(value: string | CanvasGradient) {
     if (typeof value == "string") {
-      internal_canvas_set_fill_style(this.#rid, value);
+      __andromeda__.internal_canvas_set_fill_style(this.#rid, value);
     } else {
-      internal_canvas_set_fill_style(this.#rid, value[_fillId]);
+      __andromeda__.internal_canvas_set_fill_style(this.#rid, value[_fillId]);
     }
   }
   /**
@@ -100,28 +102,32 @@ class CanvasRenderingContext2D {
    * Accepts CSS color strings like '#ff0000', 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'red', etc.
    */
   get strokeStyle(): string {
-    return internal_canvas_get_stroke_style(this.#rid);
+    return __andromeda__.internal_canvas_get_stroke_style(this.#rid);
   }
 
   set strokeStyle(value: string) {
-    internal_canvas_set_stroke_style(this.#rid, value);
+    __andromeda__.internal_canvas_set_stroke_style(this.#rid, value);
   }
   /**
    * Gets or sets the line width for drawing operations.
    */
   get lineWidth(): number {
-    return internal_canvas_get_line_width(this.#rid);
+    return __andromeda__.internal_canvas_get_line_width(this.#rid);
   }
 
   set lineWidth(value: number) {
-    internal_canvas_set_line_width(this.#rid, value);
+    __andromeda__.internal_canvas_set_line_width(this.#rid, value);
   }
 
   /**
    * Sets the line dash pattern. Accepts an array of numbers or a JSON string.
    */
   setLineDash(segments: number[] | string, offset?: number): void {
-    internal_canvas_set_line_dash(this.#rid, segments, offset ?? 0);
+    __andromeda__.internal_canvas_set_line_dash(
+      this.#rid,
+      segments,
+      offset ?? 0,
+    );
   }
 
   /**
@@ -129,7 +135,7 @@ class CanvasRenderingContext2D {
    * The runtime returns a JSON string; parse it here and return a tuple.
    */
   getLineDash(): [number[], number] {
-    const json = internal_canvas_get_line_dash(this.#rid);
+    const json = __andromeda__.internal_canvas_get_line_dash(this.#rid);
     try {
       const info = JSON.parse(json);
       return [info.dash || [], info.offset || 0];
@@ -164,7 +170,14 @@ class CanvasRenderingContext2D {
     startAngle: number,
     endAngle: number,
   ): void {
-    internal_canvas_arc(this.#rid, x, y, radius, startAngle, endAngle);
+    __andromeda__.internal_canvas_arc(
+      this.#rid,
+      x,
+      y,
+      radius,
+      startAngle,
+      endAngle,
+    );
   }
 
   /**
@@ -177,14 +190,14 @@ class CanvasRenderingContext2D {
     y2: number,
     radius: number,
   ): void {
-    internal_canvas_arc_to(this.#rid, x1, y1, x2, y2, radius);
+    __andromeda__.internal_canvas_arc_to(this.#rid, x1, y1, x2, y2, radius);
   }
 
   /**
    * Begin a new path on the canvas.
    */
   beginPath(): void {
-    internal_canvas_begin_path(this.#rid);
+    __andromeda__.internal_canvas_begin_path(this.#rid);
   }
 
   /**
@@ -198,7 +211,7 @@ class CanvasRenderingContext2D {
     x: number,
     y: number,
   ): void {
-    internal_canvas_bezier_curve_to(
+    __andromeda__.internal_canvas_bezier_curve_to(
       this.#rid,
       cp1x,
       cp1y,
@@ -212,7 +225,7 @@ class CanvasRenderingContext2D {
    * Clears the specified rectangular area, making it fully transparent.
    */
   clearRect(x: number, y: number, width: number, height: number): void {
-    internal_canvas_clear_rect(this.#rid, x, y, width, height);
+    __andromeda__.internal_canvas_clear_rect(this.#rid, x, y, width, height);
   }
 
   /**
@@ -224,7 +237,12 @@ class CanvasRenderingContext2D {
     x1: number,
     y1: number,
   ): CanvasGradient {
-    const rid = internal_canvas_create_linear_gradient(x0, y0, x1, y1);
+    const rid = __andromeda__.internal_canvas_create_linear_gradient(
+      x0,
+      y0,
+      x1,
+      y1,
+    );
     return new CanvasGradient(rid);
   }
 
@@ -239,7 +257,14 @@ class CanvasRenderingContext2D {
     y1: number,
     r1: number,
   ): CanvasGradient {
-    const rid = internal_canvas_create_radial_gradient(x0, y0, r0, x1, y1, r1);
+    const rid = __andromeda__.internal_canvas_create_radial_gradient(
+      x0,
+      y0,
+      r0,
+      x1,
+      y1,
+      r1,
+    );
     return new CanvasGradient(rid);
   }
 
@@ -251,7 +276,11 @@ class CanvasRenderingContext2D {
     x: number,
     y: number,
   ): CanvasGradient {
-    const rid = internal_canvas_create_conic_gradient(startAngle, x, y);
+    const rid = __andromeda__.internal_canvas_create_conic_gradient(
+      startAngle,
+      x,
+      y,
+    );
     return new CanvasGradient(rid);
   }
 
@@ -259,56 +288,56 @@ class CanvasRenderingContext2D {
    * Closes the current path on the canvas.
    */
   closePath(): void {
-    internal_canvas_close_path(this.#rid);
+    __andromeda__.internal_canvas_close_path(this.#rid);
   }
 
   /**
    * Draws a filled rectangle whose starting corner is at (x, y).
    */
   fillRect(x: number, y: number, width: number, height: number): void {
-    internal_canvas_fill_rect(this.#rid, x, y, width, height);
+    __andromeda__.internal_canvas_fill_rect(this.#rid, x, y, width, height);
   }
 
   /**
    * Moves the path starting point to the specified coordinates.
    */
   moveTo(x: number, y: number): void {
-    internal_canvas_move_to(this.#rid, x, y);
+    __andromeda__.internal_canvas_move_to(this.#rid, x, y);
   }
 
   /**
    * Connects the last point in the current sub-path to the specified coordinates with a straight line.
    */
   lineTo(x: number, y: number): void {
-    internal_canvas_line_to(this.#rid, x, y);
+    __andromeda__.internal_canvas_line_to(this.#rid, x, y);
   }
 
   /**
    * Fills the current path with the current fill style.
    */
   fill(): void {
-    internal_canvas_fill(this.#rid);
+    __andromeda__.internal_canvas_fill(this.#rid);
   }
 
   /**
    * Strokes the current path with the current stroke style.
    */
   stroke(): void {
-    internal_canvas_stroke(this.#rid);
+    __andromeda__.internal_canvas_stroke(this.#rid);
   }
 
   /**
    * Adds a rectangle to the current path.
    */
   rect(x: number, y: number, width: number, height: number): void {
-    internal_canvas_rect(this.#rid, x, y, width, height);
+    __andromeda__.internal_canvas_rect(this.#rid, x, y, width, height);
   }
 
   /**
    * Creates a quadratic Bézier curve to the specified point.
    */
   quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void {
-    internal_canvas_quadratic_curve_to(this.#rid, cpx, cpy, x, y);
+    __andromeda__.internal_canvas_quadratic_curve_to(this.#rid, cpx, cpy, x, y);
   }
 
   /**
@@ -324,7 +353,7 @@ class CanvasRenderingContext2D {
     endAngle: number,
     counterclockwise?: boolean,
   ): void {
-    internal_canvas_ellipse(
+    __andromeda__.internal_canvas_ellipse(
       this.#rid,
       x,
       y,
@@ -346,21 +375,28 @@ class CanvasRenderingContext2D {
     height: number,
     radius: number,
   ): void {
-    internal_canvas_round_rect(this.#rid, x, y, width, height, radius);
+    __andromeda__.internal_canvas_round_rect(
+      this.#rid,
+      x,
+      y,
+      width,
+      height,
+      radius,
+    );
   }
 
   /**
    * Saves the current canvas state (styles, transformations, etc.) to a stack.
    */
   save(): void {
-    internal_canvas_save(this.#rid);
+    __andromeda__.internal_canvas_save(this.#rid);
   }
 
   /**
    * Restores the most recently saved canvas state from the stack.
    */
   restore(): void {
-    internal_canvas_restore(this.#rid);
+    __andromeda__.internal_canvas_restore(this.#rid);
   }
 }
 
@@ -376,6 +412,10 @@ class CanvasGradient {
    * Adds a new color stop to a given canvas gradient.
    */
   addColorStop(offset: number, color: string) {
-    internal_canvas_gradient_add_color_stop(this[_fillId], offset, color);
+    __andromeda__.internal_canvas_gradient_add_color_stop(
+      this[_fillId],
+      offset,
+      color,
+    );
   }
 }

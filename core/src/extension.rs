@@ -21,14 +21,16 @@ pub struct ExtensionOp {
     pub name: &'static str,
     pub function: RegularFn,
     pub args: u32,
+    pub global: bool,
 }
 
 impl ExtensionOp {
-    pub fn new(name: &'static str, function: RegularFn, args: u32) -> Self {
+    pub fn new(name: &'static str, function: RegularFn, args: u32, global: bool) -> Self {
         Self {
             name,
             args,
             function,
+            global,
         }
     }
 }
@@ -52,6 +54,7 @@ impl Extension {
         &mut self,
         agent: &mut Agent,
         global_object: Object,
+        andromeda_object: Object,
         gc: &mut GcScope<'_, '_>,
     ) {
         for file in &self.files {
@@ -91,17 +94,31 @@ impl Extension {
             );
             function.unbind();
             let property_key = PropertyKey::from_static_str(agent, op.name, gc.nogc());
-            global_object
-                .internal_define_own_property(
-                    agent,
-                    property_key.unbind(),
-                    PropertyDescriptor {
-                        value: Some(function.into_value().unbind()),
-                        ..Default::default()
-                    },
-                    gc.reborrow(),
-                )
-                .unwrap();
+            if op.global {
+                global_object
+                    .internal_define_own_property(
+                        agent,
+                        property_key.unbind(),
+                        PropertyDescriptor {
+                            value: Some(function.into_value().unbind()),
+                            ..Default::default()
+                        },
+                        gc.reborrow(),
+                    )
+                    .unwrap();
+            } else {
+                andromeda_object
+                    .internal_define_own_property(
+                        agent,
+                        property_key.unbind(),
+                        PropertyDescriptor {
+                            value: Some(function.into_value().unbind()),
+                            ..Default::default()
+                        },
+                        gc.reborrow(),
+                    )
+                    .unwrap();
+            }
         }
 
         if let Some(storage_hook) = self.storage.take() {

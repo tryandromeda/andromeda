@@ -57,17 +57,20 @@ class TransformStreamDefaultController<O = unknown> {
         bytesString = Array.from(bytes).join(",");
       }
 
-      internal_readable_stream_enqueue(this.#readableStreamId, bytesString);
+      __andromeda__.internal_readable_stream_enqueue(
+        this.#readableStreamId,
+        bytesString,
+      );
     }
   }
 
   error(_e?: unknown): void {
     // For now, just close the stream - proper error handling would store the error
-    internal_readable_stream_close(this.#readableStreamId);
+    __andromeda__.internal_readable_stream_close(this.#readableStreamId);
   }
 
   terminate(): void {
-    internal_readable_stream_close(this.#readableStreamId);
+    __andromeda__.internal_readable_stream_close(this.#readableStreamId);
   }
 }
 

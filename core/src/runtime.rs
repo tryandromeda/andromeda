@@ -29,9 +29,15 @@ use nova_vm::{
             },
             script::{HostDefined, parse_script, script_evaluation},
         },
-        types::{self, Object, PropertyKey, String as NovaString, Value},
+        types::{
+            self, InternalMethods, IntoObject, IntoValue, Object, OrdinaryObject,
+            PropertyDescriptor, PropertyKey, String as NovaString, Value,
+        },
     },
-    engine::context::{Bindable, GcScope, NoGcScope},
+    engine::{
+        context::{Bindable, GcScope, NoGcScope},
+        rootable::Scopable,
+    },
 };
 
 use crate::{
@@ -643,8 +649,32 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             create_global_this_value,
             Some(
                 |agent: &mut Agent, global_object: Object<'_>, mut gc: GcScope<'_, '_>| {
+                    let andromeda_obj = OrdinaryObject::create_empty_object(agent, gc.nogc())
+                        .scope(agent, gc.nogc());
+                    let property_key =
+                        PropertyKey::from_static_str(agent, "__andromeda__", gc.nogc());
+                    global_object
+                        .internal_define_own_property(
+                            agent,
+                            property_key.unbind(),
+                            PropertyDescriptor {
+                                value: Some(andromeda_obj.get(agent).into_value()),
+                                writable: Some(true),
+                                enumerable: Some(false),
+                                configurable: Some(true),
+                                ..Default::default()
+                            },
+                            gc.reborrow(),
+                        )
+                        .unwrap();
+
                     for extension in &mut config.extensions {
-                        extension.load::<UserMacroTask>(agent, global_object, gc.borrow_mut())
+                        extension.load::<UserMacroTask>(
+                            agent,
+                            global_object,
+                            andromeda_obj.get(agent).into_object(),
+                            gc.borrow_mut(),
+                        );
                     }
                 },
             ),

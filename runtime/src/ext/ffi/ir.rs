@@ -282,6 +282,7 @@ pub fn ffi_parse_pointer_arg(arg: Value, _gc: GcScope) -> Result<NativeValue, Ff
 pub fn parse_foreign_function<'gc>(
     _agent: &mut Agent,
     definition_value: Value,
+    types: (Vec<NativeType>, NativeType),
     _gc: GcScope<'gc, '_>,
 ) -> Result<ForeignFunction, FfiError> {
     let Value::Object(_def_obj) = definition_value else {
@@ -293,8 +294,8 @@ pub fn parse_foreign_function<'gc>(
     // TODO: Implement full JavaScript object property parsing
     let foreign_func = ForeignFunction {
         name: None,
-        parameters: vec![NativeType::Pointer], // Default to pointer for most Windows APIs
-        result: NativeType::I32,               // Most Windows APIs return HANDLE/DWORD/etc
+        parameters: types.0,
+        result: types.1,
         nonblocking: false,
         optional: false,
     };

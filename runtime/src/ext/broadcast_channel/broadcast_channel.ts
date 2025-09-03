@@ -169,7 +169,7 @@ class BroadcastChannel {
 
     channels.push(this);
     if (rid === null) {
-      rid = (globalThis as any).op_broadcast_subscribe();
+      rid = __andromeda__.op_broadcast_subscribe();
       recv();
     }
   }
@@ -230,7 +230,7 @@ class BroadcastChannel {
     queueMicrotask(() => {
       if (!this._closed && rid !== null) {
         try {
-          (globalThis as any).op_broadcast_send(
+          __andromeda__.op_broadcast_send(
             rid,
             this.name,
             serializedData,
@@ -262,7 +262,7 @@ class BroadcastChannel {
     channels.splice(index, 1);
 
     if (channels.length === 0 && rid !== null) {
-      (globalThis as any).op_broadcast_unsubscribe(rid);
+      __andromeda__.op_broadcast_unsubscribe(rid);
       rid = null;
     }
   }

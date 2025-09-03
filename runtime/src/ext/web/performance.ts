@@ -44,7 +44,7 @@ class AndromedaPerformance {
    * @returns {number} The current time relative to the time origin
    */
   now(): number {
-    return internal_performance_now();
+    return __andromeda__.internal_performance_now();
   }
 
   /**
@@ -52,7 +52,7 @@ class AndromedaPerformance {
    * @returns {number} The time origin in milliseconds since Unix epoch
    */
   get timeOrigin(): number {
-    return internal_performance_time_origin();
+    return __andromeda__.internal_performance_time_origin();
   }
 
   /**
