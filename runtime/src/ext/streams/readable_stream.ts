@@ -52,7 +52,7 @@ class ReadableStreamDefaultController<R = unknown> {
   get desiredSize(): number | null {
     // TODO: Implement desiredSize - check the stream state
     // For simplicity, return 1 if the stream is not closed/errored
-    const state = internal_stream_get_state(this.#streamId);
+    const state = __andromeda__.internal_stream_get_state(this.#streamId);
     const [readable, , closed, errored] = state.split(":");
 
     if (closed === "true" || errored === "true") {
@@ -63,7 +63,7 @@ class ReadableStreamDefaultController<R = unknown> {
   }
 
   close(): void {
-    internal_readable_stream_close(this.#streamId);
+    __andromeda__.internal_readable_stream_close(this.#streamId);
   }
 
   enqueue(chunk?: R): void {
@@ -84,13 +84,16 @@ class ReadableStreamDefaultController<R = unknown> {
         bytesString = Array.from(bytes).join(",");
       }
 
-      internal_readable_stream_enqueue(this.#streamId, bytesString);
+      __andromeda__.internal_readable_stream_enqueue(
+        this.#streamId,
+        bytesString,
+      );
     }
   }
 
   error(e?: unknown): void {
     // TODO: Implement proper error handling
-    internal_readable_stream_close(this.#streamId);
+    __andromeda__.internal_readable_stream_close(this.#streamId);
   }
 }
 
@@ -116,11 +119,11 @@ class ReadableStreamDefaultReader<R = unknown> {
   }
 
   async cancel(_reason?: unknown): Promise<void> {
-    internal_readable_stream_cancel(this.#streamId);
+    __andromeda__.internal_readable_stream_cancel(this.#streamId);
   }
 
   async read(): Promise<ReadableStreamReadResult<R>> {
-    const result = internal_readable_stream_read(this.#streamId);
+    const result = __andromeda__.internal_readable_stream_read(this.#streamId);
 
     if (result === "done") {
       return { done: true, value: undefined as unknown as R };
@@ -150,7 +153,7 @@ class ReadableStreamDefaultReader<R = unknown> {
 
   // Synchronous read method for testing
   readSync(): ReadableStreamReadResult<R> {
-    const result = internal_readable_stream_read(this.#streamId);
+    const result = __andromeda__.internal_readable_stream_read(this.#streamId);
 
     if (result === "done") {
       return { done: true, value: undefined as unknown as R };
@@ -197,7 +200,7 @@ class ReadableStream<R = unknown> {
     _strategy?: QueuingStrategy<R>,
   ) {
     // TODO: Implement proper stream creation
-    this.#streamId = internal_readable_stream_create();
+    this.#streamId = __andromeda__.internal_readable_stream_create();
 
     this.#controller = new ReadableStreamDefaultController<R>(
       this.#streamId,
@@ -223,7 +226,7 @@ class ReadableStream<R = unknown> {
 
   cancel(_reason?: unknown): Promise<void> {
     return new Promise((resolve) => {
-      internal_readable_stream_cancel(this.#streamId);
+      __andromeda__.internal_readable_stream_cancel(this.#streamId);
       resolve();
     });
   }

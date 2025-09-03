@@ -15,23 +15,23 @@ class StorageImpl implements Storage {
   storageType: boolean;
 
   constructor(persistent: boolean) {
-    storage_new(persistent);
+    __andromeda__.storage_new(persistent);
     this.storageType = persistent;
   }
 
   get length(): number {
-    return storage_length(this.storageType);
+    return __andromeda__.storage_length(this.storageType);
   }
 
   key(index: number): string | null {
-    return storage_key(this.storageType, index);
+    return __andromeda__.storage_key(this.storageType, index);
   }
 
   getItem(key: string): string | null {
     if (typeof key !== "string") {
       key = String(key);
     }
-    return storage_getItem(this.storageType, key);
+    return __andromeda__.storage_getItem(this.storageType, key);
   }
   setItem(key: string, value: string): void {
     if (typeof key !== "string") {
@@ -40,18 +40,18 @@ class StorageImpl implements Storage {
     if (typeof value !== "string") {
       value = String(value);
     }
-    storage_setItem(this.storageType, key, value);
+    __andromeda__.storage_setItem(this.storageType, key, value);
   }
 
   removeItem(key: string): void {
     if (typeof key !== "string") {
       key = String(key);
     }
-    storage_removeItem(this.storageType, key);
+    __andromeda__.storage_removeItem(this.storageType, key);
   }
 
   clear(): void {
-    storage_clear(this.storageType);
+    __andromeda__.storage_clear(this.storageType);
   }
 }
 
@@ -107,7 +107,7 @@ function createStorage(persistent: boolean): Storage {
         typeof target.getItem(key) === "string";
     },
     ownKeys(target) {
-      const keys = storage_iterate_keys(
+      const keys = __andromeda__.storage_iterate_keys(
         (target as StorageImpl).storageType,
       ) as string[];
       return keys;

@@ -54,7 +54,7 @@ const counters = new Map<string, number>();
  * Utility functions for formatting
  */
 function getIndent(): string {
-  const indentLevel =  __andromeda__.get_group_indent();
+  const indentLevel = __andromeda__.get_group_indent();
   return "  ".repeat(indentLevel);
 }
 
@@ -431,7 +431,7 @@ const andromedaConsole = {
    */
   clear() {
     // Clear console through the backend (which also resets group stack per WHATWG spec)
-     __andromeda__.clear_console();
+    __andromeda__.clear_console();
   },
 
   /**
@@ -653,7 +653,7 @@ const andromedaConsole = {
    */
   trace(...args: ConsoleValue[]) {
     const message = args.length > 0 ? formatArgs(args) : "Trace";
-    const stack =  __andromeda__.get_stack_trace();
+    const stack = __andromeda__.get_stack_trace();
     console.log(`${message}\n${stack}`);
   },
 

@@ -35,7 +35,7 @@ class Cache {
     options?: CacheQueryOptions,
   ): Promise<Response | undefined> {
     return Promise.resolve(
-      cache_match(this.#cacheName, request as any, options),
+      __andromeda__.cache_match(this.#cacheName, request as any, options),
     );
   }
 
@@ -47,7 +47,7 @@ class Cache {
     options?: CacheQueryOptions,
   ): Promise<Response[]> {
     return Promise.resolve(
-      cache_matchAll(this.#cacheName, request as any, options),
+      __andromeda__.cache_matchAll(this.#cacheName, request as any, options),
     );
   }
 
@@ -55,14 +55,18 @@ class Cache {
    * Takes a URL, retrieves it and adds the resulting response object to the given cache.
    */
   add(request: RequestInfo): Promise<void> {
-    return Promise.resolve(cache_add(this.#cacheName, request as any));
+    return Promise.resolve(
+      __andromeda__.cache_add(this.#cacheName, request as any),
+    );
   }
 
   /**
    * Takes an array of URLs, retrieves them, and adds the resulting response objects to the given cache.
    */
   addAll(requests: RequestInfo[]): Promise<void> {
-    return Promise.resolve(cache_addAll(this.#cacheName, requests as any));
+    return Promise.resolve(
+      __andromeda__.cache_addAll(this.#cacheName, requests as any),
+    );
   }
 
   /**
@@ -72,7 +76,7 @@ class Cache {
     // Clone the response to ensure it can be consumed
     const responseClone = response.clone();
     return Promise.resolve(
-      cache_put(this.#cacheName, request as any, responseClone),
+      __andromeda__.cache_put(this.#cacheName, request as any, responseClone),
     );
   }
 
@@ -84,7 +88,7 @@ class Cache {
     options?: CacheQueryOptions,
   ): Promise<boolean> {
     return Promise.resolve(
-      cache_delete(this.#cacheName, request as any, options),
+      __andromeda__.cache_delete(this.#cacheName, request as any, options),
     );
   }
 
@@ -96,7 +100,7 @@ class Cache {
     options?: CacheQueryOptions,
   ): Promise<Request[]> {
     return Promise.resolve(
-      cache_keys(this.#cacheName, request as any, options),
+      __andromeda__.cache_keys(this.#cacheName, request as any, options),
     );
   }
 }
@@ -107,7 +111,7 @@ class CacheStorage {
    */
   open(cacheName: string): Promise<Cache> {
     // Call the sync function
-    cacheStorage_open(cacheName);
+    __andromeda__.cacheStorage_open(cacheName);
     return Promise.resolve(new Cache(cacheName));
   }
 
@@ -115,21 +119,21 @@ class CacheStorage {
    * Returns a Promise that resolves to true if a Cache object matching the cacheName exists.
    */
   has(cacheName: string): Promise<boolean> {
-    return Promise.resolve(cacheStorage_has(cacheName));
+    return Promise.resolve(__andromeda__.cacheStorage_has(cacheName));
   }
 
   /**
    * Finds the Cache object matching the cacheName, and if found, deletes the Cache object and returns a Promise that resolves to true.
    */
   delete(cacheName: string): Promise<boolean> {
-    return Promise.resolve(cacheStorage_delete(cacheName));
+    return Promise.resolve(__andromeda__.cacheStorage_delete(cacheName));
   }
 
   /**
    * Returns a Promise that will resolve with an array containing strings corresponding to all of the named Cache objects.
    */
   keys(): Promise<string[]> {
-    return Promise.resolve(cacheStorage_keys());
+    return Promise.resolve(__andromeda__.cacheStorage_keys());
   }
 
   /**
@@ -139,7 +143,9 @@ class CacheStorage {
     request: RequestInfo,
     options?: CacheQueryOptions,
   ): Promise<Response | undefined> {
-    return Promise.resolve(cacheStorage_match(request as any, options));
+    return Promise.resolve(
+      __andromeda__.cacheStorage_match(request as any, options),
+    );
   }
 }
 

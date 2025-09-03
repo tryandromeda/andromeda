@@ -58,7 +58,10 @@ class DatabaseSync {
   #dbId: number;
 
   constructor(filename: string, options?: DatabaseSyncOptions) {
-    this.#dbId = sqlite_database_sync_constructor(filename, options);
+    this.#dbId = __andromeda__.sqlite_database_sync_constructor(
+      filename,
+      options,
+    );
   }
 
   // TODO: Implement applyChangeset with proper session extension support
@@ -74,7 +77,7 @@ class DatabaseSync {
   }
 
   close(): void {
-    sqlite_database_sync_close(this.#dbId);
+    __andromeda__.sqlite_database_sync_close(this.#dbId);
   }
 
   // TODO: Implement createSession with proper session extension support
@@ -87,27 +90,34 @@ class DatabaseSync {
   }
 
   enableLoadExtension(enabled: boolean): void {
-    sqlite_database_sync_enable_load_extension(this.#dbId, enabled);
+    __andromeda__.sqlite_database_sync_enable_load_extension(
+      this.#dbId,
+      enabled,
+    );
   }
 
   exec(sql: string): void {
-    sqlite_database_sync_exec(this.#dbId, sql);
+    __andromeda__.sqlite_database_sync_exec(this.#dbId, sql);
   }
 
   function(name: string, fn: SqliteFunction, options?: FunctionOptions): void {
-    sqlite_database_sync_function(this.#dbId, name, fn, options);
+    __andromeda__.sqlite_database_sync_function(this.#dbId, name, fn, options);
   }
 
   loadExtension(path: string, entryPoint?: string): void {
-    sqlite_database_sync_load_extension(this.#dbId, path, entryPoint);
+    __andromeda__.sqlite_database_sync_load_extension(
+      this.#dbId,
+      path,
+      entryPoint,
+    );
   }
 
   open(filename: string, options?: DatabaseSyncOptions): void {
-    sqlite_database_sync_open(this.#dbId, filename, options);
+    __andromeda__.sqlite_database_sync_open(this.#dbId, filename, options);
   }
 
   prepare(sql: string): StatementSync {
-    const stmtId = sqlite_database_sync_prepare(this.#dbId, sql);
+    const stmtId = __andromeda__.sqlite_database_sync_prepare(this.#dbId, sql);
     return new StatementSync(stmtId, this.#dbId);
   }
 }
@@ -122,7 +132,7 @@ class StatementSync {
   }
 
   all(...params: SQLInputValue[]): unknown[] {
-    const result = sqlite_statement_sync_all(
+    const result = __andromeda__.sqlite_statement_sync_all(
       this.#dbId,
       this.#stmtId,
       ...params,
@@ -145,11 +155,11 @@ class StatementSync {
   }
 
   get expandedSQL(): string {
-    return sqlite_statement_sync_expanded_sql(this.#stmtId);
+    return __andromeda__.sqlite_statement_sync_expanded_sql(this.#stmtId);
   }
 
   get(...params: SQLInputValue[]): unknown {
-    const result = sqlite_statement_sync_get(
+    const result = __andromeda__.sqlite_statement_sync_get(
       this.#dbId,
       this.#stmtId,
       ...params,
@@ -163,7 +173,7 @@ class StatementSync {
   }
 
   *iterate(...params: SQLInputValue[]): IterableIterator<unknown> {
-    const results = sqlite_statement_sync_iterate(
+    const results = __andromeda__.sqlite_statement_sync_iterate(
       this.#dbId,
       this.#stmtId,
       ...params,
@@ -174,7 +184,7 @@ class StatementSync {
   }
 
   run(...params: SQLInputValue[]): StatementResultingChanges {
-    const result = sqlite_statement_sync_run(
+    const result = __andromeda__.sqlite_statement_sync_run(
       this.#dbId,
       this.#stmtId,
       ...params,
@@ -202,7 +212,7 @@ class StatementSync {
   }
 
   setAllowBareNamedParameters(allowBare: boolean): this {
-    sqlite_statement_sync_set_allow_bare_named_parameters(
+    __andromeda__.sqlite_statement_sync_set_allow_bare_named_parameters(
       this.#stmtId,
       allowBare,
     );
@@ -210,16 +220,19 @@ class StatementSync {
   }
 
   setReadBigInts(readBigInts: boolean): this {
-    sqlite_statement_sync_set_read_bigints(this.#stmtId, readBigInts);
+    __andromeda__.sqlite_statement_sync_set_read_bigints(
+      this.#stmtId,
+      readBigInts,
+    );
     return this;
   }
 
   get sourceSQL(): string {
-    return sqlite_statement_sync_source_sql(this.#stmtId);
+    return __andromeda__.sqlite_statement_sync_source_sql(this.#stmtId);
   }
 
   finalize(): void {
-    sqlite_statement_sync_finalize(this.#stmtId);
+    __andromeda__.sqlite_statement_sync_finalize(this.#stmtId);
   }
 }
 

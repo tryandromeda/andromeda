@@ -2,11 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// deno-lint-ignore-file no-unused-vars no-explicit-any
+// deno-lint-ignore-file no-unused-vars
 
 // Web Crypto API implementation following W3C specification
-
-// Types are now defined in global.d.ts to match W3C specification
 
 /**
  * SubtleCrypto interface providing low-level cryptographic primitives.
@@ -30,7 +28,9 @@ const subtle = {
     algorithm: AlgorithmIdentifier,
     data: Uint8Array | ArrayBuffer,
   ): Promise<ArrayBuffer> {
-    return Promise.resolve(internal_subtle_digest(algorithm, data));
+    return Promise.resolve(
+      __andromeda__.internal_subtle_digest(algorithm, data),
+    );
   },
 
   /**
@@ -51,7 +51,11 @@ const subtle = {
     keyUsages: KeyUsage[],
   ): Promise<CryptoKey | CryptoKeyPair> {
     return Promise.resolve(
-      internal_subtle_generateKey(algorithm, extractable, keyUsages),
+      __andromeda__.internal_subtle_generateKey(
+        algorithm,
+        extractable,
+        keyUsages,
+      ),
     );
   },
 
@@ -77,7 +81,7 @@ const subtle = {
     keyUsages: KeyUsage[],
   ): Promise<CryptoKey> {
     return Promise.resolve(
-      internal_subtle_importKey(
+      __andromeda__.internal_subtle_importKey(
         format,
         keyData,
         algorithm,
@@ -100,7 +104,9 @@ const subtle = {
     key: CryptoKey,
   ): Promise<ArrayBuffer | object> {
     // @ts-ignore - Allow internal function call
-    return Promise.resolve(internal_subtle_exportKey(format, key));
+    return Promise.resolve(
+      __andromeda__.internal_subtle_exportKey(format, key),
+    );
   }, /**
    * Encrypts data using the specified algorithm and key.
    *
@@ -121,7 +127,9 @@ const subtle = {
     data: Uint8Array | ArrayBuffer,
   ): Promise<ArrayBuffer> {
     // @ts-ignore - Allow internal function call
-    return Promise.resolve(internal_subtle_encrypt(algorithm, key, data));
+    return Promise.resolve(
+      __andromeda__.internal_subtle_encrypt(algorithm, key, data),
+    );
   }, /**
    * Decrypts data using the specified algorithm and key.
    *
@@ -142,7 +150,9 @@ const subtle = {
     data: Uint8Array | ArrayBuffer,
   ): Promise<ArrayBuffer> {
     // @ts-ignore - Allow internal function call
-    return Promise.resolve(internal_subtle_decrypt(algorithm, key, data));
+    return Promise.resolve(
+      __andromeda__.internal_subtle_decrypt(algorithm, key, data),
+    );
   }, /**
    * Creates a digital signature for data using the specified algorithm and key.
    *
@@ -166,7 +176,9 @@ const subtle = {
     data: Uint8Array | ArrayBuffer,
   ): Promise<ArrayBuffer> {
     // @ts-ignore - Allow internal function call
-    return Promise.resolve(internal_subtle_sign(algorithm, key, data));
+    return Promise.resolve(
+      __andromeda__.internal_subtle_sign(algorithm, key, data),
+    );
   },
 
   /**
@@ -189,7 +201,7 @@ const subtle = {
   ): Promise<boolean> {
     return Promise.resolve(
       // @ts-ignore - Allow internal function call
-      internal_subtle_verify(algorithm, key, signature, data),
+      __andromeda__.internal_subtle_verify(algorithm, key, signature, data),
     );
   },
 };
@@ -215,7 +227,7 @@ const crypto = {
    */ getRandomValues<T extends Uint8Array | Uint16Array | Uint32Array>(
     array: T,
   ): T {
-    const result = internal_crypto_getRandomValues(array);
+    const result = __andromeda__.internal_crypto_getRandomValues(array);
 
     let seed = (Date.now() * Math.random() * 0x7FFFFFFF) | 0;
 
@@ -245,6 +257,6 @@ const crypto = {
    * ```
    */
   randomUUID(): string {
-    return internal_crypto_randomUUID();
+    return __andromeda__.internal_crypto_randomUUID();
   },
 };

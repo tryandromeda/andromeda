@@ -395,10 +395,10 @@ class UnsafeCallback<
   ) {
     this.#definition = definition;
     this.#callback = callback;
-    this.#id = ffi_create_callback(definition, callback);
+    this.#id = __andromeda__.ffi_create_callback(definition, callback);
 
     // Get the callback pointer from the stored callback
-    const pointerValue = ffi_get_callback_pointer(this.#id);
+    const pointerValue = __andromeda__.ffi_get_callback_pointer(this.#id);
     this.#pointer = UnsafePointer.create(pointerValue);
   }
 
@@ -429,7 +429,7 @@ class UnsafeCallback<
   }
 
   close(): void {
-    ffi_callback_close(this.#id);
+    __andromeda__.ffi_callback_close(this.#id);
   }
 }
 
@@ -462,25 +462,25 @@ class UnsafeFnPointer<
 
 class UnsafePointer {
   static create(value: number | bigint): PointerValue {
-    const result = ffi_pointer_create(Number(value));
+    const result = __andromeda__.ffi_pointer_create(Number(value));
     return result as PointerValue;
   }
 
   static equals(a: PointerValue, b: PointerValue): boolean {
-    return ffi_pointer_equals(a, b);
+    return __andromeda__.ffi_pointer_equals(a, b);
   }
 
   static of(value: Uint8Array | ArrayBufferView): PointerValue {
-    return ffi_pointer_of(value) as PointerValue;
+    return __andromeda__.ffi_pointer_of(value) as PointerValue;
   }
 
   static offset(value: PointerValue, offset: number): PointerValue {
-    const result = ffi_pointer_offset(value, offset);
+    const result = __andromeda__.ffi_pointer_offset(value, offset);
     return result as PointerValue;
   }
 
   static value(value: PointerValue): number | bigint {
-    return ffi_pointer_value(value) as number | bigint;
+    return __andromeda__.ffi_pointer_value(value) as number | bigint;
   }
 }
 
@@ -496,7 +496,7 @@ class UnsafePointerView {
   }
 
   getArrayBuffer(byteLength: number, byteOffset = 0): ArrayBuffer {
-    return ffi_read_memory(
+    return __andromeda__.ffi_read_memory(
       this.#pointer,
       byteOffset,
       byteLength,
@@ -599,7 +599,7 @@ class DynamicLibrary<T extends ForeignLibraryInterface>
   }
 
   close() {
-    ffi_dlclose(this.#id);
+    __andromeda__.ffi_dlclose(this.#id);
   }
 }
 
@@ -608,15 +608,19 @@ function dlopen<T extends ForeignLibraryInterface>(
   symbols: T,
 ): DynamicLibrary<T> {
   const path = typeof filename === "string" ? filename : filename.pathname;
-  const libId = ffi_dlopen(path, symbols);
+  const libId = __andromeda__.ffi_dlopen(path, symbols);
 
   const callableSymbols = {} as StaticForeignLibraryInterface<T>;
 
   for (const [name, def] of Object.entries(symbols)) {
-    const _symbolPointer = ffi_dlopen_get_symbol(libId, name, def);
+    const _symbolPointer = __andromeda__.ffi_dlopen_get_symbol(
+      libId,
+      name,
+      def,
+    );
 
     callableSymbols[name as keyof T] = ((...args: unknown[]) => {
-      return ffi_call_symbol(libId, name, args);
+      return __andromeda__.ffi_call_symbol(libId, name, args);
     }) as StaticForeignSymbol<T[keyof T]>;
   }
 

@@ -36,7 +36,7 @@ class NavigatorUAData {
    */
   get brands(): UADataValues[] {
     // Return realistic brand data based on the user agent
-    const ua = internal_navigator_user_agent();
+    const ua = __andromeda__.internal_navigator_user_agent();
 
     // Parse version from user agent (simplified approach without regex)
     let version = "119.0.0.0";
@@ -62,7 +62,7 @@ class NavigatorUAData {
    * Returns true if the user-agent is running on a mobile device
    */
   get mobile(): boolean {
-    const ua = internal_navigator_user_agent();
+    const ua = __andromeda__.internal_navigator_user_agent();
     return ua.includes("Mobile") || ua.includes("Android") ||
       ua.includes("iPhone") ||
       ua.includes("iPad");
@@ -72,7 +72,7 @@ class NavigatorUAData {
    * Returns the platform brand the user-agent is running on
    */
   get platform(): string {
-    const ua = internal_navigator_user_agent();
+    const ua = __andromeda__.internal_navigator_user_agent();
 
     if (ua.includes("Windows NT")) {
       return "Windows";
@@ -96,7 +96,7 @@ class NavigatorUAData {
    * Returns a Promise that resolves with high entropy values
    */
   getHighEntropyValues(hints: string[]): Promise<UAHighEntropyValues> {
-    const ua = internal_navigator_user_agent();
+    const ua = __andromeda__.internal_navigator_user_agent();
     const result: UAHighEntropyValues = {};
 
     for (const hint of hints) {
@@ -198,7 +198,7 @@ class AndromedaNavigator {
    * According to HTML spec, this must return the default User-Agent value.
    */
   get userAgent(): string {
-    return internal_navigator_user_agent();
+    return __andromeda__.internal_navigator_user_agent();
   }
 
   /**

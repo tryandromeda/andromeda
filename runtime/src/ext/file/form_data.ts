@@ -32,7 +32,7 @@ class FormData {
       );
     }
 
-    this.#formDataId = internal_formdata_create();
+    this.#formDataId = __andromeda__.internal_formdata_create();
     this.#entries = new Map();
   }
 
@@ -70,7 +70,11 @@ class FormData {
     const valueStr = normalizedValue instanceof File ?
       `file:${normalizedValue.name}:${normalizedValue.type}:${normalizedValue.size}` :
       String(normalizedValue);
-    internal_formdata_append(this.#formDataId, normalizedName, valueStr);
+    __andromeda__.internal_formdata_append(
+      this.#formDataId,
+      normalizedName,
+      valueStr,
+    );
   }
 
   /**
@@ -79,7 +83,7 @@ class FormData {
   delete(name: string): void {
     const normalizedName = String(name);
     this.#entries.delete(normalizedName);
-    internal_formdata_delete(this.#formDataId, normalizedName);
+    __andromeda__.internal_formdata_delete(this.#formDataId, normalizedName);
   }
 
   /**
@@ -139,7 +143,11 @@ class FormData {
     const valueStr = normalizedValue instanceof File ?
       `file:${normalizedValue.name}:${normalizedValue.type}:${normalizedValue.size}` :
       String(normalizedValue);
-    internal_formdata_set(this.#formDataId, normalizedName, valueStr);
+    __andromeda__.internal_formdata_set(
+      this.#formDataId,
+      normalizedName,
+      valueStr,
+    );
   }
 
   /**

@@ -32,7 +32,7 @@ function convertBlobPartsToBytes(blobParts: BlobPart[]): number[] {
     } else if (part instanceof Blob) {
       // Get bytes from another blob
       const partBlob = part as Blob & { _blobId: string; };
-      const blobBytes = internal_blob_get_data(partBlob._blobId);
+      const blobBytes = __andromeda__.internal_blob_get_data(partBlob._blobId);
       if (blobBytes) {
         const blobByteArray = blobBytes.split(",").map((b) => parseInt(b, 10))
           .filter((b) => !isNaN(b));
@@ -95,7 +95,10 @@ class Blob {
       const bytesString = bytes.join(",");
 
       // Create blob through native implementation
-      this.#blobId = internal_blob_create(bytesString, normalizedType);
+      this.#blobId = __andromeda__.internal_blob_create(
+        bytesString,
+        normalizedType,
+      );
     }
   }
 
@@ -103,14 +106,14 @@ class Blob {
    * The size of the blob in bytes
    */
   get size(): number {
-    return internal_blob_get_size(this.#blobId);
+    return __andromeda__.internal_blob_get_size(this.#blobId);
   }
 
   /**
    * The MIME type of the blob
    */
   get type(): string {
-    return internal_blob_get_type(this.#blobId);
+    return __andromeda__.internal_blob_get_type(this.#blobId);
   }
 
   /**
@@ -121,7 +124,7 @@ class Blob {
     const actualEnd = end ?? this.size;
     const actualContentType = contentType ?? "";
 
-    const newBlobId = internal_blob_slice(
+    const newBlobId = __andromeda__.internal_blob_slice(
       this.#blobId,
       actualStart,
       actualEnd,
@@ -137,7 +140,7 @@ class Blob {
    */
   stream(): ReadableStream<Uint8Array> {
     // TODO: return a proper ReadableStream
-    const data = internal_blob_stream(this.#blobId);
+    const data = __andromeda__.internal_blob_stream(this.#blobId);
     const bytes = data ?
       data.split(",").map((b) => parseInt(b, 10)).filter((b) => !isNaN(b)) :
       [];
@@ -156,7 +159,7 @@ class Blob {
    */
   arrayBuffer(): Promise<ArrayBuffer> {
     return new Promise((resolve) => {
-      const data = internal_blob_array_buffer(this.#blobId);
+      const data = __andromeda__.internal_blob_array_buffer(this.#blobId);
       const bytes = data ?
         data.split(",").map((b) => parseInt(b, 10)).filter((b) => !isNaN(b)) :
         [];
@@ -176,7 +179,7 @@ class Blob {
    */
   text(): Promise<string> {
     return new Promise((resolve) => {
-      resolve(internal_blob_text(this.#blobId));
+      resolve(__andromeda__.internal_blob_text(this.#blobId));
     });
   }
 

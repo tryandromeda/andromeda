@@ -67,8 +67,8 @@ class URL {
     this.url = url;
     this.base = base;
     this.serialized = base ?
-      internal_url_parse(url, base) :
-      internal_url_parse_no_base(url);
+      __andromeda__.internal_url_parse(url, base) :
+      __andromeda__.internal_url_parse_no_base(url);
   }
 
   toString() {
@@ -88,71 +88,83 @@ class URL {
   }
 
   get protocol(): string {
-    return internal_url_get_protocol(this.serialized);
+    return __andromeda__.internal_url_get_protocol(this.serialized);
   }
 
   get origin(): string {
-    return internal_url_get_origin(this.serialized);
+    return __andromeda__.internal_url_get_origin(this.serialized);
   }
 
   get username(): string {
-    return internal_url_get_username(this.serialized);
+    return __andromeda__.internal_url_get_username(this.serialized);
   }
 
   set username(v: string) {
-    this.serialized = internal_url_set_username(this.serialized, v);
+    this.serialized = __andromeda__.internal_url_set_username(
+      this.serialized,
+      v,
+    );
   }
 
   get password(): string {
-    return internal_url_get_password(this.serialized);
+    return __andromeda__.internal_url_get_password(this.serialized);
   }
 
   set password(v: string) {
-    this.serialized = internal_url_set_password(this.serialized, v);
+    this.serialized = __andromeda__.internal_url_set_password(
+      this.serialized,
+      v,
+    );
   }
 
   get host(): string {
-    return internal_url_get_host(this.serialized);
+    return __andromeda__.internal_url_get_host(this.serialized);
   }
 
   get hostname(): string {
-    return internal_url_get_hostname(this.serialized);
+    return __andromeda__.internal_url_get_hostname(this.serialized);
   }
 
   set hostname(v: string) {
-    this.serialized = internal_url_set_hostname(this.serialized, v);
+    this.serialized = __andromeda__.internal_url_set_hostname(
+      this.serialized,
+      v,
+    );
   }
 
   get port(): string {
-    return internal_url_get_port(this.serialized);
+    return __andromeda__.internal_url_get_port(this.serialized);
   }
 
   set port(v: string) {
-    this.serialized = internal_url_set_port(this.serialized, v);
+    this.serialized = __andromeda__.internal_url_set_port(this.serialized, v);
   }
 
   get pathname(): string {
-    return internal_url_get_pathname(this.serialized);
+    return __andromeda__.internal_url_get_pathname(this.serialized);
   }
 
   set pathname(v: string) {
-    this.serialized = internal_url_set_pathname(this.serialized, v);
+    this.serialized = __andromeda__.internal_url_set_pathname(
+      this.serialized,
+      v,
+    );
   }
 
   get search(): string {
-    return internal_url_get_search(this.serialized);
+    return __andromeda__.internal_url_get_search(this.serialized);
   }
 
   set search(v: string) {
-    this.serialized = internal_url_set_search(this.serialized, v);
+    this.serialized = __andromeda__.internal_url_set_search(this.serialized, v);
   }
 
   get hash(): string {
-    return internal_url_get_hash(this.serialized);
+    return __andromeda__.internal_url_get_hash(this.serialized);
   }
 
   set hash(v: string) {
-    this.serialized = internal_url_set_hash(this.serialized, v);
+    this.serialized = __andromeda__.internal_url_set_hash(this.serialized, v);
   }
 }
 

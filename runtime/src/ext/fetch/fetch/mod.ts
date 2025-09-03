@@ -86,7 +86,6 @@ class Fetch {
   }
 }
 
-
 /**
  * Implementation of the fetch API for Andromeda
  * Based on: https://developer.mozilla.org/ja/docs/Web/API/Window/fetch
@@ -108,7 +107,6 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
     // Create a Request object
     requestObject = new Request(input, init);
 
-
     // 3. Let request be requestObject's request.
     // Build internal request structure from Request object's public API
     // Handle the case where requestObject.url might be an object with serialized property
@@ -116,7 +114,8 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
     if (typeof requestObject.url === "string") {
       urlString = requestObject.url;
     } else if (requestObject.url && typeof requestObject.url === "object") {
-      urlString = requestObject.url.serialized || requestObject.url.href || String(requestObject.url);
+      urlString = requestObject.url.serialized || requestObject.url.href ||
+        String(requestObject.url);
     } else {
       throw new TypeError("Invalid URL");
     }
@@ -1318,7 +1317,7 @@ const httpNetworkFetch = async (
         const port = request.currentURL.port || 443;
 
         // Connect with TLS
-        const rid = await internal_tls_connect(host, port);
+        const rid = await __andromeda__.internal_tls_connect(host, port);
 
         // Format HTTP request
         const method = request.method || "GET";
@@ -1354,7 +1353,7 @@ const httpNetworkFetch = async (
         httpRequest += bodyData;
 
         // Send request
-        await internal_tls_write(rid, httpRequest);
+        await __andromeda__.internal_tls_write(rid, httpRequest);
 
         // Read response
         let responseHex = "";
@@ -1363,7 +1362,7 @@ const httpNetworkFetch = async (
 
         while (retries < maxRetries) {
           try {
-            const chunk = await internal_tls_read(rid, 4096);
+            const chunk = await __andromeda__.internal_tls_read(rid, 4096);
             if (!chunk || chunk.length === 0) break;
             responseHex += chunk;
           } catch (e) {
@@ -1374,7 +1373,7 @@ const httpNetworkFetch = async (
         }
 
         // Close connection
-        await internal_tls_close(rid);
+        await __andromeda__.internal_tls_close(rid);
 
         // Convert hex to bytes
         function hexToUtf8(hex: string) {
@@ -1936,7 +1935,8 @@ const httpNetworkOrCacheFetch = async (
   // 11. If httpRequest's referrer is a URL, then:
   if (httpRequest.referrer && typeof httpRequest.referrer !== "string") {
     //  1. Let referrerValue be httpRequest's referrer, serialized and isomorphic encoded.
-    const referrerValue = httpRequest.referrer.href || String(httpRequest.referrer);
+    const referrerValue = httpRequest.referrer.href ||
+      String(httpRequest.referrer);
     //  2. Append (`Referer`, referrerValue) to httpRequest's header list.
     setRequestHeader(httpRequest, "Referer", referrerValue);
   }
