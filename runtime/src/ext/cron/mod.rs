@@ -160,7 +160,7 @@ impl CronExt {
     pub fn new_extension() -> Extension {
         Extension {
             name: "cron",
-            ops: vec![ExtensionOp::new("cron", Self::cron, 3)],
+            ops: vec![ExtensionOp::new("cron", Self::cron, 3, false)],
             storage: Some(Box::new(|storage: &mut OpsStorage| {
                 storage.insert(CronsStorage::default());
             })),

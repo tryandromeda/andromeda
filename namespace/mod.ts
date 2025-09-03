@@ -114,7 +114,7 @@ const Andromeda = {
   /**
    * The `args` property contains the command-line arguments passed to the program.
    */
-  args: internal_get_cli_args(),
+  args:  __andromeda__.internal_get_cli_args(),
 
   // File operations
   /**
@@ -127,7 +127,7 @@ const Andromeda = {
    * ```
    */
   readTextFileSync(path: string): string {
-    return internal_read_text_file(path);
+    return  __andromeda__.internal_read_text_file(path);
   },
 
   /**
@@ -140,7 +140,7 @@ const Andromeda = {
    * ```
    */
   async readTextFile(path: string): Promise<string> {
-    return await internal_read_text_file_async(path);
+    return await  __andromeda__.internal_read_text_file_async(path);
   },
 
   /**
@@ -152,7 +152,7 @@ const Andromeda = {
    * ```
    */
   writeTextFileSync(path: string, data: string): void {
-    internal_write_text_file(path, data);
+     __andromeda__.internal_write_text_file(path, data);
   },
 
   /**
@@ -164,7 +164,7 @@ const Andromeda = {
    * ```
    */
   async writeTextFile(path: string, data: string): Promise<void> {
-    await internal_write_text_file_async(path, data);
+    await  __andromeda__.internal_write_text_file_async(path, data);
   },
 
   /**
@@ -177,7 +177,7 @@ const Andromeda = {
    * ```
    */
   readFileSync(path: string): Uint8Array {
-    return internal_read_file(path);
+    return  __andromeda__.internal_read_file(path);
   },
 
   /**
@@ -190,7 +190,7 @@ const Andromeda = {
    * ```
    */
   async readFile(path: string): Promise<Uint8Array> {
-    return await internal_read_file_async(path);
+    return await  __andromeda__.internal_read_file_async(path);
   },
 
   /**
@@ -203,7 +203,7 @@ const Andromeda = {
    * ```
    */
   writeFileSync(path: string, data: Uint8Array): void {
-    internal_write_file(path, data);
+     __andromeda__.internal_write_file(path, data);
   },
 
   /**
@@ -216,7 +216,7 @@ const Andromeda = {
    * ```
    */
   async writeFile(path: string, data: Uint8Array): Promise<void> {
-    await internal_write_file_async(path, data);
+    await  __andromeda__.internal_write_file_async(path, data);
   },
 
   /**
@@ -229,7 +229,7 @@ const Andromeda = {
    * ```
    */
   openSync(path: string, mode: string): number {
-    return internal_open_file(path, mode);
+    return  __andromeda__.internal_open_file(path, mode);
   },
 
   /**
@@ -241,7 +241,7 @@ const Andromeda = {
    * ```
    */
   createSync(path: string): void {
-    internal_create_file(path);
+     __andromeda__.internal_create_file(path);
   },
 
   /**
@@ -253,7 +253,7 @@ const Andromeda = {
    * ```
    */
   async create(path: string): Promise<void> {
-    await internal_create_file_async(path);
+    await  __andromeda__.internal_create_file_async(path);
   },
 
   /**
@@ -265,7 +265,7 @@ const Andromeda = {
    * ```
    */
   copyFileSync(source: string, destination: string): void {
-    internal_copy_file(source, destination);
+     __andromeda__.internal_copy_file(source, destination);
   },
 
   /**
@@ -277,7 +277,7 @@ const Andromeda = {
    * ```
    */
   async copyFile(source: string, destination: string): Promise<void> {
-    await internal_copy_file_async(source, destination);
+    await  __andromeda__.internal_copy_file_async(source, destination);
   },
 
   /**
@@ -289,7 +289,7 @@ const Andromeda = {
    * ```
    */
   removeSync(path: string): void {
-    internal_remove(path);
+     __andromeda__.internal_remove(path);
   },
 
   /**
@@ -301,7 +301,7 @@ const Andromeda = {
    * ```
    */
   async remove(path: string): Promise<void> {
-    await internal_remove_async(path);
+    await  __andromeda__.internal_remove_async(path);
   },
 
   /**
@@ -313,7 +313,7 @@ const Andromeda = {
    * ```
    */
   removeAllSync(path: string): void {
-    internal_remove_all(path);
+     __andromeda__.internal_remove_all(path);
   },
 
   /**
@@ -325,7 +325,7 @@ const Andromeda = {
    * ```
    */
   async removeAll(path: string): Promise<void> {
-    await internal_remove_all_async(path);
+    await  __andromeda__.internal_remove_all_async(path);
   },
 
   /**
@@ -337,7 +337,7 @@ const Andromeda = {
    * ```
    */
   renameSync(oldPath: string, newPath: string): void {
-    internal_rename(oldPath, newPath);
+     __andromeda__.internal_rename(oldPath, newPath);
   },
 
   /**
@@ -349,7 +349,7 @@ const Andromeda = {
    * ```
    */
   async rename(oldPath: string, newPath: string): Promise<void> {
-    await internal_rename_async(oldPath, newPath);
+    await  __andromeda__.internal_rename_async(oldPath, newPath);
   },
 
   /**
@@ -363,7 +363,7 @@ const Andromeda = {
    * ```
    */
   existsSync(path: string): boolean {
-    return internal_exists(path);
+    return  __andromeda__.internal_exists(path);
   },
 
   /**
@@ -377,7 +377,7 @@ const Andromeda = {
    * ```
    */
   async exists(path: string): Promise<boolean> {
-    return await internal_exists_async(path);
+    return await  __andromeda__.internal_exists_async(path);
   },
 
   /**
@@ -389,7 +389,7 @@ const Andromeda = {
    * ```
    */
   truncateSync(path: string, length: number): void {
-    internal_truncate(path, length);
+     __andromeda__.internal_truncate(path, length);
   },
 
   /**
@@ -401,7 +401,7 @@ const Andromeda = {
    * ```
    */
   chmodSync(path: string, mode: number): void {
-    internal_chmod(path, mode);
+     __andromeda__.internal_chmod(path, mode);
   },
 
   // Directory operations
@@ -414,7 +414,7 @@ const Andromeda = {
    * ```
    */
   mkdirSync(path: string): void {
-    internal_mk_dir(path);
+     __andromeda__.internal_mk_dir(path);
   },
 
   /**
@@ -426,7 +426,7 @@ const Andromeda = {
    * ```
    */
   async mkdir(path: string): Promise<void> {
-    await internal_mk_dir_async(path);
+    await  __andromeda__.internal_mk_dir_async(path);
   },
 
   /**
@@ -441,9 +441,9 @@ const Andromeda = {
   readDirSync(
     path: string,
   ): Array<
-    { name: string; isFile: boolean; isDirectory: boolean; isSymlink: boolean; }
+    { name: string; isFile: boolean; isDirectory: boolean; isSymlink: boolean }
   > {
-    return internal_read_dir(path);
+    return  __andromeda__.internal_read_dir(path);
   },
 
   /**
@@ -465,7 +465,7 @@ const Andromeda = {
     created: number;
     mode: number;
   } {
-    return internal_stat(path);
+    return  __andromeda__.internal_stat(path);
   },
 
   /**
@@ -477,7 +477,7 @@ const Andromeda = {
    * ```
    */
   mkdirAllSync(path: string): void {
-    internal_mk_dir_all(path);
+     __andromeda__.internal_mk_dir_all(path);
   },
 
   /**
@@ -489,7 +489,7 @@ const Andromeda = {
    * ```
    */
   async mkdirAll(path: string): Promise<void> {
-    await internal_mk_dir_all_async(path);
+    await  __andromeda__.internal_mk_dir_all_async(path);
   },
 
   /**
@@ -511,7 +511,7 @@ const Andromeda = {
     created: number;
     mode: number;
   } {
-    return internal_lstat(path);
+    return __andromeda__.internal_lstat(path);
   },
   // System operations
   /**
@@ -523,7 +523,7 @@ const Andromeda = {
    * ```
    */
   exit(code?: number): void {
-    internal_exit(code || 0);
+    __andromeda__.internal_exit(code || 0);
   },
 
   /**
@@ -537,7 +537,7 @@ const Andromeda = {
    * ```
    */
   sleep(duration: number): Promise<void> {
-    return internal_sleep(duration);
+    return __andromeda__.internal_sleep(duration);
   },
 
   /**
@@ -554,7 +554,7 @@ const Andromeda = {
      * ```
      */
     readLine(): string {
-      return internal_read_line();
+      return __andromeda__.internal_read_line();
     },
   },
 
@@ -571,7 +571,7 @@ const Andromeda = {
      * ```
      */
     write(message: string): void {
-      internal_write(message);
+      __andromeda__.internal_write(message);
     },
 
     /**
@@ -583,7 +583,7 @@ const Andromeda = {
      * ```
      */
     writeLine(message: string): void {
-      internal_write_line(message + "\n");
+      __andromeda__.internal_write_line(message + "\n");
     },
   },
 
@@ -601,7 +601,7 @@ const Andromeda = {
      * ```
      */
     get(key: string): string {
-      return internal_get_env(key);
+      return __andromeda__.internal_get_env(key);
     },
 
     /**
@@ -613,7 +613,7 @@ const Andromeda = {
      * ```
      */
     set(key: string, value: string): void {
-      internal_set_env(key, value);
+      __andromeda__.internal_set_env(key, value);
     },
 
     /**
@@ -625,7 +625,7 @@ const Andromeda = {
      * ```
      */
     remove(key: string): void {
-      internal_delete_env(key);
+      __andromeda__.internal_delete_env(key);
     }, /**
      * The `keys` function gets the environment variable keys.
      *
@@ -636,7 +636,7 @@ const Andromeda = {
      * ```
      */
     keys(): string[] {
-      return internal_get_env_keys();
+      return __andromeda__.internal_get_env_keys();
     },
   },
 
@@ -660,7 +660,7 @@ const Andromeda = {
     schedule: string,
     handler: () => Promise<void> | void,
   ): Promise<void> {
-    return await cron(name, schedule, handler);
+    return await __andromeda__.cron(name, schedule, handler);
   },
 
   // Signal handling functions
@@ -696,7 +696,7 @@ const Andromeda = {
 
     // Register with the native signal handler (only once per signal type)
     if (listeners.size === 1) {
-      const result = internal_add_signal_listener(signal, () => {
+      const result = __andromeda__.internal_add_signal_listener(signal, () => {
         // Call all registered handlers for this signal
         const currentListeners = signalListeners.get(signal);
         if (currentListeners) {
@@ -748,7 +748,7 @@ const Andromeda = {
  * ```
  */
 function prompt(message: string): string {
-  internal_print(message + ": ");
+  __andromeda__.internal_print(message + ": ");
   return Andromeda.stdin.readLine();
 }
 
@@ -763,7 +763,7 @@ function prompt(message: string): string {
  * ```
  */
 function confirm(message: string): boolean {
-  internal_print(message + " [y/N]: ");
+  __andromeda__.internal_print(message + " [y/N]: ");
   const response = Andromeda.stdin.readLine();
   return response.includes("y");
 }
@@ -772,7 +772,7 @@ function confirm(message: string): boolean {
  * The `alert` function displays a message to the user and waits for the user to hit enter.
  */
 function alert(message: string) {
-  internal_print(message + " [Enter]");
+  __andromeda__.internal_print(message + " [Enter]");
   Andromeda.stdin.readLine();
 }
 
@@ -782,7 +782,7 @@ function alert(message: string) {
  * which it returns.
  */
 function btoa(input: string): string {
-  return internal_btoa(input);
+  return  __andromeda__.internal_btoa(input);
 }
 
 /**
@@ -792,7 +792,7 @@ function btoa(input: string): string {
  * corresponding to that binary data.
  */
 function atob(input: string): string {
-  return internal_atob(input);
+  return  __andromeda__.internal_atob(input);
 }
 
 /**

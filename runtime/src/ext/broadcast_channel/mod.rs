@@ -34,14 +34,20 @@ impl BroadcastChannelExt {
         Extension {
             name: "broadcast_channel",
             ops: vec![
-                ExtensionOp::new("op_broadcast_subscribe", Self::op_broadcast_subscribe, 0),
+                ExtensionOp::new(
+                    "op_broadcast_subscribe",
+                    Self::op_broadcast_subscribe,
+                    0,
+                    false,
+                ),
                 ExtensionOp::new(
                     "op_broadcast_unsubscribe",
                     Self::op_broadcast_unsubscribe,
                     1,
+                    false,
                 ),
-                ExtensionOp::new("op_broadcast_send", Self::op_broadcast_send, 3),
-                ExtensionOp::new("op_broadcast_recv", Self::op_broadcast_recv, 1),
+                ExtensionOp::new("op_broadcast_send", Self::op_broadcast_send, 3, false),
+                ExtensionOp::new("op_broadcast_recv", Self::op_broadcast_recv, 1, false),
             ],
             storage: None,
             files: vec![include_str!("./broadcast_channel.ts")],

@@ -37,11 +37,11 @@ impl TimeExt {
         Extension {
             name: "time",
             ops: vec![
-                ExtensionOp::new("internal_sleep", Self::internal_sleep, 1),
-                ExtensionOp::new("setInterval", Self::set_interval, 2),
-                ExtensionOp::new("clearInterval", Self::clear_interval, 1),
-                ExtensionOp::new("setTimeout", Self::set_timeout, 2),
-                ExtensionOp::new("clearTimeout", Self::clear_timeout, 1),
+                ExtensionOp::new("internal_sleep", Self::internal_sleep, 1, false),
+                ExtensionOp::new("setInterval", Self::set_interval, 2, true),
+                ExtensionOp::new("clearInterval", Self::clear_interval, 1, true),
+                ExtensionOp::new("setTimeout", Self::set_timeout, 2, true),
+                ExtensionOp::new("clearTimeout", Self::clear_timeout, 1, true),
             ],
             storage: Some(Box::new(|storage: &mut OpsStorage| {
                 storage.insert(IntervalsStorage::default());

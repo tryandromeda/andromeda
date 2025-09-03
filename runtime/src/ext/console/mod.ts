@@ -54,7 +54,7 @@ const counters = new Map<string, number>();
  * Utility functions for formatting
  */
 function getIndent(): string {
-  const indentLevel = get_group_indent();
+  const indentLevel =  __andromeda__.get_group_indent();
   return "  ".repeat(indentLevel);
 }
 
@@ -156,7 +156,7 @@ function formatArgs(args: ConsoleValue[]): string {
             case "c": // CSS styling
               if (typeof arg === "string") {
                 // Convert CSS to ANSI and add to result
-                const ansiCode = internal_css_to_ansi(arg);
+                const ansiCode = __andromeda__.internal_css_to_ansi(arg);
                 if (ansiCode) {
                   result += ansiCode;
                   currentStyles.push(ansiCode);
@@ -327,7 +327,7 @@ const andromedaConsole = {
    */
   log(...args: ConsoleValue[]) {
     const message = getIndent() + formatArgs(args);
-    internal_print(message + "\n");
+    __andromeda__.internal_print(message + "\n");
   },
 
   /**
@@ -341,7 +341,7 @@ const andromedaConsole = {
   debug(...args: ConsoleValue[]) {
     const message = getIndent() + COLORS.fg.cyan + formatArgs(args) +
       COLORS.reset;
-    internal_print(message + "\n");
+    __andromeda__.internal_print(message + "\n");
   },
 
   /**
@@ -355,7 +355,7 @@ const andromedaConsole = {
   info(...args: ConsoleValue[]) {
     const message = getIndent() + COLORS.fg.blue + formatArgs(args) +
       COLORS.reset;
-    internal_print(message + "\n");
+    __andromeda__.internal_print(message + "\n");
   },
 
   /**
@@ -369,7 +369,7 @@ const andromedaConsole = {
   warn(...args: ConsoleValue[]) {
     const message = getIndent() + COLORS.fg.yellow + formatArgs(args) +
       COLORS.reset;
-    internal_print_err(message + "\n");
+    __andromeda__.internal_print_err(message + "\n");
   },
 
   /**
@@ -383,7 +383,7 @@ const andromedaConsole = {
   error(...args: ConsoleValue[]) {
     const message = getIndent() + COLORS.fg.red + formatArgs(args) +
       COLORS.reset;
-    internal_print_err(message + "\n");
+    __andromeda__.internal_print_err(message + "\n");
   },
 
   /**
@@ -417,7 +417,7 @@ const andromedaConsole = {
 
     // Use error level for assertion failures per WHATWG spec
     const errorMessage = getIndent() + COLORS.fg.red + message + COLORS.reset;
-    internal_print_err(errorMessage + "\n");
+    __andromeda__.internal_print_err(errorMessage + "\n");
   },
 
   /**
@@ -431,7 +431,7 @@ const andromedaConsole = {
    */
   clear() {
     // Clear console through the backend (which also resets group stack per WHATWG spec)
-    clear_console();
+     __andromeda__.clear_console();
   },
 
   /**
@@ -484,7 +484,7 @@ const andromedaConsole = {
     if (args.length > 0) {
       console.log(formatArgs(args));
     }
-    group_start(args.length > 0 ? String(args[0]) : "");
+    __andromeda__.group_start(args.length > 0 ? String(args[0]) : "");
   },
 
   /**
@@ -513,7 +513,7 @@ const andromedaConsole = {
    * ```
    */
   groupEnd() {
-    group_end();
+    __andromeda__.group_end();
   },
 
   /**
@@ -653,7 +653,7 @@ const andromedaConsole = {
    */
   trace(...args: ConsoleValue[]) {
     const message = args.length > 0 ? formatArgs(args) : "Trace";
-    const stack = get_stack_trace();
+    const stack =  __andromeda__.get_stack_trace();
     console.log(`${message}\n${stack}`);
   },
 

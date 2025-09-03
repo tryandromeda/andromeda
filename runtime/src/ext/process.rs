@@ -40,20 +40,32 @@ impl ProcessExt {
         Extension {
             name: "process",
             ops: vec![
-                ExtensionOp::new("internal_get_cli_args", Self::internal_get_cli_args, 0),
-                ExtensionOp::new("internal_get_env", Self::internal_get_env, 1),
-                ExtensionOp::new("internal_set_env", Self::internal_set_env, 2),
-                ExtensionOp::new("internal_delete_env", Self::internal_delete_env, 1),
-                ExtensionOp::new("internal_get_env_keys", Self::internal_get_env_keys, 0),
+                ExtensionOp::new(
+                    "internal_get_cli_args",
+                    Self::internal_get_cli_args,
+                    0,
+                    false,
+                ),
+                ExtensionOp::new("internal_get_env", Self::internal_get_env, 1, false),
+                ExtensionOp::new("internal_set_env", Self::internal_set_env, 2, false),
+                ExtensionOp::new("internal_delete_env", Self::internal_delete_env, 1, false),
+                ExtensionOp::new(
+                    "internal_get_env_keys",
+                    Self::internal_get_env_keys,
+                    0,
+                    false,
+                ),
                 ExtensionOp::new(
                     "internal_add_signal_listener",
                     Self::internal_add_signal_listener,
                     2,
+                    false,
                 ),
                 ExtensionOp::new(
                     "internal_remove_signal_listener",
                     Self::internal_remove_signal_listener,
                     2,
+                    false,
                 ),
             ],
             storage: None,

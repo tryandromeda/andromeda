@@ -43,53 +43,63 @@ impl StreamsExt {
                     "internal_readable_stream_create",
                     Self::internal_readable_stream_create,
                     0,
+                    false,
                 ),
                 ExtensionOp::new(
                     "internal_readable_stream_read",
                     Self::internal_readable_stream_read,
                     1,
+                    false,
                 ),
                 ExtensionOp::new(
                     "internal_readable_stream_cancel",
                     Self::internal_readable_stream_cancel,
                     1,
+                    false,
                 ),
                 ExtensionOp::new(
                     "internal_readable_stream_close",
                     Self::internal_readable_stream_close,
                     1,
+                    false,
                 ),
                 ExtensionOp::new(
                     "internal_readable_stream_enqueue",
                     Self::internal_readable_stream_enqueue,
                     2,
+                    false,
                 ),
                 // WritableStream operations
                 ExtensionOp::new(
                     "internal_writable_stream_create",
                     Self::internal_writable_stream_create,
                     0,
+                    false,
                 ),
                 ExtensionOp::new(
                     "internal_writable_stream_write",
                     Self::internal_writable_stream_write,
                     2,
+                    false,
                 ),
                 ExtensionOp::new(
                     "internal_writable_stream_close",
                     Self::internal_writable_stream_close,
                     1,
+                    false,
                 ),
                 ExtensionOp::new(
                     "internal_writable_stream_abort",
                     Self::internal_writable_stream_abort,
                     1,
+                    false,
                 ),
                 // Stream utility operations
                 ExtensionOp::new(
                     "internal_stream_get_state",
                     Self::internal_stream_get_state,
                     1,
+                    false,
                 ),
             ],
             storage: None,

@@ -1254,3 +1254,6 @@ declare function ffi_write_memory(
   offset: unknown,
   data: unknown,
 ): void;
+
+// deno-lint-ignore no-explicit-any
+declare const __andromeda__: any;
