@@ -7,7 +7,7 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.0-draft26"
+version = "0.1.0-draft27"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
@@ -26,9 +26,9 @@ dprint-plugin-json = "0.20.0"
 env_logger = "0.11.5"
 futures = "0.3.31"
 indexmap = "2.11.0"
-image = "0.25.6"
+image = "0.25.8"
 lazy_static = "1.5.0"
-libloading = "0.8.5"
+libloading = "0.8.8"
 libffi = "4.1.2"
 libsui = "0.10.0"
 log = "0.4.27"

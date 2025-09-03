@@ -1,14 +1,28 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
+mod core;
+mod error;
+mod ir;
 use std::collections::HashMap;
 use std::os::raw::c_void;
 use std::ptr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
+use crate::ext::ffi::core::{
+    CallbackDefinition, CallbackMap, DynamicLibrary, FfiCallback, FfiSymbol, ForeignFunction,
+    Library, LibraryMap, NativeType, NativeValue,
+};
+use crate::ext::ffi::error::FfiError;
+use crate::ext::ffi::ir::{
+    ffi_parse_bool_arg, ffi_parse_buffer_arg, ffi_parse_f32_arg, ffi_parse_f64_arg,
+    ffi_parse_i8_arg, ffi_parse_i16_arg, ffi_parse_i32_arg, ffi_parse_i64_arg, ffi_parse_isize_arg,
+    ffi_parse_pointer_arg, ffi_parse_u8_arg, ffi_parse_u16_arg, ffi_parse_u32_arg,
+    ffi_parse_u64_arg, ffi_parse_usize_arg, parse_foreign_function,
+};
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage};
+use libffi::middle;
 use nova_vm::{
     ecmascript::{
         builtins::ArgumentsList,
@@ -18,514 +32,44 @@ use nova_vm::{
     engine::context::{Bindable, GcScope},
 };
 
-use libffi::middle;
-use libloading::{Library as LibloadingLibrary, Symbol};
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum FfiError {
-    #[error("Failed to load library: {0}")]
-    LibraryLoad(String),
-    #[error("Symbol not found: {0}")]
-    SymbolNotFound(String),
-    #[error("Invalid function call: {0}")]
-    InvalidCall(String),
-    #[error("Type conversion error: {0}")]
-    TypeConversion(String),
-    #[error("Memory access error: {0}")]
-    MemoryAccess(String),
-}
-
-/// Intermediate format for easy translation from NativeType + Nova VM value
-#[repr(C)]
-pub union NativeValue {
-    pub void_value: (),
-    pub bool_value: bool,
-    pub u8_value: u8,
-    pub i8_value: i8,
-    pub u16_value: u16,
-    pub i16_value: i16,
-    pub u32_value: u32,
-    pub i32_value: i32,
-    pub u64_value: u64,
-    pub i64_value: i64,
-    pub usize_value: usize,
-    pub isize_value: isize,
-    pub f32_value: f32,
-    pub f64_value: f64,
-    pub pointer: *mut c_void,
-}
-
-#[derive(Debug)]
-pub struct Library {
-    inner: LibloadingLibrary,
-}
-
-impl Library {
-    /// Create a new library wrapper by loading a dynamic library from the given path.
-    ///
-    /// # Safety
-    ///
-    /// Loading a dynamic library can execute arbitrary code during library initialization.
-    /// The caller must ensure that the library at the given path is trusted and that
-    /// loading it will not cause undefined behavior or security vulnerabilities.
-    pub unsafe fn new<P: AsRef<std::path::Path>>(path: P) -> Result<Self, FfiError> {
-        unsafe {
-            LibloadingLibrary::new(path.as_ref())
-                .map(|inner| Library { inner })
-                .map_err(|e| FfiError::LibraryLoad(format!("{e}")))
-        }
-    }
-
-    /// Get a symbol from the loaded library.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that:
-    /// - The symbol name is valid and null-terminated
-    /// - The symbol exists in the library and has the expected type T
-    /// - The returned symbol will only be used in a way that's compatible with its actual type
-    /// - The library remains loaded for the lifetime of the returned symbol
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, FfiError> {
-        unsafe {
-            self.inner
-                .get(symbol)
-                .map_err(|e| FfiError::SymbolNotFound(format!("{e}")))
-        }
-    }
-}
-
 static LIBRARY_ID_COUNTER: AtomicU32 = AtomicU32::new(1);
 static CALLBACK_ID_COUNTER: AtomicU32 = AtomicU32::new(1);
-
-#[derive(Debug)]
-#[allow(dead_code)]
-pub struct DynamicLibrary {
-    library: Arc<Mutex<Library>>,
-    id: u32,
-    symbols: HashMap<String, FfiSymbol>,
-}
-
-#[derive(Debug)]
-#[allow(dead_code)]
-pub struct FfiCallback {
-    id: u32,
-    definition: CallbackDefinition,
-    pointer: *const c_void,
-}
-
-#[derive(Debug, Clone)]
-pub struct CallbackDefinition {
-    pub parameters: Vec<NativeType>,
-    pub result: Box<NativeType>,
-}
-
-#[derive(Debug)]
-pub struct FfiSymbol {
-    pub name: String,
-    pub definition: ForeignFunction,
-    pub pointer: *const c_void,
-}
-
-#[derive(Debug, Clone)]
-pub struct ForeignFunction {
-    pub name: Option<String>,
-    pub parameters: Vec<NativeType>,
-    pub result: NativeType,
-    pub nonblocking: bool,
-    pub optional: bool,
-}
-
-#[derive(Debug, Clone)]
-pub enum NativeType {
-    Void,
-    Bool,
-    U8,
-    I8,
-    U16,
-    I16,
-    U32,
-    I32,
-    U64,
-    I64,
-    USize,
-    ISize,
-    F32,
-    F64,
-    Pointer,
-    Buffer,
-    Function(Box<CallbackDefinition>),
-}
-
-impl NativeType {
-    pub fn from_string(s: &str) -> Option<Self> {
-        match s {
-            "void" => Some(NativeType::Void),
-            "bool" => Some(NativeType::Bool),
-            "u8" => Some(NativeType::U8),
-            "i8" => Some(NativeType::I8),
-            "u16" => Some(NativeType::U16),
-            "i16" => Some(NativeType::I16),
-            "u32" => Some(NativeType::U32),
-            "i32" => Some(NativeType::I32),
-            "u64" => Some(NativeType::U64),
-            "i64" => Some(NativeType::I64),
-            "usize" => Some(NativeType::USize),
-            "isize" => Some(NativeType::ISize),
-            "f32" => Some(NativeType::F32),
-            "f64" => Some(NativeType::F64),
-            "pointer" => Some(NativeType::Pointer),
-            "buffer" => Some(NativeType::Buffer),
-            _ => None,
-        }
-    }
-
-    pub fn to_ffi_type(&self) -> middle::Type {
-        match self {
-            NativeType::Void => middle::Type::void(),
-            NativeType::Bool => middle::Type::u8(),
-            NativeType::U8 => middle::Type::u8(),
-            NativeType::I8 => middle::Type::i8(),
-            NativeType::U16 => middle::Type::u16(),
-            NativeType::I16 => middle::Type::i16(),
-            NativeType::U32 => middle::Type::u32(),
-            NativeType::I32 => middle::Type::i32(),
-            NativeType::U64 => middle::Type::u64(),
-            NativeType::I64 => middle::Type::i64(),
-            NativeType::USize => middle::Type::usize(),
-            NativeType::ISize => middle::Type::isize(),
-            NativeType::F32 => middle::Type::f32(),
-            NativeType::F64 => middle::Type::f64(),
-            NativeType::Pointer => middle::Type::pointer(),
-            NativeType::Buffer => middle::Type::pointer(),
-            NativeType::Function(_) => middle::Type::pointer(),
-        }
-    }
-}
-
-pub fn ffi_parse_bool_arg(arg: Value) -> Result<NativeValue, FfiError> {
-    match arg {
-        Value::Boolean(value) => Ok(NativeValue { bool_value: value }),
-        _ => Err(FfiError::TypeConversion("Expected boolean".to_string())),
-    }
-}
-
-pub fn ffi_parse_u8_arg(
-    agent: &mut Agent,
-    mut gc: GcScope,
-    arg: Value,
-) -> Result<NativeValue, FfiError> {
-    match arg.to_number(agent, gc.reborrow()) {
-        Ok(num) => {
-            let value = num.unbind().into_f64(agent) as i64;
-            if value >= 0 && value <= u8::MAX as i64 {
-                Ok(NativeValue {
-                    u8_value: value as u8,
-                })
-            } else {
-                Err(FfiError::TypeConversion(
-                    "u8 value out of range".to_string(),
-                ))
-            }
-        }
-        Err(_) => Err(FfiError::TypeConversion(
-            "Expected number for u8".to_string(),
-        )),
-    }
-}
-
-pub fn ffi_parse_i8_arg(
-    agent: &mut Agent,
-    mut gc: GcScope,
-    arg: Value,
-) -> Result<NativeValue, FfiError> {
-    match arg.to_number(agent, gc.reborrow()) {
-        Ok(num) => {
-            let value = num.unbind().into_f64(agent) as i64;
-            if value >= i8::MIN as i64 && value <= i8::MAX as i64 {
-                Ok(NativeValue {
-                    i8_value: value as i8,
-                })
-            } else {
-                Err(FfiError::TypeConversion(
-                    "i8 value out of range".to_string(),
-                ))
-            }
-        }
-        Err(_) => Err(FfiError::TypeConversion(
-            "Expected number for i8".to_string(),
-        )),
-    }
-}
-
-pub fn ffi_parse_u16_arg(
-    agent: &mut Agent,
-    mut gc: GcScope,
-    arg: Value,
-) -> Result<NativeValue, FfiError> {
-    match arg.to_number(agent, gc.reborrow()) {
-        Ok(num) => {
-            let value = num.unbind().into_f64(agent) as i64;
-            if value >= 0 && value <= u16::MAX as i64 {
-                Ok(NativeValue {
-                    u16_value: value as u16,
-                })
-            } else {
-                Err(FfiError::TypeConversion(
-                    "u16 value out of range".to_string(),
-                ))
-            }
-        }
-        Err(_) => Err(FfiError::TypeConversion(
-            "Expected number for u16".to_string(),
-        )),
-    }
-}
-
-pub fn ffi_parse_i16_arg(
-    agent: &mut Agent,
-    mut gc: GcScope,
-    arg: Value,
-) -> Result<NativeValue, FfiError> {
-    match arg.to_number(agent, gc.reborrow()) {
-        Ok(num) => {
-            let value = num.unbind().into_f64(agent) as i64;
-            if value >= i16::MIN as i64 && value <= i16::MAX as i64 {
-                Ok(NativeValue {
-                    i16_value: value as i16,
-                })
-            } else {
-                Err(FfiError::TypeConversion(
-                    "i16 value out of range".to_string(),
-                ))
-            }
-        }
-        Err(_) => Err(FfiError::TypeConversion(
-            "Expected number for i16".to_string(),
-        )),
-    }
-}
-
-pub fn ffi_parse_u32_arg(
-    agent: &mut Agent,
-    mut gc: GcScope,
-    arg: Value,
-) -> Result<NativeValue, FfiError> {
-    match arg.to_number(agent, gc.reborrow()) {
-        Ok(num) => {
-            let value = num.unbind().into_f64(agent) as i64;
-            if value >= 0 && value <= u32::MAX as i64 {
-                Ok(NativeValue {
-                    u32_value: value as u32,
-                })
-            } else {
-                Err(FfiError::TypeConversion(
-                    "u32 value out of range".to_string(),
-                ))
-            }
-        }
-        Err(_) => Err(FfiError::TypeConversion(
-            "Expected number for u32".to_string(),
-        )),
-    }
-}
-
-pub fn ffi_parse_i32_arg(
-    agent: &mut Agent,
-    mut gc: GcScope,
-    arg: Value,
-) -> Result<NativeValue, FfiError> {
-    match arg.to_number(agent, gc.reborrow()) {
-        Ok(num) => {
-            let value = num.unbind().into_f64(agent) as i32;
-            Ok(NativeValue { i32_value: value })
-        }
-        Err(_) => Err(FfiError::TypeConversion(
-            "Expected number for i32".to_string(),
-        )),
-    }
-}
-
-pub fn ffi_parse_u64_arg(
-    agent: &mut Agent,
-    mut gc: GcScope,
-    arg: Value,
-) -> Result<NativeValue, FfiError> {
-    match arg.to_number(agent, gc.reborrow()) {
-        Ok(num) => {
-            let value = num.unbind().into_f64(agent) as u64;
-            Ok(NativeValue { u64_value: value })
-        }
-        Err(_) => Err(FfiError::TypeConversion(
-            "Expected number for u64".to_string(),
-        )),
-    }
-}
-
-pub fn ffi_parse_i64_arg(
-    agent: &mut Agent,
-    mut gc: GcScope,
-    arg: Value,
-) -> Result<NativeValue, FfiError> {
-    match arg.to_number(agent, gc.reborrow()) {
-        Ok(num) => {
-            let value = num.unbind().into_f64(agent) as i64;
-            Ok(NativeValue { i64_value: value })
-        }
-        Err(_) => Err(FfiError::TypeConversion(
-            "Expected number for i64".to_string(),
-        )),
-    }
-}
-
-pub fn ffi_parse_usize_arg(
-    agent: &mut Agent,
-    mut gc: GcScope,
-    arg: Value,
-) -> Result<NativeValue, FfiError> {
-    match arg.to_number(agent, gc.reborrow()) {
-        Ok(num) => {
-            let value = num.unbind().into_f64(agent) as usize;
-            Ok(NativeValue { usize_value: value })
-        }
-        Err(_) => Err(FfiError::TypeConversion(
-            "Expected number for usize".to_string(),
-        )),
-    }
-}
-
-pub fn ffi_parse_isize_arg(
-    agent: &mut Agent,
-    mut gc: GcScope,
-    arg: Value,
-) -> Result<NativeValue, FfiError> {
-    match arg.to_number(agent, gc.reborrow()) {
-        Ok(num) => {
-            let value = num.unbind().into_f64(agent) as isize;
-            Ok(NativeValue { isize_value: value })
-        }
-        Err(_) => Err(FfiError::TypeConversion(
-            "Expected number for isize".to_string(),
-        )),
-    }
-}
-
-pub fn ffi_parse_f32_arg(
-    agent: &mut Agent,
-    mut gc: GcScope,
-    arg: Value,
-) -> Result<NativeValue, FfiError> {
-    match arg.to_number(agent, gc.reborrow()) {
-        Ok(num) => Ok(NativeValue {
-            f32_value: num.unbind().into_f64(agent) as f32,
-        }),
-        Err(_) => Err(FfiError::TypeConversion(
-            "Expected number for f32".to_string(),
-        )),
-    }
-}
-
-pub fn ffi_parse_f64_arg(
-    agent: &mut Agent,
-    mut gc: GcScope,
-    arg: Value,
-) -> Result<NativeValue, FfiError> {
-    match arg.to_number(agent, gc.reborrow()) {
-        Ok(num) => Ok(NativeValue {
-            f64_value: num.unbind().into_f64(agent),
-        }),
-        Err(_) => Err(FfiError::TypeConversion(
-            "Expected number for f64".to_string(),
-        )),
-    }
-}
-
-pub fn ffi_parse_pointer_arg(arg: Value, _gc: GcScope) -> Result<NativeValue, FfiError> {
-    match arg {
-        Value::Null => Ok(NativeValue {
-            pointer: ptr::null_mut(),
-        }),
-        Value::BigInt(bigint_value) => {
-            let bigint_as_bigint: BigInt = bigint_value.into();
-            let pointer_value = match bigint_as_bigint {
-                BigInt::SmallBigInt(small) => small.into_i64() as usize,
-                BigInt::BigInt(_heap_big) => {
-                    // TODO: Implement proper large BigInt to pointer conversion
-                    0usize
-                }
-            };
-            Ok(NativeValue {
-                pointer: pointer_value as *mut c_void,
-            })
-        }
-        Value::SmallBigInt(small_bigint) => {
-            let int_value = small_bigint.into_i64();
-            Ok(NativeValue {
-                pointer: int_value as usize as *mut c_void,
-            })
-        }
-        _ => Err(FfiError::TypeConversion(
-            "Expected null or BigInt for pointer".to_string(),
-        )),
-    }
-}
-
-fn parse_foreign_function<'gc>(
-    _agent: &mut Agent,
-    definition_value: Value,
-    _gc: GcScope<'gc, '_>,
-) -> Result<ForeignFunction, FfiError> {
-    let Value::Object(_def_obj) = definition_value else {
-        return Err(FfiError::TypeConversion(
-            "Symbol definition must be an object".to_string(),
-        ));
-    };
-
-    // TODO: Implement full JavaScript object property parsing
-    let foreign_func = ForeignFunction {
-        name: None,
-        parameters: vec![NativeType::Pointer], // Default to pointer for most Windows APIs
-        result: NativeType::I32,               // Most Windows APIs return HANDLE/DWORD/etc
-        nonblocking: false,
-        optional: false,
-    };
-
-    Ok(foreign_func)
-}
-
-// Simple boolean conversion helper
-#[allow(dead_code)]
-fn value_to_boolean(value: Value) -> bool {
-    match value {
-        Value::Boolean(b) => b,
-        Value::Undefined | Value::Null => false,
-        Value::Integer(i) => i.into_i64() != 0,
-        Value::SmallF64(f) => !f.into_f64().is_nan() && f.into_f64() != 0.0,
-        Value::Number(_) => true, // Simplified: assume non-zero numbers are true
-        Value::String(_) | Value::SmallString(_) => true, // Simplified: assume non-empty strings are true
-        _ => true,
-    }
-}
-
-pub fn ffi_parse_buffer_arg(arg: Value) -> Result<NativeValue, FfiError> {
-    // TODO: Handle ArrayBuffer/TypedArray
-    match arg {
-        Value::Null => Ok(NativeValue {
-            pointer: ptr::null_mut(),
-        }),
-        _ => Err(FfiError::TypeConversion(
-            "Expected ArrayBuffer or TypedArray for buffer".to_string(),
-        )),
-    }
-}
-
-type LibraryMap = HashMap<u32, DynamicLibrary>;
-type CallbackMap = HashMap<u32, FfiCallback>;
 
 #[derive(Default)]
 pub struct FfiExt;
 
 impl FfiExt {
+    pub fn new_extension() -> Extension {
+        Extension {
+            name: "ffi",
+            ops: vec![
+                ExtensionOp::new("ffi_dlopen", Self::ffi_dlopen, 2),
+                ExtensionOp::new("ffi_dlopen_get_symbol", Self::ffi_dlopen_get_symbol, 3),
+                ExtensionOp::new("ffi_call_symbol", Self::ffi_call_symbol, 3),
+                ExtensionOp::new("ffi_dlclose", Self::ffi_dlclose, 1),
+                ExtensionOp::new("ffi_create_callback", Self::ffi_create_callback, 2),
+                ExtensionOp::new(
+                    "ffi_get_callback_pointer",
+                    Self::ffi_get_callback_pointer,
+                    1,
+                ),
+                ExtensionOp::new("ffi_callback_close", Self::ffi_callback_close, 1),
+                ExtensionOp::new("ffi_pointer_create", Self::ffi_pointer_create, 1),
+                ExtensionOp::new("ffi_pointer_equals", Self::ffi_pointer_equals, 2),
+                ExtensionOp::new("ffi_pointer_offset", Self::ffi_pointer_offset, 2),
+                ExtensionOp::new("ffi_pointer_value", Self::ffi_pointer_value, 1),
+                ExtensionOp::new("ffi_pointer_of", Self::ffi_pointer_of, 1),
+                ExtensionOp::new("ffi_read_memory", Self::ffi_read_memory, 3),
+                ExtensionOp::new("ffi_write_memory", Self::ffi_write_memory, 3),
+            ],
+            storage: Some(Box::new(|storage: &mut OpsStorage| {
+                storage.insert(LibraryMap::new());
+                storage.insert(CallbackMap::new());
+            })),
+            files: vec![include_str!("mod.ts")],
+        }
+    }
+
     /// Marshal a JavaScript value to a native value based on expected type
     #[allow(dead_code)]
     fn marshal_argument<'gc>(
@@ -670,37 +214,6 @@ impl FfiExt {
     ) -> JsResult<'gc, Value<'gc>> {
         // TODO: Implement proper result unmarshalling based on result type
         Ok(Value::from_f64(agent, result, gc.nogc()).unbind())
-    }
-
-    pub fn new_extension() -> Extension {
-        Extension {
-            name: "ffi",
-            ops: vec![
-                ExtensionOp::new("ffi_dlopen", Self::ffi_dlopen, 2),
-                ExtensionOp::new("ffi_dlopen_get_symbol", Self::ffi_dlopen_get_symbol, 3),
-                ExtensionOp::new("ffi_call_symbol", Self::ffi_call_symbol, 3),
-                ExtensionOp::new("ffi_dlclose", Self::ffi_dlclose, 1),
-                ExtensionOp::new("ffi_create_callback", Self::ffi_create_callback, 2),
-                ExtensionOp::new(
-                    "ffi_get_callback_pointer",
-                    Self::ffi_get_callback_pointer,
-                    1,
-                ),
-                ExtensionOp::new("ffi_callback_close", Self::ffi_callback_close, 1),
-                ExtensionOp::new("ffi_pointer_create", Self::ffi_pointer_create, 1),
-                ExtensionOp::new("ffi_pointer_equals", Self::ffi_pointer_equals, 2),
-                ExtensionOp::new("ffi_pointer_offset", Self::ffi_pointer_offset, 2),
-                ExtensionOp::new("ffi_pointer_value", Self::ffi_pointer_value, 1),
-                ExtensionOp::new("ffi_pointer_of", Self::ffi_pointer_of, 1),
-                ExtensionOp::new("ffi_read_memory", Self::ffi_read_memory, 3),
-                ExtensionOp::new("ffi_write_memory", Self::ffi_write_memory, 3),
-            ],
-            storage: Some(Box::new(|storage: &mut OpsStorage| {
-                storage.insert(LibraryMap::new());
-                storage.insert(CallbackMap::new());
-            })),
-            files: vec![include_str!("mod.ts")],
-        }
     }
 
     fn with_library<T, F>(agent: &mut Agent, lib_id: u32, operation: F) -> Result<T, Value>

@@ -12,13 +12,25 @@ jobs:
   build:
     name: Build ${{ matrix.asset-name }}
     runs-on: ${{ matrix.os }}
+    continue-on-error: true  # Don't fail the entire workflow if one target fails
     strategy:
+      fail-fast: false  # Continue with other builds even if one fails
       matrix:
         include:
           # Linux (x86_64)
           - os: ubuntu-latest
             rust-target: x86_64-unknown-linux-gnu
             asset-name: andromeda-linux-amd64
+
+          # Linux (ARM64)
+          - os: ubuntu-latest
+            rust-target: aarch64-unknown-linux-gnu
+            asset-name: andromeda-linux-arm64
+
+          # Linux (x86_64 MUSL - static binary)
+          - os: ubuntu-latest
+            rust-target: x86_64-unknown-linux-musl
+            asset-name: andromeda-linux-amd64-musl
 
           # macOS (Intel)
           - os: macos-latest
@@ -30,10 +42,15 @@ jobs:
             rust-target: aarch64-apple-darwin
             asset-name: andromeda-macos-arm64
 
-          # Windows
+          # Windows (x86_64)
           - os: windows-latest
             rust-target: x86_64-pc-windows-msvc
             asset-name: andromeda-windows-amd64.exe
+
+          # Windows (ARM64)
+          - os: windows-latest
+            rust-target: aarch64-pc-windows-msvc
+            asset-name: andromeda-windows-arm64.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -44,21 +61,50 @@ jobs:
           toolchain: 1.88.0
           targets: ${{ matrix.rust-target }}
 
+      - name: Install cross-compilation dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          if [[ "${{ matrix.rust-target }}" == *"aarch64"* && "${{ matrix.rust-target }}" == *"linux"* ]]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+          fi
+          if [[ "${{ matrix.rust-target }}" == *"musl"* ]]; then
+            sudo apt-get install -y musl-tools
+          fi
+
+      - name: Install pkg-config (for cross-compilation)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get install -y pkg-config
+
       - name: Build
+        continue-on-error: true  # Allow individual builds to fail
         run: cargo build --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
+        env:
+          # Cross-compilation environment variables
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          # MUSL targets
+          CC_x86_64_unknown_linux_musl: musl-gcc
+          # PKG_CONFIG settings for cross-compilation
+          PKG_CONFIG_ALLOW_CROSS: 1
 
       - name: Prepare binary
         shell: bash
         run: |
           cd target/${{ matrix.rust-target }}/release/
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          if [ -f "andromeda.exe" ]; then
             mv andromeda.exe ${{ matrix.asset-name }}
-          else
+          elif [ -f "andromeda" ]; then
             mv andromeda ${{ matrix.asset-name }}
+          else
+            echo "Binary not found, build may have failed"
+            exit 1
           fi
 
       - name: Upload Binary as Artifact
         uses: actions/upload-artifact@v4
+        if: success()  # Only upload if binary was prepared successfully
         with:
           name: ${{ matrix.asset-name }}
           path: target/${{ matrix.rust-target }}/release/${{ matrix.asset-name }}
