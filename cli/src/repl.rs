@@ -11,6 +11,7 @@ use crate::styles::format_js_value;
 use andromeda_core::{HostData, RuntimeHostHooks};
 use andromeda_runtime::{RuntimeMacroTask, recommended_builtins, recommended_extensions};
 use console::Style;
+use nova_vm::ecmascript::types::IntoObject;
 use nova_vm::{
     ecmascript::{
         builtins::{ArgumentsList, Behaviour, BuiltinFunctionArgs, create_builtin_function},
@@ -265,6 +266,24 @@ pub fn run_repl_with_config(
 }
 
 fn initialize_global_object(agent: &mut Agent, global_object: Object, mut gc: GcScope) {
+    let andromeda_obj =
+        OrdinaryObject::create_empty_object(agent, gc.nogc()).scope(agent, gc.nogc());
+    let property_key = PropertyKey::from_static_str(agent, "__andromeda__", gc.nogc());
+    global_object
+        .internal_define_own_property(
+            agent,
+            property_key.unbind(),
+            PropertyDescriptor {
+                value: Some(andromeda_obj.get(agent).into_value()),
+                writable: Some(true),
+                enumerable: Some(false),
+                configurable: Some(true),
+                ..Default::default()
+            },
+            gc.reborrow(),
+        )
+        .unwrap();
+
     let mut extensions = recommended_extensions();
     for extension in &mut extensions {
         for file in &extension.files {
@@ -288,7 +307,6 @@ fn initialize_global_object(agent: &mut Agent, global_object: Object, mut gc: Gc
                 handle_runtime_error_with_message("Script evaluation failed".to_string());
             }
         }
-
         // Register native ops
         for op in &extension.ops {
             let function = create_builtin_function(
@@ -298,17 +316,33 @@ fn initialize_global_object(agent: &mut Agent, global_object: Object, mut gc: Gc
                 gc.nogc(),
             );
             let property_key = PropertyKey::from_static_str(agent, op.name, gc.nogc());
-            global_object
-                .internal_define_own_property(
-                    agent,
-                    property_key.unbind(),
-                    PropertyDescriptor {
-                        value: Some(function.into_value().unbind()),
-                        ..Default::default()
-                    },
-                    gc.reborrow(),
-                )
-                .unwrap();
+            if op.global {
+                global_object
+                    .internal_define_own_property(
+                        agent,
+                        property_key.unbind(),
+                        PropertyDescriptor {
+                            value: Some(function.into_value().unbind()),
+                            ..Default::default()
+                        },
+                        gc.reborrow(),
+                    )
+                    .unwrap();
+            } else {
+                andromeda_obj
+                    .get(agent)
+                    .into_object()
+                    .internal_define_own_property(
+                        agent,
+                        property_key.unbind(),
+                        PropertyDescriptor {
+                            value: Some(function.into_value().unbind()),
+                            ..Default::default()
+                        },
+                        gc.reborrow(),
+                    )
+                    .unwrap();
+            }
         }
 
         // Run storage initializer for the extension (if any) so extension storage types are inserted

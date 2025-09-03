@@ -7,7 +7,7 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.0-draft28"
+version = "0.1.0-draft29"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
@@ -23,7 +23,7 @@ console = "0.16.0"
 dprint-core = "0.67.4"
 dprint-plugin-typescript = "0.95.11"
 dprint-plugin-json = "0.20.0"
-env_logger = "0.11.5"
+env_logger = "0.11.8"
 futures = "0.3.31"
 indexmap = "2.11.0"
 image = "0.25.8"
@@ -31,7 +31,7 @@ lazy_static = "1.5.0"
 libloading = "0.8.8"
 libffi = "4.1.2"
 libsui = "0.10.0"
-log = "0.4.27"
+log = "0.4.28"
 lsp-types = "0.97.0"
 nova_vm = { git = "https://github.com/trynova/nova", rev = "da182fcdc3f51844018728e6ef806355602da802", features = [
     "typescript"

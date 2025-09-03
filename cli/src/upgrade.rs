@@ -133,7 +133,7 @@ fn detect_platform() -> Result<PlatformInfo> {
 
     let arch = if cfg!(target_arch = "x86_64") {
         "amd64"
-    } else if cfg!(target_arch = "aarch64") && cfg!(target_os = "macos") {
+    } else if cfg!(target_arch = "aarch64") {
         "arm64"
     } else {
         return Err(anyhow!("Unsupported architecture"));
