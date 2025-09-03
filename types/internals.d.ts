@@ -119,7 +119,10 @@ declare function internal_rename(oldPath: string, newPath: string): void;
 /**
  * The `internal_rename_async` function asynchronously renames/moves a file or directory in the file system.
  */
-declare function internal_rename_async(oldPath: string, newPath: string): Promise<void>;
+declare function internal_rename_async(
+  oldPath: string,
+  newPath: string,
+): Promise<void>;
 
 /**
  * The `internal_exists` function checks if a file or directory exists in the file system.
@@ -162,7 +165,7 @@ declare function internal_real_path(path: string): string;
 declare function internal_read_dir(
   path: string,
 ): Array<
-  { name: string; isFile: boolean; isDirectory: boolean; isSymlink: boolean; }
+  { name: string; isFile: boolean; isDirectory: boolean; isSymlink: boolean }
 >;
 
 /**
@@ -1218,3 +1221,36 @@ declare function internal_tls_close(rid: Rid): Promise<string>;
 declare function internal_tls_read(rid: Rid, len: number): Promise<string>;
 declare function internal_tls_write(rid: Rid, data: string): Promise<string>;
 declare function internal_tls_get_peer_certificate(rid: Rid): Promise<string>;
+declare function ffi_dlopen(filename: string, symbols: unknown): number;
+declare function ffi_dlopen_get_symbol(
+  libId: number,
+  name: string,
+  definition: unknown,
+): unknown;
+declare function ffi_call_symbol(
+  libId: number,
+  name: string,
+  args: unknown[],
+): unknown;
+declare function ffi_dlclose(libId: number): void;
+declare function ffi_create_callback(
+  definition: unknown,
+  callback: unknown,
+): number;
+declare function ffi_get_callback_pointer(callbackId: number): number | bigint;
+declare function ffi_callback_close(callbackId: number): void;
+declare function ffi_pointer_create(value: number): unknown;
+declare function ffi_pointer_equals(a: unknown, b: unknown): boolean;
+declare function ffi_pointer_offset(value: unknown, offset: number): unknown;
+declare function ffi_pointer_value(value: unknown): number | bigint;
+declare function ffi_pointer_of(value: unknown): unknown;
+declare function ffi_read_memory(
+  ptr: unknown,
+  offset: number,
+  size: number,
+): ArrayBuffer;
+declare function ffi_write_memory(
+  ptr: unknown,
+  offset: unknown,
+  data: unknown,
+): void;

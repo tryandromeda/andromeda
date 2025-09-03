@@ -9,11 +9,11 @@ use nova_vm::{
         execution::agent::{GcAgent, RealmRoot},
         types::{IntoValue, String as NovaString, Value},
     },
-    engine::{Global, context::Bindable},
+    engine::{context::Bindable, Global},
 };
 
 use crate::{
-    BroadcastChannelExt, ConsoleExt, CronExt, FetchExt, FileExt, FsExt, ProcessExt,
+    BroadcastChannelExt, ConsoleExt, CronExt, FetchExt, FfiExt, FileExt, FsExt, ProcessExt,
     RuntimeMacroTask, StreamsExt, TimeExt, TlsExt, URLExt, WebExt,
 };
 
@@ -31,6 +31,7 @@ pub fn recommended_extensions() -> Vec<Extension> {
         FetchExt::new_extension(),
         StreamsExt::new_extension(),
         TlsExt::new_extension(),
+        FfiExt::new_extension(),
         #[cfg(feature = "canvas")]
         crate::CanvasExt::new_extension(),
         #[cfg(feature = "crypto")]

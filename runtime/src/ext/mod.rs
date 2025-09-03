@@ -12,6 +12,7 @@ pub mod cron;
 #[cfg(feature = "crypto")]
 mod crypto;
 mod fetch;
+mod ffi;
 mod file;
 mod fs;
 #[cfg(feature = "storage")]
@@ -35,6 +36,7 @@ pub use cron::*;
 #[cfg(feature = "crypto")]
 pub use crypto::*;
 pub use fetch::*;
+pub use ffi::*;
 pub use file::*;
 pub use fs::*;
 #[cfg(feature = "storage")]
