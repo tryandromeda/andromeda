@@ -9,7 +9,7 @@ use nova_vm::{
         execution::agent::{GcAgent, RealmRoot},
         types::{IntoValue, String as NovaString, Value},
     },
-    engine::{context::Bindable, Global},
+    engine::{Global, context::Bindable},
 };
 
 use crate::{

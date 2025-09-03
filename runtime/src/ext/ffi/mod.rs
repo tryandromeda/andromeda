@@ -605,11 +605,7 @@ impl FfiExt {
             }
             NativeType::Bool => {
                 let result: bool = unsafe { cif.call(code_ptr, &ffi_args) };
-                if result {
-                    1.0
-                } else {
-                    0.0
-                }
+                if result { 1.0 } else { 0.0 }
             }
             NativeType::U8 => {
                 let result: u8 = unsafe { cif.call(code_ptr, &ffi_args) };
