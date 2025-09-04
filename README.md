@@ -6,7 +6,7 @@
 
 **A modern, fast, and secure JavaScript & TypeScript runtime** built from the
 ground up in [Rust 🦀](https://www.rust-lang.org/) and powered by
-[Nova Engine](https://trynova.dev/).
+[Nova Engine](https://trynova.dev/) and [Oxc](https://oxc.rs).
 
 [Andromeda](https://github.com/tryandromeda/andromeda) provides **zero-config
 TypeScript support**, **rich Web APIs**, and **native performance** - making it
