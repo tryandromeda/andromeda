@@ -4,12 +4,12 @@
   "wpt": {
     "overall": {
       "total_tests": 698,
-      "pass": 47,
-      "fail": 260,
+      "pass": 48,
+      "fail": 259,
       "crash": 387,
       "timeout": 0,
       "skip": 4,
-      "pass_rate": 6.73352435530086
+      "pass_rate": 6.876790830945559
     },
     "suites": {
       "console": {
@@ -23,12 +23,12 @@
       },
       "fetch": {
         "total_tests": 650,
-        "pass": 39,
-        "fail": 232,
+        "pass": 40,
+        "fail": 231,
         "crash": 377,
         "timeout": 0,
         "skip": 2,
-        "pass_rate": 6.0
+        "pass_rate": 6.153846153846154
       },
       "route": {
         "total_tests": 1,
