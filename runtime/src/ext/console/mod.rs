@@ -126,6 +126,19 @@ impl ConsoleExt {
             "default".to_string()
         };
 
+        let timer_exists = {
+            let host_data = agent.get_host_data();
+            let host_data: &HostData<crate::RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+            let storage = host_data.storage.borrow();
+            let console_storage: &ConsoleStorage = storage.get().unwrap();
+            console_storage.timers.contains_key(&label)
+        };
+
+        if timer_exists {
+            let warning_msg = format!("Timer '{label}' already exists");
+            return Ok(Value::from_string(agent, warning_msg, gc.nogc()).unbind());
+        }
+
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -140,7 +153,7 @@ impl ConsoleExt {
             console_storage.timers.insert(label, now);
         }
 
-        Ok(Value::from_f64(agent, now as f64, gc.nogc()).unbind())
+        Ok(Value::Undefined)
     }
 
     /// Log time for a timer
@@ -192,6 +205,7 @@ impl ConsoleExt {
                     format!("{label}: {elapsed}ms {data}")
                 }
             } else {
+                // Return warning message per WHATWG spec
                 format!("Timer '{label}' does not exist")
             }
         };
@@ -368,8 +382,6 @@ impl ConsoleExt {
             let host_data = agent.get_host_data();
             let host_data: &HostData<crate::RuntimeMacroTask> = host_data.downcast_ref().unwrap();
             let storage = host_data.storage.borrow();
-            // Be defensive: storage.get() may be None in some runtime states (e.g., REPL),
-            // avoid unwrap() to prevent panics and return a sensible default (0).
             match storage.get::<ConsoleStorage>() {
                 Some(console_storage) => console_storage.group_indent_level,
                 None => {

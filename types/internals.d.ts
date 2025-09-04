@@ -1185,8 +1185,9 @@ declare namespace __andromeda__ {
 
   /**
    * The `time_start` function starts a timer with the given label.
+   * Returns a warning message if timer already exists, undefined otherwise.
    */
-  export function time_start(label?: string): number;
+  export function time_start(label?: string): string | undefined;
 
   /**
    * The `time_log` function logs the current time for a timer.

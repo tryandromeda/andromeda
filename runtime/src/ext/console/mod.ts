@@ -46,9 +46,6 @@ const COLORS = {
   },
 };
 
-// Internal state for console features
-const timers = new Map<string, number>();
-const counters = new Map<string, number>();
 
 /**
  * Utility functions for formatting
@@ -138,11 +135,21 @@ function formatArgs(args: ConsoleValue[]): string {
               break;
             case "d":
             case "i": // Integer
-              result += String(parseInt(String(arg), 10) || 0);
+              // If current is a Symbol, let converted be NaN
+              if (typeof arg === "symbol") {
+                result += "NaN";
+              } else {
+                result += String(parseInt(String(arg), 10) || 0);
+              }
               converted = true;
               break;
             case "f": // Float
-              result += String(parseFloat(String(arg)) || 0);
+              // If current is a Symbol, let converted be NaN
+              if (typeof arg === "symbol") {
+                result += "NaN";
+              } else {
+                result += String(parseFloat(String(arg)) || 0);
+              }
               converted = true;
               break;
             case "o": // Optimally useful formatting
@@ -446,9 +453,7 @@ const andromedaConsole = {
    * ```
    */
   count(label: string = "default") {
-    const currentCount = (counters.get(label) || 0) + 1;
-    counters.set(label, currentCount);
-    const message = `${label}: ${currentCount}`;
+    const message = __andromeda__.count(label);
     console.info(message);
   },
 
@@ -462,11 +467,11 @@ const andromedaConsole = {
    * ```
    */
   countReset(label: string = "default") {
-    if (counters.has(label)) {
-      counters.set(label, 0);
-    } else {
-      const message = `Count for '${label}' does not exist`;
+    const message = __andromeda__.count_reset(label);
+    if (message.includes("does not exist")) {
       console.warn(message);
+    } else {
+      console.info(message);
     }
   },
 
@@ -583,11 +588,10 @@ const andromedaConsole = {
    * ```
    */
   time(label: string = "default") {
-    if (timers.has(label)) {
-      console.warn(`Timer '${label}' already exists`);
-      return;
+    const result = __andromeda__.time_start(label);
+    if (result) {
+      console.warn(result);
     }
-    timers.set(label, Date.now());
   },
 
   /**
@@ -601,21 +605,11 @@ const andromedaConsole = {
    * ```
    */
   timeLog(label: string = "default", ...args: ConsoleValue[]) {
-    const startTime = timers.get(label);
-    if (startTime === undefined) {
-      console.warn(`Timer '${label}' does not exist`);
-      return;
-    }
-
-    const elapsed = Date.now() - startTime;
-    const durationStr = `${elapsed}ms`;
-
-    if (args.length > 0) {
-      const message = `${label}: ${durationStr} ${formatArgs(args)}`;
-      console.info(message);
+    const result = __andromeda__.time_log(label, args.length > 0 ? formatArgs(args) : "");
+    if (result.includes("does not exist")) {
+      console.warn(result);
     } else {
-      const message = `${label}: ${durationStr}`;
-      console.info(message);
+      console.info(result);
     }
   },
 
@@ -631,16 +625,12 @@ const andromedaConsole = {
    * ```
    */
   timeEnd(label: string = "default") {
-    const startTime = timers.get(label);
-    if (startTime === undefined) {
-      console.warn(`Timer '${label}' does not exist`);
-      return;
+    const result = __andromeda__.time_end(label);
+    if (result.includes("does not exist")) {
+      console.warn(result);
+    } else {
+      console.info(result);
     }
-
-    const elapsed = Date.now() - startTime;
-    timers.delete(label);
-    const message = `${label}: ${elapsed}ms`;
-    console.info(message);
   },
 
   /**
