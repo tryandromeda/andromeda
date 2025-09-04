@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+// DOMException is provided by the web extension
+
 interface QueuingStrategy<R = unknown> {
   highWaterMark?: number;
   size?(chunk: R): number;
@@ -224,8 +226,21 @@ class ReadableStream<R = unknown> {
       | ReadableStreamUnderlyingByteSource,
     strategy?: QueuingStrategy<R>,
   ) {
-    // Create stream with proper initialization
-    this.#streamId = __andromeda__.internal_readable_stream_create();
+    // Check if this is a byte stream
+    const isByteStream = underlyingSource?.type === "bytes";
+
+    if (isByteStream) {
+      // Create BYOB stream
+      const autoAllocateChunkSize =
+        (underlyingSource as ReadableStreamUnderlyingByteSource)
+          .autoAllocateChunkSize || 1024;
+      this.#streamId = __andromeda__.internal_readable_stream_create_byob(
+        autoAllocateChunkSize.toString(),
+      );
+    } else {
+      // Create regular stream
+      this.#streamId = __andromeda__.internal_readable_stream_create();
+    }
 
     // Set up desired size based on strategy
     if (strategy?.highWaterMark !== undefined) {
@@ -239,20 +254,41 @@ class ReadableStream<R = unknown> {
       }
     }
 
-    this.#controller = new ReadableStreamDefaultController<R>(
-      this.#streamId,
-      this,
-    );
+    if (isByteStream) {
+      // For byte streams, we don't create a default controller here
+      // The controller will be created when needed
+      this.#controller = null;
+    } else {
+      this.#controller = new ReadableStreamDefaultController<R>(
+        this.#streamId,
+        this,
+      );
+    }
 
     if (underlyingSource?.start) {
       try {
+        const controller = isByteStream ?
+          new ReadableByteStreamController(this.#streamId, this) :
+          this.#controller!;
         // deno-lint-ignore no-explicit-any
-        const result = underlyingSource.start(this.#controller as any);
+        const result = underlyingSource.start(controller as any);
         if (result instanceof Promise) {
-          result.catch((error) => this.#controller?.error(error));
+          result.catch((error) => {
+            if (isByteStream) {
+              new ReadableByteStreamController(this.#streamId, this).error(
+                error,
+              );
+            } else {
+              this.#controller?.error(error);
+            }
+          });
         }
       } catch (error) {
-        this.#controller.error(error);
+        if (isByteStream) {
+          new ReadableByteStreamController(this.#streamId, this).error(error);
+        } else {
+          this.#controller?.error(error);
+        }
       }
     }
   }
@@ -279,7 +315,9 @@ class ReadableStream<R = unknown> {
     });
   }
 
-  getReader(): ReadableStreamDefaultReader<R> {
+  getReader(
+    options?: { mode?: "byob"; },
+  ): ReadableStreamDefaultReader<R> | ReadableStreamBYOBReader {
     // According to WHATWG spec: "acquire a readable stream reader"
     if (this.locked) {
       throw new TypeError("ReadableStream is already locked");
@@ -292,38 +330,151 @@ class ReadableStream<R = unknown> {
       throw new TypeError("Failed to lock ReadableStream");
     }
 
-    this.#reader = new ReadableStreamDefaultReader<R>(this.#streamId, this);
-    return this.#reader;
+    if (options?.mode === "byob") {
+      const byobReader = new ReadableStreamBYOBReader(this.#streamId, this);
+      // deno-lint-ignore no-explicit-any
+      this.#reader = byobReader as any;
+      return byobReader;
+    } else {
+      this.#reader = new ReadableStreamDefaultReader<R>(this.#streamId, this);
+      return this.#reader;
+    }
   }
 
   pipeThrough<T>(
     transform: { readable: ReadableStream<T>; writable: WritableStream<R>; },
-    _options?: PipeOptions,
+    options?: PipeOptions,
   ): ReadableStream<T> {
-    // TODO: Implement proper piping logic
+    const {
+      preventClose = false,
+      preventAbort = false,
+      preventCancel = false,
+      signal,
+    } = options || {};
+
+    if (signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+
+    // Instead of using backend operations, implement pipe through manually
+    // This ensures compatibility and proper functionality
+    (async () => {
+      try {
+        const reader = this.getReader();
+        const writer = transform.writable.getWriter();
+
+        // Handle abort signal
+        const abortHandler = () => {
+          if (!preventCancel) {
+            this.cancel(signal?.reason);
+          }
+          if (!preventAbort) {
+            transform.writable.abort(signal?.reason);
+          }
+        };
+
+        if (signal) {
+          signal.addEventListener("abort", abortHandler);
+        }
+
+        // Pipe data from this stream to the transform writable
+        let result;
+        // deno-lint-ignore no-explicit-any
+        while (!(result = await (reader as any).read()).done) {
+          await writer.write(result.value);
+        }
+
+        // Close the writer unless prevented
+        if (!preventClose) {
+          await writer.close();
+        }
+
+        reader.releaseLock();
+        writer.releaseLock();
+
+        // Clean up abort handler
+        if (signal) {
+          signal.removeEventListener("abort", abortHandler);
+        }
+      } catch (error) {
+        // Handle pipe errors
+        if (!preventAbort) {
+          transform.writable.abort(error);
+        }
+        if (!preventCancel) {
+          this.cancel(error);
+        }
+      }
+    })();
+
     return transform.readable;
   }
 
   pipeTo(
     destination: WritableStream<R>,
-    _options?: PipeOptions,
+    options?: PipeOptions,
   ): Promise<void> {
-    // TODO: Implement proper pipe-to logic
+    const {
+      preventClose = false,
+      preventAbort = false,
+      preventCancel = false,
+      signal,
+    } = options || {};
+
     return new Promise(async (resolve, reject) => {
+      if (signal?.aborted) {
+        reject(new DOMException("Aborted", "AbortError"));
+        return;
+      }
+
       try {
         const reader = this.getReader();
         const writer = destination.getWriter();
 
-        while (true) {
-          const result = await reader.read();
-          if (result.done) break;
+        // Handle abort signal
+        const abortHandler = () => {
+          if (!preventCancel) {
+            this.cancel(signal?.reason);
+          }
+          if (!preventAbort) {
+            destination.abort(signal?.reason);
+          }
+          reject(new DOMException("Aborted", "AbortError"));
+        };
 
+        if (signal) {
+          signal.addEventListener("abort", abortHandler);
+        }
+
+        let result;
+        // deno-lint-ignore no-explicit-any
+        while (!(result = await (reader as any).read()).done) {
           await writer.write(result.value);
         }
 
-        await writer.close();
+        if (!preventClose) {
+          await writer.close();
+        }
+
+        reader.releaseLock();
+        writer.releaseLock();
+
+        if (signal) {
+          signal.removeEventListener("abort", abortHandler);
+        }
+
         resolve();
       } catch (error) {
+        try {
+          if (!preventAbort) {
+            await destination.abort(error);
+          }
+          if (!preventCancel) {
+            await this.cancel(error);
+          }
+        } catch {
+          // Ignore cleanup errors
+        }
         reject(error);
       }
     });
@@ -421,73 +572,289 @@ class ReadableStream<R = unknown> {
 }
 
 /**
- * Stub implementations for byte stream classes
+ * ReadableByteStreamController implementation
  */
 class ReadableByteStreamController {
-  constructor() {
-    // TODO: Implement
+  #streamId: string;
+  #stream: ReadableStream;
+
+  constructor(streamId: string, stream: ReadableStream) {
+    this.#streamId = streamId;
+    this.#stream = stream;
   }
 
   get byobRequest(): ReadableStreamBYOBRequest | null {
-    return null;
+    try {
+      const state = __andromeda__.internal_stream_get_state(this.#streamId);
+      const [readableState] = state.split(":");
+
+      if (readableState === "readable") {
+        return new ReadableStreamBYOBRequest(this.#streamId);
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 
   get desiredSize(): number | null {
-    return 1;
+    try {
+      const desiredSizeResult = __andromeda__.internal_stream_get_desired_size(
+        this.#streamId,
+      );
+      const desiredSize = parseInt(desiredSizeResult, 10);
+
+      if (isNaN(desiredSize)) {
+        const state = __andromeda__.internal_stream_get_state(this.#streamId);
+        const [readableState, , , chunkCount] = state.split(":");
+
+        if (readableState === "closed" || readableState === "errored") {
+          return 0;
+        }
+
+        const chunks = parseInt(chunkCount, 10) || 0;
+        return Math.max(0, 1 - chunks);
+      }
+
+      return desiredSize;
+    } catch {
+      return 1;
+    }
   }
 
   close(): void {
-    // TODO: Implement
+    __andromeda__.internal_readable_stream_close(this.#streamId);
   }
 
   enqueue(chunk: ArrayBufferView): void {
-    // TODO: Implement
+    if (!chunk || !chunk.buffer) {
+      throw new TypeError("chunk must be an ArrayBufferView");
+    }
+
+    const bytes = new Uint8Array(
+      chunk.buffer,
+      chunk.byteOffset,
+      chunk.byteLength,
+    );
+    const bytesString = Array.from(bytes).join(",");
+
+    __andromeda__.internal_readable_stream_enqueue(this.#streamId, bytesString);
   }
 
   error(e?: unknown): void {
-    // TODO: Implement
+    const errorMessage = e instanceof Error ?
+      e.message :
+      String(e || "Byte stream error");
+    __andromeda__.internal_readable_stream_error(this.#streamId, errorMessage);
   }
 }
 
 class ReadableStreamBYOBRequest {
-  constructor() {
-    // TODO: Implement
+  #streamId: string;
+  #view: ArrayBufferView | null;
+
+  constructor(streamId: string, view?: ArrayBufferView) {
+    this.#streamId = streamId;
+    this.#view = view || null;
   }
 
   get view(): ArrayBufferView | null {
-    return null;
+    return this.#view;
   }
 
   respond(bytesWritten: number): void {
-    // TODO: Implement
+    if (bytesWritten < 0) {
+      throw new RangeError("bytesWritten must be non-negative");
+    }
+
+    if (!this.#view) {
+      throw new TypeError("Cannot respond with null view");
+    }
+
+    try {
+      __andromeda__.internal_readable_stream_pull_into(
+        this.#streamId,
+        JSON.stringify(
+          Array.from(
+            new Uint8Array(
+              this.#view.buffer,
+              this.#view.byteOffset,
+              bytesWritten,
+            ),
+          ),
+        ),
+        this.#view.byteOffset.toString(),
+        bytesWritten.toString(),
+      );
+    } catch (error) {
+      throw new Error(`Failed to respond: ${error}`);
+    }
   }
 
   respondWithNewView(view: ArrayBufferView): void {
-    // TODO: Implement
+    if (!view || !view.buffer) {
+      throw new TypeError("view must be an ArrayBufferView");
+    }
+
+    try {
+      __andromeda__.internal_readable_stream_pull_into(
+        this.#streamId,
+        JSON.stringify(
+          Array.from(
+            new Uint8Array(view.buffer, view.byteOffset, view.byteLength),
+          ),
+        ),
+        view.byteOffset.toString(),
+        view.byteLength.toString(),
+      );
+      this.#view = view;
+    } catch (error) {
+      throw new Error(`Failed to respond with new view: ${error}`);
+    }
   }
 }
 
 class ReadableStreamBYOBReader {
-  constructor() {
-    // TODO: Implement
+  #streamId: string;
+  #stream: ReadableStream;
+  #closed: Promise<undefined>;
+
+  constructor(streamId: string, stream: ReadableStream) {
+    this.#streamId = streamId;
+    this.#stream = stream;
+    this.#closed = new Promise((resolve) => {
+      // TODO: Properly handle closed promise resolution
+      setTimeout(() => resolve(undefined), 0);
+    });
   }
 
   get closed(): Promise<undefined> {
-    return Promise.resolve(undefined);
+    return this.#closed;
   }
 
   async cancel(reason?: unknown): Promise<void> {
-    // TODO: Implement
+    __andromeda__.internal_readable_stream_cancel(this.#streamId);
   }
 
   async read<T extends ArrayBufferView>(
-    view?: T,
-  ): Promise<ReadableStreamReadResult<T | Uint8Array>> {
-    // TODO: Implement
-    return { done: true, value: new Uint8Array(0) as unknown as T };
+    view: T,
+  ): Promise<ReadableStreamReadResult<T>> {
+    if (!view || !view.buffer) {
+      throw new TypeError("read() requires a view argument");
+    }
+
+    const getElementSize = (v: ArrayBufferView): number => {
+      if ("BYTES_PER_ELEMENT" in v && typeof v.BYTES_PER_ELEMENT === "number") {
+        return v.BYTES_PER_ELEMENT;
+      }
+      return 1;
+    };
+
+    const bufferInfo = JSON.stringify({
+      byteLength: view.byteLength,
+      byteOffset: view.byteOffset,
+      elementSize: getElementSize(view),
+    });
+
+    const result = __andromeda__.internal_readable_stream_byob_reader_read(
+      this.#streamId,
+      bufferInfo,
+    );
+
+    if (result === "done") {
+      return { done: true, value: view };
+    }
+
+    if (result === "error") {
+      throw new Error("Stream is in error state");
+    }
+
+    try {
+      const response = JSON.parse(result);
+      const bytesRead = response.bytesRead;
+      const data = response.data;
+
+      if (bytesRead === 0) {
+        return { done: true, value: view };
+      }
+
+      const sourceArray = new Uint8Array(data);
+      const targetArray = new Uint8Array(
+        view.buffer,
+        view.byteOffset,
+        Math.min(bytesRead, view.byteLength),
+      );
+      targetArray.set(sourceArray.slice(0, targetArray.length));
+
+      const ViewConstructor = view.constructor as new(
+        buffer: ArrayBufferLike,
+        byteOffset?: number,
+        length?: number,
+      ) => T;
+      const resultView = new ViewConstructor(
+        view.buffer,
+        view.byteOffset,
+        Math.floor(bytesRead / getElementSize(view)),
+      );
+
+      return { done: false, value: resultView };
+    } catch (error) {
+      throw new Error(`Failed to read from BYOB reader: ${error}`);
+    }
   }
 
   releaseLock(): void {
-    // TODO: Implement
+    try {
+      __andromeda__.internal_readable_stream_unlock(this.#streamId);
+      // deno-lint-ignore no-explicit-any
+      (this.#stream as any)[symbolForSetReader](null);
+    } catch {
+      // Ignore errors when releasing lock
+    }
   }
+}
+
+function createReadableStreamFrom<T>(
+  asyncIterable: AsyncIterable<T> | Iterable<T>,
+): ReadableStream<T> {
+  if (
+    asyncIterable &&
+    typeof (asyncIterable as AsyncIterable<T>)[Symbol.asyncIterator] ===
+      "function"
+  ) {
+    return new ReadableStream<T>({
+      async start(controller: ReadableStreamDefaultController<T>) {
+        try {
+          for await (const chunk of asyncIterable as AsyncIterable<T>) {
+            controller.enqueue(chunk);
+          }
+          controller.close();
+        } catch (error) {
+          controller.error(error);
+        }
+      },
+    });
+  }
+
+  if (
+    asyncIterable &&
+    typeof (asyncIterable as Iterable<T>)[Symbol.iterator] === "function"
+  ) {
+    return new ReadableStream<T>({
+      start(controller: ReadableStreamDefaultController<T>) {
+        try {
+          for (const chunk of asyncIterable as Iterable<T>) {
+            controller.enqueue(chunk);
+          }
+          controller.close();
+        } catch (error) {
+          controller.error(error);
+        }
+      },
+    });
+  }
+
+  throw new TypeError(
+    "createReadableStreamFrom() requires an iterable or async iterable",
+  );
 }

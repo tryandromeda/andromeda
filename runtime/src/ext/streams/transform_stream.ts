@@ -3,6 +3,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+interface QueuingStrategy<T = unknown> {
+  highWaterMark?: number;
+  size?(chunk: T): number;
+}
+
 /**
  * Implementation of the Streams API TransformStream interface
  * Based on: https://streams.spec.whatwg.org/#transformstream

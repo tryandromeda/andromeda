@@ -1183,6 +1183,71 @@ declare namespace __andromeda__ {
    */
   export function internal_stream_get_chunk_count(streamId: string): string;
 
+  // ===== BYOB Reader Operations =====
+  
+  /**
+   * The `internal_readable_stream_create_byob` function creates a new readable byte stream.
+   */
+  export function internal_readable_stream_create_byob(autoAllocateChunkSize: string): string;
+  
+  /**
+   * The `internal_readable_stream_byob_reader_read` function reads from a BYOB reader.
+   */
+  export function internal_readable_stream_byob_reader_read(streamId: string, bufferInfo: string): string;
+  
+  /**
+   * The `internal_readable_stream_pull_into` function performs a pull-into operation for BYOB readers.
+   */
+  export function internal_readable_stream_pull_into(streamId: string, bufferBytes: string, byteOffset: string, byteLength: string): string;
+  
+  // ===== Transform Stream Operations =====
+  
+  /**
+   * The `internal_transform_stream_create` function creates a new transform stream.
+   */
+  export function internal_transform_stream_create(): string;
+  
+  /**
+   * The `internal_transform_stream_set_backpressure` function sets backpressure state for a transform stream.
+   */
+  export function internal_transform_stream_set_backpressure(readableStreamId: string, backpressure: string): string;
+  
+  /**
+   * The `internal_transform_stream_get_backpressure` function gets backpressure state for a transform stream.
+   */
+  export function internal_transform_stream_get_backpressure(readableStreamId: string): string;
+  
+  // ===== Enhanced Pipe Operations =====
+  
+  /**
+   * The `internal_readable_stream_pipe_to` function pipes a readable stream to a writable stream.
+   */
+  export function internal_readable_stream_pipe_to(sourceStreamId: string, destStreamId: string, preventClose: string, preventAbort: string, preventCancel: string): string;
+  
+  /**
+   * The `internal_readable_stream_pipe_through` function pipes a readable stream through a transform stream.
+   */
+  export function internal_readable_stream_pipe_through(sourceStreamId: string, transformWritableId: string, transformReadableId: string, preventClose: string, preventAbort: string): string;
+  
+  // ===== ReadableStream.from() support =====
+  
+  /**
+   * The `internal_readable_stream_from_iterable` function creates a readable stream from an iterable.
+   */
+  export function internal_readable_stream_from_iterable(iterableInfo: string): string;
+  
+  // ===== Auto-allocation operations =====
+  
+  /**
+   * The `internal_readable_stream_set_auto_allocate_chunk_size` function sets the auto-allocate chunk size for a byte stream.
+   */
+  export function internal_readable_stream_set_auto_allocate_chunk_size(streamId: string, chunkSize: string): string;
+  
+  /**
+   * The `internal_readable_stream_get_auto_allocate_chunk_size` function gets the auto-allocate chunk size for a byte stream.
+   */
+  export function internal_readable_stream_get_auto_allocate_chunk_size(streamId: string): string;
+
   /**
    * The `time_start` function starts a timer with the given label.
    * Returns a warning message if timer already exists, undefined otherwise.

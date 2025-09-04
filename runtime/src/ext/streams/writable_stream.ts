@@ -3,6 +3,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+interface QueuingStrategy<W = unknown> {
+  highWaterMark?: number;
+  size?(chunk: W): number;
+}
+
 interface WritableStreamUnderlyingSink<W = unknown> {
   start?(controller: WritableStreamDefaultController): void | Promise<void>;
   write?(
@@ -103,7 +108,11 @@ class WritableStreamDefaultWriter<W = unknown> {
 
   abort(_reason?: unknown): Promise<void> {
     return new Promise((resolve) => {
-      __andromeda__.internal_writable_stream_abort(this.#streamId);
+      try {
+        __andromeda__.internal_writable_stream_abort(this.#streamId);
+      } catch {
+        // Ignore errors during abort
+      }
       resolve();
     });
   }
@@ -257,8 +266,27 @@ class WritableStream<W = unknown> {
 
   abort(_reason?: unknown): Promise<void> {
     return new Promise((resolve) => {
-      __andromeda__.internal_writable_stream_abort(this.#streamId);
-      resolve();
+      try {
+        // Call underlying sink abort if available
+        if (this.#underlyingSink?.abort) {
+          const result = this.#underlyingSink.abort(_reason);
+          if (result instanceof Promise) {
+            result.finally(() => {
+              __andromeda__.internal_writable_stream_abort(this.#streamId);
+              resolve();
+            });
+          } else {
+            __andromeda__.internal_writable_stream_abort(this.#streamId);
+            resolve();
+          }
+        } else {
+          __andromeda__.internal_writable_stream_abort(this.#streamId);
+          resolve();
+        }
+      } catch {
+        __andromeda__.internal_writable_stream_abort(this.#streamId);
+        resolve();
+      }
     });
   }
 

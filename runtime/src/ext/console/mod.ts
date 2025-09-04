@@ -46,7 +46,6 @@ const COLORS = {
   },
 };
 
-
 /**
  * Utility functions for formatting
  */
@@ -605,7 +604,10 @@ const andromedaConsole = {
    * ```
    */
   timeLog(label: string = "default", ...args: ConsoleValue[]) {
-    const result = __andromeda__.time_log(label, args.length > 0 ? formatArgs(args) : "");
+    const result = __andromeda__.time_log(
+      label,
+      args.length > 0 ? formatArgs(args) : "",
+    );
     if (result.includes("does not exist")) {
       console.warn(result);
     } else {
