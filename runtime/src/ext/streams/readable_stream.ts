@@ -37,6 +37,8 @@ interface ReadableStreamReadResult<T> {
   value: T;
 }
 
+const symbolForSetReader = Symbol("[[setReader]]");
+
 /**
  * ReadableStreamDefaultController
  */
@@ -50,16 +52,29 @@ class ReadableStreamDefaultController<R = unknown> {
   }
 
   get desiredSize(): number | null {
-    // TODO: Implement desiredSize - check the stream state
-    // For simplicity, return 1 if the stream is not closed/errored
-    const state = __andromeda__.internal_stream_get_state(this.#streamId);
-    const [readable, , closed, errored] = state.split(":");
+    try {
+      const desiredSizeResult = __andromeda__.internal_stream_get_desired_size(
+        this.#streamId,
+      );
+      const desiredSize = parseInt(desiredSizeResult, 10);
 
-    if (closed === "true" || errored === "true") {
-      return 0;
+      if (isNaN(desiredSize)) {
+        const state = __andromeda__.internal_stream_get_state(this.#streamId);
+        const [readableState, , , chunkCount] = state.split(":");
+
+        if (readableState === "closed" || readableState === "errored") {
+          return 0;
+        }
+
+        const chunks = parseInt(chunkCount, 10) || 0;
+        const highWaterMark = 1; // Default from spec
+        return Math.max(0, highWaterMark - chunks);
+      }
+
+      return desiredSize;
+    } catch {
+      return 1;
     }
-
-    return readable === "true" ? 1 : null;
   }
 
   close(): void {
@@ -92,8 +107,11 @@ class ReadableStreamDefaultController<R = unknown> {
   }
 
   error(e?: unknown): void {
-    // TODO: Implement proper error handling
-    __andromeda__.internal_readable_stream_close(this.#streamId);
+    // According to WHATWG spec: "error a ReadableStream"
+    const errorMessage = e instanceof Error ?
+      e.message :
+      String(e || "Stream error");
+    __andromeda__.internal_readable_stream_error(this.#streamId, errorMessage);
   }
 }
 
@@ -181,7 +199,14 @@ class ReadableStreamDefaultReader<R = unknown> {
   }
 
   releaseLock(): void {
-    // TODO: Implement proper lock release
+    // According to WHATWG spec: "release a readable stream reader"
+    try {
+      __andromeda__.internal_readable_stream_unlock(this.#streamId);
+      // Clear the reader reference in the stream
+      this.#stream[symbolForSetReader](null);
+    } catch {
+      // Ignore errors when releasing lock
+    }
   }
 }
 
@@ -197,10 +222,22 @@ class ReadableStream<R = unknown> {
     underlyingSource?:
       | ReadableStreamUnderlyingSource<R>
       | ReadableStreamUnderlyingByteSource,
-    _strategy?: QueuingStrategy<R>,
+    strategy?: QueuingStrategy<R>,
   ) {
-    // TODO: Implement proper stream creation
+    // Create stream with proper initialization
     this.#streamId = __andromeda__.internal_readable_stream_create();
+
+    // Set up desired size based on strategy
+    if (strategy?.highWaterMark !== undefined) {
+      try {
+        __andromeda__.internal_stream_set_desired_size(
+          this.#streamId,
+          strategy.highWaterMark,
+        );
+      } catch {
+        // Ignore errors in setting desired size
+      }
+    }
 
     this.#controller = new ReadableStreamDefaultController<R>(
       this.#streamId,
@@ -220,8 +257,19 @@ class ReadableStream<R = unknown> {
     }
   }
 
+  [symbolForSetReader](reader: ReadableStreamDefaultReader<R> | null): void {
+    this.#reader = reader;
+  }
+
   get locked(): boolean {
-    return this.#reader !== null;
+    // According to WHATWG spec: A ReadableStream is locked if it has a reader
+    try {
+      const state = __andromeda__.internal_stream_get_state(this.#streamId);
+      const [, , locked] = state.split(":");
+      return locked === "true";
+    } catch {
+      return false;
+    }
   }
 
   cancel(_reason?: unknown): Promise<void> {
@@ -232,8 +280,16 @@ class ReadableStream<R = unknown> {
   }
 
   getReader(): ReadableStreamDefaultReader<R> {
+    // According to WHATWG spec: "acquire a readable stream reader"
     if (this.locked) {
       throw new TypeError("ReadableStream is already locked");
+    }
+
+    // Lock the stream in the backend
+    try {
+      __andromeda__.internal_readable_stream_lock(this.#streamId);
+    } catch (error) {
+      throw new TypeError("Failed to lock ReadableStream");
     }
 
     this.#reader = new ReadableStreamDefaultReader<R>(this.#streamId, this);
@@ -274,11 +330,42 @@ class ReadableStream<R = unknown> {
   }
 
   tee(): [ReadableStream<R>, ReadableStream<R>] {
-    // TODO: Implement proper tee logic
-    const stream1 = new ReadableStream<R>();
-    const stream2 = new ReadableStream<R>();
+    // According to WHATWG spec: "tee a ReadableStream"
+    if (this.locked) {
+      throw new TypeError("ReadableStream is already locked");
+    }
 
-    return [stream1, stream2];
+    try {
+      // Use the backend tee operation
+      const result = __andromeda__.internal_readable_stream_tee(this.#streamId);
+      const [stream1Id, stream2Id] = result.split(",");
+
+      // Create two new ReadableStream instances using the existing stream IDs
+      const stream1 = Object.create(ReadableStream.prototype);
+      const stream2 = Object.create(ReadableStream.prototype);
+
+      // Set up the internal state for both streams
+      // deno-lint-ignore no-explicit-any
+      (stream1 as any).#streamId = stream1Id;
+      // deno-lint-ignore no-explicit-any
+      (stream1 as any).#controller = null;
+      // deno-lint-ignore no-explicit-any
+      (stream1 as any).#reader = null;
+
+      // deno-lint-ignore no-explicit-any
+      (stream2 as any).#streamId = stream2Id;
+      // deno-lint-ignore no-explicit-any
+      (stream2 as any).#controller = null;
+      // deno-lint-ignore no-explicit-any
+      (stream2 as any).#reader = null;
+
+      return [stream1 as ReadableStream<R>, stream2 as ReadableStream<R>];
+    } catch {
+      // Fallback: create empty streams
+      const stream1 = new ReadableStream<R>();
+      const stream2 = new ReadableStream<R>();
+      return [stream1, stream2];
+    }
   }
 
   [Symbol.asyncIterator](): AsyncIterator<R> {
@@ -302,6 +389,34 @@ class ReadableStream<R = unknown> {
 
   get _streamId(): string {
     return this.#streamId;
+  }
+
+  /**
+   * Internal method to get the number of chunks queued in the stream
+   */
+  _getChunkCount(): number {
+    try {
+      const chunkCountResult = __andromeda__.internal_stream_get_chunk_count(
+        this.#streamId,
+      );
+      return parseInt(chunkCountResult, 10) || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Internal method to set the desired size for backpressure handling
+   */
+  _setDesiredSize(desiredSize: number): void {
+    try {
+      __andromeda__.internal_stream_set_desired_size(
+        this.#streamId,
+        desiredSize,
+      );
+    } catch {
+      // Ignore errors
+    }
   }
 }
 

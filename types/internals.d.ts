@@ -1134,6 +1134,56 @@ declare namespace __andromeda__ {
   export function internal_stream_get_state(streamId: string): string;
 
   /**
+   * The `internal_readable_stream_error` function puts a ReadableStream into an error state.
+   */
+  export function internal_readable_stream_error(streamId: string, error: string): string;
+
+  /**
+   * The `internal_readable_stream_lock` function locks a ReadableStream for exclusive reading.
+   */
+  export function internal_readable_stream_lock(streamId: string): string;
+
+  /**
+   * The `internal_readable_stream_unlock` function unlocks a ReadableStream.
+   */
+  export function internal_readable_stream_unlock(streamId: string): string;
+
+  /**
+   * The `internal_readable_stream_tee` function creates two independent branches of a ReadableStream.
+   */
+  export function internal_readable_stream_tee(streamId: string): string;
+
+  /**
+   * The `internal_writable_stream_error` function puts a WritableStream into an error state.
+   */
+  export function internal_writable_stream_error(streamId: string, error: string): string;
+
+  /**
+   * The `internal_writable_stream_lock` function locks a WritableStream for exclusive writing.
+   */
+  export function internal_writable_stream_lock(streamId: string): string;
+
+  /**
+   * The `internal_writable_stream_unlock` function unlocks a WritableStream.
+   */
+  export function internal_writable_stream_unlock(streamId: string): string;
+
+  /**
+   * The `internal_stream_set_desired_size` function sets the desired size for a stream.
+   */
+  export function internal_stream_set_desired_size(streamId: string, desiredSize: number): string;
+
+  /**
+   * The `internal_stream_get_desired_size` function gets the desired size of a stream.
+   */
+  export function internal_stream_get_desired_size(streamId: string): string;
+
+  /**
+   * The `internal_stream_get_chunk_count` function gets the number of chunks queued in a stream.
+   */
+  export function internal_stream_get_chunk_count(streamId: string): string;
+
+  /**
    * The `time_start` function starts a timer with the given label.
    */
   export function time_start(label?: string): number;
