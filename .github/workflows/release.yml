@@ -21,31 +21,37 @@ jobs:
           - os: ubuntu-latest
             rust-target: x86_64-unknown-linux-gnu
             asset-name: andromeda-linux-amd64
+            installer-name: andromeda-installer-linux-amd64
 
           # Linux (ARM64)
           - os: ubuntu-latest
             rust-target: aarch64-unknown-linux-gnu
             asset-name: andromeda-linux-arm64
+            installer-name: andromeda-installer-linux-arm64
 
           # macOS (Intel)
           - os: macos-latest
             rust-target: x86_64-apple-darwin
             asset-name: andromeda-macos-amd64
+            installer-name: andromeda-installer-macos-amd64
 
           # macOS (Apple Silicon/ARM)
           - os: macos-latest
             rust-target: aarch64-apple-darwin
             asset-name: andromeda-macos-arm64
+            installer-name: andromeda-installer-macos-arm64
 
           # Windows (x86_64)
           - os: windows-latest
             rust-target: x86_64-pc-windows-msvc
             asset-name: andromeda-windows-amd64.exe
+            installer-name: andromeda-installer-windows-amd64.exe
 
           # Windows (ARM64)
           - os: windows-latest
             rust-target: aarch64-pc-windows-msvc
             asset-name: andromeda-windows-arm64.exe
+            installer-name: andromeda-installer-windows-arm64.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -79,16 +85,37 @@ jobs:
           # PKG_CONFIG settings for cross-compilation
           PKG_CONFIG_ALLOW_CROSS: 1
 
+      - name: Build installer
+        continue-on-error: true  # Allow individual builds to fail
+        run: cargo build --bin andromeda-installer --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
+        env:
+          # Cross-compilation environment variables
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          # PKG_CONFIG settings for cross-compilation
+          PKG_CONFIG_ALLOW_CROSS: 1
+
       - name: Prepare binary
         shell: bash
         run: |
           cd target/${{ matrix.rust-target }}/release/
+          # Prepare main binary
           if [ -f "andromeda.exe" ]; then
             mv andromeda.exe ${{ matrix.asset-name }}
           elif [ -f "andromeda" ]; then
             mv andromeda ${{ matrix.asset-name }}
           else
-            echo "Binary not found, build may have failed"
+            echo "Main binary not found, build may have failed"
+            exit 1
+          fi
+          
+          # Prepare installer binary
+          if [ -f "andromeda-installer.exe" ]; then
+            mv andromeda-installer.exe ${{ matrix.installer-name }}
+          elif [ -f "andromeda-installer" ]; then
+            mv andromeda-installer ${{ matrix.installer-name }}
+          else
+            echo "Installer binary not found, build may have failed"
             exit 1
           fi
 
@@ -98,6 +125,13 @@ jobs:
         with:
           name: ${{ matrix.asset-name }}
           path: target/${{ matrix.rust-target }}/release/${{ matrix.asset-name }}
+
+      - name: Upload Installer as Artifact
+        uses: actions/upload-artifact@v4
+        if: success()  # Only upload if installer was prepared successfully
+        with:
+          name: ${{ matrix.installer-name }}
+          path: target/${{ matrix.rust-target }}/release/${{ matrix.installer-name }}
 
   release:
     name: Create Release

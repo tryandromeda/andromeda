@@ -20,6 +20,10 @@ path = "src/main.rs"
 name = "wpt"
 path = "src/bin/wpt.rs"
 
+[[bin]]
+name = "andromeda-installer"
+path = "src/bin/installer.rs"
+
 [dependencies]
 clap.workspace = true
 clap_complete.workspace = true
