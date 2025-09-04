@@ -19,15 +19,36 @@ use uuid::Uuid;
 static STREAM_STORAGE: std::sync::OnceLock<Arc<Mutex<HashMap<String, StreamData>>>> =
     std::sync::OnceLock::new();
 
-// Internal stream data structure
+// Stream states based on the Streams specification
+#[derive(Clone, Debug, PartialEq)]
+enum StreamState {
+    Readable,
+    Closed,
+    Errored,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+enum WritableStreamState {
+    Writable,
+    Closing,
+    Closed,
+    Erroring,
+    Errored,
+}
+
+// Enhanced stream data structure with proper state management
 #[derive(Clone)]
 struct StreamData {
     chunks: Vec<Vec<u8>>,
-    readable: bool,
-    writable: bool,
-    closed: bool,
-    errored: bool,
+    readable_state: StreamState,
+    writable_state: WritableStreamState,
     error_message: Option<String>,
+    // For backpressure handling
+    desired_size: i32,
+    high_water_mark: usize,
+    // For tracking readers/writers
+    locked: bool,
 }
 
 #[derive(Default)]
@@ -38,7 +59,6 @@ impl StreamsExt {
         Extension {
             name: "streams",
             ops: vec![
-                // ReadableStream operations
                 ExtensionOp::new(
                     "internal_readable_stream_create",
                     Self::internal_readable_stream_create,
@@ -69,7 +89,6 @@ impl StreamsExt {
                     2,
                     false,
                 ),
-                // WritableStream operations
                 ExtensionOp::new(
                     "internal_writable_stream_create",
                     Self::internal_writable_stream_create,
@@ -94,10 +113,69 @@ impl StreamsExt {
                     1,
                     false,
                 ),
-                // Stream utility operations
                 ExtensionOp::new(
                     "internal_stream_get_state",
                     Self::internal_stream_get_state,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_readable_stream_error",
+                    Self::internal_readable_stream_error,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_readable_stream_lock",
+                    Self::internal_readable_stream_lock,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_readable_stream_unlock",
+                    Self::internal_readable_stream_unlock,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_readable_stream_tee",
+                    Self::internal_readable_stream_tee,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_writable_stream_error",
+                    Self::internal_writable_stream_error,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_writable_stream_lock",
+                    Self::internal_writable_stream_lock,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_writable_stream_unlock",
+                    Self::internal_writable_stream_unlock,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_stream_set_desired_size",
+                    Self::internal_stream_set_desired_size,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_stream_get_desired_size",
+                    Self::internal_stream_get_desired_size,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_stream_get_chunk_count",
+                    Self::internal_stream_get_chunk_count,
                     1,
                     false,
                 ),
@@ -129,11 +207,12 @@ impl StreamsExt {
 
         let stream_data = StreamData {
             chunks: Vec::new(),
-            readable: true,
-            writable: false,
-            closed: false,
-            errored: false,
+            readable_state: StreamState::Readable,
+            writable_state: WritableStreamState::Closed,
             error_message: None,
+            desired_size: 1,
+            high_water_mark: 1,
+            locked: false,
         };
 
         let storage = Self::get_stream_storage();
@@ -161,7 +240,7 @@ impl StreamsExt {
         let mut storage_lock = storage.lock().unwrap();
 
         if let Some(stream_data) = storage_lock.get_mut(stream_id) {
-            if stream_data.errored {
+            if stream_data.readable_state == StreamState::Errored {
                 return Err(agent
                     .throw_exception(
                         ExceptionType::Error,
@@ -174,7 +253,7 @@ impl StreamsExt {
                     .unbind());
             }
 
-            if stream_data.closed && stream_data.chunks.is_empty() {
+            if stream_data.readable_state == StreamState::Closed && stream_data.chunks.is_empty() {
                 // Return done: true, value: undefined
                 return Ok(Value::from_string(agent, "done".to_string(), gc.nogc()).unbind());
             }
@@ -219,8 +298,7 @@ impl StreamsExt {
         let mut storage_lock = storage.lock().unwrap();
 
         if let Some(stream_data) = storage_lock.get_mut(stream_id) {
-            stream_data.readable = false;
-            stream_data.closed = true;
+            stream_data.readable_state = StreamState::Closed;
             stream_data.chunks.clear();
             Ok(Value::from_string(agent, "cancelled".to_string(), gc.nogc()).unbind())
         } else {
@@ -250,7 +328,7 @@ impl StreamsExt {
         let mut storage_lock = storage.lock().unwrap();
 
         if let Some(stream_data) = storage_lock.get_mut(stream_id) {
-            stream_data.closed = true;
+            stream_data.readable_state = StreamState::Closed;
             Ok(Value::from_string(agent, "closed".to_string(), gc.nogc()).unbind())
         } else {
             Err(agent
@@ -294,7 +372,7 @@ impl StreamsExt {
         let mut storage_lock = storage.lock().unwrap();
 
         if let Some(stream_data) = storage_lock.get_mut(stream_id) {
-            if stream_data.closed {
+            if stream_data.readable_state == StreamState::Closed {
                 return Err(agent
                     .throw_exception(
                         ExceptionType::Error,
@@ -328,11 +406,12 @@ impl StreamsExt {
 
         let stream_data = StreamData {
             chunks: Vec::new(),
-            readable: false,
-            writable: true,
-            closed: false,
-            errored: false,
+            readable_state: StreamState::Closed,
+            writable_state: WritableStreamState::Writable,
             error_message: None,
+            desired_size: 1,
+            high_water_mark: 1,
+            locked: false,
         };
 
         let storage = Self::get_stream_storage();
@@ -375,7 +454,7 @@ impl StreamsExt {
         let mut storage_lock = storage.lock().unwrap();
 
         if let Some(stream_data) = storage_lock.get_mut(stream_id) {
-            if !stream_data.writable || stream_data.closed {
+            if stream_data.writable_state != WritableStreamState::Writable {
                 return Err(agent
                     .throw_exception(
                         ExceptionType::Error,
@@ -414,8 +493,7 @@ impl StreamsExt {
         let mut storage_lock = storage.lock().unwrap();
 
         if let Some(stream_data) = storage_lock.get_mut(stream_id) {
-            stream_data.writable = false;
-            stream_data.closed = true;
+            stream_data.writable_state = WritableStreamState::Closed;
             Ok(Value::from_string(agent, "closed".to_string(), gc.nogc()).unbind())
         } else {
             Err(agent
@@ -444,9 +522,7 @@ impl StreamsExt {
         let mut storage_lock = storage.lock().unwrap();
 
         if let Some(stream_data) = storage_lock.get_mut(stream_id) {
-            stream_data.writable = false;
-            stream_data.closed = true;
-            stream_data.errored = true;
+            stream_data.writable_state = WritableStreamState::Errored;
             stream_data.error_message = Some("Stream aborted".to_string());
             stream_data.chunks.clear();
             Ok(Value::from_string(agent, "aborted".to_string(), gc.nogc()).unbind())
@@ -478,16 +554,380 @@ impl StreamsExt {
         let storage_lock = storage.lock().unwrap();
 
         if let Some(stream_data) = storage_lock.get(stream_id) {
-            // Return state as a formatted string: "readable:writable:closed:errored:chunk_count"
+            // Return state as a formatted string: "readable_state:writable_state:locked:chunk_count"
             let state = format!(
-                "{}:{}:{}:{}:{}",
-                stream_data.readable,
-                stream_data.writable,
-                stream_data.closed,
-                stream_data.errored,
+                "{}:{}:{}:{}",
+                match stream_data.readable_state {
+                    StreamState::Readable => "readable",
+                    StreamState::Closed => "closed",
+                    StreamState::Errored => "errored",
+                },
+                match stream_data.writable_state {
+                    WritableStreamState::Writable => "writable",
+                    WritableStreamState::Closing => "closing",
+                    WritableStreamState::Closed => "closed",
+                    WritableStreamState::Erroring => "erroring",
+                    WritableStreamState::Errored => "errored",
+                },
+                stream_data.locked,
                 stream_data.chunks.len()
             );
             Ok(Value::from_string(agent, state, gc.nogc()).unbind())
+        } else {
+            Err(agent
+                .throw_exception(
+                    ExceptionType::Error,
+                    "Invalid stream ID".to_string(),
+                    gc.nogc(),
+                )
+                .unbind())
+        }
+    }
+
+    pub fn internal_readable_stream_error<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let stream_id_arg = args.get(0);
+        let error_message_arg = args.get(1);
+
+        let stream_id_str = stream_id_arg.to_string(agent, gc.reborrow()).unbind()?;
+        let stream_id = stream_id_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+
+        let error_message_str = error_message_arg.to_string(agent, gc.reborrow()).unbind()?;
+        let error_message = error_message_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+
+        let storage = Self::get_stream_storage();
+        let mut storage_lock = storage.lock().unwrap();
+
+        if let Some(stream_data) = storage_lock.get_mut(stream_id) {
+            stream_data.readable_state = StreamState::Errored;
+            stream_data.error_message = Some(error_message.to_string());
+            stream_data.chunks.clear();
+            Ok(Value::from_string(agent, "errored".to_string(), gc.nogc()).unbind())
+        } else {
+            Err(agent
+                .throw_exception(
+                    ExceptionType::Error,
+                    "Invalid stream ID".to_string(),
+                    gc.nogc(),
+                )
+                .unbind())
+        }
+    }
+
+    pub fn internal_readable_stream_lock<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let stream_id_arg = args.get(0);
+        let stream_id_str = stream_id_arg.to_string(agent, gc.reborrow()).unbind()?;
+        let stream_id = stream_id_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+
+        let storage = Self::get_stream_storage();
+        let mut storage_lock = storage.lock().unwrap();
+
+        if let Some(stream_data) = storage_lock.get_mut(stream_id) {
+            if stream_data.locked {
+                return Err(agent
+                    .throw_exception(
+                        ExceptionType::Error,
+                        "Stream is already locked".to_string(),
+                        gc.nogc(),
+                    )
+                    .unbind());
+            }
+            stream_data.locked = true;
+            Ok(Value::from_string(agent, "locked".to_string(), gc.nogc()).unbind())
+        } else {
+            Err(agent
+                .throw_exception(
+                    ExceptionType::Error,
+                    "Invalid stream ID".to_string(),
+                    gc.nogc(),
+                )
+                .unbind())
+        }
+    }
+
+    pub fn internal_readable_stream_unlock<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let stream_id_arg = args.get(0);
+        let stream_id_str = stream_id_arg.to_string(agent, gc.reborrow()).unbind()?;
+        let stream_id = stream_id_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+
+        let storage = Self::get_stream_storage();
+        let mut storage_lock = storage.lock().unwrap();
+
+        if let Some(stream_data) = storage_lock.get_mut(stream_id) {
+            stream_data.locked = false;
+            Ok(Value::from_string(agent, "unlocked".to_string(), gc.nogc()).unbind())
+        } else {
+            Err(agent
+                .throw_exception(
+                    ExceptionType::Error,
+                    "Invalid stream ID".to_string(),
+                    gc.nogc(),
+                )
+                .unbind())
+        }
+    }
+
+    pub fn internal_readable_stream_tee<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let stream_id_arg = args.get(0);
+        let stream_id_str = stream_id_arg.to_string(agent, gc.reborrow()).unbind()?;
+        let stream_id = stream_id_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+
+        let storage = Self::get_stream_storage();
+        let mut storage_lock = storage.lock().unwrap();
+
+        if let Some(original_stream) = storage_lock.get(stream_id).cloned() {
+            // Create two new streams
+            let stream1_id = Uuid::new_v4().to_string();
+            let stream2_id = Uuid::new_v4().to_string();
+
+            // Clone the original stream data for both new streams
+            let stream1_data = StreamData {
+                chunks: original_stream.chunks.clone(),
+                readable_state: original_stream.readable_state.clone(),
+                writable_state: WritableStreamState::Closed,
+                error_message: original_stream.error_message.clone(),
+                desired_size: original_stream.desired_size,
+                high_water_mark: original_stream.high_water_mark,
+                locked: false,
+            };
+
+            let stream2_data = stream1_data.clone();
+
+            storage_lock.insert(stream1_id.clone(), stream1_data);
+            storage_lock.insert(stream2_id.clone(), stream2_data);
+
+            // Return both stream IDs as a comma-separated string
+            let result = format!("{stream1_id},{stream2_id}");
+            Ok(Value::from_string(agent, result, gc.nogc()).unbind())
+        } else {
+            Err(agent
+                .throw_exception(
+                    ExceptionType::Error,
+                    "Invalid stream ID".to_string(),
+                    gc.nogc(),
+                )
+                .unbind())
+        }
+    }
+
+    pub fn internal_writable_stream_error<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let stream_id_arg = args.get(0);
+        let error_message_arg = args.get(1);
+
+        let stream_id_str = stream_id_arg.to_string(agent, gc.reborrow()).unbind()?;
+        let stream_id = stream_id_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+
+        let error_message_str = error_message_arg.to_string(agent, gc.reborrow()).unbind()?;
+        let error_message = error_message_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+
+        let storage = Self::get_stream_storage();
+        let mut storage_lock = storage.lock().unwrap();
+
+        if let Some(stream_data) = storage_lock.get_mut(stream_id) {
+            stream_data.writable_state = WritableStreamState::Errored;
+            stream_data.error_message = Some(error_message.to_string());
+            stream_data.chunks.clear();
+            Ok(Value::from_string(agent, "errored".to_string(), gc.nogc()).unbind())
+        } else {
+            Err(agent
+                .throw_exception(
+                    ExceptionType::Error,
+                    "Invalid stream ID".to_string(),
+                    gc.nogc(),
+                )
+                .unbind())
+        }
+    }
+
+    pub fn internal_writable_stream_lock<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let stream_id_arg = args.get(0);
+        let stream_id_str = stream_id_arg.to_string(agent, gc.reborrow()).unbind()?;
+        let stream_id = stream_id_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+
+        let storage = Self::get_stream_storage();
+        let mut storage_lock = storage.lock().unwrap();
+
+        if let Some(stream_data) = storage_lock.get_mut(stream_id) {
+            if stream_data.locked {
+                return Err(agent
+                    .throw_exception(
+                        ExceptionType::Error,
+                        "Stream is already locked".to_string(),
+                        gc.nogc(),
+                    )
+                    .unbind());
+            }
+            stream_data.locked = true;
+            Ok(Value::from_string(agent, "locked".to_string(), gc.nogc()).unbind())
+        } else {
+            Err(agent
+                .throw_exception(
+                    ExceptionType::Error,
+                    "Invalid stream ID".to_string(),
+                    gc.nogc(),
+                )
+                .unbind())
+        }
+    }
+
+    pub fn internal_writable_stream_unlock<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let stream_id_arg = args.get(0);
+        let stream_id_str = stream_id_arg.to_string(agent, gc.reborrow()).unbind()?;
+        let stream_id = stream_id_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+
+        let storage = Self::get_stream_storage();
+        let mut storage_lock = storage.lock().unwrap();
+
+        if let Some(stream_data) = storage_lock.get_mut(stream_id) {
+            stream_data.locked = false;
+            Ok(Value::from_string(agent, "unlocked".to_string(), gc.nogc()).unbind())
+        } else {
+            Err(agent
+                .throw_exception(
+                    ExceptionType::Error,
+                    "Invalid stream ID".to_string(),
+                    gc.nogc(),
+                )
+                .unbind())
+        }
+    }
+
+    pub fn internal_stream_set_desired_size<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let stream_id_arg = args.get(0);
+        let desired_size_arg = args.get(1);
+
+        let stream_id_str = stream_id_arg.to_string(agent, gc.reborrow()).unbind()?;
+        let stream_id = stream_id_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+
+        // Parse desired size as integer
+        let desired_size_str = desired_size_arg.to_string(agent, gc.reborrow()).unbind()?;
+        let desired_size_string = desired_size_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+
+        let desired_size: i32 = desired_size_string.parse().unwrap_or(1);
+
+        let storage = Self::get_stream_storage();
+        let mut storage_lock = storage.lock().unwrap();
+
+        if let Some(stream_data) = storage_lock.get_mut(stream_id) {
+            stream_data.desired_size = desired_size;
+            Ok(Value::from_string(agent, "set".to_string(), gc.nogc()).unbind())
+        } else {
+            Err(agent
+                .throw_exception(
+                    ExceptionType::Error,
+                    "Invalid stream ID".to_string(),
+                    gc.nogc(),
+                )
+                .unbind())
+        }
+    }
+
+    pub fn internal_stream_get_desired_size<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let stream_id_arg = args.get(0);
+        let stream_id_str = stream_id_arg.to_string(agent, gc.reborrow()).unbind()?;
+        let stream_id = stream_id_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+
+        let storage = Self::get_stream_storage();
+        let storage_lock = storage.lock().unwrap();
+
+        if let Some(stream_data) = storage_lock.get(stream_id) {
+            Ok(Value::from_string(agent, stream_data.desired_size.to_string(), gc.nogc()).unbind())
+        } else {
+            Err(agent
+                .throw_exception(
+                    ExceptionType::Error,
+                    "Invalid stream ID".to_string(),
+                    gc.nogc(),
+                )
+                .unbind())
+        }
+    }
+
+    pub fn internal_stream_get_chunk_count<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let stream_id_arg = args.get(0);
+        let stream_id_str = stream_id_arg.to_string(agent, gc.reborrow()).unbind()?;
+        let stream_id = stream_id_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+
+        let storage = Self::get_stream_storage();
+        let storage_lock = storage.lock().unwrap();
+
+        if let Some(stream_data) = storage_lock.get(stream_id) {
+            Ok(Value::from_string(agent, stream_data.chunks.len().to_string(), gc.nogc()).unbind())
         } else {
             Err(agent
                 .throw_exception(

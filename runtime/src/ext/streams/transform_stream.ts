@@ -35,8 +35,30 @@ class TransformStreamDefaultController<O = unknown> {
   }
 
   get desiredSize(): number | null {
-    // For simplicity, return 1 - in a real implementation this would check the readable side
-    return 1;
+    try {
+      const desiredSizeResult = __andromeda__.internal_stream_get_desired_size(
+        this.#readableStreamId,
+      );
+      const desiredSize = parseInt(desiredSizeResult, 10);
+
+      if (isNaN(desiredSize)) {
+        const state = __andromeda__.internal_stream_get_state(
+          this.#readableStreamId,
+        );
+        const [readableState, , , chunkCount] = state.split(":");
+
+        if (readableState === "closed" || readableState === "errored") {
+          return 0;
+        }
+
+        const chunks = parseInt(chunkCount, 10) || 0;
+        return Math.max(0, 1 - chunks);
+      }
+
+      return desiredSize;
+    } catch {
+      return 1;
+    }
   }
 
   enqueue(chunk?: O): void {
@@ -64,9 +86,14 @@ class TransformStreamDefaultController<O = unknown> {
     }
   }
 
-  error(_e?: unknown): void {
-    // For now, just close the stream - proper error handling would store the error
-    __andromeda__.internal_readable_stream_close(this.#readableStreamId);
+  error(e?: unknown): void {
+    const errorMessage = e instanceof Error ?
+      e.message :
+      String(e || "Transform stream error");
+    __andromeda__.internal_readable_stream_error(
+      this.#readableStreamId,
+      errorMessage,
+    );
   }
 
   terminate(): void {
@@ -84,11 +111,10 @@ class TransformStream<I = unknown, O = unknown> {
 
   constructor(
     transformer?: Transformer<I, O>,
-    _writableStrategy?: QueuingStrategy<I>,
-    _readableStrategy?: QueuingStrategy<O>,
+    writableStrategy?: QueuingStrategy<I>,
+    readableStrategy?: QueuingStrategy<O>,
   ) {
-    // Create readable and writable streams
-    this.#readable = new ReadableStream<O>();
+    this.#readable = new ReadableStream<O>(undefined, readableStrategy);
 
     // Get the readable stream ID for the controller
     // deno-lint-ignore no-explicit-any
@@ -97,7 +123,6 @@ class TransformStream<I = unknown, O = unknown> {
       readableStreamId,
     );
 
-    // Create writable stream with transformer
     this.#writable = new WritableStream<I>({
       start: (controller) => {
         if (transformer?.start) {
@@ -122,7 +147,6 @@ class TransformStream<I = unknown, O = unknown> {
             controller.error(error);
           }
         } else {
-          // Default transform: pass through
           this.#controller.enqueue(chunk as unknown as O);
         }
       },
@@ -145,7 +169,7 @@ class TransformStream<I = unknown, O = unknown> {
       abort: () => {
         this.#controller.error(new Error("Transform stream aborted"));
       },
-    });
+    }, writableStrategy);
   }
 
   get readable(): ReadableStream<O> {

@@ -14,6 +14,8 @@ interface WritableStreamUnderlyingSink<W = unknown> {
   type?: undefined;
 }
 
+const symbolForSetWriter = Symbol("[[setWriter]]");
+
 /**
  * WritableStreamDefaultController
  */
@@ -26,9 +28,12 @@ class WritableStreamDefaultController {
     this.#stream = stream;
   }
 
-  error(_e?: unknown): void {
-    // TODO: Implement proper error handling
-    __andromeda__.internal_writable_stream_abort(this.#streamId);
+  error(e?: unknown): void {
+    // According to WHATWG spec: "error a WritableStream"
+    const errorMessage = e instanceof Error ?
+      e.message :
+      String(e || "Stream error");
+    __andromeda__.internal_writable_stream_error(this.#streamId, errorMessage);
   }
 }
 
@@ -54,13 +59,46 @@ class WritableStreamDefaultWriter<W = unknown> {
   }
 
   get desiredSize(): number | null {
-    // TODO: Implement desiredSize - check the stream state
-    return 1;
+    try {
+      const desiredSizeResult = __andromeda__.internal_stream_get_desired_size(
+        this.#streamId,
+      );
+      const desiredSize = parseInt(desiredSizeResult, 10);
+
+      if (isNaN(desiredSize)) {
+        const state = __andromeda__.internal_stream_get_state(this.#streamId);
+        const [, writableState, ,] = state.split(":");
+
+        if (writableState === "closed" || writableState === "errored") {
+          return null;
+        }
+
+        return 1; // Default positive desired size
+      }
+
+      return desiredSize;
+    } catch {
+      return 1;
+    }
   }
 
   get ready(): Promise<undefined> {
-    // TODO: Implement ready - check backpressure
-    return Promise.resolve(undefined);
+    return new Promise((resolve) => {
+      try {
+        const desiredSizeResult = __andromeda__
+          .internal_stream_get_desired_size(this.#streamId);
+        const desiredSize = parseInt(desiredSizeResult, 10);
+
+        if (isNaN(desiredSize) || desiredSize > 0) {
+          resolve(undefined);
+        } else {
+          // TODO: Implement backpressure handling
+          setTimeout(() => resolve(undefined), 0);
+        }
+      } catch {
+        resolve(undefined);
+      }
+    });
   }
 
   abort(_reason?: unknown): Promise<void> {
@@ -92,7 +130,12 @@ class WritableStreamDefaultWriter<W = unknown> {
   }
 
   releaseLock(): void {
-    // TODO: Implement proper lock release
+    try {
+      __andromeda__.internal_writable_stream_unlock(this.#streamId);
+      this.#stream[symbolForSetWriter](null);
+    } catch {
+      // Ignore errors when releasing lock
+    }
   }
 
   write(chunk: W): Promise<void> {
@@ -163,10 +206,21 @@ class WritableStream<W = unknown> {
 
   constructor(
     underlyingSink?: WritableStreamUnderlyingSink<W>,
-    _strategy?: QueuingStrategy<W>,
+    strategy?: QueuingStrategy<W>,
   ) {
     this.#streamId = __andromeda__.internal_writable_stream_create();
     this.#underlyingSink = underlyingSink || null;
+
+    if (strategy?.highWaterMark !== undefined) {
+      try {
+        __andromeda__.internal_stream_set_desired_size(
+          this.#streamId,
+          strategy.highWaterMark,
+        );
+      } catch {
+        // Ignore errors in setting desired size
+      }
+    }
 
     // Create controller
     this.#controller = new WritableStreamDefaultController(
@@ -187,8 +241,18 @@ class WritableStream<W = unknown> {
     }
   }
 
+  [symbolForSetWriter](writer: WritableStreamDefaultWriter<W> | null): void {
+    this.#writer = writer;
+  }
+
   get locked(): boolean {
-    return this.#writer !== null;
+    try {
+      const state = __andromeda__.internal_stream_get_state(this.#streamId);
+      const [, , locked] = state.split(":");
+      return locked === "true";
+    } catch {
+      return this.#writer !== null;
+    }
   }
 
   abort(_reason?: unknown): Promise<void> {
@@ -229,11 +293,16 @@ class WritableStream<W = unknown> {
       throw new TypeError("WritableStream is already locked");
     }
 
+    try {
+      __andromeda__.internal_writable_stream_lock(this.#streamId);
+    } catch (error) {
+      throw new TypeError("Failed to lock WritableStream");
+    }
+
     this.#writer = new WritableStreamDefaultWriter<W>(this.#streamId, this);
     return this.#writer;
   }
 
-  // Internal method to call the underlying sink write method
   _callUnderlyingWrite(chunk: W): Promise<void> {
     return new Promise((resolve, reject) => {
       if (this.#underlyingSink?.write) {
@@ -258,5 +327,33 @@ class WritableStream<W = unknown> {
 
   get _streamId(): string {
     return this.#streamId;
+  }
+
+  /**
+   * Internal method to get the number of chunks queued in the stream
+   */
+  _getChunkCount(): number {
+    try {
+      const chunkCountResult = __andromeda__.internal_stream_get_chunk_count(
+        this.#streamId,
+      );
+      return parseInt(chunkCountResult, 10) || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Internal method to set the desired size for backpressure handling
+   */
+  _setDesiredSize(desiredSize: number): void {
+    try {
+      __andromeda__.internal_stream_set_desired_size(
+        this.#streamId,
+        desiredSize,
+      );
+    } catch {
+      // Ignore errors
+    }
   }
 }
