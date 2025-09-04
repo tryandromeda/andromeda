@@ -58,7 +58,7 @@ jobs:
           cargo clippy --all-targets --all-features -- -D warnings
   wpt:
     name: Web Platform Tests
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
