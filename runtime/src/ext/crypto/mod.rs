@@ -26,6 +26,7 @@ impl CryptoExt {
         Extension {
             name: "crypto",
             ops: vec![
+                // Crypto interface operations
                 ExtensionOp::new(
                     "internal_crypto_getRandomValues",
                     Self::internal_crypto_get_random_values,
@@ -38,7 +39,7 @@ impl CryptoExt {
                     0,
                     false,
                 ),
-                // SubtleCrypto operations
+                // SubtleCrypto core operations
                 ExtensionOp::new(
                     "internal_subtle_digest",
                     Self::internal_subtle_digest,
@@ -80,6 +81,76 @@ impl CryptoExt {
                     "internal_subtle_verify",
                     Self::internal_subtle_verify,
                     4,
+                    false,
+                ),
+                // Key derivation operations
+                ExtensionOp::new(
+                    "internal_subtle_deriveKey",
+                    Self::internal_subtle_derive_key,
+                    5,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_subtle_deriveBits",
+                    Self::internal_subtle_derive_bits,
+                    3,
+                    false,
+                ),
+                // Key wrapping operations
+                ExtensionOp::new(
+                    "internal_subtle_wrapKey",
+                    Self::internal_subtle_wrap_key,
+                    4,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_subtle_unwrapKey",
+                    Self::internal_subtle_unwrap_key,
+                    7,
+                    false,
+                ),
+                // Crypto key operations
+                ExtensionOp::new(
+                    "internal_cryptokey_create",
+                    Self::internal_cryptokey_create,
+                    5,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_cryptokey_get_type",
+                    Self::internal_cryptokey_get_type,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_cryptokey_get_extractable",
+                    Self::internal_cryptokey_get_extractable,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_cryptokey_get_algorithm",
+                    Self::internal_cryptokey_get_algorithm,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_cryptokey_get_usages",
+                    Self::internal_cryptokey_get_usages,
+                    1,
+                    false,
+                ),
+                // Array buffer operations for crypto
+                ExtensionOp::new(
+                    "internal_crypto_create_array_buffer",
+                    Self::internal_crypto_create_array_buffer,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_crypto_get_buffer_bytes",
+                    Self::internal_crypto_get_buffer_bytes,
+                    1,
                     false,
                 ),
             ],
@@ -216,5 +287,149 @@ impl CryptoExt {
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         SubtleCrypto::verify(agent, args, gc)
+    }
+
+    fn internal_subtle_derive_key<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        SubtleCrypto::derive_key(agent, args, gc)
+    }
+
+    fn internal_subtle_derive_bits<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        SubtleCrypto::derive_bits(agent, args, gc)
+    }
+
+    fn internal_subtle_wrap_key<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        SubtleCrypto::wrap_key(agent, args, gc)
+    }
+
+    fn internal_subtle_unwrap_key<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        SubtleCrypto::unwrap_key(agent, args, gc)
+    }
+
+    fn internal_cryptokey_create<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        _args: ArgumentsList,
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        // TODO: Implement CryptoKey creation
+        let gc = gc.into_nogc();
+        Err(agent
+            .throw_exception_with_static_message(
+                nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                "CryptoKey creation not yet implemented",
+                gc,
+            )
+            .unbind())
+    }
+
+    fn internal_cryptokey_get_type<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        _args: ArgumentsList,
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        // TODO: Implement CryptoKey type getter
+        Ok(
+            nova_vm::ecmascript::types::String::from_string(agent, "secret".to_string(), gc.nogc())
+                .unbind()
+                .into(),
+        )
+    }
+
+    fn internal_cryptokey_get_extractable<'gc>(
+        _agent: &mut Agent,
+        _this: Value,
+        _args: ArgumentsList,
+        _gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        // TODO: Implement CryptoKey extractable getter
+        Ok(Value::Boolean(true))
+    }
+
+    fn internal_cryptokey_get_algorithm<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        _args: ArgumentsList,
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        // TODO: Implement CryptoKey algorithm getter
+        Ok(
+            nova_vm::ecmascript::types::String::from_string(
+                agent,
+                "AES-GCM".to_string(),
+                gc.nogc(),
+            )
+            .unbind()
+            .into(),
+        )
+    }
+
+    fn internal_cryptokey_get_usages<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        _args: ArgumentsList,
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        // TODO: Implement CryptoKey usages getter
+        Ok(nova_vm::ecmascript::types::String::from_string(
+            agent,
+            "encrypt,decrypt".to_string(),
+            gc.nogc(),
+        )
+        .unbind()
+        .into())
+    }
+
+    fn internal_crypto_create_array_buffer<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        // TODO: Implement proper ArrayBuffer creation from bytes
+        let _bytes_arg = args[0];
+        Ok(nova_vm::ecmascript::types::String::from_string(
+            agent,
+            "arraybuffer_placeholder".to_string(),
+            gc.nogc(),
+        )
+        .unbind()
+        .into())
+    }
+
+    fn internal_crypto_get_buffer_bytes<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        _args: ArgumentsList,
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        // TODO: Implement proper bytes extraction from ArrayBuffer/TypedArray
+        Ok(nova_vm::ecmascript::types::String::from_string(
+            agent,
+            "buffer_bytes_placeholder".to_string(),
+            gc.nogc(),
+        )
+        .unbind()
+        .into())
     }
 }

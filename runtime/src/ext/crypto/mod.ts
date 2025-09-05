@@ -103,11 +103,12 @@ const subtle = {
     format: KeyFormat,
     key: CryptoKey,
   ): Promise<ArrayBuffer | object> {
-    // @ts-ignore - Allow internal function call
     return Promise.resolve(
       __andromeda__.internal_subtle_exportKey(format, key),
     );
-  }, /**
+  },
+
+  /**
    * Encrypts data using the specified algorithm and key.
    *
    * @example
@@ -126,11 +127,12 @@ const subtle = {
     key: CryptoKey,
     data: Uint8Array | ArrayBuffer,
   ): Promise<ArrayBuffer> {
-    // @ts-ignore - Allow internal function call
     return Promise.resolve(
       __andromeda__.internal_subtle_encrypt(algorithm, key, data),
     );
-  }, /**
+  },
+
+  /**
    * Decrypts data using the specified algorithm and key.
    *
    * @example
@@ -149,11 +151,12 @@ const subtle = {
     key: CryptoKey,
     data: Uint8Array | ArrayBuffer,
   ): Promise<ArrayBuffer> {
-    // @ts-ignore - Allow internal function call
     return Promise.resolve(
       __andromeda__.internal_subtle_decrypt(algorithm, key, data),
     );
-  }, /**
+  },
+
+  /**
    * Creates a digital signature for data using the specified algorithm and key.
    *
    * @example
@@ -175,7 +178,6 @@ const subtle = {
     key: CryptoKey,
     data: Uint8Array | ArrayBuffer,
   ): Promise<ArrayBuffer> {
-    // @ts-ignore - Allow internal function call
     return Promise.resolve(
       __andromeda__.internal_subtle_sign(algorithm, key, data),
     );
@@ -200,8 +202,128 @@ const subtle = {
     data: Uint8Array | ArrayBuffer,
   ): Promise<boolean> {
     return Promise.resolve(
-      // @ts-ignore - Allow internal function call
       __andromeda__.internal_subtle_verify(algorithm, key, signature, data),
+    );
+  },
+
+  /**
+   * Derives a new key from an existing key using the specified algorithm.
+   *
+   * @example
+   * ```ts
+   * const derivedKey = await crypto.subtle.deriveKey(
+   *   { name: "ECDH", public: publicKey },
+   *   privateKey,
+   *   { name: "AES-GCM", length: 256 },
+   *   false,
+   *   ["encrypt", "decrypt"]
+   * );
+   * ```
+   */
+  deriveKey(
+    algorithm: AlgorithmIdentifier,
+    baseKey: CryptoKey,
+    derivedKeyType: AlgorithmIdentifier,
+    extractable: boolean,
+    keyUsages: KeyUsage[],
+  ): Promise<CryptoKey> {
+    return Promise.resolve(
+      __andromeda__.internal_subtle_deriveKey(
+        algorithm,
+        baseKey,
+        derivedKeyType,
+        extractable,
+        keyUsages,
+      ),
+    );
+  },
+
+  /**
+   * Derives bits from an existing key using the specified algorithm.
+   *
+   * @example
+   * ```ts
+   * const derivedBits = await crypto.subtle.deriveBits(
+   *   { name: "ECDH", public: publicKey },
+   *   privateKey,
+   *   256
+   * );
+   * ```
+   */
+  deriveBits(
+    algorithm: AlgorithmIdentifier,
+    baseKey: CryptoKey,
+    length?: number,
+  ): Promise<ArrayBuffer> {
+    return Promise.resolve(
+      __andromeda__.internal_subtle_deriveBits(algorithm, baseKey, length),
+    );
+  },
+
+  /**
+   * Wraps a key using another key for secure transport or storage.
+   *
+   * @example
+   * ```ts
+   * const wrappedKey = await crypto.subtle.wrapKey(
+   *   "raw",
+   *   keyToWrap,
+   *   wrappingKey,
+   *   "AES-KW"
+   * );
+   * ```
+   */
+  wrapKey(
+    format: KeyFormat,
+    key: CryptoKey,
+    wrappingKey: CryptoKey,
+    wrapAlgorithm: AlgorithmIdentifier,
+  ): Promise<ArrayBuffer> {
+    return Promise.resolve(
+      __andromeda__.internal_subtle_wrapKey(
+        format,
+        key,
+        wrappingKey,
+        wrapAlgorithm,
+      ),
+    );
+  },
+
+  /**
+   * Unwraps a key that was previously wrapped for secure transport or storage.
+   *
+   * @example
+   * ```ts
+   * const unwrappedKey = await crypto.subtle.unwrapKey(
+   *   "raw",
+   *   wrappedKeyData,
+   *   unwrappingKey,
+   *   "AES-KW",
+   *   { name: "AES-GCM" },
+   *   true,
+   *   ["encrypt", "decrypt"]
+   * );
+   * ```
+   */
+  unwrapKey(
+    format: KeyFormat,
+    wrappedKey: ArrayBuffer | Uint8Array,
+    unwrappingKey: CryptoKey,
+    unwrapAlgorithm: AlgorithmIdentifier,
+    unwrappedKeyAlgorithm: AlgorithmIdentifier,
+    extractable: boolean,
+    keyUsages: KeyUsage[],
+  ): Promise<CryptoKey> {
+    return Promise.resolve(
+      __andromeda__.internal_subtle_unwrapKey(
+        format,
+        wrappedKey,
+        unwrappingKey,
+        unwrapAlgorithm,
+        unwrappedKeyAlgorithm,
+        extractable,
+        keyUsages,
+      ),
     );
   },
 };

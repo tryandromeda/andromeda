@@ -732,6 +732,96 @@ declare namespace __andromeda__ {
   ): boolean;
 
   /**
+   * Derives a new key from an existing key.
+   */
+  export function internal_subtle_deriveKey(
+    algorithm: AlgorithmIdentifier,
+    baseKey: CryptoKey,
+    derivedKeyType: AlgorithmIdentifier,
+    extractable: boolean,
+    keyUsages: KeyUsage[],
+  ): CryptoKey;
+
+  /**
+   * Derives bits from an existing key.
+   */
+  export function internal_subtle_deriveBits(
+    algorithm: AlgorithmIdentifier,
+    baseKey: CryptoKey,
+    length?: number,
+  ): ArrayBuffer;
+
+  /**
+   * Wraps a key using another key.
+   */
+  export function internal_subtle_wrapKey(
+    format: KeyFormat,
+    key: CryptoKey,
+    wrappingKey: CryptoKey,
+    wrapAlgorithm: AlgorithmIdentifier,
+  ): ArrayBuffer;
+
+  /**
+   * Unwraps a key that was previously wrapped.
+   */
+  export function internal_subtle_unwrapKey(
+    format: KeyFormat,
+    wrappedKey: ArrayBuffer | Uint8Array,
+    unwrappingKey: CryptoKey,
+    unwrapAlgorithm: AlgorithmIdentifier,
+    unwrappedKeyAlgorithm: AlgorithmIdentifier,
+    extractable: boolean,
+    keyUsages: KeyUsage[],
+  ): CryptoKey;
+
+  /**
+   * Creates a new CryptoKey object.
+   */
+  export function internal_cryptokey_create(
+    type: KeyType,
+    extractable: boolean,
+    algorithm: KeyAlgorithm,
+    usages: KeyUsage[],
+    handle: unknown,
+  ): CryptoKey;
+
+  /**
+   * Gets the type of a CryptoKey.
+   */
+  export function internal_cryptokey_get_type(key: CryptoKey): KeyType;
+
+  /**
+   * Gets the extractable property of a CryptoKey.
+   */
+  export function internal_cryptokey_get_extractable(key: CryptoKey): boolean;
+
+  /**
+   * Gets the algorithm of a CryptoKey.
+   */
+  export function internal_cryptokey_get_algorithm(
+    key: CryptoKey,
+  ): KeyAlgorithm;
+
+  /**
+   * Gets the usages of a CryptoKey.
+   */
+  export function internal_cryptokey_get_usages(key: CryptoKey): KeyUsage[];
+
+  /**
+   * Creates an ArrayBuffer from bytes.
+   */
+  export function internal_crypto_create_array_buffer(
+    bytes: Uint8Array,
+  ): ArrayBuffer;
+
+  /**
+   * Gets bytes from an ArrayBuffer or TypedArray.
+   */
+  export function internal_crypto_get_buffer_bytes(
+    buffer: ArrayBuffer | Uint8Array,
+  ): Uint8Array;
+
+  /**
    * The `internal_performance_now` function returns the current time in milliseconds since the page load.
    */
   export function internal_performance_now(): number;
@@ -1136,7 +1226,10 @@ declare namespace __andromeda__ {
   /**
    * The `internal_readable_stream_error` function puts a ReadableStream into an error state.
    */
-  export function internal_readable_stream_error(streamId: string, error: string): string;
+  export function internal_readable_stream_error(
+    streamId: string,
+    error: string,
+  ): string;
 
   /**
    * The `internal_readable_stream_lock` function locks a ReadableStream for exclusive reading.
@@ -1156,7 +1249,10 @@ declare namespace __andromeda__ {
   /**
    * The `internal_writable_stream_error` function puts a WritableStream into an error state.
    */
-  export function internal_writable_stream_error(streamId: string, error: string): string;
+  export function internal_writable_stream_error(
+    streamId: string,
+    error: string,
+  ): string;
 
   /**
    * The `internal_writable_stream_lock` function locks a WritableStream for exclusive writing.
@@ -1171,7 +1267,10 @@ declare namespace __andromeda__ {
   /**
    * The `internal_stream_set_desired_size` function sets the desired size for a stream.
    */
-  export function internal_stream_set_desired_size(streamId: string, desiredSize: number): string;
+  export function internal_stream_set_desired_size(
+    streamId: string,
+    desiredSize: number,
+  ): string;
 
   /**
    * The `internal_stream_get_desired_size` function gets the desired size of a stream.
@@ -1184,69 +1283,103 @@ declare namespace __andromeda__ {
   export function internal_stream_get_chunk_count(streamId: string): string;
 
   // ===== BYOB Reader Operations =====
-  
+
   /**
    * The `internal_readable_stream_create_byob` function creates a new readable byte stream.
    */
-  export function internal_readable_stream_create_byob(autoAllocateChunkSize: string): string;
-  
+  export function internal_readable_stream_create_byob(
+    autoAllocateChunkSize: string,
+  ): string;
+
   /**
    * The `internal_readable_stream_byob_reader_read` function reads from a BYOB reader.
    */
-  export function internal_readable_stream_byob_reader_read(streamId: string, bufferInfo: string): string;
-  
+  export function internal_readable_stream_byob_reader_read(
+    streamId: string,
+    bufferInfo: string,
+  ): string;
+
   /**
    * The `internal_readable_stream_pull_into` function performs a pull-into operation for BYOB readers.
    */
-  export function internal_readable_stream_pull_into(streamId: string, bufferBytes: string, byteOffset: string, byteLength: string): string;
-  
+  export function internal_readable_stream_pull_into(
+    streamId: string,
+    bufferBytes: string,
+    byteOffset: string,
+    byteLength: string,
+  ): string;
+
   // ===== Transform Stream Operations =====
-  
+
   /**
    * The `internal_transform_stream_create` function creates a new transform stream.
    */
   export function internal_transform_stream_create(): string;
-  
+
   /**
    * The `internal_transform_stream_set_backpressure` function sets backpressure state for a transform stream.
    */
-  export function internal_transform_stream_set_backpressure(readableStreamId: string, backpressure: string): string;
-  
+  export function internal_transform_stream_set_backpressure(
+    readableStreamId: string,
+    backpressure: string,
+  ): string;
+
   /**
    * The `internal_transform_stream_get_backpressure` function gets backpressure state for a transform stream.
    */
-  export function internal_transform_stream_get_backpressure(readableStreamId: string): string;
-  
+  export function internal_transform_stream_get_backpressure(
+    readableStreamId: string,
+  ): string;
+
   // ===== Enhanced Pipe Operations =====
-  
+
   /**
    * The `internal_readable_stream_pipe_to` function pipes a readable stream to a writable stream.
    */
-  export function internal_readable_stream_pipe_to(sourceStreamId: string, destStreamId: string, preventClose: string, preventAbort: string, preventCancel: string): string;
-  
+  export function internal_readable_stream_pipe_to(
+    sourceStreamId: string,
+    destStreamId: string,
+    preventClose: string,
+    preventAbort: string,
+    preventCancel: string,
+  ): string;
+
   /**
    * The `internal_readable_stream_pipe_through` function pipes a readable stream through a transform stream.
    */
-  export function internal_readable_stream_pipe_through(sourceStreamId: string, transformWritableId: string, transformReadableId: string, preventClose: string, preventAbort: string): string;
-  
+  export function internal_readable_stream_pipe_through(
+    sourceStreamId: string,
+    transformWritableId: string,
+    transformReadableId: string,
+    preventClose: string,
+    preventAbort: string,
+  ): string;
+
   // ===== ReadableStream.from() support =====
-  
+
   /**
    * The `internal_readable_stream_from_iterable` function creates a readable stream from an iterable.
    */
-  export function internal_readable_stream_from_iterable(iterableInfo: string): string;
-  
+  export function internal_readable_stream_from_iterable(
+    iterableInfo: string,
+  ): string;
+
   // ===== Auto-allocation operations =====
-  
+
   /**
    * The `internal_readable_stream_set_auto_allocate_chunk_size` function sets the auto-allocate chunk size for a byte stream.
    */
-  export function internal_readable_stream_set_auto_allocate_chunk_size(streamId: string, chunkSize: string): string;
-  
+  export function internal_readable_stream_set_auto_allocate_chunk_size(
+    streamId: string,
+    chunkSize: string,
+  ): string;
+
   /**
    * The `internal_readable_stream_get_auto_allocate_chunk_size` function gets the auto-allocate chunk size for a byte stream.
    */
-  export function internal_readable_stream_get_auto_allocate_chunk_size(streamId: string): string;
+  export function internal_readable_stream_get_auto_allocate_chunk_size(
+    streamId: string,
+  ): string;
 
   /**
    * The `time_start` function starts a timer with the given label.
