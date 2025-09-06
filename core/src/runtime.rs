@@ -101,20 +101,18 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
     /// Resolve a module specifier relative to a referrer path
     fn resolve_module_specifier(&self, specifier: &str, referrer_path: &Path) -> String {
         // Try import map resolution first for bare specifiers
-        if let Some(import_map) = &self.import_map {
-            if !specifier.starts_with("./")
-                && !specifier.starts_with("../")
-                && !specifier.starts_with("/")
-                && !specifier.contains("://")
+        if let Some(import_map) = &self.import_map
+            && !specifier.starts_with("./")
+            && !specifier.starts_with("../")
+            && !specifier.starts_with("/")
+            && !specifier.contains("://")
+        {
+            // This is a bare specifier, try import map resolution
+            let base_url = referrer_path.to_string_lossy();
+            if let Some(mapped_specifier) = import_map.resolve_specifier(specifier, Some(&base_url))
             {
-                // This is a bare specifier, try import map resolution
-                let base_url = referrer_path.to_string_lossy();
-                if let Some(mapped_specifier) =
-                    import_map.resolve_specifier(specifier, Some(&base_url))
-                {
-                    // Use the mapped specifier for resolution
-                    return mapped_specifier;
-                }
+                // Use the mapped specifier for resolution
+                return mapped_specifier;
             }
         }
 

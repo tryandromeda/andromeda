@@ -404,14 +404,14 @@ impl ConfigManager {
     #[allow(clippy::result_large_err)]
     pub fn validate_config(config: &AndromedaConfig) -> Result<()> {
         // Validate runtime configuration
-        if let Some(timeout) = config.runtime.timeout {
-            if timeout == 0 {
-                return Err(AndromedaError::config_error(
-                    "Runtime timeout cannot be zero".to_string(),
-                    None,
-                    None::<std::io::Error>,
-                ));
-            }
+        if let Some(timeout) = config.runtime.timeout
+            && timeout == 0
+        {
+            return Err(AndromedaError::config_error(
+                "Runtime timeout cannot be zero".to_string(),
+                None,
+                None::<std::io::Error>,
+            ));
         }
 
         // Validate format configuration
@@ -432,14 +432,14 @@ impl ConfigManager {
         }
 
         // Validate lint configuration
-        if let Some(max_warnings) = config.lint.max_warnings {
-            if max_warnings == 0 {
-                return Err(AndromedaError::config_error(
-                    "Maximum warnings cannot be zero".to_string(),
-                    None,
-                    None::<std::io::Error>,
-                ));
-            }
+        if let Some(max_warnings) = config.lint.max_warnings
+            && max_warnings == 0
+        {
+            return Err(AndromedaError::config_error(
+                "Maximum warnings cannot be zero".to_string(),
+                None,
+                None::<std::io::Error>,
+            ));
         }
 
         // Validate import map configuration

@@ -159,23 +159,27 @@ impl CryptoExt {
         }
     }
     fn internal_crypto_get_random_values<'gc>(
-        _agent: &mut Agent,
+        agent: &mut Agent,
         _this: Value,
         args: ArgumentsList,
-        mut _gc: GcScope<'gc, '_>,
+        gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
+        // TODO: implement proper typed array handling for getRandomValues
         let _array_arg = args[0];
 
-        // For now, just return undefined and let TypeScript handle the array filling
-        // The TypeScript side will handle the actual filling with secure random values
-        // TODO: When Nova VM supports proper typed array manipulation, implement.
-
-        // Generate some random bytes to ensure the RNG is working
         let mut rng = rand::rng();
-        let _test_bytes = rng.next_u64(); // Just to verify RNG works
+        let mut bytes = vec![0u8; 65536];
+        rng.fill_bytes(&mut bytes);
 
-        // Return undefined (TypeScript will handle the array filling and return the original array)
-        Ok(Value::Undefined)
+        let random_data_base64 = base64_simd::STANDARD.encode_to_string(&bytes);
+
+        Ok(nova_vm::ecmascript::types::String::from_string(
+            agent,
+            random_data_base64,
+            gc.into_nogc(),
+        )
+        .unbind()
+        .into())
     }
     fn internal_crypto_random_uuid<'gc>(
         agent: &mut Agent,

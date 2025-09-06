@@ -19,7 +19,7 @@ impl ReplPrompt {
 }
 
 impl Prompt for ReplPrompt {
-    fn render_prompt_left(&self) -> std::borrow::Cow<str> {
+    fn render_prompt_left(&self) -> std::borrow::Cow<'_, str> {
         let count_style = Style::new().dim();
         format!(
             "{} > ",
@@ -28,18 +28,18 @@ impl Prompt for ReplPrompt {
         .into()
     }
 
-    fn render_prompt_right(&self) -> std::borrow::Cow<str> {
+    fn render_prompt_right(&self) -> std::borrow::Cow<'_, str> {
         "".into()
     }
 
     fn render_prompt_indicator(
         &self,
         _prompt_mode: reedline::PromptEditMode,
-    ) -> std::borrow::Cow<str> {
+    ) -> std::borrow::Cow<'_, str> {
         "".into()
     }
 
-    fn render_prompt_multiline_indicator(&self) -> std::borrow::Cow<str> {
+    fn render_prompt_multiline_indicator(&self) -> std::borrow::Cow<'_, str> {
         let style = Style::new().dim();
         format!("{}", style.apply_to("...")).into()
     }
@@ -47,7 +47,7 @@ impl Prompt for ReplPrompt {
     fn render_prompt_history_search_indicator(
         &self,
         history_search: PromptHistorySearch,
-    ) -> std::borrow::Cow<str> {
+    ) -> std::borrow::Cow<'_, str> {
         let prefix = match history_search.status {
             PromptHistorySearchStatus::Passing => "",
             PromptHistorySearchStatus::Failing => "failing ",

@@ -606,6 +606,7 @@ impl WptRunner {
                     if !self.config.verbose {
                         let mut counter = progress_counter.lock().unwrap();
                         *counter += 1;
+                        #[allow(clippy::manual_is_multiple_of)]
                         if *counter % 10 == 0 || *counter == total_tests {
                             print!("\rProgress: {}/{} tests completed", *counter, total_tests);
                             std::io::stdout().flush().unwrap();

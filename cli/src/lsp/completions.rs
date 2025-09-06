@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use tower_lsp::lsp_types::*;
 
 /// Andromeda-specific completion data
+#[allow(dead_code)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AndromedaCompletionData {
     /// The module URI where this completion is relevant
@@ -423,10 +424,10 @@ impl AndromedaCompletionProvider {
         let mut completions = Vec::new();
 
         // Check if we're in an Andromeda namespace context
-        if text.contains("Andromeda.") {
-            if let Some(andromeda_completions) = self.api_completions.get("Andromeda") {
-                completions.extend(andromeda_completions.clone());
-            }
+        if text.contains("Andromeda.")
+            && let Some(andromeda_completions) = self.api_completions.get("Andromeda")
+        {
+            completions.extend(andromeda_completions.clone());
         }
 
         // Check for global APIs
@@ -458,34 +459,34 @@ impl AndromedaCompletionProvider {
         }
 
         // Add context-specific completions based on detected usage
-        if text.contains("canvas") || text.contains("OffscreenCanvas") {
-            if let Some(canvas_completions) = self.api_completions.get("canvas") {
-                completions.extend(canvas_completions.clone());
-            }
+        if (text.contains("canvas") || text.contains("OffscreenCanvas"))
+            && let Some(canvas_completions) = self.api_completions.get("canvas")
+        {
+            completions.extend(canvas_completions.clone());
         }
 
-        if text.contains("crypto") {
-            if let Some(crypto_completions) = self.api_completions.get("crypto") {
-                completions.extend(crypto_completions.clone());
-            }
+        if text.contains("crypto")
+            && let Some(crypto_completions) = self.api_completions.get("crypto")
+        {
+            completions.extend(crypto_completions.clone());
         }
 
-        if text.contains("Database") || text.contains("sqlite") {
-            if let Some(sqlite_completions) = self.api_completions.get("sqlite") {
-                completions.extend(sqlite_completions.clone());
-            }
+        if (text.contains("Database") || text.contains("sqlite"))
+            && let Some(sqlite_completions) = self.api_completions.get("sqlite")
+        {
+            completions.extend(sqlite_completions.clone());
         }
 
-        if text.contains("localStorage") || text.contains("sessionStorage") {
-            if let Some(storage_completions) = self.api_completions.get("storage") {
-                completions.extend(storage_completions.clone());
-            }
+        if (text.contains("localStorage") || text.contains("sessionStorage"))
+            && let Some(storage_completions) = self.api_completions.get("storage")
+        {
+            completions.extend(storage_completions.clone());
         }
 
-        if text.contains("performance") {
-            if let Some(perf_completions) = self.api_completions.get("performance") {
-                completions.extend(perf_completions.clone());
-            }
+        if text.contains("performance")
+            && let Some(perf_completions) = self.api_completions.get("performance")
+        {
+            completions.extend(perf_completions.clone());
         }
 
         completions

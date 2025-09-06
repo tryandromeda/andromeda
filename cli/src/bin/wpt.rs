@@ -375,15 +375,13 @@ fn get_non_skipped_suites(wpt_dir: &PathBuf) -> Vec<String> {
     let mut non_skipped = Vec::new();
     if let Ok(entries) = std::fs::read_dir(wpt_dir) {
         for entry in entries.filter_map(|e| e.ok()) {
-            if entry.file_type().ok().is_some_and(|t| t.is_dir()) {
-                if let Some(name) = entry.file_name().to_str() {
-                    if !name.starts_with('.')
-                        && !name.starts_with("common")
-                        && !skipped_suites.contains(name)
-                    {
-                        non_skipped.push(name.to_string());
-                    }
-                }
+            if entry.file_type().ok().is_some_and(|t| t.is_dir())
+                && let Some(name) = entry.file_name().to_str()
+                && !name.starts_with('.')
+                && !name.starts_with("common")
+                && !skipped_suites.contains(name)
+            {
+                non_skipped.push(name.to_string());
             }
         }
     }

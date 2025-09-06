@@ -64,10 +64,10 @@ fn find_files_in_directory(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()
 
         if path.is_dir() {
             // Skip common directories that shouldn't be formatted
-            if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
-                if should_skip_directory(dir_name) {
-                    continue;
-                }
+            if let Some(dir_name) = path.file_name().and_then(|n| n.to_str())
+                && should_skip_directory(dir_name)
+            {
+                continue;
             }
             // Recursively search subdirectories
             find_files_in_directory(&path, files)?;
@@ -163,7 +163,7 @@ fn should_include_file(
         if let Some(negated_pattern) = pattern_str.strip_prefix('!') {
             let pattern = Pattern::new(negated_pattern).map_err(|e| {
                 AndromedaError::format_error(
-                    format!("Invalid glob pattern '{}': {}", negated_pattern, e),
+                    format!("Invalid glob pattern '{negated_pattern}': {e}"),
                     None::<std::io::Error>,
                 )
             })?;
@@ -177,7 +177,7 @@ fn should_include_file(
         } else {
             let pattern = Pattern::new(pattern_str).map_err(|e| {
                 AndromedaError::format_error(
-                    format!("Invalid glob pattern '{}': {}", pattern_str, e),
+                    format!("Invalid glob pattern '{pattern_str}': {e}"),
                     None::<std::io::Error>,
                 )
             })?;

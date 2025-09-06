@@ -651,30 +651,29 @@ impl ConsoleExt {
             "gray" | "grey" => Some(format!("\x1b[{bright_base}m")),
             _ => {
                 // Try to parse hex colors
-                if color.starts_with('#') && color.len() == 7 {
-                    if let Ok(r) = u8::from_str_radix(&color[1..3], 16) {
-                        if let Ok(g) = u8::from_str_radix(&color[3..5], 16) {
-                            if let Ok(b) = u8::from_str_radix(&color[5..7], 16) {
-                                let code = if is_background { 48 } else { 38 };
-                                return Some(format!("\x1b[{code};2;{r};{g};{b}m"));
-                            }
-                        }
-                    }
+                if color.starts_with('#')
+                    && color.len() == 7
+                    && let Ok(r) = u8::from_str_radix(&color[1..3], 16)
+                    && let Ok(g) = u8::from_str_radix(&color[3..5], 16)
+                    && let Ok(b) = u8::from_str_radix(&color[5..7], 16)
+                {
+                    let code = if is_background { 48 } else { 38 };
+                    return Some(format!("\x1b[{code};2;{r};{g};{b}m"));
                 }
 
                 // Try to parse rgb() colors
                 if color.starts_with("rgb(") && color.ends_with(')') {
                     let rgb_str = &color[4..color.len() - 1];
                     let parts: Vec<&str> = rgb_str.split(',').map(|s| s.trim()).collect();
-                    if parts.len() == 3 {
-                        if let (Ok(r), Ok(g), Ok(b)) = (
+                    if parts.len() == 3
+                        && let (Ok(r), Ok(g), Ok(b)) = (
                             parts[0].parse::<u8>(),
                             parts[1].parse::<u8>(),
                             parts[2].parse::<u8>(),
-                        ) {
-                            let code = if is_background { 48 } else { 38 };
-                            return Some(format!("\x1b[{code};2;{r};{g};{b}m"));
-                        }
+                        )
+                    {
+                        let code = if is_background { 48 } else { 38 };
+                        return Some(format!("\x1b[{code};2;{r};{g};{b}m"));
                     }
                 }
 

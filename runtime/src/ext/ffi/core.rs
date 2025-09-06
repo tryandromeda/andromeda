@@ -183,7 +183,7 @@ impl Library {
     /// - The symbol exists in the library and has the expected type T
     /// - The returned symbol will only be used in a way that's compatible with its actual type
     /// - The library remains loaded for the lifetime of the returned symbol
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, FfiError> {
+    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<'_, T>, FfiError> {
         unsafe {
             self.inner
                 .get(symbol)

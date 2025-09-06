@@ -230,7 +230,7 @@ impl FfiExt {
         Ok(Value::from_f64(agent, result, gc.nogc()).unbind())
     }
 
-    fn with_library<T, F>(agent: &mut Agent, lib_id: u32, operation: F) -> Result<T, Value>
+    fn with_library<T, F>(agent: &mut Agent, lib_id: u32, operation: F) -> Result<T, Value<'_>>
     where
         F: FnOnce(&mut DynamicLibrary) -> Result<T, String>,
     {

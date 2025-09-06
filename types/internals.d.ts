@@ -687,7 +687,7 @@ declare namespace __andromeda__ {
 
   export function internal_crypto_getRandomValues<
     T extends Uint8Array | Uint16Array | Uint32Array,
-  >(array: T): T;
+  >(array: T): string;
   export function internal_crypto_randomUUID(): string;
   export function internal_subtle_digest(
     algorithm: AlgorithmIdentifier,

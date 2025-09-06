@@ -419,21 +419,21 @@ impl TlsExt {
                 host_data.spawn_macro_task(async move {
                     let guard = stream_arc.lock().await;
                     let peer_certs = guard.get_ref().1.peer_certificates();
-                    if let Some(certs) = peer_certs {
-                        if !certs.is_empty() {
-                            let cert_bytes: &[u8] = certs[0].as_ref();
-                            let hex = cert_bytes.iter().fold(String::new(), |mut acc, &b: &u8| {
-                                use std::fmt::Write;
-                                write!(&mut acc, "{b:02x}").unwrap();
-                                acc
-                            });
-                            macro_task_tx
-                                .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
-                                    root_value, hex,
-                                )))
-                                .unwrap();
-                            return;
-                        }
+                    if let Some(certs) = peer_certs
+                        && !certs.is_empty()
+                    {
+                        let cert_bytes: &[u8] = certs[0].as_ref();
+                        let hex = cert_bytes.iter().fold(String::new(), |mut acc, &b: &u8| {
+                            use std::fmt::Write;
+                            write!(&mut acc, "{b:02x}").unwrap();
+                            acc
+                        });
+                        macro_task_tx
+                            .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
+                                root_value, hex,
+                            )))
+                            .unwrap();
+                        return;
                     }
                     macro_task_tx
                         .send(MacroTask::User(RuntimeMacroTask::RejectPromise(

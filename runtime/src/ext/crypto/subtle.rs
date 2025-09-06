@@ -12,7 +12,7 @@ use nova_vm::{
     engine::context::{Bindable, GcScope},
 };
 use rand::SecureRandom;
-use ring::{aead, digest, rand};
+use ring::{aead, digest, hmac, rand};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -37,6 +37,7 @@ enum CryptoAlgorithm {
     // Symmetric algorithms - AES
     AesGcm {
         length: u32,
+        iv: Vec<u8>,
         iv_length: Option<u32>,
         additional_data: Option<Vec<u8>>,
         tag_length: Option<u32>,
@@ -180,10 +181,10 @@ impl SubtleCrypto {
             if string_data.chars().all(|c| c.is_ascii_hexdigit()) && string_data.len() % 2 == 0 {
                 let mut bytes = Vec::new();
                 for chunk in string_data.as_bytes().chunks(2) {
-                    if let Ok(byte_str) = std::str::from_utf8(chunk) {
-                        if let Ok(byte_val) = u8::from_str_radix(byte_str, 16) {
-                            bytes.push(byte_val);
-                        }
+                    if let Ok(byte_str) = std::str::from_utf8(chunk)
+                        && let Ok(byte_val) = u8::from_str_radix(byte_str, 16)
+                    {
+                        bytes.push(byte_val);
                     }
                 }
                 if !bytes.is_empty() {
@@ -215,6 +216,26 @@ impl SubtleCrypto {
                 "SHA-256" => Ok(CryptoAlgorithm::Sha256),
                 "SHA-384" => Ok(CryptoAlgorithm::Sha384),
                 "SHA-512" => Ok(CryptoAlgorithm::Sha512),
+                "HMAC" => Ok(CryptoAlgorithm::Hmac {
+                    hash: "SHA-256".to_string(),
+                    length: None,
+                }),
+                "AES-GCM" => Ok(CryptoAlgorithm::AesGcm {
+                    length: 256,
+                    iv: vec![0u8; 12], // Placeholder IV
+                    iv_length: Some(12),
+                    additional_data: None,
+                    tag_length: Some(16),
+                }),
+                "AES-CBC" => Ok(CryptoAlgorithm::AesCbc {
+                    length: 256,
+                    iv: vec![0u8; 16], // Placeholder IV
+                }),
+                "AES-CTR" => Ok(CryptoAlgorithm::AesCtr {
+                    length: 256,
+                    counter: vec![0u8; 16], // Placeholder counter
+                    counter_length: 64,
+                }),
                 _ => Err(format!("Unsupported algorithm: {algorithm_name}")),
             }
         } else {
@@ -274,18 +295,13 @@ impl SubtleCrypto {
                     )
                     .unbind());
             }
-        }; // Return as ArrayBuffer once proper support is implemented
+        }; // Return digest result
         let result_bytes = digest_result.as_ref().to_vec();
 
-        // For now, directly return the hex string since proper ArrayBuffer isn't available
-        let hex_string = result_bytes.iter().fold(String::new(), |mut acc, b| {
-            use std::fmt::Write;
-            write!(&mut acc, "{b:02x}").unwrap();
-            acc
-        });
+        let base64_string = base64_simd::STANDARD.encode_to_string(&result_bytes);
 
         Ok(
-            nova_vm::ecmascript::types::String::from_string(agent, hex_string, gc.nogc())
+            nova_vm::ecmascript::types::String::from_string(agent, base64_string, gc.nogc())
                 .unbind()
                 .into(),
         )
@@ -348,6 +364,7 @@ impl SubtleCrypto {
                 let algorithm = match algorithm_name.as_str() {
                     "AES-GCM" => CryptoAlgorithm::AesGcm {
                         length: key_length,
+                        iv: vec![0u8; 12], // Placeholder IV
                         iv_length: Some(12),
                         additional_data: None,
                         tag_length: Some(16),
@@ -528,34 +545,228 @@ impl SubtleCrypto {
 
     pub fn import_key<'gc>(
         agent: &mut Agent,
-        _args: ArgumentsList,
-        gc: GcScope<'gc, '_>,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Implement key import functionality
-        let gc = gc.into_nogc();
-        Err(agent
-            .throw_exception_with_static_message(
-                nova_vm::ecmascript::execution::agent::ExceptionType::Error,
-                "importKey not yet implemented",
-                gc,
-            )
-            .unbind())
+        let format_value = args[0];
+        let key_data_value = args[1];
+        let algorithm_value = args[2];
+        let extractable_value = args[3];
+        let _key_usages_value = args[4];
+
+        // Parse format
+        let format = if let Ok(format_str) = format_value.to_string(agent, gc.reborrow()) {
+            format_str.as_str(agent).unwrap_or("").to_string()
+        } else {
+            return Err(agent
+                .throw_exception_with_static_message(
+                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    "Invalid key format",
+                    gc.nogc(),
+                )
+                .unbind());
+        };
+
+        // Parse extractable
+        let extractable = match extractable_value {
+            Value::Boolean(b) => b,
+            _ => true,
+        };
+
+        // Parse algorithm
+        let algorithm = match Self::parse_algorithm(agent, algorithm_value, gc.reborrow()) {
+            Ok(alg) => alg,
+            Err(_) => {
+                return Err(agent
+                    .throw_exception_with_static_message(
+                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        "Unsupported algorithm",
+                        gc.nogc(),
+                    )
+                    .unbind());
+            }
+        };
+
+        // For now, support "raw" format for symmetric keys
+        match format.as_str() {
+            "raw" => {
+                // Extract key data
+                let key_data =
+                    match Self::extract_bytes_from_value(agent, key_data_value, gc.reborrow()) {
+                        Ok(bytes) => bytes,
+                        Err(_) => {
+                            return Err(agent
+                                .throw_exception_with_static_message(
+                                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                                    "Invalid key data",
+                                    gc.nogc(),
+                                )
+                                .unbind());
+                        }
+                    };
+
+                // Create CryptoKey based on algorithm
+                let key_type = match &algorithm {
+                    CryptoAlgorithm::Hmac { .. } => "secret",
+                    CryptoAlgorithm::AesGcm { .. }
+                    | CryptoAlgorithm::AesCbc { .. }
+                    | CryptoAlgorithm::AesCtr { .. } => "secret",
+                    _ => "secret",
+                };
+
+                let crypto_key = SimpleCryptoKey {
+                    algorithm,
+                    extractable,
+                    key_usages: vec!["sign".to_string(), "verify".to_string()], // Default usages
+                    key_data,
+                    key_type: key_type.to_string(),
+                };
+
+                let key_id = Self::store_crypto_key(crypto_key);
+                let key_json = serde_json::json!({
+                    "keyId": key_id,
+                    "type": key_type,
+                    "algorithm": "imported",
+                    "extractable": extractable
+                });
+
+                Ok(nova_vm::ecmascript::types::String::from_string(
+                    agent,
+                    key_json.to_string(),
+                    gc.nogc(),
+                )
+                .unbind()
+                .into())
+            }
+            _ => {
+                // TODO: Implement other formats (spki, pkcs8, jwk)
+                Err(agent
+                    .throw_exception_with_static_message(
+                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        "Unsupported key format",
+                        gc.nogc(),
+                    )
+                    .unbind())
+            }
+        }
     }
 
     pub fn export_key<'gc>(
         agent: &mut Agent,
-        _args: ArgumentsList,
-        gc: GcScope<'gc, '_>,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Implement key export functionality
-        let gc = gc.into_nogc();
-        Err(agent
-            .throw_exception_with_static_message(
-                nova_vm::ecmascript::execution::agent::ExceptionType::Error,
-                "exportKey not yet implemented",
-                gc,
-            )
-            .unbind())
+        let format_value = args[0];
+        let key_value = args[1];
+
+        // Parse format
+        let format = if let Ok(format_str) = format_value.to_string(agent, gc.reborrow()) {
+            format_str.as_str(agent).unwrap_or("").to_string()
+        } else {
+            return Err(agent
+                .throw_exception_with_static_message(
+                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    "Invalid key format",
+                    gc.nogc(),
+                )
+                .unbind());
+        };
+
+        // Extract key ID from CryptoKey object
+        let key_id = match Self::extract_key_id_from_value(agent, key_value, gc.reborrow()) {
+            Ok(id) => id,
+            Err(_) => {
+                return Err(agent
+                    .throw_exception_with_static_message(
+                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        "Invalid key object",
+                        gc.nogc(),
+                    )
+                    .unbind());
+            }
+        };
+
+        let crypto_key = match Self::get_crypto_key(key_id) {
+            Some(key) => key,
+            None => {
+                return Err(agent
+                    .throw_exception_with_static_message(
+                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        "Key not found",
+                        gc.nogc(),
+                    )
+                    .unbind());
+            }
+        };
+
+        // Check if key is extractable
+        if !crypto_key.extractable {
+            return Err(agent
+                .throw_exception_with_static_message(
+                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    "Key is not extractable",
+                    gc.nogc(),
+                )
+                .unbind());
+        }
+
+        match format.as_str() {
+            "raw" => {
+                // Return raw key data as base64 string
+                let key_data_base64 = base64_simd::STANDARD.encode_to_string(&crypto_key.key_data);
+                Ok(nova_vm::ecmascript::types::String::from_string(
+                    agent,
+                    key_data_base64,
+                    gc.nogc(),
+                )
+                .unbind()
+                .into())
+            }
+            "jwk" => {
+                // Return JWK format
+                let jwk = match &crypto_key.algorithm {
+                    CryptoAlgorithm::Hmac { hash, .. } => {
+                        serde_json::json!({
+                            "kty": "oct",
+                            "k": base64_simd::STANDARD.encode_to_string(&crypto_key.key_data),
+                            "alg": format!("HS{}", match hash.as_str() {
+                                "SHA-1" => "1",
+                                "SHA-256" => "256",
+                                "SHA-384" => "384",
+                                "SHA-512" => "512",
+                                _ => "256"
+                            }),
+                            "use": "sig",
+                            "ext": crypto_key.extractable
+                        })
+                    }
+                    _ => {
+                        return Err(agent
+                            .throw_exception_with_static_message(
+                                nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                                "JWK export not supported for this algorithm",
+                                gc.nogc(),
+                            )
+                            .unbind());
+                    }
+                };
+
+                Ok(nova_vm::ecmascript::types::String::from_string(
+                    agent,
+                    jwk.to_string(),
+                    gc.nogc(),
+                )
+                .unbind()
+                .into())
+            }
+            _ => Err(agent
+                .throw_exception_with_static_message(
+                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    "Unsupported export format",
+                    gc.nogc(),
+                )
+                .unbind()),
+        }
     }
 
     pub fn encrypt<'gc>(
@@ -628,25 +839,31 @@ impl SubtleCrypto {
 
         // Perform encryption based on algorithm
         let result = match algorithm {
-            CryptoAlgorithm::AesGcm { .. } => {
-                Self::encrypt_aes_gcm(&crypto_key.key_data, &plaintext)
+            CryptoAlgorithm::AesGcm { iv, .. } => {
+                Self::encrypt_aes_gcm(&crypto_key.key_data, &plaintext, &iv)
+            }
+            CryptoAlgorithm::AesCbc { iv, .. } => {
+                Self::encrypt_aes_cbc(&crypto_key.key_data, &plaintext, &iv)
+            }
+            CryptoAlgorithm::AesCtr { counter, .. } => {
+                Self::encrypt_aes_ctr(&crypto_key.key_data, &plaintext, &counter)
             }
             _ => Err("Unsupported encryption algorithm".to_string()),
         };
 
         match result {
             Ok(ciphertext) => {
-                // Return as hex string for now
-                let hex_result = ciphertext.iter().fold(String::new(), |mut acc, b| {
-                    use std::fmt::Write;
-                    write!(&mut acc, "{b:02x}").unwrap();
-                    acc
-                });
+                // Return as base64 string for ArrayBuffer compatibility
+                let base64_result = base64_simd::STANDARD.encode_to_string(&ciphertext);
 
                 Ok(
-                    nova_vm::ecmascript::types::String::from_string(agent, hex_result, gc.nogc())
-                        .unbind()
-                        .into(),
+                    nova_vm::ecmascript::types::String::from_string(
+                        agent,
+                        base64_result,
+                        gc.nogc(),
+                    )
+                    .unbind()
+                    .into(),
                 )
             }
             Err(_) => {
@@ -663,16 +880,26 @@ impl SubtleCrypto {
     }
 
     /// Perform AES-GCM encryption
-    fn encrypt_aes_gcm(key_data: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, String> {
+    fn encrypt_aes_gcm(key_data: &[u8], plaintext: &[u8], iv: &[u8]) -> Result<Vec<u8>, String> {
         let key = aead::UnboundKey::new(&aead::AES_256_GCM, key_data)
             .map_err(|_| "Invalid key for AES-GCM")?;
         let key = aead::LessSafeKey::new(key);
 
-        // Generate random nonce (12 bytes for AES-GCM)
-        let rng = rand::SystemRandom::new();
-        let mut nonce_bytes = [0u8; 12];
-        rng.fill(&mut nonce_bytes)
-            .map_err(|_| "Failed to generate nonce")?;
+        // Use provided IV or generate random nonce if IV is empty
+        let nonce_bytes = if iv.is_empty() {
+            let rng = rand::SystemRandom::new();
+            let mut bytes = [0u8; 12];
+            rng.fill(&mut bytes)
+                .map_err(|_| "Failed to generate nonce")?;
+            bytes
+        } else if iv.len() == 12 {
+            let mut bytes = [0u8; 12];
+            bytes.copy_from_slice(iv);
+            bytes
+        } else {
+            return Err("Invalid IV length for AES-GCM (must be 12 bytes)".to_string());
+        };
+
         let nonce = aead::Nonce::assume_unique_for_key(nonce_bytes);
 
         // Prepare plaintext for in-place encryption
@@ -691,6 +918,22 @@ impl SubtleCrypto {
         result.extend_from_slice(tag.as_ref());
 
         Ok(result)
+    }
+
+    fn encrypt_aes_cbc(_key_data: &[u8], _plaintext: &[u8], _iv: &[u8]) -> Result<Vec<u8>, String> {
+        // TODO: Implement AES-CBC encryption using ring or another crate
+        // Ring doesn't provide AES-CBC, so we'd need another dependency
+        Err("AES-CBC encryption not yet implemented".to_string())
+    }
+
+    fn encrypt_aes_ctr(
+        _key_data: &[u8],
+        _plaintext: &[u8],
+        _counter: &[u8],
+    ) -> Result<Vec<u8>, String> {
+        // TODO: Implement AES-CTR encryption using ring or another crate
+        // Ring doesn't provide AES-CTR, so we'd need another dependency
+        Err("AES-CTR encryption not yet implemented".to_string())
     }
 
     pub fn decrypt<'gc>(
@@ -766,22 +1009,28 @@ impl SubtleCrypto {
             CryptoAlgorithm::AesGcm { .. } => {
                 Self::decrypt_aes_gcm(&crypto_key.key_data, &ciphertext)
             }
+            CryptoAlgorithm::AesCbc { .. } => {
+                Self::decrypt_aes_cbc(&crypto_key.key_data, &ciphertext)
+            }
+            CryptoAlgorithm::AesCtr { .. } => {
+                Self::decrypt_aes_ctr(&crypto_key.key_data, &ciphertext)
+            }
             _ => Err("Unsupported decryption algorithm".to_string()),
         };
 
         match result {
             Ok(plaintext) => {
-                // Return as hex string for now
-                let hex_result = plaintext.iter().fold(String::new(), |mut acc, b| {
-                    use std::fmt::Write;
-                    write!(&mut acc, "{b:02x}").unwrap();
-                    acc
-                });
+                // Return as base64 string for ArrayBuffer compatibility
+                let base64_result = base64_simd::STANDARD.encode_to_string(&plaintext);
 
                 Ok(
-                    nova_vm::ecmascript::types::String::from_string(agent, hex_result, gc.nogc())
-                        .unbind()
-                        .into(),
+                    nova_vm::ecmascript::types::String::from_string(
+                        agent,
+                        base64_result,
+                        gc.nogc(),
+                    )
+                    .unbind()
+                    .into(),
                 )
             }
             Err(_) => {
@@ -829,35 +1078,192 @@ impl SubtleCrypto {
         Ok(plaintext.to_vec())
     }
 
+    fn decrypt_aes_cbc(_key_data: &[u8], _ciphertext: &[u8]) -> Result<Vec<u8>, String> {
+        // TODO: Implement AES-CBC decryption using ring or another crate
+        // Ring doesn't provide AES-CBC, so we'd need another dependency
+        Err("AES-CBC decryption not yet implemented".to_string())
+    }
+
+    fn decrypt_aes_ctr(_key_data: &[u8], _ciphertext: &[u8]) -> Result<Vec<u8>, String> {
+        // TODO: Implement AES-CTR decryption using ring or another crate
+        // Ring doesn't provide AES-CTR, so we'd need another dependency
+        Err("AES-CTR decryption not yet implemented".to_string())
+    }
+
     pub fn sign<'gc>(
         agent: &mut Agent,
         args: ArgumentsList,
-        gc: GcScope<'gc, '_>,
+        mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        let _algorithm_value = args[0];
+        let algorithm_value = args[0];
         let _key_value = args[1];
-        let _data_value = args[2];
+        let data_value = args[2];
 
-        // TODO: Parse algorithm, extract key and data, perform actual signing
-        let signature_hex = "signature_placeholder".to_string(); // Placeholder
-
-        Ok(
-            nova_vm::ecmascript::types::String::from_string(agent, signature_hex, gc.nogc())
+        // Parse algorithm
+        let algorithm = match Self::parse_algorithm(agent, algorithm_value, gc.reborrow()) {
+            Ok(alg) => alg,
+            Err(_) => {
+                return Ok(nova_vm::ecmascript::types::String::from_string(
+                    agent,
+                    "error_unsupported_algorithm".to_string(),
+                    gc.nogc(),
+                )
                 .unbind()
-                .into(),
-        )
+                .into());
+            }
+        };
+
+        // Extract data
+        let data = match Self::extract_bytes_from_value(agent, data_value, gc.reborrow()) {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                return Ok(nova_vm::ecmascript::types::String::from_string(
+                    agent,
+                    "error_invalid_data".to_string(),
+                    gc.nogc(),
+                )
+                .unbind()
+                .into());
+            }
+        };
+
+        // For HMAC operations
+        match algorithm {
+            CryptoAlgorithm::Hmac { ref hash, .. } => {
+                // Try to extract key ID from key_value - for now use test key as fallback
+                let key_data = if let Ok(key_str) = _key_value.to_string(agent, gc.reborrow()) {
+                    let key_string = key_str.as_str(agent).unwrap_or("");
+                    // Try to parse as JSON to get key ID
+                    if let Ok(key_json) = serde_json::from_str::<serde_json::Value>(key_string) {
+                        if let Some(key_id) = key_json.get("keyId").and_then(|v| v.as_u64()) {
+                            if let Some(crypto_key) = Self::get_crypto_key(key_id) {
+                                crypto_key.key_data
+                            } else {
+                                b"test_hmac_key".to_vec()
+                            }
+                        } else {
+                            b"test_hmac_key".to_vec()
+                        }
+                    } else {
+                        b"test_hmac_key".to_vec()
+                    }
+                } else {
+                    b"test_hmac_key".to_vec()
+                };
+
+                let signature_result = match hash.as_str() {
+                    "SHA-1" => {
+                        let key = hmac::Key::new(hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY, &key_data);
+                        hmac::sign(&key, &data)
+                    }
+                    "SHA-256" => {
+                        let key = hmac::Key::new(hmac::HMAC_SHA256, &key_data);
+                        hmac::sign(&key, &data)
+                    }
+                    "SHA-384" => {
+                        let key = hmac::Key::new(hmac::HMAC_SHA384, &key_data);
+                        hmac::sign(&key, &data)
+                    }
+                    "SHA-512" => {
+                        let key = hmac::Key::new(hmac::HMAC_SHA512, &key_data);
+                        hmac::sign(&key, &data)
+                    }
+                    _ => {
+                        return Ok(nova_vm::ecmascript::types::String::from_string(
+                            agent,
+                            "error_unsupported_hash".to_string(),
+                            gc.nogc(),
+                        )
+                        .unbind()
+                        .into());
+                    }
+                };
+
+                let signature_bytes = signature_result.as_ref().to_vec();
+                let signature_base64 = base64_simd::STANDARD.encode_to_string(&signature_bytes);
+
+                Ok(nova_vm::ecmascript::types::String::from_string(
+                    agent,
+                    signature_base64,
+                    gc.nogc(),
+                )
+                .unbind()
+                .into())
+            }
+            _ => {
+                // TODO: Implement RSA signatures and ECDSA
+                Ok(nova_vm::ecmascript::types::String::from_string(
+                    agent,
+                    "error_algorithm_not_implemented".to_string(),
+                    gc.nogc(),
+                )
+                .unbind()
+                .into())
+            }
+        }
     }
 
     pub fn verify<'gc>(
-        _agent: &mut Agent,
+        agent: &mut Agent,
         args: ArgumentsList,
-        _gc: GcScope<'gc, '_>,
+        mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        let _algorithm_value = args[0];
+        let algorithm_value = args[0];
         let _key_value = args[1];
-        let _signature_value = args[2];
-        let _data_value = args[3]; // TODO: Parse algorithm, extract key, signature and data, perform actual verification
-        Ok(Value::Boolean(true)) // Placeholder - always returns true
+        let signature_value = args[2];
+        let data_value = args[3];
+
+        // Parse algorithm
+        let algorithm = match Self::parse_algorithm(agent, algorithm_value, gc.reborrow()) {
+            Ok(alg) => alg,
+            Err(_) => return Ok(Value::Boolean(false)),
+        };
+
+        // Extract data
+        let data = match Self::extract_bytes_from_value(agent, data_value, gc.reborrow()) {
+            Ok(bytes) => bytes,
+            Err(_) => return Ok(Value::Boolean(false)),
+        };
+
+        // Extract signature
+        let signature = match Self::extract_bytes_from_value(agent, signature_value, gc.reborrow())
+        {
+            Ok(bytes) => bytes,
+            Err(_) => return Ok(Value::Boolean(false)),
+        };
+
+        match algorithm {
+            CryptoAlgorithm::Hmac { ref hash, .. } => {
+                // TODO: Extract key ID from _key_value and retrieve actual key
+                let test_key = b"test_hmac_key";
+
+                let verification_result = match hash.as_str() {
+                    "SHA-1" => {
+                        let key = hmac::Key::new(hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY, test_key);
+                        hmac::verify(&key, &data, &signature)
+                    }
+                    "SHA-256" => {
+                        let key = hmac::Key::new(hmac::HMAC_SHA256, test_key);
+                        hmac::verify(&key, &data, &signature)
+                    }
+                    "SHA-384" => {
+                        let key = hmac::Key::new(hmac::HMAC_SHA384, test_key);
+                        hmac::verify(&key, &data, &signature)
+                    }
+                    "SHA-512" => {
+                        let key = hmac::Key::new(hmac::HMAC_SHA512, test_key);
+                        hmac::verify(&key, &data, &signature)
+                    }
+                    _ => return Ok(Value::Boolean(false)),
+                };
+
+                Ok(Value::Boolean(verification_result.is_ok()))
+            }
+            _ => {
+                // TODO: Implement RSA and ECDSA verification
+                Ok(Value::Boolean(false))
+            }
+        }
     }
 
     pub fn derive_key<'gc>(

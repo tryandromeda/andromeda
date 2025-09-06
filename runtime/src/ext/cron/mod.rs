@@ -71,10 +71,10 @@ impl CronId {
         realm_root: &nova_vm::ecmascript::execution::agent::RealmRoot,
     ) {
         let storage = host_data.storage.borrow();
-        if let Some(crons_storage) = storage.get::<CronsStorage>() {
-            if let Some(cron_job) = crons_storage.get_cron(self) {
-                cron_job.run(agent, host_data, realm_root);
-            }
+        if let Some(crons_storage) = storage.get::<CronsStorage>()
+            && let Some(cron_job) = crons_storage.get_cron(self)
+        {
+            cron_job.run(agent, host_data, realm_root);
         }
     }
 

@@ -973,10 +973,10 @@ impl ModuleSystem {
 
     /// Determine module type from specifier
     fn determine_module_type(&self, specifier: &str) -> ModuleType {
-        if let Some(ext) = Path::new(specifier).extension() {
-            if let Some(ext_str) = ext.to_str() {
-                return ModuleType::from_extension(ext_str);
-            }
+        if let Some(ext) = Path::new(specifier).extension()
+            && let Some(ext_str) = ext.to_str()
+        {
+            return ModuleType::from_extension(ext_str);
         }
         // default
         ModuleType::JavaScript

@@ -28,9 +28,21 @@ const subtle = {
     algorithm: AlgorithmIdentifier,
     data: Uint8Array | ArrayBuffer,
   ): Promise<ArrayBuffer> {
-    return Promise.resolve(
-      __andromeda__.internal_subtle_digest(algorithm, data),
-    );
+    const result = __andromeda__.internal_subtle_digest(algorithm, data);
+
+    // Convert base64 result to ArrayBuffer
+    if (typeof result === "string") {
+      // Decode base64 to binary string
+      const binaryString = atob(result);
+      // Convert binary string to ArrayBuffer
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return Promise.resolve(bytes.buffer);
+    }
+
+    return Promise.resolve(result);
   },
 
   /**
@@ -349,20 +361,42 @@ const crypto = {
    */ getRandomValues<T extends Uint8Array | Uint16Array | Uint32Array>(
     array: T,
   ): T {
-    const result = __andromeda__.internal_crypto_getRandomValues(array);
+    // Get cryptographically secure random data from Rust
+    const randomDataBase64 = __andromeda__.internal_crypto_getRandomValues(
+      array,
+    ) as string;
 
-    let seed = (Date.now() * Math.random() * 0x7FFFFFFF) | 0;
+    // Decode base64 to get the random bytes
+    const randomBytes = atob(randomDataBase64);
 
+    // Fill the array with the secure random data
     for (let i = 0; i < array.length; i++) {
-      seed = (seed * 1664525 + 1013904223) | 0;
-      const randomValue = (seed >>> 0) / 0x100000000;
+      const byteIndex = i % randomBytes.length;
 
       if (array instanceof Uint8Array) {
-        array[i] = Math.floor(randomValue * 256);
+        array[i] = randomBytes.charCodeAt(byteIndex);
       } else if (array instanceof Uint16Array) {
-        array[i] = Math.floor(randomValue * 65536);
+        const byte1 = randomBytes.charCodeAt(
+          (byteIndex * 2) % randomBytes.length,
+        );
+        const byte2 = randomBytes.charCodeAt(
+          (byteIndex * 2 + 1) % randomBytes.length,
+        );
+        array[i] = (byte1 << 8) | byte2;
       } else if (array instanceof Uint32Array) {
-        array[i] = Math.floor(randomValue * 4294967296);
+        const byte1 = randomBytes.charCodeAt(
+          (byteIndex * 4) % randomBytes.length,
+        );
+        const byte2 = randomBytes.charCodeAt(
+          (byteIndex * 4 + 1) % randomBytes.length,
+        );
+        const byte3 = randomBytes.charCodeAt(
+          (byteIndex * 4 + 2) % randomBytes.length,
+        );
+        const byte4 = randomBytes.charCodeAt(
+          (byteIndex * 4 + 3) % randomBytes.length,
+        );
+        array[i] = (byte1 << 24) | (byte2 << 16) | (byte3 << 8) | byte4;
       }
     }
 

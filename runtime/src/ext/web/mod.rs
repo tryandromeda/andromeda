@@ -251,7 +251,7 @@ impl WebExt {
                 }
             }
             "utf-16le" | "utf-16" => {
-                if bytes.len() % 2 != 0 {
+                if !bytes.len().is_multiple_of(2) {
                     if fatal {
                         return Err(agent
                             .throw_exception(
@@ -288,7 +288,7 @@ impl WebExt {
                 }
             }
             "utf-16be" => {
-                if bytes.len() % 2 != 0 {
+                if !bytes.len().is_multiple_of(2) {
                     if fatal {
                         return Err(agent
                             .throw_exception(

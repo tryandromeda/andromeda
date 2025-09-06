@@ -403,14 +403,12 @@ impl AndromedaBackend {
                 // Handle range-based changes
                 if let Some(start_offset) =
                     self.position_to_offset_sync(&document.content, range.start)
-                {
-                    if let Some(end_offset) =
+                    && let Some(end_offset) =
                         self.position_to_offset_sync(&document.content, range.end)
-                    {
-                        let mut content_chars: Vec<char> = document.content.chars().collect();
-                        content_chars.splice(start_offset..end_offset, change.text.chars());
-                        document.content = content_chars.into_iter().collect();
-                    }
+                {
+                    let mut content_chars: Vec<char> = document.content.chars().collect();
+                    content_chars.splice(start_offset..end_offset, change.text.chars());
+                    document.content = content_chars.into_iter().collect();
                 }
             } else {
                 // Full document replacement
@@ -1283,14 +1281,13 @@ impl LanguageServer for AndromedaBackend {
         if let Some(updated_content) = self
             .apply_text_changes(&params.text_document.uri, &params.content_changes)
             .await
+            && self.should_run_diagnostics(DiagnosticTrigger::Change).await
         {
-            if self.should_run_diagnostics(DiagnosticTrigger::Change).await {
-                let diagnostics = self
-                    .run_diagnostics(params.text_document.uri.clone(), &updated_content)
-                    .await;
-                self.publish_diagnostics(params.text_document.uri, diagnostics)
-                    .await;
-            }
+            let diagnostics = self
+                .run_diagnostics(params.text_document.uri.clone(), &updated_content)
+                .await;
+            self.publish_diagnostics(params.text_document.uri, diagnostics)
+                .await;
         }
     }
 
@@ -1571,23 +1568,21 @@ impl LanguageServer for AndromedaBackend {
         match params.command.as_str() {
             "andromeda.applyAutoFix" => {
                 // Apply a specific auto-fix
-                if !params.arguments.is_empty() {
-                    if let Some(uri_value) = params.arguments.first() {
-                        if let Ok(uri) = serde_json::from_value::<Url>(uri_value.clone()) {
-                            self.apply_auto_fix(&uri).await;
-                        }
-                    }
+                if !params.arguments.is_empty()
+                    && let Some(uri_value) = params.arguments.first()
+                    && let Ok(uri) = serde_json::from_value::<Url>(uri_value.clone())
+                {
+                    self.apply_auto_fix(&uri).await;
                 }
                 Ok(None)
             }
             "andromeda.fixAll" => {
                 // Apply all auto-fixes to a document
-                if !params.arguments.is_empty() {
-                    if let Some(uri_value) = params.arguments.first() {
-                        if let Ok(uri) = serde_json::from_value::<Url>(uri_value.clone()) {
-                            self.fix_all_problems(&uri).await;
-                        }
-                    }
+                if !params.arguments.is_empty()
+                    && let Some(uri_value) = params.arguments.first()
+                    && let Ok(uri) = serde_json::from_value::<Url>(uri_value.clone())
+                {
+                    self.fix_all_problems(&uri).await;
                 }
                 Ok(None)
             }
@@ -1613,13 +1608,11 @@ impl AndromedaBackend {
                 if let Some(actions) = self
                     .create_code_actions_for_diagnostic(uri, diagnostic, &content)
                     .await
+                    && let Some(CodeActionOrCommand::CodeAction(action)) = actions.first()
+                    && let Some(edit) = &action.edit
                 {
-                    if let Some(CodeActionOrCommand::CodeAction(action)) = actions.first() {
-                        if let Some(edit) = &action.edit {
-                            self.apply_workspace_edit(edit).await;
-                            break;
-                        }
-                    }
+                    self.apply_workspace_edit(edit).await;
+                    break;
                 }
             }
         }
@@ -1643,21 +1636,16 @@ impl AndromedaBackend {
                     if let Some(actions) = self
                         .create_code_actions_for_diagnostic(uri, diagnostic, &content)
                         .await
+                        && let Some(CodeActionOrCommand::CodeAction(action)) = actions.first()
+                        && let Some(edit) = &action.edit
+                        && let Some(changes) = &edit.changes
+                        && let Some(text_edits) = changes.get(uri)
                     {
-                        if let Some(CodeActionOrCommand::CodeAction(action)) = actions.first() {
-                            if let Some(edit) = &action.edit {
-                                if let Some(changes) = &edit.changes {
-                                    if let Some(text_edits) = changes.get(uri) {
-                                        // Apply the edits to our local content
-                                        content =
-                                            self.apply_text_edits_to_content(&content, text_edits);
-                                        applied_fixes += 1;
-                                        fixed_any = true;
-                                        break; // Process one fix at a time to avoid conflicts
-                                    }
-                                }
-                            }
-                        }
+                        // Apply the edits to our local content
+                        content = self.apply_text_edits_to_content(&content, text_edits);
+                        applied_fixes += 1;
+                        fixed_any = true;
+                        break; // Process one fix at a time to avoid conflicts
                     }
                 }
 
@@ -1689,12 +1677,12 @@ impl AndromedaBackend {
         });
 
         for edit in sorted_edits {
-            if let Some(start_offset) = self.position_to_offset_sync(&result, edit.range.start) {
-                if let Some(end_offset) = self.position_to_offset_sync(&result, edit.range.end) {
-                    let mut chars: Vec<char> = result.chars().collect();
-                    chars.splice(start_offset..end_offset, edit.new_text.chars());
-                    result = chars.into_iter().collect();
-                }
+            if let Some(start_offset) = self.position_to_offset_sync(&result, edit.range.start)
+                && let Some(end_offset) = self.position_to_offset_sync(&result, edit.range.end)
+            {
+                let mut chars: Vec<char> = result.chars().collect();
+                chars.splice(start_offset..end_offset, edit.new_text.chars());
+                result = chars.into_iter().collect();
             }
         }
 

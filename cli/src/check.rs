@@ -298,16 +298,16 @@ pub fn check_file_content_with_config(
             let source_name = path.display().to_string();
             let named_source = NamedSource::new(source_name, content.to_string());
 
-            if let Some(labels) = &error.labels {
-                if let Some(label) = labels.first() {
-                    let span = SourceSpan::new(label.offset().into(), label.len());
+            if let Some(labels) = &error.labels
+                && let Some(label) = labels.first()
+            {
+                let span = SourceSpan::new(label.offset().into(), label.len());
 
-                    type_errors.push(TypeCheckError::ParseError {
-                        message: error.to_string(),
-                        span,
-                        source_code: named_source,
-                    });
-                }
+                type_errors.push(TypeCheckError::ParseError {
+                    message: error.to_string(),
+                    span,
+                    source_code: named_source,
+                });
             }
         }
     }
@@ -322,51 +322,48 @@ pub fn check_file_content_with_config(
     let named_source = NamedSource::new(source_name, content.to_string());
 
     for error in &semantic_ret.errors {
-        if let Some(labels) = &error.labels {
-            if let Some(label) = labels.first() {
-                let span = SourceSpan::new(label.offset().into(), label.len());
+        if let Some(labels) = &error.labels
+            && let Some(label) = labels.first()
+        {
+            let span = SourceSpan::new(label.offset().into(), label.len());
 
-                let error_message = error.to_string();
+            let error_message = error.to_string();
 
-                if error_message.contains("Cannot find name") {
-                    if let Some(name) = extract_identifier_from_error(&error_message) {
-                        type_errors.push(TypeCheckError::UnknownIdentifier {
-                            name,
-                            span,
-                            source_code: named_source.clone(),
-                        });
-                    }
-                } else if error_message.contains("Property")
-                    && error_message.contains("does not exist")
-                {
-                    if let (Some(property), Some(object_type)) =
-                        extract_property_error_info(&error_message)
-                    {
-                        type_errors.push(TypeCheckError::PropertyNotFound {
-                            property,
-                            object_type,
-                            span,
-                            source_code: named_source.clone(),
-                        });
-                    }
-                } else if error_message.contains("not assignable to") {
-                    if let (Some(actual), Some(expected)) =
-                        extract_type_mismatch_info(&error_message)
-                    {
-                        type_errors.push(TypeCheckError::TypeMismatch {
-                            expected,
-                            actual,
-                            span,
-                            source_code: named_source.clone(),
-                        });
-                    }
-                } else {
-                    type_errors.push(TypeCheckError::SemanticError {
-                        message: error.to_string(),
+            if error_message.contains("Cannot find name") {
+                if let Some(name) = extract_identifier_from_error(&error_message) {
+                    type_errors.push(TypeCheckError::UnknownIdentifier {
+                        name,
                         span,
                         source_code: named_source.clone(),
                     });
                 }
+            } else if error_message.contains("Property") && error_message.contains("does not exist")
+            {
+                if let (Some(property), Some(object_type)) =
+                    extract_property_error_info(&error_message)
+                {
+                    type_errors.push(TypeCheckError::PropertyNotFound {
+                        property,
+                        object_type,
+                        span,
+                        source_code: named_source.clone(),
+                    });
+                }
+            } else if error_message.contains("not assignable to") {
+                if let (Some(actual), Some(expected)) = extract_type_mismatch_info(&error_message) {
+                    type_errors.push(TypeCheckError::TypeMismatch {
+                        expected,
+                        actual,
+                        span,
+                        source_code: named_source.clone(),
+                    });
+                }
+            } else {
+                type_errors.push(TypeCheckError::SemanticError {
+                    message: error.to_string(),
+                    span,
+                    source_code: named_source.clone(),
+                });
             }
         }
     }

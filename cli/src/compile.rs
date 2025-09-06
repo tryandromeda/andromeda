@@ -45,16 +45,16 @@ pub fn compile(result_name: &Path, input_file: &Path) -> Result<()> {
     let js = js_content.into_bytes();
 
     // Validate output directory exists or can be created
-    if let Some(parent) = result_name.parent() {
-        if !parent.exists() {
-            std::fs::create_dir_all(parent).map_err(|e| {
-                AndromedaError::permission_denied(
-                    format!("creating output directory {}", parent.display()),
-                    Some(parent.to_path_buf()),
-                    e,
-                )
-            })?;
-        }
+    if let Some(parent) = result_name.parent()
+        && !parent.exists()
+    {
+        std::fs::create_dir_all(parent).map_err(|e| {
+            AndromedaError::permission_denied(
+                format!("creating output directory {}", parent.display()),
+                Some(parent.to_path_buf()),
+                e,
+            )
+        })?;
     }
 
     let mut out = File::create(result_name).map_err(|e| {

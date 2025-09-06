@@ -1314,10 +1314,10 @@ pub fn process_all_commands<'gc>(
                 current_path.clear();
             }
             CanvasCommand::ClosePath => {
-                if !current_path.is_empty() {
-                    if let Some(first) = current_path.first() {
-                        current_path.push(first.clone()); // Close the path by connecting to start
-                    }
+                if !current_path.is_empty()
+                    && let Some(first) = current_path.first()
+                {
+                    current_path.push(first.clone()); // Close the path by connecting to start
                 }
             }
             CanvasCommand::Fill => {

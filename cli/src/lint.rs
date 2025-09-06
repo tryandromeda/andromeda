@@ -291,38 +291,31 @@ fn check_expression_for_issues(
     match expr {
         Expression::CallExpression(call) => {
             // Check for console usage (no-console)
-            if is_rule_enabled("no-console", lint_config) {
-                if let Expression::StaticMemberExpression(member) = &call.callee {
-                    if let Expression::Identifier(ident) = &member.object {
-                        if ident.name == "console" {
-                            let span = SourceSpan::new(
-                                (call.span.start as usize).into(),
-                                call.span.size() as usize,
-                            );
-                            lint_errors.push(LintError::NoConsole {
-                                span,
-                                source_code: named_source.clone(),
-                                method_name: member.property.name.to_string(),
-                            });
-                        }
-                    }
-                }
+            if is_rule_enabled("no-console", lint_config)
+                && let Expression::StaticMemberExpression(member) = &call.callee
+                && let Expression::Identifier(ident) = &member.object
+                && ident.name == "console"
+            {
+                let span =
+                    SourceSpan::new((call.span.start as usize).into(), call.span.size() as usize);
+                lint_errors.push(LintError::NoConsole {
+                    span,
+                    source_code: named_source.clone(),
+                    method_name: member.property.name.to_string(),
+                });
             }
 
             // Check for eval usage (no-eval)
-            if is_rule_enabled("no-eval", lint_config) {
-                if let Expression::Identifier(ident) = &call.callee {
-                    if ident.name == "eval" {
-                        let span = SourceSpan::new(
-                            (call.span.start as usize).into(),
-                            call.span.size() as usize,
-                        );
-                        lint_errors.push(LintError::NoEval {
-                            span,
-                            source_code: named_source.clone(),
-                        });
-                    }
-                }
+            if is_rule_enabled("no-eval", lint_config)
+                && let Expression::Identifier(ident) = &call.callee
+                && ident.name == "eval"
+            {
+                let span =
+                    SourceSpan::new((call.span.start as usize).into(), call.span.size() as usize);
+                lint_errors.push(LintError::NoEval {
+                    span,
+                    source_code: named_source.clone(),
+                });
             }
 
             // Check for boolean literals as arguments (no-boolean-literal-for-arguments)
@@ -401,17 +394,17 @@ fn check_expression_for_issues(
         }
         Expression::TSTypeAssertion(type_assertion) => {
             // Check for explicit any (no-explicit-any)
-            if is_rule_enabled("no-explicit-any", lint_config) {
-                if let oxc_ast::ast::TSType::TSAnyKeyword(_) = &type_assertion.type_annotation {
-                    let span = SourceSpan::new(
-                        (type_assertion.span.start as usize).into(),
-                        type_assertion.span.size() as usize,
-                    );
-                    lint_errors.push(LintError::NoExplicitAny {
-                        span,
-                        source_code: named_source.clone(),
-                    });
-                }
+            if is_rule_enabled("no-explicit-any", lint_config)
+                && let oxc_ast::ast::TSType::TSAnyKeyword(_) = &type_assertion.type_annotation
+            {
+                let span = SourceSpan::new(
+                    (type_assertion.span.start as usize).into(),
+                    type_assertion.span.size() as usize,
+                );
+                lint_errors.push(LintError::NoExplicitAny {
+                    span,
+                    source_code: named_source.clone(),
+                });
             }
             check_expression_for_issues(
                 &type_assertion.expression,
@@ -436,10 +429,10 @@ fn is_camel_case(name: &str) -> bool {
 
     // First character should be lowercase
     let mut chars = name.chars();
-    if let Some(first) = chars.next() {
-        if !first.is_ascii_lowercase() {
-            return false;
-        }
+    if let Some(first) = chars.next()
+        && !first.is_ascii_lowercase()
+    {
+        return false;
     }
 
     // No underscores allowed in camelCase (except leading underscore)
@@ -469,10 +462,10 @@ fn contains_await_in_statement(stmt: &oxc_ast::ast::Statement) -> bool {
         }
         Statement::VariableDeclaration(var_decl) => {
             for declarator in &var_decl.declarations {
-                if let Some(init) = &declarator.init {
-                    if contains_await_in_expression(init) {
-                        return true;
-                    }
+                if let Some(init) = &declarator.init
+                    && contains_await_in_expression(init)
+                {
+                    return true;
                 }
             }
             false
@@ -503,10 +496,10 @@ fn contains_await_in_expression(expr: &oxc_ast::ast::Expression) -> bool {
                 return true;
             }
             for arg in &call.arguments {
-                if let Some(expr) = arg.as_expression() {
-                    if contains_await_in_expression(expr) {
-                        return true;
-                    }
+                if let Some(expr) = arg.as_expression()
+                    && contains_await_in_expression(expr)
+                {
+                    return true;
                 }
             }
             false
@@ -667,12 +660,11 @@ fn collect_let_variables(stmt: &Statement, let_variables: &mut HashSet<String>) 
         }
         Statement::ForStatement(for_stmt) => {
             if let Some(oxc_ast::ast::ForStatementInit::VariableDeclaration(decl)) = &for_stmt.init
+                && matches!(decl.kind, VariableDeclarationKind::Let)
             {
-                if matches!(decl.kind, VariableDeclarationKind::Let) {
-                    for declarator in &decl.declarations {
-                        if let Some(id) = declarator.id.get_binding_identifier() {
-                            let_variables.insert(id.name.to_string());
-                        }
+                for declarator in &decl.declarations {
+                    if let Some(id) = declarator.id.get_binding_identifier() {
+                        let_variables.insert(id.name.to_string());
                     }
                 }
             }
@@ -957,27 +949,9 @@ pub fn lint_file_content_with_config(
                 // Check camelCase naming convention
                 if is_rule_enabled("camelcase", lint_config) {
                     for declarator in &decl.declarations {
-                        if let Some(id) = declarator.id.get_binding_identifier() {
-                            if !is_camel_case(&id.name) {
-                                let span = SourceSpan::new(
-                                    (id.span.start as usize).into(),
-                                    id.span.size() as usize,
-                                );
-                                lint_errors.push(LintError::Camelcase {
-                                    span,
-                                    source_code: named_source.clone(),
-                                    name: id.name.to_string(),
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-            Statement::FunctionDeclaration(func) => {
-                // Check camelCase for function names
-                if is_rule_enabled("camelcase", lint_config) {
-                    if let Some(id) = &func.id {
-                        if !is_camel_case(&id.name) {
+                        if let Some(id) = declarator.id.get_binding_identifier()
+                            && !is_camel_case(&id.name)
+                        {
                             let span = SourceSpan::new(
                                 (id.span.start as usize).into(),
                                 id.span.size() as usize,
@@ -990,29 +964,44 @@ pub fn lint_file_content_with_config(
                         }
                     }
                 }
+            }
+            Statement::FunctionDeclaration(func) => {
+                // Check camelCase for function names
+                if is_rule_enabled("camelcase", lint_config)
+                    && let Some(id) = &func.id
+                    && !is_camel_case(&id.name)
+                {
+                    let span =
+                        SourceSpan::new((id.span.start as usize).into(), id.span.size() as usize);
+                    lint_errors.push(LintError::Camelcase {
+                        span,
+                        source_code: named_source.clone(),
+                        name: id.name.to_string(),
+                    });
+                }
 
                 // Check require-await for async functions
-                if is_rule_enabled("require-await", lint_config) && is_async_function(func) {
-                    if let Some(body) = &func.body {
-                        if !contains_await_expression(&body.statements) {
-                            let span = SourceSpan::new(
-                                (func.span().start as usize).into(),
-                                func.span().size() as usize,
-                            );
-                            let function_name = func
-                                .id
-                                .as_ref()
-                                .map(|id| id.name.as_str())
-                                .unwrap_or("<anonymous>")
-                                .to_string();
+                if is_rule_enabled("require-await", lint_config)
+                    && is_async_function(func)
+                    && let Some(body) = &func.body
+                    && !contains_await_expression(&body.statements)
+                {
+                    let span = SourceSpan::new(
+                        (func.span().start as usize).into(),
+                        func.span().size() as usize,
+                    );
+                    let function_name = func
+                        .id
+                        .as_ref()
+                        .map(|id| id.name.as_str())
+                        .unwrap_or("<anonymous>")
+                        .to_string();
 
-                            lint_errors.push(LintError::RequireAwait {
-                                span,
-                                source_code: named_source.clone(),
-                                function_name,
-                            });
-                        }
-                    }
+                    lint_errors.push(LintError::RequireAwait {
+                        span,
+                        source_code: named_source.clone(),
+                        function_name,
+                    });
                 }
             }
             Statement::DebuggerStatement(debugger_stmt) => {

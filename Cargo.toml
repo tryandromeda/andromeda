@@ -7,11 +7,15 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.0-draft32"
+version = "0.1.0-draft33"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
-andromeda-runtime = { path = "runtime", features = ["canvas", "crypto", "storage"] }
+andromeda-runtime = { path = "runtime", features = [
+    "canvas",
+    "crypto",
+    "storage"
+] }
 anyhow = "1.0.99"
 anymap = "0.12.1"
 async-trait = "0.1.89"
@@ -35,7 +39,9 @@ libsui = "0.10.0"
 log = "0.4.28"
 lsp-types = "0.97.0"
 nova_vm = { git = "https://github.com/trynova/nova", rev = "1e2be02201ca9cf48d8b96bcb85d20a5a683fc64", features = [
-    "typescript"
+    "typescript",
+    "annex-b",
+    "proposals"
 ] }
 nu-ansi-term = "0.50.1"
 owo-colors = "4.2.2"
@@ -57,7 +63,11 @@ rustls = "0.23.31"
 rustls-pemfile = "2.2.0"
 rustls-pki-types = "1.12.0"
 ring = "0.17.14"
-rusqlite = { version = "0.37.0", features = ["bundled", "functions", "load_extension"] }
+rusqlite = { version = "0.37.0", features = [
+    "bundled",
+    "functions",
+    "load_extension"
+] }
 saffron = "0.1.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.143"

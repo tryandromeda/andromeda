@@ -93,10 +93,10 @@ fn install_andromeda(args: InstallArgs) -> CliResult<()> {
         print_warning("Andromeda is already installed. Use --force to reinstall.");
 
         // Check current version
-        if let Ok(output) = Command::new(&binary_path).arg("--version").output() {
-            if let Ok(version) = String::from_utf8(output.stdout) {
-                print_info(&format!("Current version: {}", version.trim()));
-            }
+        if let Ok(output) = Command::new(&binary_path).arg("--version").output()
+            && let Ok(version) = String::from_utf8(output.stdout)
+        {
+            print_info(&format!("Current version: {}", version.trim()));
         }
 
         return Ok(());
@@ -248,13 +248,13 @@ fn configure_path(install_dir: &Path, verbose: bool) -> CliResult<()> {
     let install_dir_str = install_dir.to_string_lossy();
 
     // Check if already in PATH
-    if let Ok(current_path) = env::var("PATH") {
-        if current_path.contains(&*install_dir_str) {
-            if verbose {
-                print_info("Installation directory already in PATH");
-            }
-            return Ok(());
+    if let Ok(current_path) = env::var("PATH")
+        && current_path.contains(&*install_dir_str)
+    {
+        if verbose {
+            print_info("Installation directory already in PATH");
         }
+        return Ok(());
     }
 
     print_info("Configuring PATH environment variable...");

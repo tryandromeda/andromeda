@@ -157,7 +157,7 @@ impl SqliteExt {
         }
     }
 
-    fn with_database<T, F>(agent: &mut Agent, db_id: u32, operation: F) -> Result<T, Value>
+    fn with_database<T, F>(agent: &mut Agent, db_id: u32, operation: F) -> Result<T, Value<'_>>
     where
         F: FnOnce(&Connection) -> Result<T, rusqlite::Error>,
     {
@@ -1236,11 +1236,11 @@ impl SqliteExt {
 
         // Parse options (3rd argument)
         let read_only = false;
-        if args.len() > 2 {
-            if let Value::Object(_) = args.get(2) {
-                // For now, we'll just assume read_only is false
-                // A full implementation would parse the options object
-            }
+        if args.len() > 2
+            && let Value::Object(_) = args.get(2)
+        {
+            // For now, we'll just assume read_only is false
+            // A full implementation would parse the options object
         }
 
         let flags = if read_only {

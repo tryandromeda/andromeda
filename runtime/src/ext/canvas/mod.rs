@@ -872,26 +872,25 @@ impl CanvasExt {
         // Parse pattern and optional offset before borrowing host storage to avoid
         // borrowing Agent mutably while storage is borrowed.
         let mut parsed_dash: Option<Vec<f64>> = None;
-        if !pattern_val.is_undefined() {
-            if let Ok(sv) = pattern_val.to_string(agent, gc.reborrow()) {
-                if let Some(s) = sv.as_str(agent) {
-                    let s_str = s.to_string();
-                    if let Ok(parsed) = serde_json::from_str::<Vec<f64>>(&s_str) {
-                        parsed_dash = Some(parsed);
-                    } else {
-                        let mut v = Vec::new();
-                        for part in s_str.split(',') {
-                            let part = part.trim();
-                            if part.is_empty() {
-                                continue;
-                            }
-                            if let Ok(n) = part.parse::<f64>() {
-                                v.push(n);
-                            }
-                        }
-                        parsed_dash = Some(v);
+        if !pattern_val.is_undefined()
+            && let Ok(sv) = pattern_val.to_string(agent, gc.reborrow())
+            && let Some(s) = sv.as_str(agent)
+        {
+            let s_str = s.to_string();
+            if let Ok(parsed) = serde_json::from_str::<Vec<f64>>(&s_str) {
+                parsed_dash = Some(parsed);
+            } else {
+                let mut v = Vec::new();
+                for part in s_str.split(',') {
+                    let part = part.trim();
+                    if part.is_empty() {
+                        continue;
+                    }
+                    if let Ok(n) = part.parse::<f64>() {
+                        v.push(n);
                     }
                 }
+                parsed_dash = Some(v);
             }
         }
 

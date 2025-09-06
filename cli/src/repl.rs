@@ -495,8 +495,7 @@ fn show_startup_tip() {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs()
-        % 3
-        == 0
+        .is_multiple_of(3)
     {
         println!(
             "{}",

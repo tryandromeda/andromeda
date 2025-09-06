@@ -44,7 +44,7 @@ jobs:
       - name: Install the rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.88.0
+          toolchain: "nightly-2025-09-05"
           targets: ${{ matrix.target }}
           components: rustfmt, clippy
       - name: Test
@@ -63,7 +63,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "nightly-2025-09-05"
       - name: Cache on ${{ github.ref_name }}
         uses: Swatinem/rust-cache@v2
         with:
