@@ -114,11 +114,6 @@ fn should_skip_directory(dir_name: &str) -> bool {
 }
 
 /// Apply include/exclude filters to a list of files using glob patterns
-/// 
-/// This follows Deno's approach where:
-/// - If include patterns are specified, only files matching those patterns are included
-/// - Exclude patterns take precedence and remove files even if they match include patterns
-/// - If no include patterns are specified, all formattable files are included by default
 #[allow(clippy::result_large_err)]
 pub fn apply_include_exclude_filters(
     files: Vec<PathBuf>,
@@ -162,7 +157,7 @@ fn should_include_file(
     }
 
     let mut is_excluded = false;
-    
+
     for pattern_str in exclude_patterns {
         // Handle negated patterns (un-exclude) starting with "!"
         if let Some(negated_pattern) = pattern_str.strip_prefix('!') {
@@ -172,7 +167,7 @@ fn should_include_file(
                     None::<std::io::Error>,
                 )
             })?;
-            
+
             // If this is a negated pattern and it matches, we should include the file
             // (effectively un-excluding it)
             if pattern.matches(&path_str) {
@@ -186,7 +181,7 @@ fn should_include_file(
                     None::<std::io::Error>,
                 )
             })?;
-            
+
             if pattern.matches(&path_str) {
                 is_excluded = true;
                 // Don't break here - keep checking for negated patterns
@@ -205,7 +200,7 @@ pub fn find_formattable_files_with_filters(
     exclude_patterns: &[String],
 ) -> Result<Vec<PathBuf>> {
     let all_files = find_formattable_files(paths)?;
-    
+
     apply_include_exclude_filters(all_files, include_patterns, exclude_patterns)
 }
 
