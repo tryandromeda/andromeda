@@ -7,7 +7,7 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.0-draft31"
+version = "0.1.0-draft32"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
@@ -34,7 +34,7 @@ libffi = "4.1.2"
 libsui = "0.10.0"
 log = "0.4.28"
 lsp-types = "0.97.0"
-nova_vm = { git = "https://github.com/trynova/nova", rev = "da182fcdc3f51844018728e6ef806355602da802", features = [
+nova_vm = { git = "https://github.com/trynova/nova", rev = "1e2be02201ca9cf48d8b96bcb85d20a5a683fc64", features = [
     "typescript"
 ] }
 nu-ansi-term = "0.50.1"
@@ -70,7 +70,7 @@ tokio = { version = "1.47.1", features = ["rt", "sync", "time", "fs"] }
 tokio-rustls = "0.26.2"
 tokio-test = "0.4.4"
 tower-lsp = "0.20.0"
-ureq = { version = "3.1.0", features = ["json"] }
+ureq = { version = "3.1.1", features = ["json"] }
 url = { version = "2.5.7", features = ["serde", "expose_internals"] }
 uuid = { version = "1.18.1", features = ["v4"] }
 webpki-roots = "1.0.2"
