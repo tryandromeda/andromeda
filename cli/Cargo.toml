@@ -63,6 +63,7 @@ lsp-types.workspace = true
 futures.workspace = true
 log.workspace = true
 env_logger.workspace = true
+glob.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
 toml.workspace = true

@@ -24,7 +24,7 @@ use error::{Result, init_error_reporting, print_error};
 mod format;
 use format::{FormatResult, format_file};
 mod helper;
-use helper::find_formattable_files;
+use helper::{find_formattable_files_for_format, find_formattable_files_for_lint};
 mod lint;
 use lint::lint_file_with_config;
 mod check;
@@ -309,7 +309,10 @@ fn run_main() -> Result<()> {
                     })
             }
             Command::Fmt { paths } => {
-                let files_to_format = find_formattable_files(&paths)?;
+                // Load configuration
+                let config = ConfigManager::load_or_default(None);
+
+                let files_to_format = find_formattable_files_for_format(&paths, &config.format)?;
                 if files_to_format.is_empty() {
                     let warning = Style::new().yellow().bold().apply_to("⚠️");
                     let msg = Style::new()
@@ -397,7 +400,7 @@ fn run_main() -> Result<()> {
                 // Load configuration
                 let config = ConfigManager::load_or_default(None);
 
-                let files_to_lint = find_formattable_files(&paths)?;
+                let files_to_lint = find_formattable_files_for_lint(&paths, &config.lint)?;
                 if files_to_lint.is_empty() {
                     println!("No lintable files found.");
                     return Ok(());

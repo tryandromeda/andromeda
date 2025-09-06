@@ -81,6 +81,12 @@ pub struct FormatConfig {
     pub semicolons: bool,
     /// Single quotes preference
     pub single_quotes: bool,
+    /// Files or directories to include
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub include: Vec<String>,
+    /// Files or directories to exclude
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
 }
 
 /// Linting configuration
@@ -95,6 +101,12 @@ pub struct LintConfig {
     pub disabled_rules: Vec<String>,
     /// Maximum number of warnings before error
     pub max_warnings: Option<u32>,
+    /// Files or directories to include
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub include: Vec<String>,
+    /// Files or directories to exclude
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
 }
 
 /// Task definition configuration
@@ -171,6 +183,8 @@ impl Default for FormatConfig {
             trailing_comma: false,
             semicolons: true,
             single_quotes: false,
+            include: Vec::new(),
+            exclude: Vec::new(),
         }
     }
 }
@@ -182,6 +196,8 @@ impl Default for LintConfig {
             rules: Vec::new(),
             disabled_rules: Vec::new(),
             max_warnings: None,
+            include: Vec::new(),
+            exclude: Vec::new(),
         }
     }
 }

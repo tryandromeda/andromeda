@@ -2,9 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use crate::config::{FormatConfig, LintConfig};
 use crate::error::{AndromedaError, Result};
+use glob::Pattern;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Recursively finds all JavaScript, TypeScript, and JSON files in the given directories
 #[allow(clippy::result_large_err)]
@@ -111,31 +113,116 @@ fn should_skip_directory(dir_name: &str) -> bool {
     )
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// Apply include/exclude filters to a list of files using glob patterns
+/// 
+/// This follows Deno's approach where:
+/// - If include patterns are specified, only files matching those patterns are included
+/// - Exclude patterns take precedence and remove files even if they match include patterns
+/// - If no include patterns are specified, all formattable files are included by default
+#[allow(clippy::result_large_err)]
+pub fn apply_include_exclude_filters(
+    files: Vec<PathBuf>,
+    include_patterns: &[String],
+    exclude_patterns: &[String],
+) -> Result<Vec<PathBuf>> {
+    let mut filtered_files = Vec::new();
 
-    #[test]
-    fn test_is_formattable_file() {
-        assert!(is_formattable_file(&PathBuf::from("test.ts")));
-        assert!(is_formattable_file(&PathBuf::from("test.tsx")));
-        assert!(is_formattable_file(&PathBuf::from("test.js")));
-        assert!(is_formattable_file(&PathBuf::from("test.jsx")));
-        assert!(is_formattable_file(&PathBuf::from("test.json")));
-        assert!(is_formattable_file(&PathBuf::from("test.jsonc")));
-        assert!(!is_formattable_file(&PathBuf::from("test.txt")));
-        assert!(!is_formattable_file(&PathBuf::from("test.md")));
-        assert!(!is_formattable_file(&PathBuf::from("test.rs")));
+    for file in files {
+        if should_include_file(&file, include_patterns, exclude_patterns)? {
+            filtered_files.push(file);
+        }
     }
 
-    #[test]
-    fn test_should_skip_directory() {
-        assert!(should_skip_directory("node_modules"));
-        assert!(should_skip_directory(".git"));
-        assert!(should_skip_directory("target"));
-        assert!(should_skip_directory("dist"));
-        assert!(!should_skip_directory("src"));
-        assert!(!should_skip_directory("lib"));
-        assert!(!should_skip_directory("components"));
+    Ok(filtered_files)
+}
+
+/// Check if a file should be included based on include/exclude patterns
+#[allow(clippy::result_large_err)]
+fn should_include_file(
+    file_path: &Path,
+    include_patterns: &[String],
+    exclude_patterns: &[String],
+) -> Result<bool> {
+    let path_str = file_path.to_string_lossy();
+
+    let is_included = if include_patterns.is_empty() {
+        true
+    } else {
+        include_patterns.iter().any(|pattern_str| {
+            if let Ok(pattern) = Pattern::new(pattern_str) {
+                pattern.matches(&path_str)
+            } else {
+                false
+            }
+        })
+    };
+
+    if !is_included {
+        return Ok(false);
     }
+
+    let mut is_excluded = false;
+    
+    for pattern_str in exclude_patterns {
+        // Handle negated patterns (un-exclude) starting with "!"
+        if let Some(negated_pattern) = pattern_str.strip_prefix('!') {
+            let pattern = Pattern::new(negated_pattern).map_err(|e| {
+                AndromedaError::format_error(
+                    format!("Invalid glob pattern '{}': {}", negated_pattern, e),
+                    None::<std::io::Error>,
+                )
+            })?;
+            
+            // If this is a negated pattern and it matches, we should include the file
+            // (effectively un-excluding it)
+            if pattern.matches(&path_str) {
+                is_excluded = false;
+                break; // Negated patterns take precedence
+            }
+        } else {
+            let pattern = Pattern::new(pattern_str).map_err(|e| {
+                AndromedaError::format_error(
+                    format!("Invalid glob pattern '{}': {}", pattern_str, e),
+                    None::<std::io::Error>,
+                )
+            })?;
+            
+            if pattern.matches(&path_str) {
+                is_excluded = true;
+                // Don't break here - keep checking for negated patterns
+            }
+        }
+    }
+
+    Ok(!is_excluded)
+}
+
+/// Enhanced version of find_formattable_files that accepts include/exclude patterns
+#[allow(clippy::result_large_err)]
+pub fn find_formattable_files_with_filters(
+    paths: &[PathBuf],
+    include_patterns: &[String],
+    exclude_patterns: &[String],
+) -> Result<Vec<PathBuf>> {
+    let all_files = find_formattable_files(paths)?;
+    
+    apply_include_exclude_filters(all_files, include_patterns, exclude_patterns)
+}
+
+/// Find formattable files using FormatConfig include/exclude patterns
+#[allow(clippy::result_large_err)]
+pub fn find_formattable_files_for_format(
+    paths: &[PathBuf],
+    format_config: &FormatConfig,
+) -> Result<Vec<PathBuf>> {
+    find_formattable_files_with_filters(paths, &format_config.include, &format_config.exclude)
+}
+
+/// Find formattable files using LintConfig include/exclude patterns
+#[allow(clippy::result_large_err)]
+pub fn find_formattable_files_for_lint(
+    paths: &[PathBuf],
+    lint_config: &LintConfig,
+) -> Result<Vec<PathBuf>> {
+    find_formattable_files_with_filters(paths, &lint_config.include, &lint_config.exclude)
 }

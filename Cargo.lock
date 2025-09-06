@@ -86,6 +86,7 @@ dependencies = [
  "dprint-plugin-typescript",
  "env_logger",
  "futures",
+ "glob",
  "indexmap",
  "libsui",
  "log",
