@@ -13,7 +13,7 @@ use nova_vm::{
 };
 
 use crate::{
-    BroadcastChannelExt, ConsoleExt, CronExt, FetchExt, FfiExt, FileExt, FsExt, ProcessExt,
+    BroadcastChannelExt, ConsoleExt, CronExt, FetchExt, FfiExt, FileExt, FsExt, NetExt, ProcessExt,
     RuntimeMacroTask, StreamsExt, TimeExt, TlsExt, URLExt, WebExt,
 };
 
@@ -29,6 +29,7 @@ pub fn recommended_extensions() -> Vec<Extension> {
         FileExt::new_extension(),
         BroadcastChannelExt::new_extension(),
         FetchExt::new_extension(),
+        NetExt::new_extension(),
         StreamsExt::new_extension(),
         TlsExt::new_extension(),
         FfiExt::new_extension(),

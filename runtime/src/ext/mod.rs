@@ -17,6 +17,7 @@ mod file;
 mod fs;
 #[cfg(feature = "storage")]
 mod local_storage;
+mod net;
 mod process;
 #[cfg(feature = "storage")]
 mod sqlite;
@@ -41,6 +42,7 @@ pub use file::*;
 pub use fs::*;
 #[cfg(feature = "storage")]
 pub use local_storage::*;
+pub use net::*;
 pub use process::*;
 #[cfg(feature = "storage")]
 pub use sqlite::*;

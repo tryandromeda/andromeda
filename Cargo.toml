@@ -7,7 +7,7 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.0-draft33"
+version = "0.1.0-draft34"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
@@ -20,10 +20,10 @@ anyhow = "1.0.99"
 anymap = "0.12.1"
 async-trait = "0.1.89"
 base64-simd = "0.8.0"
-chrono = { version = "0.4.41", features = ["serde"] }
+chrono = { version = "0.4.42", features = ["serde"] }
 clap = { version = "4.5.47", features = ["derive"] }
 clap_complete = "4.5.57"
-console = "0.16.0"
+console = "0.16.1"
 dprint-core = "0.67.4"
 dprint-plugin-typescript = "0.95.11"
 dprint-plugin-json = "0.20.0"
@@ -72,7 +72,9 @@ saffron = "0.1.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.143"
 serde_yaml = "0.9.34-deprecated"
+socket2 = "0.6.0"
 toml = "0.9.5"
+trust-dns-resolver = "0.23.2"
 signal-hook = "0.3.18"
 thiserror = "2.0.16"
 tempfile = "3.21.0"
