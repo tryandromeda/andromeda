@@ -52,7 +52,7 @@ ECMAScript standards and common runtime behaviors.
 
 Install Andromeda using Cargo:
 
-```bash
+```sh
 cargo install --git https://github.com/tryandromeda/andromeda
 ```
 
@@ -60,7 +60,7 @@ cargo install --git https://github.com/tryandromeda/andromeda
 
 Execute JavaScript or TypeScript files directly:
 
-```bash
+```sh
 # Run a TypeScript file (no compilation needed!)
 andromeda run hello.ts
 
@@ -73,7 +73,7 @@ andromeda run --verbose my-script.ts
 
 ### Example: Hello World with Canvas
 
-```typescript
+```ts
 // Create a simple drawing
 const canvas = new OffscreenCanvas(400, 300);
 const ctx = canvas.getContext("2d")!;
@@ -112,7 +112,7 @@ console.log(flatten([[1, 2], [3, [4, 5]]], 2));
 
 ### File System
 
-```typescript
+```ts
 // Read and write files synchronously
 const content = Andromeda.readTextFileSync("input.txt");
 Andromeda.writeTextFileSync("output.txt", content.toUpperCase());
@@ -124,7 +124,7 @@ Andromeda.env.set("MY_VAR", "value");
 
 ### Canvas & Graphics
 
-```typescript
+```ts
 // Create graphics programmatically
 const canvas = new OffscreenCanvas(800, 600);
 const ctx = canvas.getContext("2d")!;
@@ -139,7 +139,7 @@ canvas.saveAsPng("artwork.png");
 
 ### Web Storage
 
-```typescript
+```ts
 // localStorage and sessionStorage APIs
 localStorage.setItem("user-preference", "dark-mode");
 const preference = localStorage.getItem("user-preference");
@@ -152,7 +152,7 @@ const sessionId = sessionStorage.getItem("session-id");
 
 ### Cryptography
 
-```typescript
+```ts
 // Generate secure random values
 const uuid = crypto.randomUUID();
 const randomBytes = crypto.getRandomValues(new Uint8Array(32));
@@ -164,7 +164,7 @@ const hash = await crypto.subtle.digest("SHA-256", data);
 
 ### Performance Monitoring
 
-```typescript
+```ts
 // High-precision timing
 const start = performance.now();
 await someAsyncOperation();
@@ -179,7 +179,7 @@ performance.measure("total-time", "operation-start", "operation-end");
 
 ### Database Operations
 
-```typescript
+```ts
 const db = new Database(":memory:");
 
 const stmt = db.prepare("INSERT INTO users (name, email) VALUES (?, ?)");
@@ -197,7 +197,7 @@ db.close();
 
 Andromeda includes a powerful REPL with enhanced developer experience:
 
-```bash
+```sh
 # Start the interactive REPL
 andromeda repl
 
@@ -220,7 +220,7 @@ andromeda repl --print-internals --expose-internals --disable-gc
 
 Format TypeScript and JavaScript files with the built-in formatter:
 
-```bash
+```sh
 # Format specific files
 andromeda fmt script.ts utils.js
 
@@ -235,7 +235,7 @@ andromeda fmt
 
 Compile your scripts into standalone executables:
 
-```bash
+```sh
 # Create a single-file executable
 andromeda compile my-script.ts my-app.exe
 
@@ -249,7 +249,7 @@ Andromeda includes a built-in Language Server that provides real-time
 diagnostics and linting capabilities for JavaScript and TypeScript files in your
 editor:
 
-```bash
+```sh
 # Start the Language Server (typically called by your editor)
 andromeda lsp
 ```
@@ -275,7 +275,7 @@ JavaScript and TypeScript files to get instant feedback on code quality.
 
 Generate completion scripts for your shell:
 
-```bash
+```sh
 # Auto-detect shell and generate completions
 andromeda completions
 
@@ -290,7 +290,7 @@ andromeda completions powershell > $PROFILE/andromeda.ps1
 
 Keep Andromeda up to date with the built-in upgrade system:
 
-```bash
+```sh
 # Upgrade to latest version
 andromeda upgrade
 
@@ -340,7 +340,7 @@ Tasks are defined in your `andromeda.json`, `andromeda.toml`, or `andromeda.yaml
 
 #### Running Tasks
 
-```bash
+```sh
 # List all available tasks
 andromeda task
 
