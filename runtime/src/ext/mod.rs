@@ -15,6 +15,7 @@ mod fetch;
 mod ffi;
 mod file;
 mod fs;
+mod http;
 #[cfg(feature = "storage")]
 mod local_storage;
 mod net;
@@ -40,6 +41,7 @@ pub use fetch::*;
 pub use ffi::*;
 pub use file::*;
 pub use fs::*;
+pub use http::*;
 #[cfg(feature = "storage")]
 pub use local_storage::*;
 pub use net::*;

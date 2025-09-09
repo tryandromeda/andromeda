@@ -438,11 +438,12 @@ const Andromeda = {
    * console.log(entries);
    * ```
    */
-  readDirSync(
-    path: string,
-  ): Array<
-    { name: string; isFile: boolean; isDirectory: boolean; isSymlink: boolean; }
-  > {
+  readDirSync(path: string): Array<{
+    name: string;
+    isFile: boolean;
+    isDirectory: boolean;
+    isSymlink: boolean;
+  }> {
     return __andromeda__.internal_read_dir(path);
   },
 
@@ -736,6 +737,16 @@ const Andromeda = {
       }
     }
   },
+
+  /**
+   * @example
+   * ```ts
+   * Andromeda.serve();
+   * ```
+   */
+  serve(): string[] {
+    return __andromeda__.internal_serve();
+  },
 };
 
 /**
@@ -806,9 +817,13 @@ function encodeURIComponent(input: string): string {
   for (const b of bytes) {
     // unreserved characters A-Z a-z 0-9 - _ . ~
     if (
-      (b >= 0x30 && b <= 0x39) || (b >= 0x41 && b <= 0x5A) ||
-      (b >= 0x61 && b <= 0x7A) || b === 0x2D || b === 0x5F || b === 0x2E ||
-      b === 0x7E
+      (b >= 0x30 && b <= 0x39) ||
+      (b >= 0x41 && b <= 0x5a) ||
+      (b >= 0x61 && b <= 0x7a) ||
+      b === 0x2d ||
+      b === 0x5f ||
+      b === 0x2e ||
+      b === 0x7e
     ) {
       out += String.fromCharCode(b);
     } else {

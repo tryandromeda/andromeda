@@ -14,7 +14,8 @@ andromeda-core = { path = "core" }
 andromeda-runtime = { path = "runtime", features = [
     "canvas",
     "crypto",
-    "storage"
+    "storage",
+    "serve"
 ] }
 anyhow = "1.0.99"
 anymap = "0.12.1"
