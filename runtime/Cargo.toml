@@ -20,6 +20,7 @@ nova_vm.workspace = true
 anymap.workspace = true
 async-trait.workspace = true
 chrono.workspace = true
+futures.workspace = true
 tokio = { workspace = true, features = [
     "net",
     "rt-multi-thread",

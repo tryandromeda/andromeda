@@ -8,8 +8,6 @@ mod renderer;
 mod state;
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable, Rid};
 use std::ops::DerefMut;
-use std::sync::{Arc, Mutex};
-use std::thread;
 
 use crate::ext::canvas::context2d::{
     internal_canvas_begin_path, internal_canvas_bezier_curve_to, internal_canvas_close_path,
@@ -964,50 +962,29 @@ impl CanvasExt {
     }
 }
 
-async fn create_wgpu_device() -> (wgpu::Device, wgpu::Queue) {
+fn create_wgpu_device_sync() -> (wgpu::Device, wgpu::Queue) {
     let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
         backends: wgpu::Backends::all(),
         ..Default::default()
     });
 
-    let adapter = instance
-        .request_adapter(&wgpu::RequestAdapterOptions {
+    let adapter =
+        futures::executor::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::default(),
             compatible_surface: None,
             force_fallback_adapter: false,
-        })
-        .await
+        }))
         .unwrap();
 
-    let (device, queue) = adapter
-        .request_device(&wgpu::DeviceDescriptor {
+    let (device, queue) =
+        futures::executor::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
             required_features: wgpu::Features::empty(),
             required_limits: wgpu::Limits::default(),
             label: None,
             memory_hints: Default::default(),
             trace: wgpu::Trace::default(),
-        })
-        .await
+        }))
         .unwrap();
 
     (device, queue)
-}
-
-fn create_wgpu_device_sync() -> (wgpu::Device, wgpu::Queue) {
-    // Use a simple blocking executor - we'll create a simpler version for now
-    let result = Arc::new(Mutex::new(None));
-    let result_clone = result.clone();
-
-    thread::spawn(move || {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        let device_queue = rt.block_on(create_wgpu_device());
-        *result_clone.lock().unwrap() = Some(device_queue);
-    })
-    .join()
-    .unwrap();
-
-    result.lock().unwrap().take().unwrap()
 }
