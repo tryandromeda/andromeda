@@ -1,9 +1,7 @@
-// deno-lint-ignore-file no-async-promise-executor no-unused-vars require-await
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
-// DOMException is provided by the web extension
+// deno-lint-ignore-file no-async-promise-executor require-await
 
 interface QueuingStrategy<R = unknown> {
   highWaterMark?: number;
@@ -326,7 +324,7 @@ class ReadableStream<R = unknown> {
     // Lock the stream in the backend
     try {
       __andromeda__.internal_readable_stream_lock(this.#streamId);
-    } catch (error) {
+    } catch (_) {
       throw new TypeError("Failed to lock ReadableStream");
     }
 
@@ -858,3 +856,16 @@ function createReadableStreamFrom<T>(
     "createReadableStreamFrom() requires an iterable or async iterable",
   );
 }
+
+// @ts-ignore globalThis is not readonly
+globalThis.ReadableStream = ReadableStream;
+// @ts-ignore globalThis is not readonly
+globalThis.ReadableByteStreamController = ReadableByteStreamController;
+// @ts-ignore globalThis is not readonly
+globalThis.ReadableStreamDefaultController = ReadableStreamDefaultController;
+// @ts-ignore globalThis is not readonly
+globalThis.ReadableStreamDefaultReader = ReadableStreamDefaultReader;
+// @ts-ignore globalThis is not readonly
+globalThis.ReadableStreamBYOBReader = ReadableStreamBYOBReader;
+// @ts-ignore globalThis is not readonly
+globalThis.ReadableStreamBYOBRequest = ReadableStreamBYOBRequest;

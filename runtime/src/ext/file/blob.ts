@@ -195,3 +195,6 @@ class Blob {
     return this.#blobId;
   }
 }
+
+// @ts-ignore globalThis is not readonly
+globalThis.Blob = Blob;

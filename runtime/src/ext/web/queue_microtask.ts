@@ -20,3 +20,6 @@ function queueMicrotask(callback: () => void): void {
     }
   });
 }
+
+// @ts-ignore globalThis is not readonly
+globalThis.queueMicrotask = queueMicrotask;

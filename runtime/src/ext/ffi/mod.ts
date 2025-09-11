@@ -1,7 +1,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-// deno-lint-ignore-file no-unused-vars
 
 /**
  * All plain number types for interfacing with foreign functions.
@@ -626,3 +625,14 @@ function dlopen<T extends ForeignLibraryInterface>(
 
   return new DynamicLibrary(libId, callableSymbols);
 }
+
+// @ts-ignore globalThis is not readonly
+globalThis.dlopen = dlopen;
+// @ts-ignore globalThis is not readonly
+globalThis.UnsafeCallback = UnsafeCallback;
+// @ts-ignore globalThis is not readonly
+globalThis.UnsafeFnPointer = UnsafeFnPointer;
+// @ts-ignore globalThis is not readonly
+globalThis.UnsafePointer = UnsafePointer;
+// @ts-ignore globalThis is not readonly
+globalThis.UnsafePointerView = UnsafePointerView;

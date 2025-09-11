@@ -52,3 +52,6 @@ function createImageBitmap(path: string): ImageBitmap {
   const height = __andromeda__.internal_image_bitmap_get_height(rid);
   return new ImageBitmap(rid, width, height);
 }
+
+globalThis.createImageBitmap = createImageBitmap;
+globalThis.ImageBitmap = ImageBitmap;

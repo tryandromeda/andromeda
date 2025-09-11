@@ -2,8 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// deno-lint-ignore-file no-unused-vars
-
 /**
  * TextEncoder encodes strings into UTF-8 bytes.
  * Always uses UTF-8 encoding as per WHATWG spec.
@@ -192,3 +190,8 @@ class TextDecoder {
     );
   }
 }
+
+// @ts-ignore globalThis is not readonly
+globalThis.TextEncoder = TextEncoder;
+// @ts-ignore globalThis is not readonly
+globalThis.TextDecoder = TextDecoder;
