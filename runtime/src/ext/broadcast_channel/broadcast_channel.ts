@@ -281,3 +281,5 @@ class BroadcastChannel {
     }, inspectOptions);
   }
 }
+
+globalThis.BroadcastChannel = BroadcastChannel;

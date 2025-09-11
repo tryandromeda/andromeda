@@ -6,7 +6,9 @@ use nova_vm::{
     ecmascript::{
         builtins::{Behaviour, BuiltinFunctionArgs, RegularFn, create_builtin_function},
         execution::Agent,
-        scripts_and_modules::script::{parse_script, script_evaluation},
+        scripts_and_modules::{
+            module::module_semantics::source_text_module_records::parse_module, script::HostDefined,
+        },
         types::{InternalMethods, IntoValue, Object, PropertyDescriptor, PropertyKey},
     },
     engine::context::{Bindable, GcScope},
@@ -57,32 +59,34 @@ impl Extension {
         andromeda_object: Object,
         gc: &mut GcScope<'_, '_>,
     ) {
-        for file in &self.files {
-            let source_text = nova_vm::ecmascript::types::String::from_str(agent, file, gc.nogc());
-            let script = match parse_script(
+        for (idx, file_source) in self.files.iter().enumerate() {
+            let specifier = format!("<ext:{}:{}>", self.name, idx);
+            let source_text =
+                nova_vm::ecmascript::types::String::from_str(agent, file_source, gc.nogc());
+
+            let module = match parse_module(
                 agent,
                 source_text,
                 agent.current_realm(gc.nogc()),
-                true,
-                None,
+                Some(std::rc::Rc::new(specifier.clone()) as HostDefined),
                 gc.nogc(),
             ) {
-                Ok(script) => script,
-                Err(diagnostics) => exit_with_parse_errors(diagnostics, "<runtime>", file),
+                Ok(module) => module,
+                Err(diagnostics) => exit_with_parse_errors(diagnostics, &specifier, file_source),
             };
-            let eval_result = script_evaluation(agent, script.unbind(), gc.reborrow()).unbind();
-            match eval_result {
-                Ok(_) => (),
-                Err(e) => {
-                    let error_value = e.value();
-                    let message = error_value
-                        .string_repr(agent, gc.reborrow())
-                        .as_str(agent)
-                        .unwrap_or("<non-string error>")
-                        .to_string();
-                    let err = AndromedaError::runtime_error(message);
-                    print_enhanced_error(&err);
-                }
+
+            let eval_result = agent
+                .run_parsed_module(module.unbind(), None, gc.reborrow())
+                .unbind();
+            if let Err(e) = eval_result {
+                let error_value = e.value();
+                let message = error_value
+                    .string_repr(agent, gc.reborrow())
+                    .as_str(agent)
+                    .unwrap_or("<non-string error>")
+                    .to_string();
+                let err = AndromedaError::runtime_error(message);
+                print_enhanced_error(&err);
             }
         }
         for op in &self.ops {

@@ -5,7 +5,7 @@
 // Compliant with WHATWG HTML Living Standard
 // https://html.spec.whatwg.org/multipage/structured-data.html#dom-structuredclone
 
-// deno-lint-ignore-file no-explicit-any no-unused-vars
+// deno-lint-ignore-file no-explicit-any
 
 /**
  * Options for structuredClone
@@ -30,8 +30,7 @@ interface Transferable {
  * Create a DataCloneError DOMException
  */
 function createDataCloneError(message: string) {
-  // @ts-ignore createDOMException is defined in dom_exception.ts
-  return createDOMException(message, "DataCloneError");
+  return new DOMException(message, "DataCloneError");
 }
 
 /**
@@ -412,3 +411,6 @@ function structuredClone<T = any>(
     throw createDataCloneError("Failed to clone value");
   }
 }
+
+// @ts-ignore globalThis is not readonly
+globalThis.structuredClone = structuredClone;

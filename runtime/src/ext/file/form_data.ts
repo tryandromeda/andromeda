@@ -1,15 +1,7 @@
-// deno-lint-ignore-file no-unused-vars
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-/**
- * Implementation of the FormData interface
- * Based on: https://xhr.spec.whatwg.org/#formdata
- * WinterTC Compliance: https://min-common-api.proposal.wintertc.org/
- */
-
-// Minimal HTMLFormElement interface for type compatibility
 interface HTMLFormElement {
   readonly tagName: string;
 }
@@ -212,3 +204,6 @@ class FormData {
     return "FormData";
   }
 }
+
+// @ts-ignore globalThis is not readonly
+globalThis.FormData = FormData;

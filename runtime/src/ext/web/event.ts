@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// deno-lint-ignore-file no-explicit-any no-unused-vars
+// deno-lint-ignore-file no-explicit-any
 // Andromeda Event API Implementation
 // Compliant with WHATWG HTML Living Standard
 // https://html.spec.whatwg.org/dev/webappapis.html#events
@@ -36,6 +36,7 @@ function setCurrentTarget(event: Event, value: any) {
   (event as any)[_attributes].currentTarget = value;
 }
 
+// deno-lint-ignore no-unused-vars
 function setIsTrusted(event: Event, value: boolean) {
   (event as any)[_isTrusted] = value;
 }
@@ -387,6 +388,7 @@ interface EventTargetData {
   mode: string;
 }
 
+// deno-lint-ignore no-unused-vars
 function setEventTargetData(target: any): void {
   target[eventTargetData] = getDefaultTargetData();
 }
@@ -419,7 +421,7 @@ function normalizeEventHandlerOptions(
 
 function addEventListenerOptionsConverter(
   V: boolean | AddEventListenerOptions | undefined,
-  prefix: string,
+  _prefix: string,
 ): AddEventListenerOptions {
   if (typeof V !== "object" || V === null) {
     return { capture: !!V, once: false, passive: false };
@@ -604,8 +606,7 @@ function innerInvokeEventListeners(
           eventImpl.currentTarget,
           eventImpl,
         );
-      } catch (error) {
-        // Call without .call if it fails
+      } catch (_) {
         (listener.callback as EventListener)(eventImpl);
       }
     }
@@ -938,8 +939,7 @@ class EventTarget {
 
     // Per spec: Check if event is currently being dispatched
     if (getDispatched(event)) {
-      // @ts-ignore createDOMException is defined in dom_exception.ts
-      throw createDOMException(
+      throw new DOMException(
         "Failed to execute 'dispatchEvent' on 'EventTarget': The event is already being dispatched.",
         "InvalidStateError",
       );
@@ -947,8 +947,7 @@ class EventTarget {
 
     // Per spec: Check if event's initialized flag is not set
     if (event.eventPhase !== Event.NONE) {
-      // @ts-ignore createDOMException is defined in dom_exception.ts
-      throw createDOMException(
+      throw new DOMException(
         "Failed to execute 'dispatchEvent' on 'EventTarget': The event's phase is not NONE.",
         "InvalidStateError",
       );
@@ -1162,6 +1161,7 @@ function makeWrappedHandler(
   return wrappedHandler;
 }
 
+// deno-lint-ignore no-unused-vars
 function defineEventHandler(
   emitter: any,
   name: string,
@@ -1199,8 +1199,7 @@ function defineEventHandler(
   });
 }
 
-// Error reporting function
-// deno-lint-ignore prefer-const
+// deno-lint-ignore prefer-const no-unused-vars
 let reportExceptionStackedCalls = 0;
 
 function reportError(error: any): void {
@@ -1208,13 +1207,10 @@ function reportError(error: any): void {
 }
 
 // Utility functions for external use
+// deno-lint-ignore no-unused-vars
 function listenerCount(target: any, type: string): number {
   return getListeners(target)?.[type]?.length ?? 0;
 }
-
-// AbortSignal and AbortController implementation
-// Compliant with WHATWG DOM Standard
-// https://dom.spec.whatwg.org/#interface-abortsignal
 
 // Private symbols for AbortSignal internal state
 const _aborted = Symbol("[[aborted]]");
@@ -1247,9 +1243,8 @@ class AbortSignal extends EventTarget {
     const signal = new AbortSignal();
     (signal as any)[_aborted] = true;
     (signal as any)[_abortReason] = reason !== undefined ?
-      reason // @ts-ignore createDOMException is defined in dom_exception.ts
-       :
-      createDOMException("signal is aborted without reason", "AbortError");
+      reason :
+      new DOMException("signal is aborted without reason", "AbortError");
     return signal;
   }
   static timeout(milliseconds: number): AbortSignal {
@@ -1260,8 +1255,7 @@ class AbortSignal extends EventTarget {
     const signal = new AbortSignal();
     if (milliseconds === 0) {
       (signal as any)[_aborted] = true;
-      // @ts-ignore createDOMException is defined in dom_exception.ts
-      (signal as any)[_abortReason] = createDOMException(
+      (signal as any)[_abortReason] = new DOMException(
         "signal timed out",
         "TimeoutError",
       );
@@ -1270,8 +1264,7 @@ class AbortSignal extends EventTarget {
         if (!(signal as any)[_aborted]) {
           signalAbort(
             signal,
-            // @ts-ignore createDOMException is defined in dom_exception.ts
-            createDOMException("signal timed out", "TimeoutError"),
+            new DOMException("signal timed out", "TimeoutError"),
           );
         }
       };
@@ -1321,9 +1314,8 @@ class AbortController {
     signalAbort(
       this.#signal,
       reason !== undefined ?
-        reason // @ts-ignore createDOMException is defined in dom_exception.ts
-         :
-        createDOMException("signal is aborted without reason", "AbortError"),
+        reason :
+        new DOMException("signal is aborted without reason", "AbortError"),
     );
   }
 }
@@ -1354,4 +1346,21 @@ function signalAbort(signal: AbortSignal, reason: any): void {
   signal.dispatchEvent(event);
 }
 
-// DOMException implementation for abort-related errors
+// @ts-ignore globalThis is not readonly
+globalThis.Event = Event;
+// @ts-ignore globalThis is not readonly
+globalThis.EventTarget = EventTarget;
+// @ts-ignore globalThis is not readonly
+globalThis.ErrorEvent = ErrorEvent;
+// @ts-ignore globalThis is not readonly
+globalThis.CloseEvent = CloseEvent;
+// @ts-ignore globalThis is not readonly
+globalThis.MessageEvent = MessageEvent;
+// @ts-ignore globalThis is not readonly
+globalThis.ProgressEvent = ProgressEvent;
+// @ts-ignore globalThis is not readonly
+globalThis.PromiseRejectionEvent = PromiseRejectionEvent;
+// @ts-ignore globalThis is not readonly
+globalThis.AbortController = AbortController;
+// @ts-ignore globalThis is not readonly
+globalThis.AbortSignal = AbortSignal;

@@ -674,5 +674,5 @@ const andromedaConsole = {
   },
 };
 
-// Export the console object
+// // Export the console object
 globalThis.console = andromedaConsole;

@@ -1,4 +1,3 @@
-// deno-lint-ignore-file no-unused-vars
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -305,7 +304,7 @@ class WritableStream<W = unknown> {
             __andromeda__.internal_writable_stream_close(this.#streamId);
             resolve();
           }
-        } catch (error) {
+        } catch (_) {
           __andromeda__.internal_writable_stream_close(this.#streamId);
           resolve();
         }
@@ -323,7 +322,7 @@ class WritableStream<W = unknown> {
 
     try {
       __andromeda__.internal_writable_stream_lock(this.#streamId);
-    } catch (error) {
+    } catch (_) {
       throw new TypeError("Failed to lock WritableStream");
     }
 
@@ -385,3 +384,10 @@ class WritableStream<W = unknown> {
     }
   }
 }
+
+// @ts-ignore globalThis is not readonly
+globalThis.WritableStream = WritableStream;
+// @ts-ignore globalThis is not readonly
+globalThis.WritableStreamDefaultController = WritableStreamDefaultController;
+// @ts-ignore globalThis is not readonly
+globalThis.WritableStreamDefaultWriter = WritableStreamDefaultWriter;

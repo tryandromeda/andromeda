@@ -2,8 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// deno-lint-ignore-file no-unused-vars
-
 /**
  * A OffscreenCanvas implementation
  */
@@ -419,3 +417,5 @@ class CanvasGradient {
     );
   }
 }
+
+globalThis.OffscreenCanvas = OffscreenCanvas;
