@@ -72,6 +72,7 @@ struct PullIntoDescriptor {
 pub struct StreamsExt;
 
 impl StreamsExt {
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "streams",

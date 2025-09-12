@@ -6,6 +6,10 @@ license.workspace = true
 repository.workspace = true
 readme = "../README.md"
 
+[features]
+default = []
+hotpath = ["dep:hotpath"]
+
 [dependencies]
 anyhow.workspace = true
 nova_vm.workspace = true
@@ -23,3 +27,4 @@ url.workspace = true
 ureq.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+hotpath = { workspace = true, optional = true }

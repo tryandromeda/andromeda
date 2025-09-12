@@ -30,6 +30,7 @@ struct BroadcastChannelHandle {
 pub struct BroadcastChannelExt;
 
 impl BroadcastChannelExt {
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "broadcast_channel",

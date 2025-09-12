@@ -33,6 +33,7 @@ struct FileExtResources {
 pub struct FileExt;
 
 impl FileExt {
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "file",

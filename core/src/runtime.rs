@@ -606,6 +606,7 @@ pub struct Runtime<UserMacroTask: 'static> {
 
 impl<UserMacroTask> Runtime<UserMacroTask> {
     /// Create a new [Runtime] given a [RuntimeConfig]. Use [Runtime::run] to run it.
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new(
         mut config: RuntimeConfig<UserMacroTask>,
         host_data: HostData<UserMacroTask>,
@@ -687,6 +688,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
     }
 
     /// Run the Runtime with the specified configuration.
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn run(mut self) -> RuntimeOutput {
         // Load the builtins js sources
         self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {

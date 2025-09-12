@@ -40,6 +40,7 @@ struct FsExtResources {
 pub struct FsExt;
 
 impl FsExt {
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "fs",
@@ -158,6 +159,7 @@ impl FsExt {
         }
     }
     /// Read a text file and return the content as a string.
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_read_text_file<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -176,6 +178,7 @@ impl FsExt {
             }
         }
     } // /// Write a text file with the content of the second argument.
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_write_text_file<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -289,6 +292,7 @@ impl FsExt {
         }
     }
     /// Create a directory recursively (mkdir -p equivalent).
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_mk_dir_all<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -309,6 +313,7 @@ impl FsExt {
     }
 
     /// Read a file as bytes and return as a Uint8Array-like structure.
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_read_file<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -337,6 +342,7 @@ impl FsExt {
     }
 
     /// Write bytes to a file.
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_write_file<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -374,6 +380,7 @@ impl FsExt {
     }
 
     /// Get file/directory statistics.
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_stat<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -469,6 +476,7 @@ impl FsExt {
     }
 
     /// Remove a file or empty directory.
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_remove<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -495,6 +503,7 @@ impl FsExt {
     }
 
     /// Remove a file or directory recursively.
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_remove_all<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -552,6 +561,7 @@ impl FsExt {
     }
 
     /// Check if a file or directory exists.
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_exists<'gc>(
         agent: &mut Agent,
         _this: Value,

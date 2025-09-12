@@ -45,6 +45,7 @@ type StatementMap = HashMap<u32, PreparedStatement>;
 pub struct SqliteExt;
 
 impl SqliteExt {
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "sqlite",

@@ -52,6 +52,7 @@ pub struct Extension {
 }
 
 impl Extension {
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub(crate) fn load<UserMacroTask: 'static>(
         &mut self,
         agent: &mut Agent,

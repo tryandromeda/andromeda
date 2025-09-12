@@ -9,6 +9,7 @@ use std::{env::current_exe, fs::File, path::Path};
 pub static ANDROMEDA_JS_CODE_SECTION: &str = "ANDROMEDABINCODE";
 
 #[allow(clippy::result_large_err)]
+#[cfg_attr(feature = "hotpath", hotpath::measure)]
 pub fn compile(result_name: &Path, input_file: &Path) -> Result<()> {
     // Validate input file exists and is readable
     if !input_file.exists() {

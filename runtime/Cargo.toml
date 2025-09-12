@@ -12,6 +12,7 @@ canvas = ["dep:wgpu", "dep:image"]
 crypto = ["dep:ring", "dep:rand"]
 storage = ["dep:rusqlite"]
 serve = []
+hotpath = ["dep:hotpath", "andromeda-core/hotpath"]
 
 [dependencies]
 andromeda-core.workspace = true
@@ -38,7 +39,11 @@ base64-simd.workspace = true
 image = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 ring = { workspace = true, optional = true }
-rusqlite = { workspace = true, optional = true, features = ["bundled", "functions", "load_extension"] }
+rusqlite = { workspace = true, optional = true, features = [
+    "bundled",
+    "functions",
+    "load_extension"
+] }
 signal-hook.workspace = true
 socket2.workspace = true
 tempfile.workspace = true
@@ -54,3 +59,4 @@ tokio-rustls.workspace = true
 webpki-roots.workspace = true
 rustls-pemfile.workspace = true
 rustls-pki-types.workspace = true
+hotpath = { workspace = true, optional = true }

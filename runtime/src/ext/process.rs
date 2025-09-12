@@ -36,6 +36,7 @@ lazy_static::lazy_static! {
 pub struct ProcessExt;
 
 impl ProcessExt {
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "process",

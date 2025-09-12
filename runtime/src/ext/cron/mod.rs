@@ -157,6 +157,7 @@ impl CronsStorage {
 pub struct CronExt;
 
 impl CronExt {
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "cron",

@@ -110,6 +110,7 @@ fn size_check(input: usize) -> Result<(), WebStorageError> {
 pub struct LocalStorageExt;
 
 impl LocalStorageExt {
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "localStorage",

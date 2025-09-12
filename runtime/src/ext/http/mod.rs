@@ -12,6 +12,7 @@ use nova_vm::{
 pub struct ServeExt;
 
 impl ServeExt {
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "serve",

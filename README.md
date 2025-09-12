@@ -27,8 +27,10 @@ the complexity of traditional Node.js setups.
 - 💾 **Web Storage** - localStorage and sessionStorage APIs for data persistence
 - ⚡ **Native Performance** - Rust-powered execution with Nova's optimized JS
   engine
-- 🛠️ **Developer Tools** - Interactive REPL, code formatter, and single-file
-  compilation
+- 🛠️ **Developer Tools** - Interactive REPL, code formatter, single-file
+  compilation, and performance profiling with hotpath
+- 📊 **Performance Profiling** - Integrated hotpath profiler for identifying
+  bottlenecks and optimizing runtime performance
 - 🌐 **Web Standards** - TextEncoder/Decoder, Performance API, and more
 - 🔧 **Extensible** - Modular architecture with optional features
 - 🔧 **Self-Updating** - Built-in upgrade system to stay current with latest

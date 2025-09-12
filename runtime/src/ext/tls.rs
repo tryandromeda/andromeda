@@ -42,6 +42,7 @@ pub(crate) struct TlsResources {
 pub struct TlsExt;
 
 impl TlsExt {
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "tls",

@@ -8,6 +8,7 @@ use andromeda_core::Extension;
 pub struct FetchExt;
 
 impl FetchExt {
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "fetch",

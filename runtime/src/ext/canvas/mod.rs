@@ -72,6 +72,7 @@ struct ImageData {
 pub struct CanvasExt;
 
 impl CanvasExt {
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "canvas",

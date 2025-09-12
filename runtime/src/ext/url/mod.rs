@@ -19,6 +19,7 @@ use url::Url;
 pub struct URLExt;
 
 impl URLExt {
+    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "url",
