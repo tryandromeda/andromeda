@@ -18,25 +18,26 @@ jobs:
       matrix:
         include:
           # Linux (x86_64)
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             rust-target: x86_64-unknown-linux-gnu
             asset-name: andromeda-linux-amd64
             installer-name: andromeda-installer-linux-amd64
 
-          # Linux (ARM64)
-          - os: ubuntu-latest
+          # Linux (ARM64) - cross-compilation
+          - os: ubuntu-24.04
             rust-target: aarch64-unknown-linux-gnu
             asset-name: andromeda-linux-arm64
             installer-name: andromeda-installer-linux-arm64
+            cross-compile: true
 
           # macOS (Intel)
-          - os: macos-latest
+          - os: macos-13
             rust-target: x86_64-apple-darwin
             asset-name: andromeda-macos-amd64
             installer-name: andromeda-installer-macos-amd64
 
           # macOS (Apple Silicon/ARM)
-          - os: macos-latest
+          - os: macos-14
             rust-target: aarch64-apple-darwin
             asset-name: andromeda-macos-arm64
             installer-name: andromeda-installer-macos-arm64
@@ -63,17 +64,10 @@ jobs:
           targets: ${{ matrix.rust-target }}
 
       - name: Install cross-compilation dependencies
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.cross-compile
         run: |
           sudo apt-get update
-          if [[ "${{ matrix.rust-target }}" == *"aarch64"* && "${{ matrix.rust-target }}" == *"linux"* ]]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
-          fi
-
-      - name: Install pkg-config (for cross-compilation)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get install -y pkg-config
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross pkg-config
 
       - name: Build
         continue-on-error: true  # Allow individual builds to fail

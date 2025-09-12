@@ -28,19 +28,40 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          # Linux x86_64
+          - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
+          # Linux ARM64 (using native ARM runner when available, fallback to cross-compilation)
+          - os: ubuntu-24.04
+            target: aarch64-unknown-linux-gnu
+            cross-compile: true
+          # Windows x86_64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-          - os: macos-latest
+          # Windows ARM64
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+          # macOS x86_64
+          - os: macos-13
             target: x86_64-apple-darwin
+          # macOS ARM64
+          - os: macos-14
+            target: aarch64-apple-darwin
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Install cross-compilation dependencies
+        if: matrix.cross-compile
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross pkg-config
+        
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
         if: github.ref != 'refs/heads/main'
         with:
-          prefix-key: "andromeda-${{ runner.os }}"
+          prefix-key: "andromeda-${{ runner.os }}-${{ matrix.target }}"
+          
       - name: Install the rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
@@ -48,14 +69,35 @@ jobs:
           targets: ${{ matrix.target }}
           components: rustfmt, clippy
       - name: Test
-        run: cargo test
+        run: cargo test --target ${{ matrix.target }}
         timeout-minutes: 20
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          PKG_CONFIG_ALLOW_CROSS: 1
+        if: ${{ !matrix.cross-compile }}
+        
+      - name: Test (cross-compile build only)
+        run: cargo build --target ${{ matrix.target }}
+        timeout-minutes: 20
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          PKG_CONFIG_ALLOW_CROSS: 1
+        if: matrix.cross-compile
+        
       - name: Check formatting
         run: cargo fmt --check
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        
       - name: Clippy
         run: |
-          cargo clippy --all-targets -- -D warnings
-          cargo clippy --all-targets --all-features -- -D warnings
+          cargo clippy --target ${{ matrix.target }} --all-targets -- -D warnings
+          cargo clippy --target ${{ matrix.target }} --all-targets --all-features -- -D warnings
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          PKG_CONFIG_ALLOW_CROSS: 1
   wpt:
     name: Web Platform Tests
     runs-on: macos-latest
