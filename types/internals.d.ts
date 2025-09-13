@@ -1520,4 +1520,47 @@ declare namespace __andromeda__ {
     offset: unknown,
     data: unknown,
   ): void;
+
+  /**
+   * Request a Web Lock with the specified parameters.
+   * @param name - The name of the lock to request.
+   * @param mode - The lock mode: "exclusive" or "shared".
+   * @param ifAvailable - Whether to fail if not immediately available.
+   * @param steal - Whether to steal existing locks with the same name.
+   * @returns - A promise that resolves to the lock ID.
+   */
+  export function internal_locks_request(
+    name: string,
+    mode: string,
+    ifAvailable: boolean,
+    steal: boolean,
+  ): Promise<string>;
+
+  /**
+   * Release a previously acquired Web Lock.
+   * @param name - The name of the lock to release.
+   * @param lockId - The ID of the lock to release.
+   * @returns - A promise that resolves when the lock is released.
+   */
+  export function internal_locks_release(
+    name: string,
+    lockId: string,
+  ): Promise<string>;
+
+  /**
+   * Query the current state of Web Locks.
+   * @returns - A promise that resolves to a JSON string containing lock state.
+   */
+  export function internal_locks_query(): Promise<string>;
+
+  /**
+   * Abort a pending Web Lock request.
+   * @param name - The name of the lock request to abort.
+   * @param lockId - The ID of the lock request to abort.
+   * @returns - A promise that resolves when the request is aborted.
+   */
+  export function internal_locks_abort(
+    name: string,
+    lockId: string,
+  ): Promise<string>;
 }

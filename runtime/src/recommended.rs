@@ -14,7 +14,7 @@ use nova_vm::{
 
 use crate::{
     BroadcastChannelExt, ConsoleExt, CronExt, FetchExt, FfiExt, FileExt, FsExt, NetExt, ProcessExt,
-    RuntimeMacroTask, ServeExt, StreamsExt, TimeExt, TlsExt, URLExt, WebExt,
+    RuntimeMacroTask, ServeExt, StreamsExt, TimeExt, TlsExt, URLExt, WebExt, WebLocksExt,
 };
 
 #[cfg_attr(feature = "hotpath", hotpath::measure)]
@@ -27,6 +27,7 @@ pub fn recommended_extensions() -> Vec<Extension> {
         ProcessExt::new_extension(),
         URLExt::new_extension(),
         WebExt::new_extension(),
+        WebLocksExt::new_extension(),
         FileExt::new_extension(),
         BroadcastChannelExt::new_extension(),
         FetchExt::new_extension(),
@@ -177,6 +178,48 @@ pub fn recommended_eventloop_handler(
                     panic!("Attempted to resolve a non-promise value");
                 }
             });
+        }
+        RuntimeMacroTask::AcquireLock {
+            promise,
+            lock_id,
+            name,
+            mode,
+        } => {
+            // Handle lock acquisition - resolve the promise with the lock result
+            // First, create the result string in a separate realm call
+            let lock_info = format!(
+                "{{\"lockId\":{},\"name\":\"{}\",\"mode\":\"{}\"}}",
+                lock_id, name, mode
+            );
+            let string_global = agent
+                .run_in_realm(realm_root, |agent, gc| {
+                    let string_val = Value::from_string(agent, lock_info, gc.nogc());
+                    Some(Global::new(agent, string_val.into_value().unbind()))
+                })
+                .unwrap();
+
+            // Then resolve the promise with the pre-created string
+            agent.run_in_realm(realm_root, |agent, gc| {
+                let promise_value = promise.take(agent);
+                let string_value = string_global.take(agent);
+                if let Value::Promise(promise_obj) = promise_value {
+                    let promise_capability = PromiseCapability::from_promise(promise_obj, false);
+                    promise_capability.resolve(agent, string_value, gc);
+                } else {
+                    panic!("Attempted to resolve a non-promise value in AcquireLock");
+                }
+            });
+        }
+        RuntimeMacroTask::ReleaseLock { name, lock_id } => {
+            // Handle lock release - trigger processing of pending requests
+            // This would typically wake up any waiting tasks
+            println!("Released lock {} for '{}'", lock_id, name);
+            // TODO: Implement actual lock release logic that wakes pending tasks
+        }
+        RuntimeMacroTask::AbortLockRequest { name, lock_id } => {
+            // Handle lock request abortion
+            println!("Aborted lock request {} for '{}'", lock_id, name);
+            // TODO: Implement actual abort logic that cancels the associated promise
         }
     }
 }
