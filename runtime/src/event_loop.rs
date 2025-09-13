@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::ext::{cron::CronId, interval::IntervalId, timeout::TimeoutId};
+use crate::ext::{LockMode, cron::CronId, interval::IntervalId, timeout::TimeoutId};
 use nova_vm::{ecmascript::types::Value, engine::Global};
 use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;
@@ -30,4 +30,15 @@ pub enum RuntimeMacroTask {
     RejectPromise(Global<Value<'static>>, String),
     /// Register a TLS stream into the runtime resource table and resolve a promise with its rid.
     RegisterTlsStream(Global<Value<'static>>, Box<TlsStream<TcpStream>>),
+    /// Acquire a lock and resolve the promise with the lock result.
+    AcquireLock {
+        promise: Global<Value<'static>>,
+        lock_id: u64,
+        name: String,
+        mode: LockMode,
+    },
+    /// Release a lock and process any pending requests.
+    ReleaseLock { name: String, lock_id: u64 },
+    /// Abort a pending lock request.
+    AbortLockRequest { name: String, lock_id: u64 },
 }

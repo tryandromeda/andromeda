@@ -588,6 +588,12 @@ declare function prompt(message: string): string;
  */
 declare function confirm(message: string): boolean;
 
+// Extension to Navigator interface for Web Locks API
+interface Navigator {
+  /** The LockManager for Web Locks API */
+  readonly locks: LockManager;
+}
+
 /**
  * Options for structuredClone function
  */
@@ -781,6 +787,102 @@ declare class ImageBitmap {
  * @param path The file path or URL to load.
  */
 declare function createImageBitmap(path: string): Promise<ImageBitmap>;
+
+/**
+ * Options for acquiring a Web Lock
+ */
+interface LockOptions {
+  /**
+   * The mode of the lock. Default is "exclusive".
+   * - "exclusive": Only one holder allowed at a time
+   * - "shared": Multiple holders allowed simultaneously
+   */
+  mode?: "exclusive" | "shared";
+
+  /**
+   * If true, the request will fail if the lock cannot be granted immediately.
+   * The callback will be invoked with null.
+   */
+  ifAvailable?: boolean;
+
+  /**
+   * If true, any held locks with the same name will be released,
+   * and the request will be granted, preempting any queued requests.
+   */
+  steal?: boolean;
+
+  /**
+   * An AbortSignal that can be used to abort the lock request.
+   */
+  signal?: AbortSignal;
+}
+
+/**
+ * Information about a lock for query results
+ */
+interface LockInfo {
+  /** The name of the lock */
+  name: string;
+  /** The mode of the lock */
+  mode: "exclusive" | "shared";
+  /** An identifier for the client holding or requesting the lock */
+  clientId?: string;
+}
+
+/**
+ * Result of a query operation
+ */
+interface LockManagerSnapshot {
+  /** Currently held locks */
+  held: LockInfo[];
+  /** Pending lock requests */
+  pending: LockInfo[];
+}
+
+/**
+ * Represents a granted Web Lock
+ */
+interface Lock {
+  /** The name of the lock */
+  readonly name: string;
+  /** The mode of the lock */
+  readonly mode: "exclusive" | "shared";
+}
+
+/**
+ * The LockManager interface provides methods for requesting locks and querying lock state
+ */
+interface LockManager {
+  /**
+   * Request a lock and execute a callback while holding it
+   * @param name The name of the lock
+   * @param callback The callback to execute while holding the lock
+   * @returns A promise that resolves with the return value of the callback
+   */
+  request<T>(
+    name: string,
+    callback: (lock: Lock) => T | Promise<T>,
+  ): Promise<T>;
+
+  /**
+   * Request a lock with options and execute a callback while holding it
+   * @param name The name of the lock
+   * @param options Options for acquiring the lock
+   * @param callback The callback to execute while holding the lock
+   * @returns A promise that resolves with the return value of the callback
+   */
+  request<T>(
+    name: string,
+    options: LockOptions,
+    callback: (lock: Lock | null) => T | Promise<T>,
+  ): Promise<T>;
+
+  /**
+   * Query the current state of locks
+   * @returns A promise that resolves with information about held and pending locks
+   */
+  query(): Promise<LockManagerSnapshot>;
+}
 
 /**
  * TextEncoder interface for encoding strings to UTF-8 bytes

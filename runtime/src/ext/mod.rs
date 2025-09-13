@@ -27,6 +27,7 @@ mod time;
 pub mod tls;
 mod url;
 mod web;
+mod web_locks;
 
 pub use broadcast_channel::*;
 #[cfg(feature = "storage")]
@@ -53,3 +54,4 @@ pub use time::*;
 pub use tls::*;
 pub use url::*;
 pub use web::*;
+pub use web_locks::*;
