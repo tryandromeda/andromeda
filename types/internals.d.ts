@@ -838,6 +838,8 @@ declare namespace __andromeda__ {
    */
   export function internal_navigator_user_agent(): string;
 
+  export function internal_battery_info(): string;
+
   /**
    * The `internal_add_signal_listener` function adds a signal listener for the specified signal.
    * The signal can be a string like "SIGINT", "SIGTERM", etc.

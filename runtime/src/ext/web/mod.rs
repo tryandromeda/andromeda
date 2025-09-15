@@ -12,11 +12,11 @@ use nova_vm::{
     engine::context::{Bindable, GcScope, NoGcScope},
 };
 
+#[cfg(target_os = "linux")]
+use std::fs;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 // TODO: Get the time origin from when the runtime starts
-// Temporarily use a static lock to initialize it once
-// This is a workaround until we have a proper runtime initialization
 static TIME_ORIGIN: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
 
 #[derive(Default)]
@@ -56,6 +56,12 @@ impl WebExt {
                     0,
                     false,
                 ),
+                ExtensionOp::new(
+                    "internal_battery_info",
+                    Self::internal_battery_info,
+                    0,
+                    false,
+                ),
             ],
             storage: None,
             files: vec![
@@ -66,6 +72,7 @@ impl WebExt {
                 include_str!("./queue_microtask.ts"),
                 include_str!("./structured_clone.ts"),
                 include_str!("./navigator.ts"),
+                include_str!("./battery.ts"),
             ],
         }
     }
@@ -466,6 +473,188 @@ impl WebExt {
             Self::get_platform_string()
         );
         Ok(Value::from_string(agent, user_agent, gc).unbind())
+    }
+
+    pub fn internal_battery_info<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        _args: ArgumentsList,
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let gc = gc.into_nogc();
+
+        let battery_info = Self::get_battery_info();
+
+        Ok(Value::from_string(agent, battery_info, gc).unbind())
+    }
+
+    fn get_battery_info() -> String {
+        #[cfg(target_os = "macos")]
+        {
+            if let Ok(output) = std::process::Command::new("pmset")
+                .args(["-g", "batt"])
+                .output()
+                && let Ok(output_str) = String::from_utf8(output.stdout)
+            {
+                return Self::parse_macos_battery_info(&output_str);
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(battery_info) = Self::get_linux_battery_info() {
+                return battery_info;
+            }
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            // TODO: Implement Windows battery info retrieval using WMI or Win32_Battery
+        }
+
+        // Default fallback - simulate a full battery
+        r#"{"charging":false,"level":1.0,"chargingTime":null,"dischargingTime":null}"#.to_string()
+    }
+
+    #[cfg(target_os = "macos")]
+    fn parse_macos_battery_info(output: &str) -> String {
+        let mut charging = false;
+        let mut level = 1.0;
+        let mut charging_time: Option<f64> = None;
+        let mut discharging_time: Option<f64> = None;
+
+        for line in output.lines() {
+            let line = line.trim();
+
+            if line.contains("AC Power") {
+                charging = true;
+            } else if line.contains("Battery Power") {
+                charging = false;
+            }
+
+            if let Some(percent_start) = line.find('%')
+                && let Some(number_start) = line[..percent_start].rfind(char::is_numeric)
+            {
+                let mut start = number_start;
+                while start > 0
+                    && (line.chars().nth(start - 1).unwrap().is_numeric()
+                        || line.chars().nth(start - 1).unwrap() == '.')
+                {
+                    start -= 1;
+                }
+                if let Ok(percent) = line[start..percent_start].parse::<f64>() {
+                    level = percent / 100.0;
+                }
+            }
+
+            if line.contains("remaining")
+                && let Some(time_info) = Self::parse_time_remaining(line)
+            {
+                if charging {
+                    charging_time = Some(time_info);
+                } else {
+                    discharging_time = Some(time_info);
+                }
+            }
+        }
+
+        format!(
+            r#"{{"charging":{},"level":{},"chargingTime":{},"dischargingTime":{}}}"#,
+            charging,
+            level,
+            charging_time.map_or("null".to_string(), |t| t.to_string()),
+            discharging_time.map_or("null".to_string(), |t| t.to_string())
+        )
+    }
+
+    #[cfg(target_os = "linux")]
+    fn get_linux_battery_info() -> Result<String, std::io::Error> {
+        let power_supply_path = "/sys/class/power_supply";
+        let entries = fs::read_dir(power_supply_path)?;
+
+        for entry in entries {
+            let entry = entry?;
+            let path = entry.path();
+
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if name.starts_with("BAT") {
+                    return Self::read_linux_battery_info(&path);
+                }
+            }
+        }
+
+        Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "No battery found",
+        ))
+    }
+
+    #[cfg(target_os = "linux")]
+    fn read_linux_battery_info(battery_path: &std::path::Path) -> Result<String, std::io::Error> {
+        use std::fs;
+
+        let status = fs::read_to_string(battery_path.join("status"))
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        let charging = status == "Charging";
+
+        let capacity = fs::read_to_string(battery_path.join("capacity"))
+            .unwrap_or_else(|_| "100".to_string())
+            .trim()
+            .parse::<f64>()
+            .unwrap_or(100.0)
+            / 100.0;
+
+        let charging_time = if charging {
+            fs::read_to_string(battery_path.join("time_to_full_now"))
+                .ok()
+                .and_then(|s| s.trim().parse::<f64>().ok())
+                .map(|seconds| seconds / 3600.0)
+        } else {
+            None
+        };
+
+        let discharging_time = if !charging {
+            fs::read_to_string(battery_path.join("time_to_empty_now"))
+                .ok()
+                .and_then(|s| s.trim().parse::<f64>().ok())
+                .map(|seconds| seconds / 3600.0)
+        } else {
+            None
+        };
+
+        Ok(format!(
+            r#"{{"charging":{},"level":{},"chargingTime":{},"dischargingTime":{}}}"#,
+            charging,
+            capacity,
+            charging_time.map_or("null".to_string(), |t| t.to_string()),
+            discharging_time.map_or("null".to_string(), |t| t.to_string())
+        ))
+    }
+
+    fn parse_time_remaining(line: &str) -> Option<f64> {
+        if let Some(remaining_pos) = line.find("remaining") {
+            let time_part = line[..remaining_pos].trim();
+
+            if let Some(colon_pos) = time_part.rfind(':') {
+                let _hours_part = &time_part[..colon_pos];
+                let minutes_part = &time_part[colon_pos + 1..];
+
+                let mut start = colon_pos;
+                while start > 0 && time_part.chars().nth(start - 1).unwrap().is_numeric() {
+                    start -= 1;
+                }
+
+                if let (Ok(hours), Ok(minutes)) = (
+                    time_part[start..colon_pos].parse::<f64>(),
+                    minutes_part.trim().parse::<f64>(),
+                ) {
+                    return Some(hours * 3600.0 + minutes * 60.0);
+                }
+            }
+        }
+        None
     }
 
     fn get_platform_string() -> &'static str {
