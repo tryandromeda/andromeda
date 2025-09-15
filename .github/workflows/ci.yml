@@ -16,88 +16,62 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  spell:
+  typos:
+    name: Spellcheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Spell check
         uses: crate-ci/typos@master
+
   lint:
     name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly-2025-09-05
+          components: rustfmt, clippy, llvm-tools-preview, rustc-dev
+      - name: Cache on ${{ github.ref_name }}
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: warm
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Clippy
+        run: |
+          cargo +stable clippy --all-targets -- -D warnings
+          cargo +nightly-2025-09-05 clippy --all-targets --all-features -- -D warnings
+
+  build:
+    name: Build & Test
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include:
-          # Linux x86_64
-          - os: ubuntu-24.04
-            target: x86_64-unknown-linux-gnu
-          # Linux ARM64 (using native ARM runner when available, fallback to cross-compilation)
-          - os: ubuntu-24.04
-            target: aarch64-unknown-linux-gnu
-            cross-compile: true
-          # Windows x86_64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-          # Windows ARM64
-          - os: windows-latest
-            target: aarch64-pc-windows-msvc
-          # macOS x86_64
-          - os: macos-13
-            target: x86_64-apple-darwin
-          # macOS ARM64
-          - os: macos-14
-            target: aarch64-apple-darwin
+        os:
+          [
+            "macos-13",
+            "macos-latest",
+            "ubuntu-24.04",
+            "ubuntu-latest",
+            "windows-latest",
+          ]
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Install cross-compilation dependencies
-        if: matrix.cross-compile
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross pkg-config
-        
-      - name: Set up cargo cache
-        uses: Swatinem/rust-cache@v2
-        if: github.ref != 'refs/heads/main'
+      - uses: oxc-project/setup-rust@cd82e1efec7fef815e2c23d296756f31c7cdc03d # v1.0.0
         with:
-          prefix-key: "andromeda-${{ runner.os }}-${{ matrix.target }}"
-          
-      - name: Install the rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "nightly-2025-09-05"
-          targets: ${{ matrix.target }}
-          components: rustfmt, clippy
+          cache-key: warm
+          save-cache: ${{ github.ref_name == 'main' }}
+      - name: Check
+        run: cargo check --all-targets
+      - name: Build
+        run: cargo build --tests --bins --examples
       - name: Test
-        run: cargo test --target ${{ matrix.target }}
-        timeout-minutes: 20
+        run: cargo test
         env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
-          PKG_CONFIG_ALLOW_CROSS: 1
-        if: ${{ !matrix.cross-compile }}
-        
-      - name: Test (cross-compile build only)
-        run: cargo build --target ${{ matrix.target }}
-        timeout-minutes: 20
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
-          PKG_CONFIG_ALLOW_CROSS: 1
-        if: matrix.cross-compile
-        
-      - name: Check formatting
-        run: cargo fmt --check
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
-        
-      - name: Clippy
-        run: |
-          cargo clippy --target ${{ matrix.target }} --all-targets -- -D warnings
-          cargo clippy --target ${{ matrix.target }} --all-targets --all-features -- -D warnings
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
-          PKG_CONFIG_ALLOW_CROSS: 1
+          RUST_BACKTRACE: 1
   wpt:
     name: Web Platform Tests
     runs-on: macos-latest
