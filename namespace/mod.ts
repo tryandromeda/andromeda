@@ -739,13 +739,30 @@ const Andromeda = {
   },
 
   /**
+   * Creates an HTTP server that listens for requests.
+   *
    * @example
    * ```ts
-   * Andromeda.serve();
+   * Andromeda.serve((req) => {
+   *   return new Response("Hello World");
+   * });
+   * ```
+   *
+   * @example With options
+   * ```ts
+   * Andromeda.serve({
+   *   port: 3000,
+   *   hostname: "0.0.0.0",
+   *   handler: async (req) => {
+   *     const body = await req.json();
+   *     return new Response(JSON.stringify({ message: "Hello " + body.name }));
+   *   }
+   * });
    * ```
    */
-  serve(): string[] {
-    return __andromeda__.internal_serve();
+  get serve() {
+    // @ts-ignore - internal use
+    return globalThis.__andromeda_http_serve;
   },
 };
 
@@ -871,3 +888,6 @@ function encodeURI(input: string): string {
 function decodeURI(input: string): string {
   return decodeURIComponent(input);
 }
+
+// Export Andromeda globally
+(globalThis as any).Andromeda = Andromeda;
