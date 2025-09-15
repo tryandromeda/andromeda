@@ -295,6 +295,24 @@ class AndromedaNavigator {
   get userAgentData(): NavigatorUAData {
     return new NavigatorUAData();
   }
+
+  /**
+   * Returns a Promise that resolves with a BatteryManager object
+   * providing information about the system's battery charge level.
+   * @returns {Promise<any>} A promise that resolves with a BatteryManager instance
+   */
+  getBattery(): Promise<unknown> {
+    // Use the global _getBattery function provided by battery.ts
+    const globalWithBattery = globalThis as unknown as {
+      _getBattery?: () => Promise<unknown>;
+    };
+    if (typeof globalWithBattery._getBattery === "function") {
+      return globalWithBattery._getBattery();
+    }
+
+    // Fallback if battery.ts is not loaded
+    return Promise.reject(new Error("BatteryManager is not available"));
+  }
 }
 
 // Attach the navigator object to globalThis
