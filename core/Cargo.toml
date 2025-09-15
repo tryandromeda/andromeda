@@ -8,7 +8,11 @@ readme = "../README.md"
 
 [features]
 default = []
-hotpath = ["dep:hotpath"]
+hotpath = ["dep:hotpath", "hotpath/hotpath"]
+hotpath-alloc-bytes-total = ["hotpath/hotpath-alloc-bytes-total"]
+hotpath-alloc-bytes-max = ["hotpath/hotpath-alloc-bytes-max"]
+hotpath-alloc-count-total= ["hotpath/hotpath-alloc-count-total"]
+hotpath-alloc-count-max= ["hotpath/hotpath-alloc-count-max"]
 
 [dependencies]
 anyhow.workspace = true
