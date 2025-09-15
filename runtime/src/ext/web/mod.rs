@@ -633,6 +633,7 @@ impl WebExt {
         ))
     }
 
+    #[cfg(target_os = "macos")]
     fn parse_time_remaining(line: &str) -> Option<f64> {
         if let Some(remaining_pos) = line.find("remaining") {
             let time_part = line[..remaining_pos].trim();
