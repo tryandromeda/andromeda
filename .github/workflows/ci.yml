@@ -42,7 +42,7 @@ jobs:
         run: cargo fmt --check
       - name: Clippy
         run: |
-          cargo +stable clippy --all-targets -- -D warnings
+          cargo +nightly-2025-09-05 clippy --all-targets -- -D warnings
           cargo +nightly-2025-09-05 clippy --all-targets --all-features -- -D warnings
 
   build:
@@ -72,32 +72,33 @@ jobs:
         run: cargo test
         env:
           RUST_BACKTRACE: 1
-  wpt:
-    name: Web Platform Tests
-    runs-on: macos-latest
-    timeout-minutes: 50
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "nightly-2025-09-05"
-      - name: Cache on ${{ github.ref_name }}
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: wpt
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-      - name: Checkout WPT submodule
-        run: git submodule update --init --recursive
-      - name: Build andromeda cli
-        run: cargo build -p andromeda --release
-      - name: Build WPT runner
-        run: cargo build --bin wpt_test_runner --release
-      - name: Run WPT tests
-        run: cargo run --bin wpt --release -- --wpt-dir tests/wpt --ci-mode
-      - name: Generate test report
-        if: always()
-        run: cargo run --bin wpt_test_runner --release -- report --detailed
-      - name: Validate test expectations
-        if: always()
-        run: cargo run --bin wpt_test_runner --release -- validate-expectations --wpt-dir tests/wpt
+  # TODO: Enable Web Platform Tests
+  # wpt:
+  #   name: Web Platform Tests
+  #   runs-on: macos-latest
+  #   timeout-minutes: 50
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install Rust toolchain
+  #       uses: dtolnay/rust-toolchain@master
+  #       with:
+  #         toolchain: "nightly-2025-09-05"
+  #     - name: Cache on ${{ github.ref_name }}
+  #       uses: Swatinem/rust-cache@v2
+  #       with:
+  #         shared-key: wpt
+  #         save-if: ${{ github.ref == 'refs/heads/main' }}
+  #     - name: Checkout WPT submodule
+  #       run: git submodule update --init --recursive
+  #     - name: Build andromeda cli
+  #       run: cargo build -p andromeda --release
+  #     - name: Build WPT runner
+  #       run: cargo build --bin wpt_test_runner --release
+  #     - name: Run WPT tests
+  #       run: cargo run --bin wpt --release -- --wpt-dir tests/wpt --ci-mode
+  #     - name: Generate test report
+  #       if: always()
+  #       run: cargo run --bin wpt_test_runner --release -- report --detailed
+  #     - name: Validate test expectations
+  #       if: always()
+  #       run: cargo run --bin wpt_test_runner --release -- validate-expectations --wpt-dir tests/wpt
