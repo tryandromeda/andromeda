@@ -306,7 +306,11 @@ fn initialize_global_object(agent: &mut Agent, global_object: Object, mut gc: Gc
                     std::process::exit(1);
                 }
             };
-            if agent.run_parsed_module(module.unbind(), None, gc.reborrow()).unbind().is_err() {
+            if agent
+                .run_parsed_module(module.unbind(), None, gc.reborrow())
+                .unbind()
+                .is_err()
+            {
                 eprintln!("⚠️  Warning: Error loading extension {}", specifier);
                 handle_runtime_error_with_message("Module evaluation failed".to_string());
             }
