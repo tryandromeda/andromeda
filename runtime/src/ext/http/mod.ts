@@ -1,12 +1,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
-// deno-lint-ignore-file no-explicit-any
-
-// Import existing Request/Response implementations
-// These are loaded by the fetch extension, so we don't need to import them here
-
 export interface ServeHandler {
   (request: Request): Response | Promise<Response>;
 }
@@ -23,7 +17,7 @@ export interface ServeInit extends ServeOptions {
 
 export interface HttpServer {
   finished: Promise<void>;
-  shutdown(): Promise<void>;
+  shutdown(): void;
   unref(): void;
   ref(): void;
 }
@@ -43,10 +37,10 @@ export function serve(handler: ServeHandler | ServeInit): HttpServer {
   serverHandlers.set(serverId, options.handler);
 
   return {
-    finished: new Promise((resolve) => {
+    finished: new Promise((_resolve) => {
       // TODO: Track server lifecycle
     }),
-    shutdown: async () => {
+    shutdown: () => {
       __andromeda__.internal_http_close(serverId);
       serverHandlers.delete(serverId);
     },
@@ -59,6 +53,8 @@ export function serve(handler: ServeHandler | ServeInit): HttpServer {
   };
 }
 
-// Export serve function globally for namespace to pick up
-// @ts-ignore - internal use
-globalThis.__andromeda_http_serve = serve;
+// Store serve function for namespace access, but use a safer approach
+if (typeof globalThis === "object" && globalThis) {
+  // @ts-ignore - internal use
+  globalThis.__andromeda_http_serve = serve;
+}

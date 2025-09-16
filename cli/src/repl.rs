@@ -19,7 +19,10 @@ use nova_vm::{
             Agent, JsResult,
             agent::{GcAgent, Options},
         },
-        scripts_and_modules::script::{parse_script, script_evaluation},
+        scripts_and_modules::{
+            module::module_semantics::source_text_module_records::parse_module,
+            script::{parse_script, script_evaluation},
+        },
         types::{
             self, InternalMethods, IntoValue, Object, OrdinaryObject, PropertyDescriptor,
             PropertyKey, Value,
@@ -287,25 +290,25 @@ fn initialize_global_object(agent: &mut Agent, global_object: Object, mut gc: Gc
 
     let mut extensions = recommended_extensions();
     for extension in &mut extensions {
-        for file in &extension.files {
+        for (idx, file) in extension.files.iter().enumerate() {
+            let specifier = format!("<ext:{}:{}>", extension.name, idx);
             let source_text = types::String::from_str(agent, file, gc.nogc());
-            let script = match parse_script(
+            let module = match parse_module(
                 agent,
                 source_text,
                 agent.current_realm(gc.nogc()),
-                true,
-                None,
+                Some(std::rc::Rc::new(specifier.clone())),
                 gc.nogc(),
             ) {
-                Ok(script) => script,
+                Ok(module) => module,
                 Err(errors) => {
-                    handle_parse_errors(errors, "<extension>", file);
+                    handle_parse_errors(errors, &specifier, file);
                     std::process::exit(1);
                 }
             };
-            if script_evaluation(agent, script.unbind(), gc.reborrow()).is_err() {
-                eprintln!("⚠️  Warning: Error loading extension");
-                handle_runtime_error_with_message("Script evaluation failed".to_string());
+            if agent.run_parsed_module(module.unbind(), None, gc.reborrow()).unbind().is_err() {
+                eprintln!("⚠️  Warning: Error loading extension {}", specifier);
+                handle_runtime_error_with_message("Module evaluation failed".to_string());
             }
         }
         // Register native ops

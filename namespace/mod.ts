@@ -733,7 +733,7 @@ const Andromeda = {
       // If no more listeners, unregister the native handler
       if (listeners.size === 0) {
         signalListeners.delete(signal);
-        internal_remove_signal_listener(signal, () => {});
+        __andromeda__.internal_remove_signal_listener(signal, () => {});
       }
     }
   },
@@ -762,7 +762,11 @@ const Andromeda = {
    */
   get serve() {
     // @ts-ignore - internal use
-    return globalThis.__andromeda_http_serve;
+    const httpServe = globalThis.__andromeda_http_serve;
+    if (typeof httpServe !== "function") {
+      throw new Error("HTTP extension is not available. Make sure the 'serve' feature is enabled.");
+    }
+    return httpServe;
   },
 };
 
@@ -890,4 +894,9 @@ function decodeURI(input: string): string {
 }
 
 // Export Andromeda globally
-(globalThis as any).Andromeda = Andromeda;
+Object.defineProperty(globalThis, "Andromeda", {
+  value: Andromeda,
+  writable: false,
+  enumerable: true,
+  configurable: false,
+});
