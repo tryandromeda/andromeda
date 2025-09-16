@@ -10,7 +10,11 @@ readme = "../README.md"
 
 [features]
 default = []
-hotpath = ["dep:hotpath", "andromeda-core/hotpath", "andromeda-runtime/hotpath"]
+hotpath = ["dep:hotpath", "hotpath/hotpath","andromeda-core/hotpath", "andromeda-runtime/hotpath"]
+hotpath-alloc-bytes-total = ["hotpath/hotpath-alloc-bytes-total"]
+hotpath-alloc-bytes-max = ["hotpath/hotpath-alloc-bytes-max"]
+hotpath-alloc-count-total= ["hotpath/hotpath-alloc-count-total"]
+hotpath-alloc-count-max= ["hotpath/hotpath-alloc-count-max"]
 
 [lib]
 name = "andromeda"

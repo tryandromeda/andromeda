@@ -969,27 +969,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "csv"
-version = "1.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acdc4883a9c96732e4733212c01447ebd805833b7275a73ca3ee080fd77afdaf"
-dependencies = [
- "csv-core",
- "itoa",
- "ryu",
- "serde",
-]
-
-[[package]]
-name = "csv-core"
-version = "0.1.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d02f3b0da4c6504f86e9cd789d8dbafab48c2321be74e9987593de5a894d93d"
-dependencies = [
- "memchr",
-]
-
-[[package]]
 name = "dashmap"
 version = "5.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1843,6 +1822,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "hdrhistogram"
+version = "7.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "765c9198f173dd59ce26ff9f95ef0aafd0a0fe01fb9d72841bc5066a4c06511d"
+dependencies = [
+ "byteorder",
+ "num-traits",
+]
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1871,25 +1860,31 @@ dependencies = [
 
 [[package]]
 name = "hotpath"
-version = "0.2.3"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd5047809ffb982c82239d717d18bf9738335797144ea3fa4451b880c3c1b51e"
+checksum = "e3fd90f7f177692f8f6d723a035813c526f4e8f04ecbbfff5497ea5d1334a7b8"
 dependencies = [
+ "cfg-if",
  "colored",
  "crossbeam-channel",
+ "hdrhistogram",
  "hotpath-macros",
  "prettytable-rs",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
 name = "hotpath-macros"
-version = "0.2.3"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da7bf2b58be12a0249e4528cfb0d926e8e81f192bd4abd877620884afb4e39d6"
+checksum = "7c1a1080708f76b2a52884943fa12f1f851e82079cebe7520ccd0e45cbe9bc56"
 dependencies = [
+ "cfg-if",
  "proc-macro2",
  "quote",
  "syn 2.0.106",
+ "tokio",
 ]
 
 [[package]]
@@ -3590,7 +3585,6 @@ version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eea25e07510aa6ab6547308ebe3c036016d162b8da920dbb079e3ba8acf3d95a"
 dependencies = [
- "csv",
  "encode_unicode",
  "is-terminal",
  "lazy_static",
