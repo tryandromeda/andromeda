@@ -576,10 +576,10 @@ impl WebExt {
             let entry = entry?;
             let path = entry.path();
 
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                if name.starts_with("BAT") {
-                    return Self::read_linux_battery_info(&path);
-                }
+            if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                && name.starts_with("BAT")
+            {
+                return Self::read_linux_battery_info(&path);
             }
         }
 
