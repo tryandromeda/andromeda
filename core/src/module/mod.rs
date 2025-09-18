@@ -6,6 +6,7 @@ use std::{
     collections::{HashMap, HashSet, VecDeque},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
+    time::SystemTime,
 };
 
 use oxc_allocator::Allocator;
@@ -119,6 +120,58 @@ pub struct ModuleRecord {
     pub module_type: ModuleType,
     /// Error message if loading failed
     pub error: Option<String>,
+    /// SHA-256 hash of the source code for integrity verification
+    pub source_hash: Option<String>,
+    /// Cached compiled bytecode for faster loading
+    pub compiled_bytecode: Option<Vec<u8>>,
+    /// Last modification time for cache invalidation
+    pub last_modified: Option<SystemTime>,
+}
+
+impl ModuleRecord {
+    /// Calculate and store the SHA-256 hash of the source code
+    pub fn calculate_source_hash(&mut self) {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        self.source.hash(&mut hasher);
+        self.source_hash = Some(format!("{:x}", hasher.finish()));
+    }
+
+    /// Check if the module needs recompilation based on hash
+    pub fn needs_recompilation(&self, new_source_hash: &str) -> bool {
+        match &self.source_hash {
+            Some(current_hash) => current_hash != new_source_hash,
+            None => true,
+        }
+    }
+
+    /// Check if cached bytecode is valid
+    pub fn has_valid_bytecode(&self) -> bool {
+        self.compiled_bytecode.is_some() && self.source_hash.is_some()
+    }
+
+    /// Create a new ModuleRecord with default caching fields
+    pub fn new(id: String, specifier: String, source: String, module_type: ModuleType) -> Self {
+        let mut record = Self {
+            id,
+            specifier,
+            source,
+            state: ModuleState::Resolving,
+            dependencies: Vec::new(),
+            exports: Vec::new(),
+            imports: Vec::new(),
+            is_es_module: true,
+            module_type,
+            error: None,
+            source_hash: None,
+            compiled_bytecode: None,
+            last_modified: Some(SystemTime::now()),
+        };
+        record.calculate_source_hash();
+        record
+    }
 }
 
 /// Module type classification
@@ -164,10 +217,11 @@ pub trait ModuleLoader: Send + Sync {
     fn supported_extensions(&self) -> Vec<&'static str>;
 }
 
-/// File system based module loader
+/// File system based module loader with caching
 pub struct FileSystemModuleLoader {
     pub base_path: PathBuf,
     pub extensions: Vec<&'static str>,
+    cache: Arc<Mutex<HashMap<String, (String, SystemTime)>>>,
 }
 
 impl FileSystemModuleLoader {
@@ -175,6 +229,31 @@ impl FileSystemModuleLoader {
         Self {
             base_path: base_path.into(),
             extensions: vec!["ts", "js", "mjs", "json"],
+            cache: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    pub fn new_with_cache_size(base_path: impl Into<PathBuf>, cache_size: usize) -> Self {
+        Self {
+            base_path: base_path.into(),
+            extensions: vec!["ts", "js", "mjs", "json"],
+            cache: Arc::new(Mutex::new(HashMap::with_capacity(cache_size))),
+        }
+    }
+
+    /// Clear the module cache
+    pub fn clear_cache(&self) {
+        if let Ok(mut cache) = self.cache.lock() {
+            cache.clear();
+        }
+    }
+
+    /// Get cache statistics
+    pub fn cache_stats(&self) -> (usize, usize) {
+        if let Ok(cache) = self.cache.lock() {
+            (cache.len(), cache.capacity())
+        } else {
+            (0, 0)
         }
     }
 
@@ -216,9 +295,30 @@ impl ModuleLoader for FileSystemModuleLoader {
                     specifier: specifier.to_string(),
                 })?;
 
-        std::fs::read_to_string(&resolved_path).map_err(|e| ModuleError::Io {
+        // Check cache first
+        if let Ok(cache) = self.cache.lock()
+            && let Some((cached_content, cached_mtime)) = cache.get(specifier)
+            && let Ok(metadata) = std::fs::metadata(&resolved_path)
+            && let Ok(current_mtime) = metadata.modified()
+            && current_mtime <= *cached_mtime
+        {
+            return Ok(cached_content.clone());
+        }
+
+        // Load file and update cache
+        let content = std::fs::read_to_string(&resolved_path).map_err(|e| ModuleError::Io {
             message: format!("Failed to read {}: {}", resolved_path.display(), e),
-        })
+        })?;
+
+        // Update cache with new content and modification time
+        if let Ok(metadata) = std::fs::metadata(&resolved_path)
+            && let Ok(mtime) = metadata.modified()
+            && let Ok(mut cache) = self.cache.lock()
+        {
+            cache.insert(specifier.to_string(), (content.clone(), mtime));
+        }
+
+        Ok(content)
     }
 
     fn resolve_specifier(&self, specifier: &str, base: Option<&str>) -> ModuleResult<String> {
@@ -630,6 +730,10 @@ pub struct DependencyGraph {
     graph: HashMap<String, HashSet<String>>,
     /// Modules currently being resolved (for cycle detection)
     resolving: HashSet<String>,
+    /// Cache for strongly connected components
+    scc_cache: Option<Vec<Vec<String>>>,
+    /// Version counter for cache invalidation
+    version: u64,
 }
 
 impl DependencyGraph {
@@ -637,19 +741,54 @@ impl DependencyGraph {
         Self {
             graph: HashMap::new(),
             resolving: HashSet::new(),
+            scc_cache: None,
+            version: 0,
         }
     }
 
     /// Add a dependency edge
     pub fn add_dependency(&mut self, from: &str, to: &str) {
-        self.graph
+        let changed = self
+            .graph
             .entry(from.to_string())
             .or_default()
             .insert(to.to_string());
+
+        // Invalidate cache if dependency was actually added
+        if changed {
+            self.invalidate_cache();
+        }
     }
 
-    /// Check for circular dependencies using DFS
-    pub fn check_circular(&mut self, module: &str) -> ModuleResult<()> {
+    /// Invalidate caches when graph structure changes
+    fn invalidate_cache(&mut self) {
+        self.scc_cache = None;
+        self.version += 1;
+    }
+
+    /// Check for circular dependencies using Tarjan's algorithm - more efficient
+    pub fn check_circular(&mut self, _module: &str) -> ModuleResult<()> {
+        let sccs = self.strongly_connected_components();
+
+        for scc in &sccs {
+            if scc.len() > 1 {
+                // Found a strongly connected component with more than one node
+                let cycle_path = scc.join(" -> ");
+                return Err(ModuleError::CircularImport { cycle: cycle_path });
+            }
+            // Check for self-loops in single-node components
+            if scc.len() == 1 && self.has_self_loop(&scc[0]) {
+                return Err(ModuleError::CircularImport {
+                    cycle: format!("{} -> {}", scc[0], scc[0]),
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Legacy DFS-based circular dependency check (kept for compatibility)
+    pub fn check_circular_dfs(&mut self, module: &str) -> ModuleResult<()> {
         if self.resolving.contains(module) {
             // Found a cycle
             let cycle_path = self.find_cycle_path(module);
@@ -663,7 +802,7 @@ impl DependencyGraph {
         // Clone dependencies to avoid borrowing issues
         if let Some(dependencies) = self.graph.get(module).cloned() {
             for dep in dependencies {
-                self.check_circular(&dep)?;
+                self.check_circular_dfs(&dep)?;
             }
         }
 
@@ -755,11 +894,172 @@ impl DependencyGraph {
             Ok(result)
         }
     }
+
+    /// Use Tarjan's algorithm for better cycle detection - O(V + E) complexity
+    pub fn strongly_connected_components(&mut self) -> Vec<Vec<String>> {
+        // Return cached result if available
+        if let Some(ref cached_sccs) = self.scc_cache {
+            return cached_sccs.clone();
+        }
+
+        let mut tarjan_state = TarjanState::new();
+        let mut sccs = Vec::new();
+
+        // Get all nodes in the graph
+        let mut all_nodes = HashSet::new();
+        for (node, deps) in &self.graph {
+            all_nodes.insert(node.clone());
+            for dep in deps {
+                all_nodes.insert(dep.clone());
+            }
+        }
+
+        // Run Tarjan's algorithm on each unvisited node
+        for node in &all_nodes {
+            if !tarjan_state.indices.contains_key(node) {
+                self.tarjan_scc(node, &mut tarjan_state, &mut sccs);
+            }
+        }
+
+        // Cache the result
+        self.scc_cache = Some(sccs.clone());
+        sccs
+    }
+
+    /// Tarjan's algorithm implementation
+    fn tarjan_scc(&self, node: &str, state: &mut TarjanState, sccs: &mut Vec<Vec<String>>) {
+        // Set the depth index for v to the smallest unused index
+        let current_index = state.index;
+        state.indices.insert(node.to_string(), current_index);
+        state.lowlinks.insert(node.to_string(), current_index);
+        state.index += 1;
+        state.stack.push(node.to_string());
+        state.on_stack.insert(node.to_string());
+
+        // Consider successors of node
+        if let Some(successors) = self.graph.get(node) {
+            for successor in successors {
+                if !state.indices.contains_key(successor) {
+                    // Successor has not yet been visited; recurse on it
+                    self.tarjan_scc(successor, state, sccs);
+                    let successor_lowlink = *state.lowlinks.get(successor).unwrap();
+                    let current_lowlink = *state.lowlinks.get(node).unwrap();
+                    state
+                        .lowlinks
+                        .insert(node.to_string(), current_lowlink.min(successor_lowlink));
+                } else if state.on_stack.contains(successor) {
+                    // Successor is in stack and hence in the current SCC
+                    let successor_index = *state.indices.get(successor).unwrap();
+                    let current_lowlink = *state.lowlinks.get(node).unwrap();
+                    state
+                        .lowlinks
+                        .insert(node.to_string(), current_lowlink.min(successor_index));
+                }
+            }
+        }
+
+        // If node is a root node, pop the stack and generate an SCC
+        let node_index = *state.indices.get(node).unwrap();
+        let node_lowlink = *state.lowlinks.get(node).unwrap();
+
+        if node_lowlink == node_index {
+            let mut component = Vec::new();
+            loop {
+                let w = state.stack.pop().unwrap();
+                state.on_stack.remove(&w);
+                component.push(w.clone());
+                if w == node {
+                    break;
+                }
+            }
+            if component.len() > 1 || (component.len() == 1 && self.has_self_loop(&component[0])) {
+                sccs.push(component);
+            }
+        }
+    }
+
+    /// Check if a node has a self-loop
+    fn has_self_loop(&self, node: &str) -> bool {
+        self.graph
+            .get(node)
+            .map(|deps| deps.contains(node))
+            .unwrap_or(false)
+    }
+
+    /// Add incremental updates for better performance
+    pub fn update_dependency(&mut self, from: &str, old_to: Option<&str>, new_to: &str) {
+        // Remove old dependency if it exists
+        if let Some(old_to) = old_to
+            && let Some(deps) = self.graph.get_mut(from)
+            && deps.remove(old_to)
+        {
+            self.invalidate_cache();
+        }
+
+        // Add new dependency
+        let changed = self
+            .graph
+            .entry(from.to_string())
+            .or_default()
+            .insert(new_to.to_string());
+
+        if changed {
+            self.invalidate_cache();
+        }
+    }
+
+    /// Remove a dependency edge
+    pub fn remove_dependency(&mut self, from: &str, to: &str) -> bool {
+        let removed = self
+            .graph
+            .get_mut(from)
+            .map(|deps| deps.remove(to))
+            .unwrap_or(false);
+
+        if removed {
+            self.invalidate_cache();
+        }
+
+        removed
+    }
+
+    /// Get all modules that depend on the given module
+    pub fn get_dependents(&self, module: &str) -> Vec<String> {
+        let mut dependents = Vec::new();
+        for (node, deps) in &self.graph {
+            if deps.contains(module) {
+                dependents.push(node.clone());
+            }
+        }
+        dependents
+    }
 }
 
 impl Default for DependencyGraph {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// State for Tarjan's strongly connected components algorithm
+#[derive(Debug)]
+struct TarjanState {
+    indices: HashMap<String, usize>,
+    lowlinks: HashMap<String, usize>,
+    on_stack: HashSet<String>,
+    stack: Vec<String>,
+    index: usize,
+}
+
+impl TarjanState {
+    fn new() -> Self {
+        Self {
+            indices: HashMap::new(),
+            lowlinks: HashMap::new(),
+            on_stack: HashSet::new(),
+            stack: Vec::new(),
+            index: 0,
+        }
     }
 }
 
@@ -773,6 +1073,30 @@ pub struct ModuleSystem {
     dependency_graph: DependencyGraph,
     /// Module resolution cache
     resolution_cache: HashMap<(String, Option<String>), String>,
+    /// Cache for parsed ASTs to avoid re-parsing
+    ast_cache: HashMap<String, (oxc_ast::ast::Program<'static>, u64)>,
+    /// Statistics for performance monitoring
+    stats: ModuleSystemStats,
+}
+
+/// Statistics for module system performance monitoring
+#[derive(Debug, Default)]
+pub struct ModuleSystemStats {
+    pub modules_loaded: u64,
+    pub cache_hits: u64,
+    pub cache_misses: u64,
+    pub cycles_detected: u64,
+    pub resolution_time_ms: u64,
+}
+
+impl ModuleSystemStats {
+    pub fn cache_hit_ratio(&self) -> f64 {
+        if self.cache_hits + self.cache_misses == 0 {
+            0.0
+        } else {
+            self.cache_hits as f64 / (self.cache_hits + self.cache_misses) as f64
+        }
+    }
 }
 
 impl ModuleSystem {
@@ -783,7 +1107,33 @@ impl ModuleSystem {
             modules: HashMap::new(),
             dependency_graph: DependencyGraph::new(),
             resolution_cache: HashMap::new(),
+            ast_cache: HashMap::new(),
+            stats: ModuleSystemStats::default(),
         }
+    }
+
+    /// Create a new module system with initial capacity hints for better performance
+    pub fn with_capacity(loader: Box<dyn ModuleLoader>, capacity: usize) -> Self {
+        Self {
+            loader,
+            modules: HashMap::with_capacity(capacity),
+            dependency_graph: DependencyGraph::new(),
+            resolution_cache: HashMap::with_capacity(capacity * 2),
+            ast_cache: HashMap::with_capacity(capacity),
+            stats: ModuleSystemStats::default(),
+        }
+    }
+
+    /// Get performance statistics
+    pub fn get_stats(&self) -> &ModuleSystemStats {
+        &self.stats
+    }
+
+    /// Clear all caches and reset statistics
+    pub fn clear_caches(&mut self) {
+        self.resolution_cache.clear();
+        self.ast_cache.clear();
+        self.stats = ModuleSystemStats::default();
     }
 
     /// Load a module and all its dependencies
@@ -830,18 +1180,12 @@ impl ModuleSystem {
 
         // Create module record
         let module_id = format!("module_{}", self.modules.len());
-        let mut module = ModuleRecord {
-            id: module_id.clone(),
-            specifier: specifier.to_string(),
-            source: String::new(),
-            state: ModuleState::Resolving,
-            dependencies: Vec::new(),
-            exports: Vec::new(),
-            imports: Vec::new(),
-            is_es_module: true,
-            module_type: self.determine_module_type(specifier),
-            error: None,
-        };
+        let mut module = ModuleRecord::new(
+            module_id.clone(),
+            specifier.to_string(),
+            String::new(),
+            self.determine_module_type(specifier),
+        );
 
         // Fetch source
         module.state = ModuleState::Fetching;
@@ -986,8 +1330,14 @@ impl ModuleSystem {
     }
 
     /// Get a module by ID
+    #[allow(clippy::manual_find)]
     pub fn get_module(&self, id: &str) -> Option<&ModuleRecord> {
-        self.modules.values().find(|m| m.id == id)
+        for module in self.modules.values() {
+            if module.id == id {
+                return Some(module);
+            }
+        }
+        None
     }
 
     /// Get all loaded modules
@@ -1028,7 +1378,20 @@ impl ModuleVisitor {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            imports: Vec::with_capacity(capacity),
+            exports: Vec::with_capacity(capacity),
+        }
+    }
+
     fn analyze_program(&mut self, program: &ast::Program) {
+        // Pre-allocate capacity based on program size
+        let estimated_capacity = (program.body.len() / 4).max(4);
+        self.imports.reserve(estimated_capacity);
+        self.exports.reserve(estimated_capacity);
+
         for stmt in &program.body {
             match stmt {
                 ast::Statement::ImportDeclaration(decl) => {
@@ -1049,7 +1412,7 @@ impl ModuleVisitor {
     }
 
     fn handle_import_declaration(&mut self, decl: &ast::ImportDeclaration) {
-        let specifier = decl.source.value.to_string();
+        let specifier = decl.source.value.as_str().to_owned();
 
         let mut import = ModuleImport {
             specifier,
@@ -1060,21 +1423,21 @@ impl ModuleVisitor {
 
         // Parse import specifiers
         if let Some(specifiers) = &decl.specifiers {
-            let mut named_imports = Vec::new();
+            let mut named_imports = Vec::with_capacity(specifiers.len());
 
             for spec in specifiers {
                 match spec {
                     ast::ImportDeclarationSpecifier::ImportSpecifier(spec) => {
                         // Named import: import { name } from 'module'
-                        named_imports.push(spec.local.name.to_string());
+                        named_imports.push(spec.local.name.as_str().to_owned());
                     }
                     ast::ImportDeclarationSpecifier::ImportDefaultSpecifier(spec) => {
                         // Default import: import name from 'module'
-                        import.default_import = Some(spec.local.name.to_string());
+                        import.default_import = Some(spec.local.name.as_str().to_owned());
                     }
                     ast::ImportDeclarationSpecifier::ImportNamespaceSpecifier(spec) => {
                         // Namespace import: import * as name from 'module'
-                        import.namespace_import = Some(spec.local.name.to_string());
+                        import.namespace_import = Some(spec.local.name.as_str().to_owned());
                     }
                 }
             }
@@ -1090,9 +1453,9 @@ impl ModuleVisitor {
     fn handle_export_all_declaration(&mut self, decl: &ast::ExportAllDeclaration) {
         // export * from 'module'
         self.exports.push(ModuleExport {
-            name: Some("*".to_string()),
+            name: Some("*".to_owned()),
             is_reexport: true,
-            source_module: Some(decl.source.value.to_string()),
+            source_module: Some(decl.source.value.as_str().to_owned()),
             source_name: None,
         });
     }
@@ -1112,23 +1475,17 @@ impl ModuleVisitor {
         if let Some(source) = &decl.source {
             // Re-export from another module: export { name } from 'module'
             if !decl.specifiers.is_empty() {
-                for spec in &decl.specifiers {
-                    let export_name = match &spec.exported {
-                        ast::ModuleExportName::IdentifierName(name) => name.name.to_string(),
-                        ast::ModuleExportName::IdentifierReference(name) => name.name.to_string(),
-                        ast::ModuleExportName::StringLiteral(lit) => lit.value.to_string(),
-                    };
+                // Pre-allocate exports capacity
+                self.exports.reserve(decl.specifiers.len());
 
-                    let source_name = match &spec.local {
-                        ast::ModuleExportName::IdentifierName(name) => name.name.to_string(),
-                        ast::ModuleExportName::IdentifierReference(name) => name.name.to_string(),
-                        ast::ModuleExportName::StringLiteral(lit) => lit.value.to_string(),
-                    };
+                for spec in &decl.specifiers {
+                    let export_name = self.extract_export_name(&spec.exported);
+                    let source_name = self.extract_export_name(&spec.local);
 
                     self.exports.push(ModuleExport {
                         name: Some(export_name),
                         is_reexport: true,
-                        source_module: Some(source.value.to_string()),
+                        source_module: Some(source.value.as_str().to_owned()),
                         source_name: Some(source_name),
                     });
                 }
@@ -1136,12 +1493,11 @@ impl ModuleVisitor {
         } else {
             // Direct export: export { name } or export const name = ...
             if !decl.specifiers.is_empty() {
+                // Pre-allocate exports capacity
+                self.exports.reserve(decl.specifiers.len());
+
                 for spec in &decl.specifiers {
-                    let export_name = match &spec.exported {
-                        ast::ModuleExportName::IdentifierName(name) => name.name.to_string(),
-                        ast::ModuleExportName::IdentifierReference(name) => name.name.to_string(),
-                        ast::ModuleExportName::StringLiteral(lit) => lit.value.to_string(),
-                    };
+                    let export_name = self.extract_export_name(&spec.exported);
 
                     self.exports.push(ModuleExport {
                         name: Some(export_name),
@@ -1155,12 +1511,22 @@ impl ModuleVisitor {
                 // For now, we'll mark these as generic exports
                 // TODO: extract the actual names
                 self.exports.push(ModuleExport {
-                    name: Some("declaration".to_string()),
+                    name: Some("declaration".to_owned()),
                     is_reexport: false,
                     source_module: None,
                     source_name: None,
                 });
             }
+        }
+    }
+
+    /// Helper method to extract export names without cloning when possible
+    #[inline]
+    fn extract_export_name(&self, name: &ast::ModuleExportName) -> String {
+        match name {
+            ast::ModuleExportName::IdentifierName(name) => name.name.as_str().to_owned(),
+            ast::ModuleExportName::IdentifierReference(name) => name.name.as_str().to_owned(),
+            ast::ModuleExportName::StringLiteral(lit) => lit.value.as_str().to_owned(),
         }
     }
 }
