@@ -1,0 +1,117 @@
+{
+  "version": "1.0.0",
+  "title": "Andromeda - Modern JavaScript Runtime",
+  "description": "A modern, fast, and secure JavaScript runtime built from the ground up in Rust, powered by Nova Engine and Oxc. Andromeda represents the next generation of JavaScript execution environments with zero-config TypeScript, native performance, and rich built-in APIs.",
+  "message": "Help build the future of JavaScript runtime technology. Your support enables us to create a faster, simpler, and more capable JavaScript execution environment for developers worldwide.",
+  "url": "https://github.com/sponsors/tryandromeda",
+  "type": "individual",
+  "platforms": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/tryandromeda"
+    }
+  ],
+  "tiers": [
+    {
+      "name": "Supporter",
+      "description": "Support Andromeda's development with coffee-level sponsorship",
+      "amount": {
+        "value": 5,
+        "currency": "USD",
+        "interval": "monthly"
+      },
+      "benefits": [
+        "Early access to development updates",
+        "Discord supporter role"
+      ]
+    },
+    {
+      "name": "Supporter++",
+      "description": "Enhanced support for Andromeda with priority access",
+      "amount": {
+        "value": 25,
+        "currency": "USD",
+        "interval": "monthly"
+      },
+      "benefits": [
+        "All Supporter benefits",
+        "Priority bug reports and feature requests"
+      ]
+    },
+    {
+      "name": "Supporter+=2",
+      "description": "Significant support with direct influence on development",
+      "amount": {
+        "value": 100,
+        "currency": "USD",
+        "interval": "monthly"
+      },
+      "benefits": [
+        "All Supporter++ benefits",
+        "Direct influence on roadmap priorities",
+        "One-on-one feedback sessions",
+        "Beta access to experimental features"
+      ]
+    },
+    {
+      "name": "Supporter+=3",
+      "description": "Premium support with custom development consideration",
+      "amount": {
+        "value": 500,
+        "currency": "USD",
+        "interval": "monthly"
+      },
+      "benefits": [
+        "All Supporter+=2 benefits",
+        "Custom feature development consideration",
+        "Priority technical support",
+        "Logo placement on project website"
+      ]
+    }
+  ],
+  "goals": [
+    {
+      "title": "Performance Optimization",
+      "description": "Making Andromeda faster than Node.js and Deno"
+    },
+    {
+      "title": "API Completeness", 
+      "description": "Implementing remaining Web Platform APIs"
+    },
+    {
+      "title": "Production Readiness",
+      "description": "Comprehensive testing and stability improvements"
+    },
+    {
+      "title": "Developer Tooling",
+      "description": "Enhanced debugging, profiling, and IDE integration"
+    },
+    {
+      "title": "Documentation",
+      "description": "Comprehensive guides, examples, and API references"
+    }
+  ],
+  "contact": {
+    "email": "loadin0000@gmail.com",
+    "twitter": "https://twitter.com/1oad1n9",
+    "bluesky": "https://bsky.app/profile/loading.trynova.dev",
+    "discord": "https://discord.gg/tgjAnX2Ny3"
+  },
+  "links": {
+    "repository": "https://github.com/tryandromeda/andromeda",
+    "documentation": "https://github.com/tryandromeda/andromeda",
+    "community": "https://discord.gg/tgjAnX2Ny3"
+  },
+  "license": "MPL-2.0",
+  "keywords": [
+    "javascript",
+    "typescript",
+    "runtime",
+    "rust",
+    "performance",
+    "web-apis",
+    "nova-engine",
+    "oxc",
+    "zero-config"
+  ]
+}
