@@ -7,7 +7,7 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.0-draft41"
+version = "0.1.0-draft42"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
@@ -17,7 +17,7 @@ andromeda-runtime = { path = "runtime", features = [
     "storage",
     "serve"
 ] }
-anyhow = "1.0.99"
+anyhow = "1.0.100"
 anymap = "0.12.1"
 async-trait = "0.1.89"
 base64-simd = "0.8.0"
@@ -31,8 +31,8 @@ dprint-plugin-json = "0.20.0"
 env_logger = "0.11.8"
 futures = "0.3.31"
 glob = "0.3.3"
-hotpath = { version = "0.2.8" }
-indexmap = "2.11.3"
+hotpath = { version = "0.2.9" }
+indexmap = "2.11.4"
 image = "0.25.8"
 lazy_static = "1.5.0"
 libloading = "0.8.8"
@@ -40,28 +40,28 @@ libffi = "4.1.2"
 libsui = "0.10.0"
 log = "0.4.28"
 lsp-types = "0.97.0"
-nova_vm = { git = "https://github.com/trynova/nova", rev = "94d95dbf3d295f377c026104a357d062d52dabf4", features = [
+nova_vm = { git = "https://github.com/trynova/nova", rev = "c0ddf915b369f2f00cc7d3cf8151f45af5a94136", features = [
     "typescript",
     "annex-b",
     "proposals"
 ] }
 nu-ansi-term = "0.50.1"
 owo-colors = "4.2.2"
-oxc_codegen = "0.87.0"
-oxc_ast = "0.87.0"
-oxc_minifier = "0.87.0"
-oxc_mangler = "0.87.0"
-oxc_allocator = "0.87.0"
-oxc_diagnostics = "0.87.0"
+oxc_codegen = "0.89.0"
+oxc_ast = "0.89.0"
+oxc_minifier = "0.89.0"
+oxc_mangler = "0.89.0"
+oxc_allocator = "0.89.0"
+oxc_diagnostics = "0.89.0"
 oxc-miette = { version = "2.4.0", features = ["fancy"] }
-oxc_parser = "0.87.0"
-oxc_semantic = "0.87.0"
-oxc_span = "0.87.0"
-oxc_transformer = "0.87.0"
+oxc_parser = "0.89.0"
+oxc_semantic = "0.89.0"
+oxc_span = "0.89.0"
+oxc_transformer = "0.89.0"
 rand = "0.9.2"
 reedline = "0.42.0"
 regex = "1.11.2"
-rustls = "0.23.31"
+rustls = "0.23.32"
 rustls-pemfile = "2.2.0"
 rustls-pki-types = "1.12.0"
 ring = "0.17.14"
@@ -72,10 +72,10 @@ rusqlite = { version = "0.37.0", features = [
 ] }
 saffron = "0.1.0"
 serde = { version = "1.0.225", features = ["derive"] }
-serde_json = "1.0.143"
+serde_json = "1.0.145"
 serde_yaml = "0.9.34-deprecated"
 socket2 = "0.6.0"
-toml = "0.9.6"
+toml = "0.9.7"
 trust-dns-resolver = "0.23.2"
 signal-hook = "0.3.18"
 thiserror = "2.0.16"
