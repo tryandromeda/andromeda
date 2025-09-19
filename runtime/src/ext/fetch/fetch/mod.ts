@@ -319,7 +319,6 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
 };
 
 globalThis.fetch = andromedaFetch;
-
 /**
  * @see https://fetch.spec.whatwg.org/#fetch-response-handover
  */

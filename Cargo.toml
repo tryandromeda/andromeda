@@ -40,24 +40,24 @@ libffi = "4.1.2"
 libsui = "0.10.0"
 log = "0.4.28"
 lsp-types = "0.97.0"
-nova_vm = { git = "https://github.com/trynova/nova", rev = "c0ddf915b369f2f00cc7d3cf8151f45af5a94136", features = [
+nova_vm = { git = "https://github.com/trynova/nova", rev = "d0fdb7e364cba56d09e09ec1d1d7242caece7bd9", features = [
     "typescript",
     "annex-b",
     "proposals"
 ] }
 nu-ansi-term = "0.50.1"
 owo-colors = "4.2.2"
-oxc_codegen = "0.89.0"
-oxc_ast = "0.89.0"
-oxc_minifier = "0.89.0"
-oxc_mangler = "0.89.0"
-oxc_allocator = "0.89.0"
-oxc_diagnostics = "0.89.0"
-oxc-miette = { version = "2.4.0", features = ["fancy"] }
-oxc_parser = "0.89.0"
-oxc_semantic = "0.89.0"
-oxc_span = "0.89.0"
-oxc_transformer = "0.89.0"
+oxc_codegen = "0.90.0"
+oxc_ast = "0.90.0"
+oxc_minifier = "0.90.0"
+oxc_mangler = "0.90.0"
+oxc_allocator = "0.90.0"
+oxc_diagnostics = "0.90.0"
+oxc-miette = { version = "2.5.0", features = ["fancy"] }
+oxc_parser = "0.90.0"
+oxc_semantic = "0.90.0"
+oxc_span = "0.90.0"
+oxc_transformer = "0.90.0"
 rand = "0.9.2"
 reedline = "0.42.0"
 regex = "1.11.2"

@@ -295,3 +295,6 @@ function getHeadersAsList(headers: any): HeaderList {
 
 // Export Headers to globalThis
 globalThis.Headers = Headers;
+globalThis.setHeadersList = setHeadersList;
+globalThis.setHeadersGuard = setHeadersGuard;
+globalThis.getHeadersList = getHeadersList;
