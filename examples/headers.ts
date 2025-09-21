@@ -11,7 +11,7 @@ const headers2 = [
   ["Set-Cookie", "name=world"],
 ];
 const myHeaders2 = new Headers(headers2);
-console.log("myHeaders2", myHeaders2); // TODO Headers { 'Set-Cookie': 'greeting=hello, name=world' } but [object Object]
+console.log("myHeaders2", myHeaders2.getSetCookie()); // ["greeting=hello", "name=world"]
 console.log("myHeaders", myHeaders2.get("Set-Cookie")); // greeting=hellogreeting=hello,name=worldname=world
 
 const myAppendHeader = new Headers();

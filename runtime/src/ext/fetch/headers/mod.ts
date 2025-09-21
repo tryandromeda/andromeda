@@ -23,6 +23,20 @@ class Headers {
     return getHeader(this.#headerList, name);
   }
 
+  // https://fetch.spec.whatwg.org/#dom-headers-getsetcookie
+  getSetCookie() {
+    const list = this.#headerList;
+
+    const entries = [];
+    for (let i = 0; i < list.length; i++) {
+      if (byteLowerCase(list[i][0]) === "set-cookie") {
+        entries.push(list[i][1]);
+      }
+    }
+
+    return entries;
+  }
+
   // https://fetch.spec.whatwg.org/#dom-headers-append
   append(name: string, value: string) {
     return appendHeader(this, name, value);
