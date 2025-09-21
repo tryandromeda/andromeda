@@ -764,7 +764,9 @@ const Andromeda = {
     // @ts-ignore - internal use
     const httpServe = globalThis.__andromeda_http_serve;
     if (typeof httpServe !== "function") {
-      throw new Error("HTTP extension is not available. Make sure the 'serve' feature is enabled.");
+      throw new Error(
+        "HTTP extension is not available. Make sure the 'serve' feature is enabled.",
+      );
     }
     return httpServe;
   },
