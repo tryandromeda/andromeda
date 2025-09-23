@@ -22,7 +22,7 @@ anymap = "0.12.1"
 async-trait = "0.1.89"
 base64-simd = "0.8.0"
 chrono = { version = "0.4.42", features = ["serde"] }
-clap = { version = "4.5.47", features = ["derive"] }
+clap = { version = "4.5.48", features = ["derive"] }
 clap_complete = "4.5.58"
 console = "0.16.1"
 dprint-core = "0.67.4"
@@ -35,7 +35,7 @@ hotpath = { version = "0.2.9" }
 indexmap = "2.11.4"
 image = "0.25.8"
 lazy_static = "1.5.0"
-libloading = "0.8.8"
+libloading = "0.8.9"
 libffi = "4.1.2"
 libsui = "0.10.0"
 log = "0.4.28"
@@ -71,7 +71,7 @@ rusqlite = { version = "0.37.0", features = [
     "load_extension"
 ] }
 saffron = "0.1.0"
-serde = { version = "1.0.225", features = ["derive"] }
+serde = { version = "1.0.226", features = ["derive"] }
 serde_json = "1.0.145"
 serde_yaml = "0.9.34-deprecated"
 socket2 = "0.6.0"
@@ -79,7 +79,7 @@ toml = "0.9.7"
 trust-dns-resolver = "0.23.2"
 signal-hook = "0.3.18"
 thiserror = "2.0.16"
-tempfile = "3.22.0"
+tempfile = "3.23.0"
 tokio = { version = "1.47.1", features = ["rt", "sync", "time", "fs"] }
 tokio-rustls = "0.26.3"
 tokio-test = "0.4.4"
