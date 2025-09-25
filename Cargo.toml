@@ -31,7 +31,7 @@ dprint-plugin-json = "0.20.0"
 env_logger = "0.11.8"
 futures = "0.3.31"
 glob = "0.3.3"
-hotpath = { version = "0.2.9" }
+hotpath = { version = "0.2.10" }
 indexmap = "2.11.4"
 image = "0.25.8"
 lazy_static = "1.5.0"
