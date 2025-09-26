@@ -52,6 +52,8 @@ pub enum VirtualFsError {
 
 struct VirtualFs(Connection);
 
+type NodeInfo = (i64, String, String, i64, i64, i64, i64, i32, Option<String>);
+
 // Dummy file handle for ResourceTable compatibility
 #[derive(Debug)]
 struct VirtualFileHandle {
@@ -330,13 +332,7 @@ impl VirtualFsExt {
         Ok(node_id)
     }
 
-    fn get_node_info(
-        conn: &Connection,
-        path: &str,
-    ) -> Result<
-        Option<(i64, String, String, i64, i64, i64, i64, i32, Option<String>)>,
-        VirtualFsError,
-    > {
+    fn get_node_info(conn: &Connection, path: &str) -> Result<Option<NodeInfo>, VirtualFsError> {
         let path = normalize_path(path);
         let mut stmt = conn.prepare_cached(
             "SELECT id, node_type, name, size, created_at, modified_at, accessed_at, mode, symlink_target FROM vfs_nodes WHERE path = ?"
@@ -397,7 +393,7 @@ impl VirtualFsExt {
             "SELECT content FROM vfs_file_content WHERE node_id = ? ORDER BY chunk_index",
         )?;
         let chunks: Result<Vec<Vec<u8>>, _> = stmt
-            .query_map(params![node_id], |row| Ok(row.get::<_, Vec<u8>>(0)?))?
+            .query_map(params![node_id], |row| row.get::<_, Vec<u8>>(0))?
             .collect();
 
         let mut content = Vec::new();
@@ -708,10 +704,11 @@ impl VirtualFsExt {
                 .and_then(|p| p.to_str())
                 .map(normalize_path);
 
-            if let Some(parent) = &parent_path {
-                if parent != "/" && Self::get_node_id_by_path(conn, parent)?.is_none() {
-                    return Err(VirtualFsError::PathNotFound(parent.clone()));
-                }
+            if let Some(parent) = &parent_path
+                && parent != "/"
+                && Self::get_node_id_by_path(conn, parent)?.is_none()
+            {
+                return Err(VirtualFsError::PathNotFound(parent.clone()));
             }
 
             let current_time = current_timestamp();
