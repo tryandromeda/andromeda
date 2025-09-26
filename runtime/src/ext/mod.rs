@@ -14,6 +14,7 @@ mod crypto;
 mod fetch;
 mod ffi;
 mod file;
+#[cfg(not(feature = "virtualfs"))]
 mod fs;
 mod http;
 #[cfg(feature = "storage")]
@@ -26,6 +27,8 @@ mod streams;
 mod time;
 pub mod tls;
 mod url;
+#[cfg(feature = "virtualfs")]
+mod virtualfs;
 mod web;
 mod web_locks;
 
@@ -41,6 +44,7 @@ pub use crypto::*;
 pub use fetch::*;
 pub use ffi::*;
 pub use file::*;
+#[cfg(not(feature = "virtualfs"))]
 pub use fs::*;
 pub use http::*;
 #[cfg(feature = "storage")]
@@ -53,5 +57,7 @@ pub use streams::*;
 pub use time::*;
 pub use tls::*;
 pub use url::*;
+#[cfg(feature = "virtualfs")]
+pub use virtualfs::*;
 pub use web::*;
 pub use web_locks::*;

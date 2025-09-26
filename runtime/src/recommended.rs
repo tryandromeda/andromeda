@@ -13,14 +13,22 @@ use nova_vm::{
 };
 
 use crate::{
-    BroadcastChannelExt, ConsoleExt, CronExt, FetchExt, FfiExt, FileExt, FsExt, NetExt, ProcessExt,
+    BroadcastChannelExt, ConsoleExt, CronExt, FetchExt, FfiExt, FileExt, NetExt, ProcessExt,
     RuntimeMacroTask, ServeExt, StreamsExt, TimeExt, TlsExt, URLExt, WebExt, WebLocksExt,
 };
+
+#[cfg(not(feature = "virtualfs"))]
+use crate::FsExt;
+#[cfg(feature = "virtualfs")]
+use crate::VirtualFsExt;
 
 #[cfg_attr(feature = "hotpath", hotpath::measure)]
 pub fn recommended_extensions() -> Vec<Extension> {
     vec![
+        #[cfg(not(feature = "virtualfs"))]
         FsExt::new_extension(),
+        #[cfg(feature = "virtualfs")]
+        VirtualFsExt::new_extension(),
         ConsoleExt::new_extension(),
         TimeExt::new_extension(),
         CronExt::new_extension(),

@@ -24,11 +24,11 @@ jobs:
             installer-name: andromeda-installer-linux-amd64
 
           # Linux (ARM64) - cross-compilation
-          - os: ubuntu-24.04
-            rust-target: aarch64-unknown-linux-gnu
-            asset-name: andromeda-linux-arm64
-            installer-name: andromeda-installer-linux-arm64
-            cross-compile: true
+          # - os: ubuntu-24.04
+          #   rust-target: aarch64-unknown-linux-gnu
+          #   asset-name: andromeda-linux-arm64
+          #   installer-name: andromeda-installer-linux-arm64
+          #   cross-compile: true
 
           # macOS (Intel)
           - os: macos-13
@@ -63,11 +63,11 @@ jobs:
           toolchain: "nightly-2025-09-05"
           targets: ${{ matrix.rust-target }}
 
-      - name: Install cross-compilation dependencies
-        if: matrix.cross-compile
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross pkg-config
+      # - name: Install cross-compilation dependencies
+        # if: matrix.cross-compile
+        # run: |
+        #   sudo apt-get update
+        #   sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross pkg-config
 
       - name: Build
         continue-on-error: true  # Allow individual builds to fail
