@@ -55,7 +55,7 @@ ECMAScript standards and common runtime behaviors.
 Install Andromeda using Cargo:
 
 ```sh
-cargo install --git https://github.com/tryandromeda/andromeda
+cargo install --git https://github.com/tryandromeda/andromeda andromeda
 ```
 
 ### Running Code
