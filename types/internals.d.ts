@@ -611,6 +611,167 @@ declare namespace __andromeda__ {
   export function internal_canvas_restore(rid: number): void;
 
   /**
+   * Creates a new empty Path2D object.
+   */
+  export function internal_path2d_create(): number;
+
+  /**
+   * Creates a new Path2D object from another path.
+   */
+  export function internal_path2d_create_from_path(pathRid: number): number;
+
+  /**
+   * Creates a new Path2D object from SVG path data.
+   */
+  export function internal_path2d_create_from_svg(svgData: string): number;
+
+  /**
+   * Adds a path to another path.
+   */
+  export function internal_path2d_add_path(
+    targetRid: number,
+    sourceRid: number,
+  ): void;
+
+  /**
+   * Tests if a point is inside a path using the specified fill rule.
+   */
+  export function internal_canvas_is_point_in_path(
+    pathRid: number,
+    x: number,
+    y: number,
+    fillRule: string,
+  ): boolean;
+
+  /**
+   * Tests if a point is inside the stroke of a path.
+   */
+  export function internal_canvas_is_point_in_stroke(
+    pathRid: number,
+    x: number,
+    y: number,
+    lineWidth: number,
+  ): boolean;
+
+  /**
+   * Clips the current drawing region to the specified path.
+   */
+  export function internal_canvas_clip(
+    canvasRid: number,
+    pathRid: number,
+  ): void;
+
+  /**
+   * Moves the starting point of a Path2D to the specified coordinates.
+   */
+  export function internal_path2d_move_to(
+    pathRid: number,
+    x: number,
+    y: number,
+  ): void;
+
+  /**
+   * Adds a straight line to the specified coordinates in a Path2D.
+   */
+  export function internal_path2d_line_to(
+    pathRid: number,
+    x: number,
+    y: number,
+  ): void;
+
+  /**
+   * Adds a cubic Bézier curve to a Path2D.
+   */
+  export function internal_path2d_bezier_curve_to(
+    pathRid: number,
+    cp1x: number,
+    cp1y: number,
+    cp2x: number,
+    cp2y: number,
+    x: number,
+    y: number,
+  ): void;
+
+  /**
+   * Adds a quadratic Bézier curve to a Path2D.
+   */
+  export function internal_path2d_quadratic_curve_to(
+    pathRid: number,
+    cpx: number,
+    cpy: number,
+    x: number,
+    y: number,
+  ): void;
+
+  /**
+   * Adds a circular arc to a Path2D.
+   */
+  export function internal_path2d_arc(
+    pathRid: number,
+    x: number,
+    y: number,
+    radius: number,
+    startAngle: number,
+    endAngle: number,
+    counterclockwise: boolean,
+  ): void;
+
+  /**
+   * Adds an arc connecting two points to a Path2D.
+   */
+  export function internal_path2d_arc_to(
+    pathRid: number,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    radius: number,
+  ): void;
+
+  /**
+   * Adds an elliptical arc to a Path2D.
+   */
+  export function internal_path2d_ellipse(
+    pathRid: number,
+    x: number,
+    y: number,
+    radiusX: number,
+    radiusY: number,
+    rotation: number,
+    startAngle: number,
+    endAngle: number,
+    counterclockwise: boolean,
+  ): void;
+
+  /**
+   * Adds a rectangle to a Path2D.
+   */
+  export function internal_path2d_rect(
+    pathRid: number,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): void;
+
+  /**
+   * Adds a rounded rectangle to a Path2D.
+   */
+  export function internal_path2d_round_rect(
+    pathRid: number,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radii: number[],
+  ): void;
+
+  /**
+   * Closes the current sub-path of a Path2D.
+   */
+  export function internal_path2d_close_path(pathRid: number): void;
+
+  /**
    * The `internal_canvas_get_stroke_style` function gets the current stroke style of the canvas context.
    * Returns the stroke style as a CSS color string.
    */

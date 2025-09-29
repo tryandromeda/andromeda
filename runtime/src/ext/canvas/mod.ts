@@ -2,6 +2,197 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+type CanvasFillRule = "nonzero" | "evenodd";
+
+/**
+ * A Path2D implementation for representing vector paths
+ */
+class Path2D {
+  #rid: number;
+
+  constructor(path?: Path2D | string) {
+    if (path && typeof path === "object" && typeof path.getRid === "function") {
+      // Create from another path
+      this.#rid = __andromeda__.internal_path2d_create_from_path(path.getRid());
+    } else if (typeof path === "string") {
+      // Create from SVG path data
+      this.#rid = __andromeda__.internal_path2d_create_from_svg(path);
+    } else {
+      // Create empty path
+      this.#rid = __andromeda__.internal_path2d_create();
+    }
+  }
+
+  /**
+   * Gets the internal resource ID (for internal use by canvas operations)
+   */
+  getRid(): number {
+    return this.#rid;
+  }
+
+  /**
+   * Adds a path to the current path.
+   */
+  addPath(path: Path2D, _transform?: object): void {
+    // TODO: Add transformation matrix support
+    __andromeda__.internal_path2d_add_path(this.#rid, path.getRid());
+  }
+
+  /**
+   * Adds a circular arc to the path.
+   */
+  arc(
+    x: number,
+    y: number,
+    radius: number,
+    startAngle: number,
+    endAngle: number,
+    counterclockwise?: boolean,
+  ): void {
+    __andromeda__.internal_path2d_arc(
+      this.#rid,
+      x,
+      y,
+      radius,
+      startAngle,
+      endAngle,
+      counterclockwise || false,
+    );
+  }
+
+  /**
+   * Adds an elliptical arc to the path.
+   */
+  arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void {
+    __andromeda__.internal_path2d_arc_to(this.#rid, x1, y1, x2, y2, radius);
+  }
+
+  /**
+   * Adds a cubic Bézier curve to the path.
+   */
+  bezierCurveTo(
+    cp1x: number,
+    cp1y: number,
+    cp2x: number,
+    cp2y: number,
+    x: number,
+    y: number,
+  ): void {
+    __andromeda__.internal_path2d_bezier_curve_to(
+      this.#rid,
+      cp1x,
+      cp1y,
+      cp2x,
+      cp2y,
+      x,
+      y,
+    );
+  }
+
+  /**
+   * Causes the point of the pen to move back to the start of the current sub-path.
+   */
+  closePath(): void {
+    __andromeda__.internal_path2d_close_path(this.#rid);
+  }
+
+  /**
+   * Adds an ellipse to the path.
+   */
+  ellipse(
+    x: number,
+    y: number,
+    radiusX: number,
+    radiusY: number,
+    rotation: number,
+    startAngle: number,
+    endAngle: number,
+    counterclockwise?: boolean,
+  ): void {
+    __andromeda__.internal_path2d_ellipse(
+      this.#rid,
+      x,
+      y,
+      radiusX,
+      radiusY,
+      rotation,
+      startAngle,
+      endAngle,
+      counterclockwise || false,
+    );
+  }
+
+  /**
+   * Adds a straight line to the path.
+   */
+  lineTo(x: number, y: number): void {
+    __andromeda__.internal_path2d_line_to(this.#rid, x, y);
+  }
+
+  /**
+   * Moves the starting point of a new sub-path to the specified coordinates.
+   */
+  moveTo(x: number, y: number): void {
+    __andromeda__.internal_path2d_move_to(this.#rid, x, y);
+  }
+
+  /**
+   * Adds a quadratic Bézier curve to the path.
+   */
+  quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void {
+    __andromeda__.internal_path2d_quadratic_curve_to(this.#rid, cpx, cpy, x, y);
+  }
+
+  /**
+   * Adds a rectangle to the path.
+   */
+  rect(x: number, y: number, w: number, h: number): void {
+    __andromeda__.internal_path2d_rect(this.#rid, x, y, w, h);
+  }
+
+  /**
+   * Adds a rounded rectangle to the path.
+   */
+  roundRect(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    radii?: number | number[],
+  ): void {
+    const radiiArray = Array.isArray(radii) ?
+      radii :
+      (typeof radii === "number" ? [radii] : [0]);
+    __andromeda__.internal_path2d_round_rect(this.#rid, x, y, w, h, radiiArray);
+  }
+
+  /**
+   * Determines whether the specified point is contained in the current path.
+   */
+  isPointInPath(x: number, y: number, fillRule?: CanvasFillRule): boolean {
+    const rule = fillRule || "nonzero";
+    return __andromeda__.internal_canvas_is_point_in_path(
+      this.#rid,
+      x,
+      y,
+      rule,
+    );
+  }
+
+  /**
+   * Determines whether the specified point is inside the area contained by the stroking of the current path.
+   */
+  isPointInStroke(x: number, y: number, lineWidth?: number): boolean {
+    const width = lineWidth || 1.0;
+    return __andromeda__.internal_canvas_is_point_in_stroke(
+      this.#rid,
+      x,
+      y,
+      width,
+    );
+  }
+}
+
 /**
  * A OffscreenCanvas implementation
  */
@@ -396,6 +587,46 @@ class CanvasRenderingContext2D {
   restore(): void {
     __andromeda__.internal_canvas_restore(this.#rid);
   }
+
+  /**
+   * Determines whether the specified point is contained in the given path.
+   */
+  isPointInPath(
+    path: Path2D,
+    x: number,
+    y: number,
+    fillRule?: CanvasFillRule,
+  ): boolean {
+    const rule = fillRule || "nonzero";
+    return __andromeda__.internal_canvas_is_point_in_path(
+      path.getRid(),
+      x,
+      y,
+      rule,
+    );
+  }
+
+  /**
+   * Determines whether the specified point is inside the area contained by the stroking of a path.
+   */
+  isPointInStroke(path: Path2D, x: number, y: number): boolean {
+    // Use current line width
+    const lineWidth = this.lineWidth;
+    return __andromeda__.internal_canvas_is_point_in_stroke(
+      path.getRid(),
+      x,
+      y,
+      lineWidth,
+    );
+  }
+
+  /**
+   * Turns the given path into the current clipping region.
+   */
+  clip(path: Path2D, fillRule?: CanvasFillRule): void {
+    const _rule = fillRule || "nonzero";
+    __andromeda__.internal_canvas_clip(this.#rid, path.getRid());
+  }
 }
 
 const _fillId = Symbol("[[fillId]]");
@@ -418,4 +649,5 @@ class CanvasGradient {
   }
 }
 
-globalThis.OffscreenCanvas = OffscreenCanvas;
+// Export classes to global scope
+Object.assign(globalThis, { Path2D, OffscreenCanvas });

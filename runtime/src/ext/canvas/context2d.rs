@@ -157,6 +157,9 @@ pub enum CanvasCommand<'gc> {
         x: Number<'gc>,
         y: Number<'gc>,
     },
+    Clip {
+        path: Vec<Point>,
+    },
     SetStrokeStyle(crate::ext::canvas::FillStyle),
 }
 
@@ -1457,6 +1460,11 @@ pub fn process_all_commands<'gc>(
             CanvasCommand::SetStrokeStyle(_style) => {
                 // Update stroke style
                 // Note: The actual style change is handled by the renderer
+            }
+            CanvasCommand::Clip { path: _ } => {
+                // Apply clipping to the current renderer state
+                // TODO: Implement proper clipping in the renderer
+                // For now, this is a placeholder that stores the clipping path
             }
             CanvasCommand::CreateLinearGradient { .. }
             | CanvasCommand::CreateRadialGradient { .. }
