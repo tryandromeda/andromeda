@@ -2,10 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-mod context2d;
-mod fill_style;
-mod renderer;
-mod state;
+pub mod context2d;
+pub mod fill_style;
+pub mod path2d;
+pub mod renderer;
+pub mod state;
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable, Rid};
 use std::ops::DerefMut;
 
@@ -13,6 +14,7 @@ use crate::ext::canvas::context2d::{
     internal_canvas_begin_path, internal_canvas_bezier_curve_to, internal_canvas_close_path,
 };
 use crate::ext::canvas::fill_style::{ConicGradient, LinearGradient, RadialGradient};
+use crate::ext::canvas::path2d::{FillRule, Path2D};
 use crate::ext::canvas::renderer::ColorStop;
 pub use fill_style::FillStyle;
 
@@ -56,6 +58,7 @@ struct CanvasData<'gc> {
 
 struct CanvasResources<'gc> {
     canvases: ResourceTable<CanvasData<'gc>>,
+    path2ds: ResourceTable<Path2D>,
     images: ResourceTable<ImageData>,
     renderers: ResourceTable<renderer::Renderer>,
     fill_styles: ResourceTable<FillStyle>,
@@ -264,10 +267,99 @@ impl CanvasExt {
                     2,
                     false,
                 ),
+                // Path2D operations
+                ExtensionOp::new(
+                    "internal_path2d_create",
+                    Self::internal_path2d_create,
+                    0,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_path2d_create_from_path",
+                    Self::internal_path2d_create_from_path,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_path2d_create_from_svg",
+                    Self::internal_path2d_create_from_svg,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_path2d_add_path",
+                    Self::internal_path2d_add_path,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_path2d_move_to",
+                    Self::internal_path2d_move_to,
+                    3,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_path2d_line_to",
+                    Self::internal_path2d_line_to,
+                    3,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_path2d_bezier_curve_to",
+                    Self::internal_path2d_bezier_curve_to,
+                    7,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_path2d_quadratic_curve_to",
+                    Self::internal_path2d_quadratic_curve_to,
+                    5,
+                    false,
+                ),
+                ExtensionOp::new("internal_path2d_arc", Self::internal_path2d_arc, 7, false),
+                ExtensionOp::new(
+                    "internal_path2d_arc_to",
+                    Self::internal_path2d_arc_to,
+                    6,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_path2d_ellipse",
+                    Self::internal_path2d_ellipse,
+                    9,
+                    false,
+                ),
+                ExtensionOp::new("internal_path2d_rect", Self::internal_path2d_rect, 5, false),
+                ExtensionOp::new(
+                    "internal_path2d_round_rect",
+                    Self::internal_path2d_round_rect,
+                    6,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_path2d_close_path",
+                    Self::internal_path2d_close_path,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_is_point_in_path",
+                    Self::internal_canvas_is_point_in_path,
+                    4,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_is_point_in_stroke",
+                    Self::internal_canvas_is_point_in_stroke,
+                    4,
+                    false,
+                ),
+                ExtensionOp::new("internal_canvas_clip", Self::internal_canvas_clip, 2, false),
             ],
             storage: Some(Box::new(|storage: &mut OpsStorage| {
                 storage.insert(CanvasResources {
                     canvases: ResourceTable::new(),
+                    path2ds: ResourceTable::new(),
                     images: ResourceTable::new(),
                     renderers: ResourceTable::new(),
                     fill_styles: ResourceTable::new(),
@@ -960,6 +1052,746 @@ impl CanvasExt {
         s.push('}');
 
         Ok(Value::from_string(agent, s, gc.nogc()).unbind())
+    }
+
+    /// Internal op to create a new Path2D object
+    fn internal_path2d_create<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        _args: ArgumentsList<'_, '_>,
+        _gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        let path = Path2D::new();
+        let path_rid = res.path2ds.push(path);
+
+        Ok(Value::Integer(SmallInteger::from(path_rid.index() as i32)))
+    }
+
+    /// Internal op to create a Path2D from another path
+    fn internal_path2d_create_from_path<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let other_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let other_rid = Rid::from_index(other_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        let other_path = res.path2ds.get(other_rid).unwrap();
+        let new_path = Path2D::from_path(&other_path);
+        let path_rid = res.path2ds.push(new_path);
+
+        Ok(Value::Integer(SmallInteger::from(path_rid.index() as i32)))
+    }
+
+    /// Internal op to create a Path2D from SVG path data
+    fn internal_path2d_create_from_svg<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let svg_data = args
+            .get(0)
+            .to_string(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        match Path2D::from_svg_path_data(svg_data.as_str(agent).unwrap()) {
+            Ok(path) => {
+                let path_rid = res.path2ds.push(path);
+                Ok(Value::Integer(SmallInteger::from(path_rid.index() as i32)))
+            }
+            Err(_) => {
+                // Return null for invalid SVG path data
+                Ok(Value::Null)
+            }
+        }
+    }
+
+    /// Internal op to add a path to another path
+    fn internal_path2d_add_path<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let target_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let source_rid_val = args.get(1).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let target_rid = Rid::from_index(target_rid_val);
+        let source_rid = Rid::from_index(source_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        let source_path = res.path2ds.get(source_rid).unwrap().clone();
+        res.path2ds
+            .get_mut(target_rid)
+            .unwrap()
+            .add_path(&source_path, None); // TODO: Add transform support
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to test if a point is in a path
+    fn internal_canvas_is_point_in_path<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let x = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let y = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let fill_rule_str = args
+            .get(3)
+            .to_string(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+
+        let path_rid = Rid::from_index(path_rid_val);
+        let fill_rule = match fill_rule_str.as_str(agent) {
+            Some("evenodd") => FillRule::EvenOdd,
+            _ => FillRule::NonZero,
+        };
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+
+        let path = res.path2ds.get(path_rid).unwrap();
+        let result = path.is_point_in_path(
+            x.into_f32(agent) as f64,
+            y.into_f32(agent) as f64,
+            fill_rule,
+        );
+
+        Ok(Value::Boolean(result))
+    }
+
+    /// Internal op to test if a point is in a path stroke
+    fn internal_canvas_is_point_in_stroke<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let x = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let y = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let line_width = args
+            .get(3)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+
+        let path_rid = Rid::from_index(path_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+
+        let path = res.path2ds.get(path_rid).unwrap();
+        let result = path.is_point_in_stroke(
+            x.into_f32(agent) as f64,
+            y.into_f32(agent) as f64,
+            line_width.into_f32(agent) as f64,
+        );
+
+        Ok(Value::Boolean(result))
+    }
+
+    /// Internal op to clip using a path
+    fn internal_canvas_clip<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let canvas_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let path_rid_val = args.get(1).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+
+        let canvas_rid = Rid::from_index(canvas_rid_val);
+        let path_rid = Rid::from_index(path_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        // Get the path data
+        let path = res.path2ds.get(path_rid).unwrap().clone();
+
+        // Add a clip command to the canvas
+        res.canvases
+            .get_mut(canvas_rid)
+            .unwrap()
+            .commands
+            .push(context2d::CanvasCommand::Clip {
+                path: path.get_all_points(),
+            });
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to move to a point on a Path2D
+    fn internal_path2d_move_to<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let x = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let y = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+
+        let path_rid = Rid::from_index(path_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        res.path2ds
+            .get_mut(path_rid)
+            .unwrap()
+            .move_to(x.into_f64(agent), y.into_f64(agent));
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to add a line to a Path2D
+    fn internal_path2d_line_to<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let x = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let y = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+
+        let path_rid = Rid::from_index(path_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        res.path2ds
+            .get_mut(path_rid)
+            .unwrap()
+            .line_to(x.into_f64(agent), y.into_f64(agent));
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to add a bezier curve to a Path2D
+    fn internal_path2d_bezier_curve_to<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let cp1x = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let cp1y = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let cp2x = args
+            .get(3)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let cp2y = args
+            .get(4)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let x = args
+            .get(5)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let y = args
+            .get(6)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+
+        let path_rid = Rid::from_index(path_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        res.path2ds.get_mut(path_rid).unwrap().bezier_curve_to(
+            cp1x.into_f64(agent),
+            cp1y.into_f64(agent),
+            cp2x.into_f64(agent),
+            cp2y.into_f64(agent),
+            x.into_f64(agent),
+            y.into_f64(agent),
+        );
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to add a quadratic curve to a Path2D
+    fn internal_path2d_quadratic_curve_to<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let cpx = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let cpy = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let x = args
+            .get(3)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let y = args
+            .get(4)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+
+        let path_rid = Rid::from_index(path_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        res.path2ds.get_mut(path_rid).unwrap().quadratic_curve_to(
+            cpx.into_f64(agent),
+            cpy.into_f64(agent),
+            x.into_f64(agent),
+            y.into_f64(agent),
+        );
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to add an arc to a Path2D
+    fn internal_path2d_arc<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let x = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let y = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let radius = args
+            .get(3)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let start_angle = args
+            .get(4)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let end_angle = args
+            .get(5)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let anticlockwise = args.get(6).is_true();
+
+        let path_rid = Rid::from_index(path_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        res.path2ds.get_mut(path_rid).unwrap().arc(
+            x.into_f64(agent),
+            y.into_f64(agent),
+            radius.into_f64(agent),
+            start_angle.into_f64(agent),
+            end_angle.into_f64(agent),
+            anticlockwise,
+        );
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to add an arcTo to a Path2D
+    fn internal_path2d_arc_to<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let x1 = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let y1 = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let x2 = args
+            .get(3)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let y2 = args
+            .get(4)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let radius = args
+            .get(5)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+
+        let path_rid = Rid::from_index(path_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        res.path2ds.get_mut(path_rid).unwrap().arc_to(
+            x1.into_f64(agent),
+            y1.into_f64(agent),
+            x2.into_f64(agent),
+            y2.into_f64(agent),
+            radius.into_f64(agent),
+        );
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to add an ellipse to a Path2D
+    fn internal_path2d_ellipse<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let x = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let y = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let radius_x = args
+            .get(3)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let radius_y = args
+            .get(4)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let rotation = args
+            .get(5)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let start_angle = args
+            .get(6)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let end_angle = args
+            .get(7)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let anticlockwise = args.get(8).is_true();
+
+        let path_rid = Rid::from_index(path_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        res.path2ds.get_mut(path_rid).unwrap().ellipse(
+            x.into_f64(agent),
+            y.into_f64(agent),
+            radius_x.into_f64(agent),
+            radius_y.into_f64(agent),
+            rotation.into_f64(agent),
+            start_angle.into_f64(agent),
+            end_angle.into_f64(agent),
+            anticlockwise,
+        );
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to add a rectangle to a Path2D
+    fn internal_path2d_rect<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let x = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let y = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let width = args
+            .get(3)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let height = args
+            .get(4)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+
+        let path_rid = Rid::from_index(path_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        res.path2ds.get_mut(path_rid).unwrap().rect(
+            x.into_f64(agent),
+            y.into_f64(agent),
+            width.into_f64(agent),
+            height.into_f64(agent),
+        );
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to add a rounded rectangle to a Path2D
+    fn internal_path2d_round_rect<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let x = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let y = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let width = args
+            .get(3)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+        let height = args
+            .get(4)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .unwrap();
+
+        // Parse radii array from JavaScript
+        let radii_array = args.get(5);
+        let mut radii = Vec::new();
+
+        // Handle different radii input formats
+        if !radii_array.is_undefined()
+            && let Ok(sv) = radii_array.to_string(agent, gc.reborrow())
+            && let Some(s) = sv.as_str(agent)
+        {
+            let s_str = s.to_string();
+            if let Ok(parsed) = serde_json::from_str::<Vec<f64>>(&s_str) {
+                radii = parsed;
+            } else {
+                // Try comma-separated values
+                for part in s_str.split(',') {
+                    let part = part.trim();
+                    if !part.is_empty()
+                        && let Ok(n) = part.parse::<f64>()
+                    {
+                        radii.push(n);
+                    }
+                }
+            }
+        }
+
+        // If no array was parsed, treat as single number
+        if radii.is_empty() {
+            if let Ok(num) = radii_array.to_number(agent, gc.reborrow()) {
+                radii.push(num.into_f64(agent));
+            } else {
+                radii.push(0.0); // Default radius
+            }
+        }
+
+        let path_rid = Rid::from_index(path_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        res.path2ds.get_mut(path_rid).unwrap().round_rect_web_api(
+            x.into_f64(agent),
+            y.into_f64(agent),
+            width.into_f64(agent),
+            height.into_f64(agent),
+            &radii,
+        );
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to close a path on a Path2D
+    fn internal_path2d_close_path<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        _gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let path_rid_val = args.get(0).to_int32(agent, _gc).unbind().unwrap() as u32;
+        let path_rid = Rid::from_index(path_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        res.path2ds.get_mut(path_rid).unwrap().close_path();
+
+        Ok(Value::Undefined)
     }
 }
 

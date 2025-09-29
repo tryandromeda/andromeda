@@ -14,6 +14,12 @@ pub struct CanvasState {
     // TODO: Add transformation matrix, line dash, text properties, etc.
 }
 
+impl Default for CanvasState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CanvasState {
     #[allow(dead_code)]
     pub fn new() -> Self {
