@@ -1147,6 +1147,9 @@ pub fn internal_canvas_save<'gc>(
         stroke_style: data.stroke_style.clone(),
         line_width: data.line_width,
         global_alpha: data.global_alpha,
+        transform: data.transform,
+        line_dash: data.line_dash.clone(),
+        line_dash_offset: data.line_dash_offset,
     };
     data.state_stack.push(current_state);
 
@@ -1180,6 +1183,9 @@ pub fn internal_canvas_restore<'gc>(
         data.stroke_style = saved_state.stroke_style;
         data.line_width = saved_state.line_width;
         data.global_alpha = saved_state.global_alpha;
+        data.transform = saved_state.transform;
+        data.line_dash = saved_state.line_dash;
+        data.line_dash_offset = saved_state.line_dash_offset;
     }
 
     // Add restore command to command list

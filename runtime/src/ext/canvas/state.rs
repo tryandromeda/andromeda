@@ -11,7 +11,9 @@ pub struct CanvasState {
     pub stroke_style: FillStyle,
     pub line_width: f64,
     pub global_alpha: f32,
-    // TODO: Add transformation matrix, line dash, text properties, etc.
+    pub transform: [f64; 6],
+    pub line_dash: Vec<f64>,
+    pub line_dash_offset: f64,
 }
 
 impl Default for CanvasState {
@@ -38,6 +40,9 @@ impl CanvasState {
             },
             line_width: 1.0,
             global_alpha: 1.0,
+            transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+            line_dash: Vec::new(),
+            line_dash_offset: 0.0,
         }
     }
 }

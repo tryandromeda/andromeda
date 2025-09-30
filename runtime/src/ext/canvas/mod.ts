@@ -488,6 +488,13 @@ class CanvasRenderingContext2D {
   }
 
   /**
+   * Draws a rectangle that is stroked (outlined) according to the current strokeStyle.
+   */
+  strokeRect(x: number, y: number, width: number, height: number): void {
+    __andromeda__.internal_canvas_stroke_rect(this.#rid, x, y, width, height);
+  }
+
+  /**
    * Moves the path starting point to the specified coordinates.
    */
   moveTo(x: number, y: number): void {
@@ -586,6 +593,82 @@ class CanvasRenderingContext2D {
    */
   restore(): void {
     __andromeda__.internal_canvas_restore(this.#rid);
+  }
+
+  /**
+   * Adds a rotation to the transformation matrix.
+   * @param angle The rotation angle, clockwise in radians.
+   */
+  rotate(angle: number): void {
+    __andromeda__.internal_canvas_rotate(this.#rid, angle);
+  }
+
+  /**
+   * Adds a scaling transformation to the canvas units horizontally and/or vertically.
+   * @param x Scaling factor in the horizontal direction.
+   * @param y Scaling factor in the vertical direction.
+   */
+  scale(x: number, y: number): void {
+    __andromeda__.internal_canvas_scale(this.#rid, x, y);
+  }
+
+  /**
+   * Adds a translation transformation to the current matrix.
+   * @param x Distance to move in the horizontal direction.
+   * @param y Distance to move in the vertical direction.
+   */
+  translate(x: number, y: number): void {
+    __andromeda__.internal_canvas_translate(this.#rid, x, y);
+  }
+
+  /**
+   * Multiplies the current transformation with the matrix described by the arguments.
+   */
+  transform(
+    a: number,
+    b: number,
+    c: number,
+    d: number,
+    e: number,
+    f: number,
+  ): void {
+    __andromeda__.internal_canvas_transform(this.#rid, a, b, c, d, e, f);
+  }
+
+  /**
+   * Resets (overrides) the current transformation to the identity matrix, and then invokes transform().
+   */
+  setTransform(
+    a: number,
+    b: number,
+    c: number,
+    d: number,
+    e: number,
+    f: number,
+  ): void {
+    __andromeda__.internal_canvas_set_transform(this.#rid, a, b, c, d, e, f);
+  }
+
+  /**
+   * Resets the current transform to the identity matrix.
+   */
+  resetTransform(): void {
+    __andromeda__.internal_canvas_reset_transform(this.#rid);
+  }
+
+  /**
+   * Returns the current transformation matrix as an object.
+   */
+  getTransform(): {
+    a: number;
+    b: number;
+    c: number;
+    d: number;
+    e: number;
+    f: number;
+  } {
+    const json = __andromeda__.internal_canvas_get_transform(this.#rid);
+    return JSON.parse(json);
   }
 
   /**

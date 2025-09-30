@@ -430,6 +430,16 @@ declare namespace __andromeda__ {
     width: number,
     height: number,
   ): void;
+  /**
+   * Draws a stroke rectangle on the specified canvas.
+   */
+  export function internal_canvas_stroke_rect(
+    rid: number,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): void;
 
   /**
    * The `internal_canvas_render` function renders the canvas to finalize GPU operations.
@@ -609,6 +619,65 @@ declare namespace __andromeda__ {
    * The `internal_canvas_restore` function restores the most recently saved canvas state.
    */
   export function internal_canvas_restore(rid: number): void;
+
+  /**
+   * The `internal_canvas_rotate` function adds a rotation to the transformation matrix.
+   */
+  export function internal_canvas_rotate(rid: number, angle: number): void;
+
+  /**
+   * The `internal_canvas_scale` function adds a scaling transformation to the canvas units.
+   */
+  export function internal_canvas_scale(
+    rid: number,
+    x: number,
+    y: number,
+  ): void;
+
+  /**
+   * The `internal_canvas_translate` function adds a translation transformation to the current matrix.
+   */
+  export function internal_canvas_translate(
+    rid: number,
+    x: number,
+    y: number,
+  ): void;
+
+  /**
+   * The `internal_canvas_transform` function multiplies the current transformation with the matrix described by the arguments.
+   */
+  export function internal_canvas_transform(
+    rid: number,
+    a: number,
+    b: number,
+    c: number,
+    d: number,
+    e: number,
+    f: number,
+  ): void;
+
+  /**
+   * The `internal_canvas_set_transform` function resets the current transformation to the identity matrix and then invokes transform().
+   */
+  export function internal_canvas_set_transform(
+    rid: number,
+    a: number,
+    b: number,
+    c: number,
+    d: number,
+    e: number,
+    f: number,
+  ): void;
+
+  /**
+   * The `internal_canvas_reset_transform` function resets the current transform to the identity matrix.
+   */
+  export function internal_canvas_reset_transform(rid: number): void;
+
+  /**
+   * The `internal_canvas_get_transform` function returns the current transformation matrix as a JSON string.
+   */
+  export function internal_canvas_get_transform(rid: number): string;
 
   /**
    * Creates a new empty Path2D object.

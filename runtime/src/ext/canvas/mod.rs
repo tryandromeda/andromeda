@@ -15,7 +15,7 @@ use crate::ext::canvas::context2d::{
 };
 use crate::ext::canvas::fill_style::{ConicGradient, LinearGradient, RadialGradient};
 use crate::ext::canvas::path2d::{FillRule, Path2D};
-use crate::ext::canvas::renderer::ColorStop;
+use crate::ext::canvas::renderer::{ColorStop, Point, Rect, RenderState};
 pub use fill_style::FillStyle;
 
 use crate::ext::canvas::context2d::{
@@ -54,6 +54,8 @@ struct CanvasData<'gc> {
     path_started: bool,
     // State stack for save/restore functionality
     state_stack: Vec<state::CanvasState>,
+    // Transformation matrix [a, b, c, d, e, f]
+    transform: [f64; 6],
 }
 
 struct CanvasResources<'gc> {
@@ -163,6 +165,12 @@ impl CanvasExt {
                     false,
                 ),
                 ExtensionOp::new(
+                    "internal_canvas_stroke_rect",
+                    Self::internal_canvas_stroke_rect,
+                    5,
+                    false,
+                ),
+                ExtensionOp::new(
                     "internal_canvas_get_stroke_style",
                     Self::internal_canvas_get_stroke_style,
                     1,
@@ -224,6 +232,49 @@ impl CanvasExt {
                 ),
                 ExtensionOp::new("internal_canvas_save", internal_canvas_save, 1, false),
                 ExtensionOp::new("internal_canvas_restore", internal_canvas_restore, 1, false),
+                // Transformation operations
+                ExtensionOp::new(
+                    "internal_canvas_rotate",
+                    Self::internal_canvas_rotate,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_scale",
+                    Self::internal_canvas_scale,
+                    3,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_translate",
+                    Self::internal_canvas_translate,
+                    3,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_transform",
+                    Self::internal_canvas_transform,
+                    7,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_set_transform",
+                    Self::internal_canvas_set_transform,
+                    7,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_reset_transform",
+                    Self::internal_canvas_reset_transform,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_transform",
+                    Self::internal_canvas_get_transform,
+                    1,
+                    false,
+                ),
                 // ImageBitmap API
                 ExtensionOp::new(
                     "internal_image_bitmap_create",
@@ -397,6 +448,8 @@ impl CanvasExt {
             current_path: Vec::new(),
             path_started: false,
             state_stack: Vec::new(),
+            // Identity transformation matrix
+            transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
         });
 
         // Create renderer with GPU device
@@ -1792,6 +1845,349 @@ impl CanvasExt {
         res.path2ds.get_mut(path_rid).unwrap().close_path();
 
         Ok(Value::Undefined)
+    }
+
+    /// Internal op to stroke a rectangle on a canvas by Rid
+    fn internal_canvas_stroke_rect<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+        let x = args.get(1).to_number(agent, gc.reborrow()).unbind()?;
+        let y = args.get(2).to_number(agent, gc.reborrow()).unbind()?;
+        let width = args.get(3).to_number(agent, gc.reborrow()).unbind()?;
+        let height = args.get(4).to_number(agent, gc.reborrow()).unbind()?;
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        let canvas = res.canvases.get(rid).unwrap();
+        let stroke_style = canvas.stroke_style.clone();
+        let line_width = canvas.line_width;
+        drop(storage);
+
+        // Render the stroke rectangle
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+        if let Some(mut renderer) = res.renderers.get_mut(rid) {
+            let rect = Rect {
+                start: Point {
+                    x: x.into_f64(agent),
+                    y: y.into_f64(agent),
+                },
+                end: Point {
+                    x: x.into_f64(agent) + width.into_f64(agent),
+                    y: y.into_f64(agent) + height.into_f64(agent),
+                },
+            };
+
+            let (r, g, b, a) = stroke_style.get_rgba();
+            let stroke_color = [r, g, b, a];
+
+            let canvas = res.canvases.get(rid).unwrap();
+            let render_state = RenderState {
+                fill_style: stroke_style,
+                global_alpha: canvas.global_alpha,
+            };
+
+            renderer.render_stroke_rect(rect, &render_state, stroke_color, line_width as f32);
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to rotate the transformation matrix
+    fn internal_canvas_rotate<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+        let angle = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid) {
+            let cos = angle.cos();
+            let sin = angle.sin();
+            let [a, b, c, d, e, f] = canvas.transform;
+
+            // Multiply current transform by rotation matrix
+            canvas.transform = [
+                a * cos + c * sin,
+                b * cos + d * sin,
+                a * -sin + c * cos,
+                b * -sin + d * cos,
+                e,
+                f,
+            ];
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to scale the transformation matrix
+    fn internal_canvas_scale<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+        let x = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let y = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid) {
+            let [a, b, c, d, e, f] = canvas.transform;
+
+            // Multiply current transform by scale matrix
+            canvas.transform = [a * x, b * x, c * y, d * y, e, f];
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to translate the transformation matrix
+    fn internal_canvas_translate<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+        let x = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let y = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid) {
+            let [a, b, c, d, e, f] = canvas.transform;
+
+            // Multiply current transform by translation matrix
+            canvas.transform = [a, b, c, d, e + a * x + c * y, f + b * x + d * y];
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to transform (multiply) the transformation matrix
+    fn internal_canvas_transform<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+        let a2 = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let b2 = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let c2 = args
+            .get(3)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let d2 = args
+            .get(4)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let e2 = args
+            .get(5)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let f2 = args
+            .get(6)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid) {
+            let [a1, b1, c1, d1, e1, f1] = canvas.transform;
+
+            // Multiply transformation matrices
+            canvas.transform = [
+                a1 * a2 + c1 * b2,
+                b1 * a2 + d1 * b2,
+                a1 * c2 + c1 * d2,
+                b1 * c2 + d1 * d2,
+                a1 * e2 + c1 * f2 + e1,
+                b1 * e2 + d1 * f2 + f1,
+            ];
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to set the transformation matrix (replace, not multiply)
+    fn internal_canvas_set_transform<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+        let a = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let b = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let c = args
+            .get(3)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let d = args
+            .get(4)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let e = args
+            .get(5)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let f = args
+            .get(6)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid) {
+            // Replace transformation matrix
+            canvas.transform = [a, b, c, d, e, f];
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to reset the transformation matrix to identity
+    fn internal_canvas_reset_transform<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid) {
+            // Reset to identity matrix
+            canvas.transform = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to get the current transformation matrix
+    fn internal_canvas_get_transform<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let canvas = res.canvases.get(rid).unwrap();
+        let [a, b, c, d, e, f] = canvas.transform;
+        drop(storage);
+
+        // Return as JSON string with the transform values
+        let json = format!(
+            "{{\"a\":{},\"b\":{},\"c\":{},\"d\":{},\"e\":{},\"f\":{}}}",
+            a, b, c, d, e, f
+        );
+        Ok(Value::from_string(agent, json, gc.nogc()).unbind())
     }
 }
 
