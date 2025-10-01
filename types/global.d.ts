@@ -766,6 +766,32 @@ declare class CanvasRenderingContext2D {
   save(): void;
   /** Restores the most recently saved canvas state from the stack. */
   restore(): void;
+  
+  // Image Drawing APIs
+  /** Draws an image onto the canvas at the specified coordinates. */
+  drawImage(image: ImageBitmap, dx: number, dy: number): void;
+  /** Draws an image onto the canvas with scaling. */
+  drawImage(image: ImageBitmap, dx: number, dy: number, dWidth: number, dHeight: number): void;
+  /** Draws a portion of an image onto the canvas with optional scaling. */
+  drawImage(
+    image: ImageBitmap, 
+    sx: number, 
+    sy: number, 
+    sWidth: number, 
+    sHeight: number, 
+    dx: number, 
+    dy: number, 
+    dWidth: number, 
+    dHeight: number
+  ): void;
+  
+  // ImageData APIs
+  /** Creates a new ImageData object with the specified dimensions. */
+  createImageData(width: number, height: number): ImageData;
+  /** Returns an ImageData object representing the pixel data for the specified rectangle. */
+  getImageData(sx: number, sy: number, sw: number, sh: number): ImageData;
+  /** Paints pixel data from an ImageData object onto the canvas. */
+  putImageData(imageData: ImageData, dx: number, dy: number): void;
 }
 
 declare class CanvasGradient {
@@ -785,10 +811,25 @@ declare class ImageBitmap {
 }
 
 /**
+ * ImageData represents the underlying pixel data of a canvas area.
+ */
+declare class ImageData {
+  /** Creates a new ImageData object with the specified dimensions. */
+  constructor(width: number, height: number);
+  
+  /** The width of the ImageData in pixels. */
+  readonly width: number;
+  /** The height of the ImageData in pixels. */
+  readonly height: number;
+  /** The one-dimensional array containing the pixel data in RGBA order. */
+  readonly data: Uint8ClampedArray;
+}
+
+/**
  * Creates an ImageBitmap from a file path or URL.
  * @param path The file path or URL to load.
  */
-declare function createImageBitmap(path: string): Promise<ImageBitmap>;
+declare function createImageBitmap(path: string): ImageBitmap;
 
 /**
  * Options for acquiring a Web Lock

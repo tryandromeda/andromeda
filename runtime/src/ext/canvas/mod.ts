@@ -726,6 +726,79 @@ class CanvasRenderingContext2D {
   }
 
   /**
+   * Draws an image onto the canvas.
+   * Supports three overload patterns:
+   * - drawImage(image, dx, dy)
+   * - drawImage(image, dx, dy, dWidth, dHeight)
+   * - drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+   */
+  drawImage(
+    image: ImageBitmap,
+    ...args: number[]
+  ): void {
+    const imageRid = image["#rid" as keyof ImageBitmap] as number;
+    
+    if (args.length === 2) {
+      // drawImage(image, dx, dy)
+      const [dx, dy] = args;
+      __andromeda__.internal_canvas_draw_image(
+        this.#rid,
+        imageRid,
+        0, 0,
+        image.width, image.height,
+        dx, dy,
+        image.width, image.height
+      );
+    } else if (args.length === 4) {
+      // drawImage(image, dx, dy, dWidth, dHeight)
+      const [dx, dy, dWidth, dHeight] = args;
+      __andromeda__.internal_canvas_draw_image(
+        this.#rid,
+        imageRid,
+        0, 0,
+        image.width, image.height,
+        dx, dy,
+        dWidth, dHeight
+      );
+    } else if (args.length === 8) {
+      // drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+      const [sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight] = args;
+      __andromeda__.internal_canvas_draw_image(
+        this.#rid,
+        imageRid,
+        sx, sy, sWidth, sHeight,
+        dx, dy, dWidth, dHeight
+      );
+    } else {
+      throw new TypeError(`Invalid number of arguments to drawImage: ${args.length}`);
+    }
+  }
+
+  /**
+   * Creates a new, blank ImageData object with the specified dimensions.
+   */
+  createImageData(width: number, height: number): ImageData {
+    const rid = __andromeda__.internal_canvas_create_image_data(width, height);
+    return new ImageData(rid, width, height);
+  }
+
+  /**
+   * Returns an ImageData object representing the pixel data for a region of the canvas.
+   */
+  getImageData(sx: number, sy: number, sw: number, sh: number): ImageData {
+    const rid = __andromeda__.internal_canvas_get_image_data(this.#rid, sx, sy, sw, sh);
+    return new ImageData(rid, sw, sh);
+  }
+
+  /**
+   * Paints data from an ImageData object onto the canvas.
+   */
+  putImageData(imageData: ImageData, dx: number, dy: number): void {
+    const imageRid = imageData["#rid" as keyof ImageData] as number;
+    __andromeda__.internal_canvas_put_image_data(this.#rid, imageRid, dx, dy);
+  }
+
+  /**
    * Turns the given path into the current clipping region.
    */
   clip(path: Path2D, fillRule?: CanvasFillRule): void {
@@ -754,5 +827,43 @@ class CanvasGradient {
   }
 }
 
+/**
+ * Represents the underlying pixel data of an area of a canvas element.
+ */
+class ImageData {
+  #rid: number;
+  #width: number;
+  #height: number;
+
+  constructor(rid: number, width: number, height: number) {
+    this.#rid = rid;
+    this.#width = width;
+    this.#height = height;
+  }
+
+  /**
+   * The width in pixels of the ImageData.
+   */
+  get width(): number {
+    return this.#width;
+  }
+
+  /**
+   * The height in pixels of the ImageData.
+   */
+  get height(): number {
+    return this.#height;
+  }
+
+  /**
+   * A Uint8ClampedArray representing a one-dimensional array containing the data in RGBA order.
+   */
+  get data(): string {
+    // Returns JSON string representation for now
+    // TODO: Return proper Uint8ClampedArray when TypedArray support is added
+    return __andromeda__.internal_image_data_get_data(this.#rid);
+  }
+}
+
 // Export classes to global scope
-Object.assign(globalThis, { Path2D, OffscreenCanvas });
+Object.assign(globalThis, { Path2D, OffscreenCanvas, ImageData });

@@ -68,11 +68,13 @@ struct CanvasResources<'gc> {
     fill_styles: ResourceTable<FillStyle>,
 }
 
-/// Stored image dimensions
+/// Stored image dimensions and pixel data
 #[derive(Clone)]
 struct ImageData {
     width: u32,
     height: u32,
+    /// RGBA pixel data (4 bytes per pixel)
+    data: Option<Vec<u8>>,
 }
 
 #[derive(Default)]
@@ -308,6 +310,50 @@ impl CanvasExt {
                     1,
                     false,
                 ),
+                // Image drawing operations
+                ExtensionOp::new(
+                    "internal_canvas_draw_image",
+                    Self::internal_canvas_draw_image,
+                    9,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_create_image_data",
+                    Self::internal_canvas_create_image_data,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_image_data",
+                    Self::internal_canvas_get_image_data,
+                    4,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_put_image_data",
+                    Self::internal_canvas_put_image_data,
+                    3,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_image_data_get_width",
+                    Self::internal_image_data_get_width,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_image_data_get_height",
+                    Self::internal_image_data_get_height,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_image_data_get_data",
+                    Self::internal_image_data_get_data,
+                    1,
+                    false,
+                ),
+                // Gradient operations
                 ExtensionOp::new(
                     "internal_canvas_create_linear_gradient",
                     Self::internal_canvas_create_linear_gradient,
@@ -628,19 +674,57 @@ impl CanvasExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         let binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
-        let _path = binding.as_str(agent).expect("String is not valid UTF-8");
-        // For now, stub with zero dimensions
+        let path = binding.as_str(agent).expect("String is not valid UTF-8");
+
+        // Load and decode the image
+        let image_result = Self::load_image_from_path(path);
+
+        let (width, height, data) = match image_result {
+            Ok((w, h, d)) => (w, h, Some(d)),
+            Err(e) => {
+                eprintln!("Failed to load image '{}': {}", path, e);
+                // Return invalid image with zero dimensions
+                (0, 0, None)
+            }
+        };
+
         let host_data = agent
             .get_host_data()
             .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
             .unwrap();
         let mut storage = host_data.storage.borrow_mut();
         let res: &mut CanvasResources = storage.get_mut().unwrap();
+
         let rid = res.images.push(ImageData {
-            width: 0,
-            height: 0,
+            width,
+            height,
+            data: data.clone(),
         });
+
+        // Note: Texture loading is now done lazily when drawImage is called
+        // This avoids the problem of not knowing which renderer to use
+
         Ok(Value::Integer(SmallInteger::from(rid.index() as i32)))
+    }
+
+    /// Helper function to load and decode an image from a file path
+    /// Similar to Deno's image decoding implementation
+    fn load_image_from_path(path: &str) -> Result<(u32, u32, Vec<u8>), Box<dyn std::error::Error>> {
+        // Read the file
+        let image_bytes = std::fs::read(path)?;
+
+        // Decode the image using the image crate (supports PNG, JPEG, GIF, WebP, etc.)
+        let img = image::load_from_memory(&image_bytes)?;
+
+        // Convert to RGBA8 format (8 bits per channel)
+        let rgba = img.to_rgba8();
+        let width = rgba.width();
+        let height = rgba.height();
+
+        // Get raw pixel data (already in RGBA format)
+        let data = rgba.into_raw();
+
+        Ok((width, height, data))
     }
 
     /// Internal op to get ImageBitmap width
@@ -2264,6 +2348,399 @@ impl CanvasExt {
         );
         Ok(Value::from_string(agent, json, gc.nogc()).unbind())
     }
+
+    /// Internal op to draw an image onto the canvas
+    /// Arguments: canvas_rid, image_rid, sx, sy, s_width, s_height, dx, dy, d_width, d_height
+    fn internal_canvas_draw_image<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let canvas_rid =
+            Rid::from_index(args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32);
+        let image_rid = args.get(1).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let sx = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let sy = args
+            .get(3)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let s_width = args
+            .get(4)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let s_height = args
+            .get(5)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let dx = args
+            .get(6)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let dy = args
+            .get(7)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let d_width = args
+            .get(8)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let d_height = args
+            .get(9)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        // Try to render directly with GPU if renderer exists
+        let has_renderer = res.renderers.get_mut(canvas_rid).is_some();
+
+        if has_renderer {
+            // First, load the texture if not already loaded
+            let image_data = res.images.get(Rid::from_index(image_rid));
+
+            if let Some(img_data) = image_data
+                && let Some(ref pixel_data) = img_data.data
+            {
+                // Load texture into cache if not already there
+                if let Some(mut renderer) = res.renderers.get_mut(canvas_rid)
+                    && !renderer.texture_cache.contains_key(&image_rid)
+                {
+                    renderer.load_image_texture(
+                        image_rid,
+                        pixel_data,
+                        img_data.width,
+                        img_data.height,
+                    );
+                }
+            }
+
+            // Get the current canvas state for rendering
+            let data = res.canvases.get(canvas_rid).unwrap();
+            let render_state = renderer::RenderState {
+                fill_style: data.fill_style,
+                global_alpha: data.global_alpha,
+                transform: data.transform,
+                line_cap: renderer::LineCap::default(),
+                line_join: renderer::LineJoin::default(),
+                miter_limit: 10.0,
+                composite_operation: data.composite_operation,
+            };
+
+            // Render the image
+            res.renderers.get_mut(canvas_rid).unwrap().render_image(
+                image_rid,
+                sx,
+                sy,
+                s_width,
+                s_height,
+                dx,
+                dy,
+                d_width,
+                d_height,
+                &render_state,
+            );
+        } else {
+            // Fallback to command storage if no renderer
+            if let Some(mut canvas) = res.canvases.get_mut(canvas_rid) {
+                canvas.commands.push(context2d::CanvasCommand::DrawImage {
+                    image_rid,
+                    sx,
+                    sy,
+                    s_width,
+                    s_height,
+                    dx,
+                    dy,
+                    d_width,
+                    d_height,
+                });
+            }
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to create an ImageData object
+    fn internal_canvas_create_image_data<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let width = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let height = args.get(1).to_int32(agent, gc.reborrow()).unbind()? as u32;
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        // Create blank RGBA data (4 bytes per pixel, all transparent black)
+        let pixel_count = (width * height * 4) as usize;
+        let data = vec![0u8; pixel_count];
+
+        let rid = res.images.push(ImageData {
+            width,
+            height,
+            data: Some(data),
+        });
+
+        Ok(Value::Integer(SmallInteger::from(rid.index() as i32)))
+    }
+
+    /// Internal op to get image data from canvas
+    fn internal_canvas_get_image_data<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let canvas_rid =
+            Rid::from_index(args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32);
+        let sx = args.get(1).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let sy = args.get(2).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let sw = args.get(3).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let sh = args.get(4).to_int32(agent, gc.reborrow()).unbind()? as u32;
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        // Get renderer and read pixel data
+        let renderer_rid = res.canvases.get(canvas_rid).map(|_| Rid::from_index(0));
+
+        let pixel_data = if let Some(renderer_rid) = renderer_rid {
+            if let Some(mut renderer) = res.renderers.get_mut(renderer_rid) {
+                // Render all pending commands first
+                renderer.render_all();
+
+                // Read pixels from GPU (this requires async, so we'll use block_on)
+                let bitmap = futures::executor::block_on(renderer.create_bitmap());
+
+                // Extract the requested region
+                extract_image_region(
+                    &bitmap,
+                    renderer.dimensions.width,
+                    renderer.dimensions.height,
+                    sx,
+                    sy,
+                    sw,
+                    sh,
+                )
+            } else {
+                vec![0u8; (sw * sh * 4) as usize]
+            }
+        } else {
+            vec![0u8; (sw * sh * 4) as usize]
+        };
+
+        let rid = res.images.push(ImageData {
+            width: sw,
+            height: sh,
+            data: Some(pixel_data),
+        });
+
+        Ok(Value::Integer(SmallInteger::from(rid.index() as i32)))
+    }
+
+    /// Internal op to put image data onto canvas
+    fn internal_canvas_put_image_data<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let canvas_rid =
+            Rid::from_index(args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32);
+        let image_data_rid =
+            Rid::from_index(args.get(1).to_int32(agent, gc.reborrow()).unbind()? as u32);
+        let dx = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let dy = args
+            .get(3)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        // Get image data and load it as a texture
+        if let Some(image_data) = res.images.get(image_data_rid) {
+            let width = image_data.width;
+            let height = image_data.height;
+
+            if let Some(data) = &image_data.data {
+                // Load the image data into a temporary texture
+                let renderer_rid = Rid::from_index(0); // Assume single renderer for now
+                if let Some(mut renderer) = res.renderers.get_mut(renderer_rid) {
+                    let temp_image_rid = u32::MAX; // Use special ID for temp texture
+                    renderer.load_image_texture(temp_image_rid, data, width, height);
+                }
+
+                // Add draw command
+                if let Some(mut canvas) = res.canvases.get_mut(canvas_rid) {
+                    canvas.commands.push(context2d::CanvasCommand::DrawImage {
+                        image_rid: u32::MAX,
+                        sx: 0.0,
+                        sy: 0.0,
+                        s_width: width as f64,
+                        s_height: height as f64,
+                        dx,
+                        dy,
+                        d_width: width as f64,
+                        d_height: height as f64,
+                    });
+                }
+            }
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to get ImageData width
+    fn internal_image_data_get_width<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid = Rid::from_index(args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+
+        let width = res.images.get(rid).map(|img| img.width).unwrap_or(0);
+        Ok(Value::Integer(SmallInteger::from(width as i32)))
+    }
+
+    /// Internal op to get ImageData height
+    fn internal_image_data_get_height<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid = Rid::from_index(args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+
+        let height = res.images.get(rid).map(|img| img.height).unwrap_or(0);
+        Ok(Value::Integer(SmallInteger::from(height as i32)))
+    }
+
+    /// Internal op to get ImageData pixel data as a Uint8ClampedArray
+    fn internal_image_data_get_data<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid = Rid::from_index(args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+
+        // For now, return empty array - full implementation would return Uint8ClampedArray
+        // This requires proper TypedArray support in the runtime
+        if let Some(image_data) = res.images.get(rid)
+            && let Some(data) = &image_data.data
+        {
+            // Convert to JSON array string as a temporary solution
+            let json = format!(
+                "[{}]",
+                data.iter()
+                    .map(|b| b.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            );
+            drop(storage); // Drop the borrow before creating the string
+            return Ok(Value::from_string(agent, json, gc.nogc()).unbind());
+        }
+        drop(storage); // Drop the borrow
+
+        Ok(Value::Undefined)
+    }
+}
+
+/// Helper function to extract a region from bitmap data
+fn extract_image_region(
+    bitmap: &[u8],
+    full_width: u32,
+    full_height: u32,
+    sx: u32,
+    sy: u32,
+    sw: u32,
+    sh: u32,
+) -> Vec<u8> {
+    let mut result = Vec::with_capacity((sw * sh * 4) as usize);
+
+    for y in 0..sh {
+        let src_y = sy + y;
+        if src_y >= full_height {
+            // Out of bounds, fill with transparent
+            result.extend(vec![0u8; (sw * 4) as usize]);
+            continue;
+        }
+
+        for x in 0..sw {
+            let src_x = sx + x;
+            if src_x >= full_width {
+                // Out of bounds, transparent pixel
+                result.extend_from_slice(&[0, 0, 0, 0]);
+            } else {
+                let idx = ((src_y * full_width + src_x) * 4) as usize;
+                if idx + 3 < bitmap.len() {
+                    result.extend_from_slice(&bitmap[idx..idx + 4]);
+                } else {
+                    result.extend_from_slice(&[0, 0, 0, 0]);
+                }
+            }
+        }
+    }
+
+    result
 }
 
 fn create_wgpu_device_sync() -> (wgpu::Device, wgpu::Queue) {

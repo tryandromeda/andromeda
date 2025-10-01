@@ -910,6 +910,60 @@ declare namespace __andromeda__ {
   ): void;
 
   /**
+   * The `internal_canvas_draw_image` function draws an image onto the canvas.
+   * Parameters: canvas_rid, image_rid, sx, sy, s_width, s_height, dx, dy, d_width, d_height
+   */
+  export function internal_canvas_draw_image(
+    canvas_rid: number,
+    image_rid: number,
+    sx: number,
+    sy: number,
+    s_width: number,
+    s_height: number,
+    dx: number,
+    dy: number,
+    d_width: number,
+    d_height: number,
+  ): void;
+
+  /**
+   * The `internal_canvas_create_image_data` function creates a new ImageData object with the specified dimensions.
+   * Returns the resource ID for the created ImageData.
+   */
+  export function internal_canvas_create_image_data(
+    width: number,
+    height: number,
+  ): number;
+
+  /**
+   * The `internal_canvas_get_image_data` function returns pixel data for a region of the canvas.
+   * Returns the resource ID for the created ImageData.
+   */
+  export function internal_canvas_get_image_data(
+    canvas_rid: number,
+    sx: number,
+    sy: number,
+    sw: number,
+    sh: number,
+  ): number;
+
+  /**
+   * The `internal_canvas_put_image_data` function paints data from an ImageData object onto the canvas.
+   */
+  export function internal_canvas_put_image_data(
+    canvas_rid: number,
+    image_data_rid: number,
+    dx: number,
+    dy: number,
+  ): void;
+
+  /**
+   * The `internal_image_data_get_data` function returns the pixel data of an ImageData object as a JSON array string.
+   * Returns a JSON string representation of the pixel data array.
+   */
+  export function internal_image_data_get_data(rid: number): string;
+
+  /**
    * The `internal_text_encode` function encodes a string into a byte sequence.
    */
   export function internal_text_encode(input: string): string;

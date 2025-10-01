@@ -17,6 +17,8 @@ pub struct Renderer {
 
     pub dimensions: Dimensions,
     pub commands: Vec<RenderCommand>,
+    /// Cache of loaded textures by image resource ID
+    pub texture_cache: std::collections::HashMap<u32, wgpu::Texture>,
 }
 
 const U32_SIZE: u32 = std::mem::size_of::<u32>() as u32;
@@ -161,13 +163,20 @@ impl Renderer {
                 entry_point: Some("vs_main"),
                 compilation_options: Default::default(),
                 buffers: &[wgpu::VertexBufferLayout {
-                    array_stride: 2 * 4,
+                    array_stride: 4 * 4, // 4 floats (x, y, u, v)
                     step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: &[wgpu::VertexAttribute {
-                        format: wgpu::VertexFormat::Float32x2,
-                        offset: 0,
-                        shader_location: 0,
-                    }],
+                    attributes: &[
+                        wgpu::VertexAttribute {
+                            format: wgpu::VertexFormat::Float32x2,
+                            offset: 0,
+                            shader_location: 0,
+                        },
+                        wgpu::VertexAttribute {
+                            format: wgpu::VertexFormat::Float32x2,
+                            offset: 8,
+                            shader_location: 1,
+                        },
+                    ],
                 }],
             },
             fragment: Some(wgpu::FragmentState {
@@ -271,6 +280,7 @@ impl Renderer {
             default_texture,
             dimensions,
             commands: vec![],
+            texture_cache: std::collections::HashMap::new(),
         }
     }
 
@@ -381,6 +391,24 @@ impl Renderer {
     }
 
     pub fn create_render_command(&mut self, data: RenderData) {
+        self.create_render_command_with_texture(data, None);
+    }
+
+    pub fn create_render_command_with_texture(
+        &mut self,
+        data: RenderData,
+        texture: Option<&wgpu::Texture>,
+    ) {
+        // Create texture view from texture if provided
+        let texture_view = texture.map(|t| t.create_view(&Default::default()));
+        self.create_render_command_with_texture_view(data, texture_view);
+    }
+
+    pub fn create_render_command_with_texture_view(
+        &mut self,
+        data: RenderData,
+        texture_view: Option<wgpu::TextureView>,
+    ) {
         let uniforms = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Uniforms"),
             mapped_at_creation: false,
@@ -407,8 +435,19 @@ impl Renderer {
             size: if vertex_len > 0 { vertex_len } else { 16 },
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX,
         });
-        self.queue
-            .write_buffer(&vertex, 0, &data.vertex.encode_gpu());
+        // Encode vertex data with UV padding (0, 0) for non-texture renders
+        let mut vertex_data_with_uv = Vec::new();
+        for coord in &data.vertex {
+            vertex_data_with_uv.extend_from_slice(&coord.0.to_ne_bytes());
+            vertex_data_with_uv.extend_from_slice(&coord.1.to_ne_bytes());
+            vertex_data_with_uv.extend_from_slice(&0.0f32.to_ne_bytes()); // u = 0
+            vertex_data_with_uv.extend_from_slice(&0.0f32.to_ne_bytes()); // v = 0
+        }
+        self.queue.write_buffer(&vertex, 0, &vertex_data_with_uv);
+
+        // Use provided texture view or create default
+        let final_texture_view =
+            texture_view.unwrap_or_else(|| self.default_texture.create_view(&Default::default()));
 
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
@@ -436,9 +475,7 @@ impl Renderer {
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
-                    resource: wgpu::BindingResource::TextureView(
-                        &self.default_texture.create_view(&Default::default()),
-                    ),
+                    resource: wgpu::BindingResource::TextureView(&final_texture_view),
                 },
             ],
         });
@@ -937,6 +974,243 @@ impl Renderer {
 
         // Render as polygon
         self.render_polygon(points, render_state);
+    }
+
+    /// Load image data into a GPU texture and cache it
+    pub fn load_image_texture(
+        &mut self,
+        image_rid: u32,
+        image_data: &[u8],
+        width: u32,
+        height: u32,
+    ) {
+        // TODO: image texture color isn't rendering correctly, appears very light
+        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some(&format!("Image Texture {}", image_rid)),
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            mip_level_count: 1,
+            sample_count: 1,
+            size: wgpu::Extent3d {
+                depth_or_array_layers: 1,
+                height,
+                width,
+            },
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        // Upload image data to texture
+        self.queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            image_data,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * width),
+                rows_per_image: Some(height),
+            },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        self.texture_cache.insert(image_rid, texture);
+    }
+
+    /// Render an image onto the canvas
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_image(
+        &mut self,
+        image_rid: u32,
+        sx: f64,
+        sy: f64,
+        s_width: f64,
+        s_height: f64,
+        dx: f64,
+        dy: f64,
+        d_width: f64,
+        d_height: f64,
+        render_state: &RenderState,
+    ) {
+        // Check if texture exists in cache
+        if !self.texture_cache.contains_key(&image_rid) {
+            return;
+        }
+
+        // Get texture data and create view before any mutable borrows
+        let (u_start, v_start, u_end, v_end, texture_view) = {
+            let texture = self.texture_cache.get(&image_rid).unwrap();
+            let texture_size = texture.size();
+            let u_start = (sx / texture_size.width as f64) as f32;
+            let v_start = (sy / texture_size.height as f64) as f32;
+            let u_end = ((sx + s_width) / texture_size.width as f64) as f32;
+            let v_end = ((sy + s_height) / texture_size.height as f64) as f32;
+
+            let view = texture.create_view(&Default::default());
+            (u_start, v_start, u_end, v_end, view)
+        };
+
+        // Transform destination rectangle corners
+        let top_left = transform_point(&Point { x: dx, y: dy }, &render_state.transform);
+        let top_right = transform_point(
+            &Point {
+                x: dx + d_width,
+                y: dy,
+            },
+            &render_state.transform,
+        );
+        let bottom_right = transform_point(
+            &Point {
+                x: dx + d_width,
+                y: dy + d_height,
+            },
+            &render_state.transform,
+        );
+        let bottom_left = transform_point(
+            &Point {
+                x: dx,
+                y: dy + d_height,
+            },
+            &render_state.transform,
+        );
+
+        // Convert to clip space
+        let tl = translate_coords(&top_left, &self.dimensions);
+        let tr = translate_coords(&top_right, &self.dimensions);
+        let br = translate_coords(&bottom_right, &self.dimensions);
+        let bl = translate_coords(&bottom_left, &self.dimensions);
+
+        // Create vertex data with UV coordinates using triangle strip with 4 vertices
+        // Order for triangle strip: TL, BL, TR, BR
+        let vertex_positions = [
+            (tl.0, tl.1), // Top-left
+            (bl.0, bl.1), // Bottom-left
+            (tr.0, tr.1), // Top-right
+            (br.0, br.1), // Bottom-right
+        ];
+
+        // UV coordinates in same order: TL, BL, TR, BR
+        // Images are stored with origin at top-left, so we flip V coordinates
+        let uvs = [
+            (u_start, v_end),   // Top-left (V flipped)
+            (u_start, v_start), // Bottom-left (V flipped)
+            (u_end, v_end),     // Top-right (V flipped)
+            (u_end, v_start),   // Bottom-right (V flipped)
+        ];
+
+        // Manually create vertex data with UVs
+        let mut vertex_data_with_uv = Vec::new();
+        for (i, pos) in vertex_positions.iter().enumerate() {
+            vertex_data_with_uv.extend_from_slice(&pos.0.to_ne_bytes());
+            vertex_data_with_uv.extend_from_slice(&pos.1.to_ne_bytes());
+            vertex_data_with_uv.extend_from_slice(&uvs[i].0.to_ne_bytes());
+            vertex_data_with_uv.extend_from_slice(&uvs[i].1.to_ne_bytes());
+        }
+
+        // Create render command with texture enabled
+        let fill_data = FillData {
+            uniforms: create_image_uniforms(render_state),
+            gradient: vec![],
+        };
+
+        // Create a custom render command for images
+        self.create_image_render_command(vertex_data_with_uv, fill_data, 4, texture_view);
+    }
+
+    /// Create a render command specifically for images with UV coordinates
+    fn create_image_render_command(
+        &mut self,
+        vertex_data: Vec<u8>,
+        fill_data: FillData,
+        length: u32,
+        texture_view: wgpu::TextureView,
+    ) {
+        let uniforms = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Uniforms"),
+            mapped_at_creation: false,
+            size: 160,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
+        });
+        self.queue
+            .write_buffer(&uniforms, 0, &fill_data.uniforms.encode_gpu());
+
+        let gradient = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Gradient"),
+            mapped_at_creation: false,
+            size: 32,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+        });
+
+        let vertex = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Vertex"),
+            mapped_at_creation: false,
+            size: vertex_data.len() as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX,
+        });
+        self.queue.write_buffer(&vertex, 0, &vertex_data);
+
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: None,
+            layout: &self.pipeline.get_bind_group_layout(0),
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &uniforms,
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &gradient,
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Sampler(&self.default_sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::TextureView(&texture_view),
+                },
+            ],
+        });
+
+        self.commands.push(RenderCommand {
+            vertex,
+            bind_group,
+            length,
+        });
+    }
+}
+
+/// Helper function to create uniforms for image rendering
+fn create_image_uniforms(render_state: &RenderState) -> Uniforms {
+    Uniforms {
+        color: [1.0, 1.0, 1.0, 1.0],
+        gradient_start: (0.0, 0.0),
+        gradient_end: (0.0, 0.0),
+        fill_style: 0,
+        global_alpha: render_state.global_alpha,
+        radius_start: 0.0,
+        radius_end: 0.0,
+        stroke_color: [0.0, 0.0, 0.0, 0.0],
+        stroke_width: 0.0,
+        is_stroke: 0,
+        transform: transform_to_mat3(&render_state.transform),
+        has_texture: 1,
+        composite_operation: render_state.composite_operation as u32,
     }
 }
 

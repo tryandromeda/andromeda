@@ -23,6 +23,18 @@ use nova_vm::{
 #[derive(Clone)]
 #[allow(dead_code)]
 pub enum CanvasCommand<'gc> {
+    /// Draw an image onto the canvas
+    DrawImage {
+        image_rid: u32,
+        sx: f64,
+        sy: f64,
+        s_width: f64,
+        s_height: f64,
+        dx: f64,
+        dy: f64,
+        d_width: f64,
+        d_height: f64,
+    },
     Arc {
         x: Number<'gc>,
         y: Number<'gc>,
@@ -1527,6 +1539,42 @@ pub fn process_all_commands<'gc>(
             | CanvasCommand::CreateConicGradient { .. } => {
                 // These commands would need more complex state management
                 // For now, we'll skip them in this basic implementation
+            }
+            CanvasCommand::DrawImage {
+                image_rid,
+                sx,
+                sy,
+                s_width,
+                s_height,
+                dx,
+                dy,
+                d_width,
+                d_height,
+            } => {
+                // Create render state for the image
+                let render_state = RenderState {
+                    fill_style: fill_style.clone(),
+                    global_alpha,
+                    transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0], // Use identity transform for now
+                    line_cap: LineCap::default(),
+                    line_join: LineJoin::default(),
+                    miter_limit: 10.0,
+                    composite_operation: CompositeOperation::default(),
+                };
+
+                // Render the image
+                renderer.render_image(
+                    *image_rid,
+                    *sx,
+                    *sy,
+                    *s_width,
+                    *s_height,
+                    *dx,
+                    *dy,
+                    *d_width,
+                    *d_height,
+                    &render_state,
+                );
             }
         }
     }
