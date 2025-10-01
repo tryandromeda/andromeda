@@ -314,7 +314,6 @@ pub fn check_file_content_with_config(
 
     let semantic_ret = SemanticBuilder::new()
         .with_check_syntax_error(true)
-        .with_build_jsdoc(true)
         .with_cfg(true)
         .build(program);
 

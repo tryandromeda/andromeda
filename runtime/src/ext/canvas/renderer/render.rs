@@ -12,6 +12,8 @@ pub struct Renderer {
     pub queue: wgpu::Queue,
     pub pipeline: wgpu::RenderPipeline,
     pub background: wgpu::Texture,
+    pub default_sampler: wgpu::Sampler,
+    pub default_texture: wgpu::Texture,
 
     pub dimensions: Dimensions,
     pub commands: Vec<RenderCommand>,
@@ -39,6 +41,8 @@ impl Renderer {
                 stroke_color,
                 stroke_width,
                 is_stroke: 1,
+                transform: transform_to_mat3(&render_state.transform),
+                has_texture: 0,
             },
             gradient: vec![],
         }
@@ -52,14 +56,35 @@ impl Renderer {
         stroke_width: f32,
     ) {
         let stroke_data = self.create_stroke_data(render_state, stroke_color, stroke_width);
-        let start = translate_coords(&rect.start, &self.dimensions);
-        let end = translate_coords(&rect.end, &self.dimensions);
+        // Apply transformation to all four corners
+        let top_left = transform_point(&rect.start, &render_state.transform);
+        let top_right = transform_point(
+            &Point {
+                x: rect.end.x,
+                y: rect.start.y,
+            },
+            &render_state.transform,
+        );
+        let bottom_right = transform_point(&rect.end, &render_state.transform);
+        let bottom_left = transform_point(
+            &Point {
+                x: rect.start.x,
+                y: rect.end.y,
+            },
+            &render_state.transform,
+        );
+
+        let tl = translate_coords(&top_left, &self.dimensions);
+        let tr = translate_coords(&top_right, &self.dimensions);
+        let br = translate_coords(&bottom_right, &self.dimensions);
+        let bl = translate_coords(&bottom_left, &self.dimensions);
+
         let vertex = vec![
-            (start.0, start.1),
-            (end.0, start.1),
-            (end.0, end.1),
-            (start.0, end.1),
-            (start.0, start.1), // close the loop
+            (tl.0, tl.1),
+            (tr.0, tr.1),
+            (br.0, br.1),
+            (bl.0, bl.1),
+            (tl.0, tl.1), // close the loop
         ];
         self.create_render_command(RenderData {
             vertex,
@@ -98,6 +123,22 @@ impl Renderer {
                         ty: wgpu::BufferBindingType::Storage { read_only: true },
                         has_dynamic_offset: false,
                         min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
                     },
                     count: None,
                 },
@@ -171,11 +212,62 @@ impl Renderer {
             view_formats: &[],
         });
 
+        // Create default sampler for texture operations
+        let default_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("Default Sampler"),
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        // Create a default 1x1 white texture for when no texture is being used
+        let default_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Default Texture"),
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            mip_level_count: 1,
+            sample_count: 1,
+            size: wgpu::Extent3d {
+                depth_or_array_layers: 1,
+                height: 1,
+                width: 1,
+            },
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        // Initialize the default texture with white color
+        queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &default_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            &[255u8, 255u8, 255u8, 255u8],
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(4),
+                rows_per_image: Some(1),
+            },
+            wgpu::Extent3d {
+                width: 1,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+        );
+
         Self {
             device,
             queue,
             pipeline,
             background,
+            default_sampler,
+            default_texture,
             dimensions,
             commands: vec![],
         }
@@ -291,7 +383,7 @@ impl Renderer {
         let uniforms = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Uniforms"),
             mapped_at_creation: false,
-            size: 80,
+            size: 144, // Size required by shader with mat3x3f alignment (each column aligned to vec4)
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
         });
         self.queue
@@ -337,6 +429,16 @@ impl Renderer {
                         size: None,
                     }),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Sampler(&self.default_sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::TextureView(
+                        &self.default_texture.create_view(&Default::default()),
+                    ),
+                },
             ],
         });
 
@@ -361,6 +463,8 @@ impl Renderer {
                     stroke_color: [0.0, 0.0, 0.0, 0.0],
                     stroke_width: 0.0,
                     is_stroke: 0,
+                    transform: transform_to_mat3(&render_state.transform),
+                    has_texture: 0,
                 },
                 gradient: vec![],
             },
@@ -376,6 +480,8 @@ impl Renderer {
                     stroke_color: [0.0, 0.0, 0.0, 0.0],
                     stroke_width: 0.0,
                     is_stroke: 0,
+                    transform: transform_to_mat3(&render_state.transform),
+                    has_texture: 0,
                 },
                 gradient: gradient.color_stops.clone(),
             },
@@ -391,6 +497,8 @@ impl Renderer {
                     stroke_color: [0.0, 0.0, 0.0, 0.0],
                     stroke_width: 0.0,
                     is_stroke: 0,
+                    transform: transform_to_mat3(&render_state.transform),
+                    has_texture: 0,
                 },
                 gradient: gradient.color_stops.clone(),
             },
@@ -406,6 +514,8 @@ impl Renderer {
                     stroke_color: [0.0, 0.0, 0.0, 0.0],
                     stroke_width: 0.0,
                     is_stroke: 0,
+                    transform: transform_to_mat3(&render_state.transform),
+                    has_texture: 0,
                 },
                 gradient: gradient.color_stops.clone(),
             },
@@ -440,14 +550,30 @@ impl Renderer {
 
     pub fn render_rect(&mut self, rect: Rect, render_state: &RenderState) {
         let fill_data = self.create_fill_data(render_state);
-        let start = translate_coords(&rect.start, &self.dimensions);
-        let end = translate_coords(&rect.end, &self.dimensions);
-        let vertex = vec![
-            (start.0, start.1),
-            (start.0, end.1),
-            (end.0, start.1),
-            (end.0, end.1),
-        ];
+        // Apply transformation to all four corners of the rectangle
+        let top_left = transform_point(&rect.start, &render_state.transform);
+        let bottom_right = transform_point(&rect.end, &render_state.transform);
+        let top_right = transform_point(
+            &Point {
+                x: rect.end.x,
+                y: rect.start.y,
+            },
+            &render_state.transform,
+        );
+        let bottom_left = transform_point(
+            &Point {
+                x: rect.start.x,
+                y: rect.end.y,
+            },
+            &render_state.transform,
+        );
+
+        let tl = translate_coords(&top_left, &self.dimensions);
+        let tr = translate_coords(&top_right, &self.dimensions);
+        let bl = translate_coords(&bottom_left, &self.dimensions);
+        let br = translate_coords(&bottom_right, &self.dimensions);
+
+        let vertex = vec![(tl.0, tl.1), (bl.0, bl.1), (tr.0, tr.1), (br.0, br.1)];
 
         self.create_render_command(RenderData {
             vertex,
@@ -471,9 +597,13 @@ impl Renderer {
             }
             data.push(&polygon[(polygon.len() - 1) / 2]);
         };
+        // Apply transformation to each point before translating to clip space
         let vertex = data
             .iter()
-            .map(|point| translate_coords(point, &self.dimensions))
+            .map(|point| {
+                let transformed = transform_point(point, &render_state.transform);
+                translate_coords(&transformed, &self.dimensions)
+            })
             .collect::<Vec<Coordinate>>();
 
         self.create_render_command(RenderData {

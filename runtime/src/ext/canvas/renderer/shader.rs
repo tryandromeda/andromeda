@@ -21,27 +21,45 @@ struct Uniforms {
     stroke_color: vec4f,
     stroke_width: f32,
     is_stroke: u32,
+    // Transformation matrix: [a, b, c, d, e, f]
+    // Represents: | a c e |
+    //             | b d f |
+    //             | 0 0 1 |
+    transform: mat3x3f,
+    has_texture: u32,
 };
 
 struct VertexOutput {
     @builtin(position) position: vec4f,
+    @location(0) tex_coord: vec2f,
 };
 
 @group(0) @binding(0)
 var<uniform> uniforms: Uniforms;
 @group(0) @binding(1)
 var<storage, read> gradient: array<ColorStop>;
+@group(0) @binding(2)
+var texture_sampler: sampler;
+@group(0) @binding(3)
+var texture: texture_2d<f32>;
 
 @vertex
 fn vs_main(@location(0) position: vec2f) -> VertexOutput {
     var out: VertexOutput;
     out.position = vec4f(position, 0.0, 1.0);
+    out.tex_coord = (position + 1.0) * 0.5;
     return out;
 }
 
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+    // Handle texture sampling for images
+    if (uniforms.has_texture == 1u) {
+        let tex_color = textureSample(texture, texture_sampler, in.tex_coord);
+        return vec4f(tex_color.rgb, tex_color.a * uniforms.global_alpha);
+    }
+    
     if (uniforms.is_stroke == 1u) {
         var color = uniforms.stroke_color;
         color.w *= uniforms.global_alpha;
@@ -128,6 +146,8 @@ pub struct Uniforms {
     pub stroke_color: Color,
     pub stroke_width: f32,
     pub is_stroke: u32,
+    pub transform: [f32; 12], // 3x3 matrix stored as 3 vec4s for alignment
+    pub has_texture: u32,
 }
 
 pub trait EncodeGPU {
@@ -185,18 +205,26 @@ impl EncodeGPU for Vec<ColorStop> {
 
 impl EncodeGPU for Uniforms {
     fn encode_gpu(&self) -> Vec<u8> {
-        [
-            self.color.encode_gpu(),
-            self.gradient_start.encode_gpu(),
-            self.gradient_end.encode_gpu(),
-            self.fill_style.to_ne_bytes().to_vec(),
-            self.global_alpha.to_ne_bytes().to_vec(),
-            self.radius_start.to_ne_bytes().to_vec(),
-            self.radius_end.to_ne_bytes().to_vec(),
-            self.stroke_color.encode_gpu(),
-            self.stroke_width.to_ne_bytes().to_vec(),
-            self.is_stroke.to_ne_bytes().to_vec(),
-        ]
-        .concat()
+        let mut bytes = Vec::new();
+        bytes.extend(self.color.encode_gpu());
+        bytes.extend(self.gradient_start.encode_gpu());
+        bytes.extend(self.gradient_end.encode_gpu());
+        bytes.extend(self.fill_style.to_ne_bytes());
+        bytes.extend(self.global_alpha.to_ne_bytes());
+        bytes.extend(self.radius_start.to_ne_bytes());
+        bytes.extend(self.radius_end.to_ne_bytes());
+        bytes.extend(self.stroke_color.encode_gpu());
+        bytes.extend(self.stroke_width.to_ne_bytes());
+        bytes.extend(self.is_stroke.to_ne_bytes());
+        // Encode transformation matrix (3x3 as vec4s for alignment)
+        for &val in &self.transform {
+            bytes.extend(val.to_ne_bytes());
+        }
+        bytes.extend(self.has_texture.to_ne_bytes());
+        // Add padding to reach 144 bytes total (shader alignment requirement)
+        while bytes.len() < 144 {
+            bytes.push(0);
+        }
+        bytes
     }
 }

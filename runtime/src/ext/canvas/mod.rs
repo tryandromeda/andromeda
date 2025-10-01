@@ -15,7 +15,7 @@ use crate::ext::canvas::context2d::{
 };
 use crate::ext::canvas::fill_style::{ConicGradient, LinearGradient, RadialGradient};
 use crate::ext::canvas::path2d::{FillRule, Path2D};
-use crate::ext::canvas::renderer::{ColorStop, Point, Rect, RenderState};
+use crate::ext::canvas::renderer::{ColorStop, LineCap, LineJoin, Point, Rect, RenderState};
 pub use fill_style::FillStyle;
 
 use crate::ext::canvas::context2d::{
@@ -1895,6 +1895,10 @@ impl CanvasExt {
             let render_state = RenderState {
                 fill_style: stroke_style,
                 global_alpha: canvas.global_alpha,
+                transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                line_cap: LineCap::default(),
+                line_join: LineJoin::default(),
+                miter_limit: 10.0,
             };
 
             renderer.render_stroke_rect(rect, &render_state, stroke_color, line_width as f32);
