@@ -7,7 +7,7 @@ use super::FillStyle;
 use super::Rid;
 use super::renderer::{Point, Rect};
 use crate::RuntimeMacroTask;
-use crate::ext::canvas::renderer::RenderState;
+use crate::ext::canvas::renderer::{LineCap, LineJoin, RenderState};
 use andromeda_core::HostData;
 use nova_vm::ecmascript::types::Number;
 use nova_vm::{
@@ -459,6 +459,10 @@ pub fn internal_canvas_clear_rect<'gc>(
                     a: 0.0,
                 },
                 global_alpha: 1.0,
+                transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                line_cap: LineCap::default(),
+                line_join: LineJoin::default(),
+                miter_limit: 10.0,
             },
         );
     } else {
@@ -560,6 +564,10 @@ pub fn internal_canvas_fill_rect<'gc>(
             &RenderState {
                 fill_style: data.fill_style,
                 global_alpha: data.global_alpha,
+                transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                line_cap: LineCap::default(),
+                line_join: LineJoin::default(),
+                miter_limit: 10.0,
             },
         );
     } else {
@@ -692,6 +700,10 @@ pub fn internal_canvas_fill<'gc>(
                 &RenderState {
                     fill_style: data.fill_style,
                     global_alpha: data.global_alpha,
+                    transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                    line_cap: LineCap::default(),
+                    line_join: LineJoin::default(),
+                    miter_limit: 10.0,
                 },
             );
         }
@@ -735,6 +747,10 @@ pub fn internal_canvas_stroke<'gc>(
                 &RenderState {
                     fill_style: data.stroke_style,
                     global_alpha: data.global_alpha,
+                    transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                    line_cap: LineCap::default(),
+                    line_join: LineJoin::default(),
+                    miter_limit: 10.0,
                 },
             );
         }
@@ -1150,6 +1166,9 @@ pub fn internal_canvas_save<'gc>(
         transform: data.transform,
         line_dash: data.line_dash.clone(),
         line_dash_offset: data.line_dash_offset,
+        line_cap: LineCap::default(),
+        line_join: LineJoin::default(),
+        miter_limit: 10.0,
     };
     data.state_stack.push(current_state);
 
@@ -1336,6 +1355,10 @@ pub fn process_all_commands<'gc>(
                         &RenderState {
                             fill_style: fill_style.clone(),
                             global_alpha,
+                            transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                            line_cap: LineCap::default(),
+                            line_join: LineJoin::default(),
+                            miter_limit: 10.0,
                         },
                     );
                 }
@@ -1347,6 +1370,10 @@ pub fn process_all_commands<'gc>(
                         &RenderState {
                             fill_style: stroke_style.clone(),
                             global_alpha,
+                            transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                            line_cap: LineCap::default(),
+                            line_join: LineJoin::default(),
+                            miter_limit: 10.0,
                         },
                         line_width,
                     );
@@ -1375,6 +1402,10 @@ pub fn process_all_commands<'gc>(
                     &RenderState {
                         fill_style: fill_style.clone(),
                         global_alpha,
+                        transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                        line_cap: LineCap::default(),
+                        line_join: LineJoin::default(),
+                        miter_limit: 10.0,
                     },
                 );
             }
@@ -1411,6 +1442,10 @@ pub fn process_all_commands<'gc>(
                     &RenderState {
                         fill_style: stroke_style.clone(),
                         global_alpha,
+                        transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                        line_cap: LineCap::default(),
+                        line_join: LineJoin::default(),
+                        miter_limit: 10.0,
                     },
                     line_width,
                 );
@@ -1444,6 +1479,10 @@ pub fn process_all_commands<'gc>(
                             a: 1.0,
                         },
                         global_alpha: 1.0,
+                        transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                        line_cap: LineCap::default(),
+                        line_join: LineJoin::default(),
+                        miter_limit: 10.0,
                     },
                 ); // White background
             }
