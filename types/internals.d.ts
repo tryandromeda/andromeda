@@ -561,6 +561,23 @@ declare namespace __andromeda__ {
   ): void;
 
   /**
+   * The `internal_canvas_get_global_composite_operation` function gets the current global composite operation of the canvas context.
+   * Returns the composite operation as a string (e.g., "source-over", "multiply", "screen", etc.).
+   */
+  export function internal_canvas_get_global_composite_operation(
+    rid: number,
+  ): string;
+
+  /**
+   * The `internal_canvas_set_global_composite_operation` function sets the global composite operation of the canvas context.
+   * Accepts composite operation names like 'source-over', 'multiply', 'screen', 'overlay', etc.
+   */
+  export function internal_canvas_set_global_composite_operation(
+    rid: number,
+    operation: string,
+  ): void;
+
+  /**
    * The `internal_image_bitmap_create` function creates an ImageBitmap resource and returns its Rid.
    */
   export function internal_image_bitmap_create(path: string): number;

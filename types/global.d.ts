@@ -679,6 +679,8 @@ declare class CanvasRenderingContext2D {
   lineWidth: number;
   /** Gets or sets the global alpha value (transparency) for drawing operations. Values range from 0.0 (transparent) to 1.0 (opaque). */
   globalAlpha: number;
+  /** Gets or sets the type of compositing operation to apply when drawing new shapes. Valid values include 'source-over', 'source-in', 'source-out', 'source-atop', 'destination-over', 'destination-in', 'destination-out', 'destination-atop', 'lighter', 'copy', 'xor', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', and 'luminosity'. Default is 'source-over'. */
+  globalCompositeOperation: string;
   /** Creates an arc/curve on the canvas context. */
   arc(
     x: number,

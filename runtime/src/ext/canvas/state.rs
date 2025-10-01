@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::FillStyle;
-use crate::ext::canvas::renderer::{LineCap, LineJoin};
+use crate::ext::canvas::renderer::{CompositeOperation, LineCap, LineJoin};
 
 /// Canvas drawing state that can be saved and restored
 #[derive(Clone)]
@@ -18,6 +18,7 @@ pub struct CanvasState {
     pub line_cap: LineCap,
     pub line_join: LineJoin,
     pub miter_limit: f64,
+    pub composite_operation: CompositeOperation,
 }
 
 impl Default for CanvasState {
@@ -50,6 +51,7 @@ impl CanvasState {
             line_cap: LineCap::default(),
             line_join: LineJoin::default(),
             miter_limit: 10.0,
+            composite_operation: CompositeOperation::default(),
         }
     }
 }

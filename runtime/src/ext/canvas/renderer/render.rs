@@ -43,6 +43,7 @@ impl Renderer {
                 is_stroke: 1,
                 transform: transform_to_mat3(&render_state.transform),
                 has_texture: 0,
+                composite_operation: render_state.composite_operation as u32,
             },
             gradient: vec![],
         }
@@ -383,7 +384,7 @@ impl Renderer {
         let uniforms = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Uniforms"),
             mapped_at_creation: false,
-            size: 144, // Size required by shader with mat3x3f alignment (each column aligned to vec4)
+            size: 160, // Size required by shader with composite_operation field added
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
         });
         self.queue
@@ -465,6 +466,7 @@ impl Renderer {
                     is_stroke: 0,
                     transform: transform_to_mat3(&render_state.transform),
                     has_texture: 0,
+                    composite_operation: render_state.composite_operation as u32,
                 },
                 gradient: vec![],
             },
@@ -482,6 +484,7 @@ impl Renderer {
                     is_stroke: 0,
                     transform: transform_to_mat3(&render_state.transform),
                     has_texture: 0,
+                    composite_operation: render_state.composite_operation as u32,
                 },
                 gradient: gradient.color_stops.clone(),
             },
@@ -499,6 +502,7 @@ impl Renderer {
                     is_stroke: 0,
                     transform: transform_to_mat3(&render_state.transform),
                     has_texture: 0,
+                    composite_operation: render_state.composite_operation as u32,
                 },
                 gradient: gradient.color_stops.clone(),
             },
@@ -516,6 +520,7 @@ impl Renderer {
                     is_stroke: 0,
                     transform: transform_to_mat3(&render_state.transform),
                     has_texture: 0,
+                    composite_operation: render_state.composite_operation as u32,
                 },
                 gradient: gradient.color_stops.clone(),
             },

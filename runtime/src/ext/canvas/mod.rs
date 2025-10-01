@@ -56,6 +56,8 @@ struct CanvasData<'gc> {
     state_stack: Vec<state::CanvasState>,
     // Transformation matrix [a, b, c, d, e, f]
     transform: [f64; 6],
+    // Composite operation for blending
+    composite_operation: renderer::CompositeOperation,
 }
 
 struct CanvasResources<'gc> {
@@ -215,6 +217,18 @@ impl CanvasExt {
                 ExtensionOp::new(
                     "internal_canvas_set_global_alpha",
                     Self::internal_canvas_set_global_alpha,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_global_composite_operation",
+                    Self::internal_canvas_get_global_composite_operation,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_set_global_composite_operation",
+                    Self::internal_canvas_set_global_composite_operation,
                     2,
                     false,
                 ),
@@ -450,6 +464,8 @@ impl CanvasExt {
             state_stack: Vec::new(),
             // Identity transformation matrix
             transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+            // Default composite operation is source-over
+            composite_operation: renderer::CompositeOperation::default(),
         });
 
         // Create renderer with GPU device
@@ -487,6 +503,29 @@ impl CanvasExt {
         Ok(Value::from_f64(agent, global_alpha as f64, gc.nogc()).unbind())
     }
 
+    /// Internal op to get the current globalCompositeOperation of a canvas context
+    #[allow(dead_code)]
+    fn internal_canvas_get_global_composite_operation<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let data = res.canvases.get(rid).unwrap();
+        let composite_op_str = data.composite_operation.as_str();
+        drop(storage);
+
+        Ok(Value::from_string(agent, composite_op_str.to_string(), gc.nogc()).unbind())
+    }
+
     /// Internal op to set the globalAlpha of a canvas context
     #[allow(dead_code)]
     fn internal_canvas_set_global_alpha<'gc>(
@@ -511,6 +550,37 @@ impl CanvasExt {
         let res: &mut CanvasResources = storage.get_mut().unwrap();
         let mut data = res.canvases.get_mut(rid).unwrap();
         data.global_alpha = alpha;
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to set the globalCompositeOperation of a canvas context
+    #[allow(dead_code)]
+    fn internal_canvas_set_global_composite_operation<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+
+        // Get the string value for the composite operation
+        let op_str_val = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+        let op_str = op_str_val.as_str(agent).map(|s| s.to_string());
+
+        if let Some(op_string) = op_str
+            && let Ok(composite_op) = op_string.parse::<renderer::CompositeOperation>()
+        {
+            let host_data = agent
+                .get_host_data()
+                .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+                .unwrap();
+            let mut storage = host_data.storage.borrow_mut();
+            let res: &mut CanvasResources = storage.get_mut().unwrap();
+            let mut data = res.canvases.get_mut(rid).unwrap();
+            data.composite_operation = composite_op;
+        }
+
         Ok(Value::Undefined)
     }
 
@@ -1899,6 +1969,7 @@ impl CanvasExt {
                 line_cap: LineCap::default(),
                 line_join: LineJoin::default(),
                 miter_limit: 10.0,
+                composite_operation: renderer::CompositeOperation::default(),
             };
 
             renderer.render_stroke_rect(rect, &render_state, stroke_color, line_width as f32);

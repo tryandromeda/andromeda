@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::FillStyle;
+use std::str::FromStr;
 
 #[derive(Clone, Debug)]
 pub struct Dimensions {
@@ -44,6 +45,108 @@ pub enum LineJoin {
     Miter,
 }
 
+/// Canvas composite operations (blend modes)
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub enum CompositeOperation {
+    #[default]
+    SourceOver = 0,
+    SourceIn = 1,
+    SourceOut = 2,
+    SourceAtop = 3,
+    DestinationOver = 4,
+    DestinationIn = 5,
+    DestinationOut = 6,
+    DestinationAtop = 7,
+    Lighter = 8,
+    Copy = 9,
+    Xor = 10,
+    Multiply = 11,
+    Screen = 12,
+    Overlay = 13,
+    Darken = 14,
+    Lighten = 15,
+    ColorDodge = 16,
+    ColorBurn = 17,
+    HardLight = 18,
+    SoftLight = 19,
+    Difference = 20,
+    Exclusion = 21,
+    Hue = 22,
+    Saturation = 23,
+    Color = 24,
+    Luminosity = 25,
+}
+
+impl FromStr for CompositeOperation {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "source-over" => Ok(Self::SourceOver),
+            "source-in" => Ok(Self::SourceIn),
+            "source-out" => Ok(Self::SourceOut),
+            "source-atop" => Ok(Self::SourceAtop),
+            "destination-over" => Ok(Self::DestinationOver),
+            "destination-in" => Ok(Self::DestinationIn),
+            "destination-out" => Ok(Self::DestinationOut),
+            "destination-atop" => Ok(Self::DestinationAtop),
+            "lighter" => Ok(Self::Lighter),
+            "copy" => Ok(Self::Copy),
+            "xor" => Ok(Self::Xor),
+            "multiply" => Ok(Self::Multiply),
+            "screen" => Ok(Self::Screen),
+            "overlay" => Ok(Self::Overlay),
+            "darken" => Ok(Self::Darken),
+            "lighten" => Ok(Self::Lighten),
+            "color-dodge" => Ok(Self::ColorDodge),
+            "color-burn" => Ok(Self::ColorBurn),
+            "hard-light" => Ok(Self::HardLight),
+            "soft-light" => Ok(Self::SoftLight),
+            "difference" => Ok(Self::Difference),
+            "exclusion" => Ok(Self::Exclusion),
+            "hue" => Ok(Self::Hue),
+            "saturation" => Ok(Self::Saturation),
+            "color" => Ok(Self::Color),
+            "luminosity" => Ok(Self::Luminosity),
+            _ => Err(()),
+        }
+    }
+}
+
+impl CompositeOperation {
+    /// Convert to string representation
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::SourceOver => "source-over",
+            Self::SourceIn => "source-in",
+            Self::SourceOut => "source-out",
+            Self::SourceAtop => "source-atop",
+            Self::DestinationOver => "destination-over",
+            Self::DestinationIn => "destination-in",
+            Self::DestinationOut => "destination-out",
+            Self::DestinationAtop => "destination-atop",
+            Self::Lighter => "lighter",
+            Self::Copy => "copy",
+            Self::Xor => "xor",
+            Self::Multiply => "multiply",
+            Self::Screen => "screen",
+            Self::Overlay => "overlay",
+            Self::Darken => "darken",
+            Self::Lighten => "lighten",
+            Self::ColorDodge => "color-dodge",
+            Self::ColorBurn => "color-burn",
+            Self::HardLight => "hard-light",
+            Self::SoftLight => "soft-light",
+            Self::Difference => "difference",
+            Self::Exclusion => "exclusion",
+            Self::Hue => "hue",
+            Self::Saturation => "saturation",
+            Self::Color => "color",
+            Self::Luminosity => "luminosity",
+        }
+    }
+}
+
 pub struct RenderState {
     pub fill_style: FillStyle,
     pub global_alpha: f32,
@@ -51,6 +154,7 @@ pub struct RenderState {
     pub line_cap: LineCap,
     pub line_join: LineJoin,
     pub miter_limit: f64,
+    pub composite_operation: CompositeOperation,
 }
 
 impl Default for RenderState {
@@ -62,6 +166,7 @@ impl Default for RenderState {
             line_cap: LineCap::default(),
             line_join: LineJoin::default(),
             miter_limit: 10.0,
+            composite_operation: CompositeOperation::default(),
         }
     }
 }

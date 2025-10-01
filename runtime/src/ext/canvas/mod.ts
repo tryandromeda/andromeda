@@ -267,6 +267,28 @@ class CanvasRenderingContext2D {
   }
 
   /**
+   * Gets or sets the type of compositing operation to apply when drawing new shapes.
+   * Valid values include: 'source-over', 'source-in', 'source-out', 'source-atop',
+   * 'destination-over', 'destination-in', 'destination-out', 'destination-atop',
+   * 'lighter', 'copy', 'xor', 'multiply', 'screen', 'overlay', 'darken', 'lighten',
+   * 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion',
+   * 'hue', 'saturation', 'color', 'luminosity'.
+   * Default is 'source-over'.
+   */
+  get globalCompositeOperation(): string {
+    return __andromeda__.internal_canvas_get_global_composite_operation(
+      this.#rid,
+    );
+  }
+
+  set globalCompositeOperation(value: string) {
+    __andromeda__.internal_canvas_set_global_composite_operation(
+      this.#rid,
+      value,
+    );
+  }
+
+  /**
    * Gets or sets the current fill style for drawing operations.
    * Accepts CSS color strings like '#ff0000', 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'red', etc.
    */
