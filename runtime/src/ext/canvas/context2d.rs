@@ -7,7 +7,7 @@ use super::FillStyle;
 use super::Rid;
 use super::renderer::{Point, Rect};
 use crate::RuntimeMacroTask;
-use crate::ext::canvas::renderer::{LineCap, LineJoin, RenderState};
+use crate::ext::canvas::renderer::{CompositeOperation, LineCap, LineJoin, RenderState};
 use andromeda_core::HostData;
 use nova_vm::ecmascript::types::Number;
 use nova_vm::{
@@ -463,6 +463,7 @@ pub fn internal_canvas_clear_rect<'gc>(
                 line_cap: LineCap::default(),
                 line_join: LineJoin::default(),
                 miter_limit: 10.0,
+                composite_operation: CompositeOperation::default(),
             },
         );
     } else {
@@ -568,6 +569,7 @@ pub fn internal_canvas_fill_rect<'gc>(
                 line_cap: LineCap::default(),
                 line_join: LineJoin::default(),
                 miter_limit: 10.0,
+                composite_operation: CompositeOperation::default(),
             },
         );
     } else {
@@ -704,6 +706,7 @@ pub fn internal_canvas_fill<'gc>(
                     line_cap: LineCap::default(),
                     line_join: LineJoin::default(),
                     miter_limit: 10.0,
+                    composite_operation: data.composite_operation,
                 },
             );
         }
@@ -751,6 +754,7 @@ pub fn internal_canvas_stroke<'gc>(
                     line_cap: LineCap::default(),
                     line_join: LineJoin::default(),
                     miter_limit: 10.0,
+                    composite_operation: data.composite_operation,
                 },
             );
         }
@@ -1169,6 +1173,7 @@ pub fn internal_canvas_save<'gc>(
         line_cap: LineCap::default(),
         line_join: LineJoin::default(),
         miter_limit: 10.0,
+        composite_operation: data.composite_operation,
     };
     data.state_stack.push(current_state);
 
@@ -1205,6 +1210,7 @@ pub fn internal_canvas_restore<'gc>(
         data.transform = saved_state.transform;
         data.line_dash = saved_state.line_dash;
         data.line_dash_offset = saved_state.line_dash_offset;
+        data.composite_operation = saved_state.composite_operation;
     }
 
     // Add restore command to command list
@@ -1359,6 +1365,7 @@ pub fn process_all_commands<'gc>(
                             line_cap: LineCap::default(),
                             line_join: LineJoin::default(),
                             miter_limit: 10.0,
+                            composite_operation: CompositeOperation::default(),
                         },
                     );
                 }
@@ -1374,6 +1381,7 @@ pub fn process_all_commands<'gc>(
                             line_cap: LineCap::default(),
                             line_join: LineJoin::default(),
                             miter_limit: 10.0,
+                            composite_operation: CompositeOperation::default(),
                         },
                         line_width,
                     );
@@ -1406,6 +1414,7 @@ pub fn process_all_commands<'gc>(
                         line_cap: LineCap::default(),
                         line_join: LineJoin::default(),
                         miter_limit: 10.0,
+                        composite_operation: CompositeOperation::default(),
                     },
                 );
             }
@@ -1446,6 +1455,7 @@ pub fn process_all_commands<'gc>(
                         line_cap: LineCap::default(),
                         line_join: LineJoin::default(),
                         miter_limit: 10.0,
+                        composite_operation: CompositeOperation::default(),
                     },
                     line_width,
                 );
@@ -1483,6 +1493,7 @@ pub fn process_all_commands<'gc>(
                         line_cap: LineCap::default(),
                         line_join: LineJoin::default(),
                         miter_limit: 10.0,
+                        composite_operation: CompositeOperation::default(),
                     },
                 ); // White background
             }
