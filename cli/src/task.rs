@@ -157,10 +157,18 @@ impl TaskRunner {
         let command_str = task.command();
 
         // Set up working directory
+        // If task specifies a cwd, resolve it relative to the config directory
+        // Otherwise, use the current working directory where the user invoked the command
         let working_dir = if let Some(cwd) = task.cwd() {
             self.config_dir.join(cwd)
         } else {
-            self.config_dir.clone()
+            std::env::current_dir().map_err(|e| {
+                Box::new(AndromedaError::config_error(
+                    "Failed to get current working directory".to_string(),
+                    None,
+                    Some(e),
+                ))
+            })?
         };
 
         // Parse and execute the command
