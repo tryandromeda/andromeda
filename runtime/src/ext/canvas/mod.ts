@@ -290,19 +290,21 @@ class CanvasRenderingContext2D {
 
   /**
    * Gets or sets the current fill style for drawing operations.
-   * Accepts CSS color strings like '#ff0000', 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'red', etc.
+   * Accepts CSS color strings like '#ff0000', 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'red', etc.,
+   * or CanvasGradient/CanvasPattern objects.
    */
-  get fillStyle(): string | CanvasGradient {
+  get fillStyle(): string | CanvasGradient | CanvasPattern {
     const fillStyle = __andromeda__.internal_canvas_get_fill_style(this.#rid);
-    if (typeof fillStyle == "number") {
+    if (typeof fillStyle === "number") {
+      // For now, assume all numbers are gradients
+      // TODO: Distinguish between gradients and patterns
       return new CanvasGradient(fillStyle);
-    } else {
-      return fillStyle;
     }
+    return fillStyle as string;
   }
 
-  set fillStyle(value: string | CanvasGradient) {
-    if (typeof value == "string") {
+  set fillStyle(value: string | CanvasGradient | CanvasPattern) {
+    if (typeof value === "string") {
       __andromeda__.internal_canvas_set_fill_style(this.#rid, value);
     } else {
       __andromeda__.internal_canvas_set_fill_style(this.#rid, value[_fillId]);
@@ -310,14 +312,28 @@ class CanvasRenderingContext2D {
   }
   /**
    * Gets or sets the current stroke style for drawing operations.
-   * Accepts CSS color strings like '#ff0000', 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'red', etc.
+   * Accepts CSS color strings like '#ff0000', 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'red', etc.,
+   * or CanvasGradient/CanvasPattern objects.
    */
-  get strokeStyle(): string {
-    return __andromeda__.internal_canvas_get_stroke_style(this.#rid);
+  get strokeStyle(): string | CanvasGradient | CanvasPattern {
+    const strokeStyle = __andromeda__.internal_canvas_get_stroke_style(
+      this.#rid,
+    );
+    if (typeof strokeStyle === "number") {
+      // For now, assume all numbers are gradients
+      // TODO: Distinguish between gradients and patterns
+      return new CanvasGradient(strokeStyle);
+    }
+    return strokeStyle as string;
   }
 
-  set strokeStyle(value: string) {
-    __andromeda__.internal_canvas_set_stroke_style(this.#rid, value);
+  set strokeStyle(value: string | CanvasGradient | CanvasPattern) {
+    if (typeof value === "string") {
+      __andromeda__.internal_canvas_set_stroke_style(this.#rid, value);
+    } else {
+      // @ts-ignore - internal_canvas_set_stroke_style accepts numbers for gradients/patterns
+      __andromeda__.internal_canvas_set_stroke_style(this.#rid, value[_fillId]);
+    }
   }
   /**
    * Gets or sets the line width for drawing operations.
@@ -369,6 +385,51 @@ class CanvasRenderingContext2D {
   set lineDashOffset(value: number) {
     const info = this.getLineDash();
     this.setLineDash(info[0], value);
+  }
+
+  /**
+   * Gets or sets the shadow blur amount.
+   */
+  get shadowBlur(): number {
+    return __andromeda__.internal_canvas_get_shadow_blur(this.#rid);
+  }
+
+  set shadowBlur(value: number) {
+    __andromeda__.internal_canvas_set_shadow_blur(this.#rid, value);
+  }
+
+  /**
+   * Gets or sets the shadow color.
+   * Accepts CSS color strings like '#000000', 'rgba(0, 0, 0, 0.5)', 'black', etc.
+   */
+  get shadowColor(): string {
+    return __andromeda__.internal_canvas_get_shadow_color(this.#rid);
+  }
+
+  set shadowColor(value: string) {
+    __andromeda__.internal_canvas_set_shadow_color(this.#rid, value);
+  }
+
+  /**
+   * Gets or sets the shadow offset in the X direction.
+   */
+  get shadowOffsetX(): number {
+    return __andromeda__.internal_canvas_get_shadow_offset_x(this.#rid);
+  }
+
+  set shadowOffsetX(value: number) {
+    __andromeda__.internal_canvas_set_shadow_offset_x(this.#rid, value);
+  }
+
+  /**
+   * Gets or sets the shadow offset in the Y direction.
+   */
+  get shadowOffsetY(): number {
+    return __andromeda__.internal_canvas_get_shadow_offset_y(this.#rid);
+  }
+
+  set shadowOffsetY(value: number) {
+    __andromeda__.internal_canvas_set_shadow_offset_y(this.#rid, value);
   }
 
   /**
@@ -493,6 +554,41 @@ class CanvasRenderingContext2D {
       y,
     );
     return new CanvasGradient(rid);
+  }
+
+  /**
+   * Creates a pattern using the specified image and repetition.
+   * @param image An ImageBitmap to use as the pattern's image.
+   * @param repetition A string indicating how to repeat the pattern's image.
+   *   Possible values: "repeat" (both directions), "repeat-x" (horizontal only),
+   *   "repeat-y" (vertical only), "no-repeat" (neither direction).
+   *   If null or empty string, defaults to "repeat".
+   * @returns A CanvasPattern object, or null if the image is not valid.
+   */
+  createPattern(
+    image: ImageBitmap,
+    repetition: string | null,
+  ): CanvasPattern | null {
+    const imageRid = image["#rid" as keyof ImageBitmap] as number;
+    if (typeof imageRid !== "number") {
+      return null;
+    }
+
+    // Normalize repetition parameter
+    const rep = repetition === null || repetition === "" ?
+      "repeat" :
+      repetition;
+
+    // Validate repetition value
+    if (!["repeat", "repeat-x", "repeat-y", "no-repeat"].includes(rep)) {
+      throw new TypeError(`Invalid repetition value: ${rep}`);
+    }
+
+    const patternRid = __andromeda__.internal_canvas_create_pattern(
+      imageRid,
+      rep,
+    );
+    return new CanvasPattern(patternRid);
   }
 
   /**
@@ -737,17 +833,21 @@ class CanvasRenderingContext2D {
     ...args: number[]
   ): void {
     const imageRid = image["#rid" as keyof ImageBitmap] as number;
-    
+
     if (args.length === 2) {
       // drawImage(image, dx, dy)
       const [dx, dy] = args;
       __andromeda__.internal_canvas_draw_image(
         this.#rid,
         imageRid,
-        0, 0,
-        image.width, image.height,
-        dx, dy,
-        image.width, image.height
+        0,
+        0,
+        image.width,
+        image.height,
+        dx,
+        dy,
+        image.width,
+        image.height,
       );
     } else if (args.length === 4) {
       // drawImage(image, dx, dy, dWidth, dHeight)
@@ -755,10 +855,14 @@ class CanvasRenderingContext2D {
       __andromeda__.internal_canvas_draw_image(
         this.#rid,
         imageRid,
-        0, 0,
-        image.width, image.height,
-        dx, dy,
-        dWidth, dHeight
+        0,
+        0,
+        image.width,
+        image.height,
+        dx,
+        dy,
+        dWidth,
+        dHeight,
       );
     } else if (args.length === 8) {
       // drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
@@ -766,11 +870,19 @@ class CanvasRenderingContext2D {
       __andromeda__.internal_canvas_draw_image(
         this.#rid,
         imageRid,
-        sx, sy, sWidth, sHeight,
-        dx, dy, dWidth, dHeight
+        sx,
+        sy,
+        sWidth,
+        sHeight,
+        dx,
+        dy,
+        dWidth,
+        dHeight,
       );
     } else {
-      throw new TypeError(`Invalid number of arguments to drawImage: ${args.length}`);
+      throw new TypeError(
+        `Invalid number of arguments to drawImage: ${args.length}`,
+      );
     }
   }
 
@@ -786,7 +898,13 @@ class CanvasRenderingContext2D {
    * Returns an ImageData object representing the pixel data for a region of the canvas.
    */
   getImageData(sx: number, sy: number, sw: number, sh: number): ImageData {
-    const rid = __andromeda__.internal_canvas_get_image_data(this.#rid, sx, sy, sw, sh);
+    const rid = __andromeda__.internal_canvas_get_image_data(
+      this.#rid,
+      sx,
+      sy,
+      sw,
+      sh,
+    );
     return new ImageData(rid, sw, sh);
   }
 
@@ -824,6 +942,26 @@ class CanvasGradient {
       offset,
       color,
     );
+  }
+}
+
+/**
+ * Represents a pattern created from an image.
+ */
+class CanvasPattern {
+  [_fillId]: number;
+
+  constructor(rid: number) {
+    this[_fillId] = rid;
+  }
+
+  /**
+   * Sets the transformation matrix that will be used when rendering the pattern.
+   * Note: This is currently not implemented in the renderer.
+   */
+  setTransform(_transform?: object): void {
+    // TODO: Implement pattern transformation
+    // This would require passing the transformation matrix to the renderer
   }
 }
 
@@ -866,4 +1004,9 @@ class ImageData {
 }
 
 // Export classes to global scope
-Object.assign(globalThis, { Path2D, OffscreenCanvas, ImageData });
+Object.assign(globalThis, {
+  Path2D,
+  OffscreenCanvas,
+  ImageData,
+  CanvasPattern,
+});

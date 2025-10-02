@@ -475,6 +475,15 @@ pub fn internal_canvas_clear_rect<'gc>(
                 line_cap: LineCap::default(),
                 line_join: LineJoin::default(),
                 miter_limit: 10.0,
+                shadow_blur: 0.0,
+                shadow_color: FillStyle::Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 0.0,
+                },
+                shadow_offset_x: 0.0,
+                shadow_offset_y: 0.0,
                 composite_operation: CompositeOperation::default(),
             },
         );
@@ -570,18 +579,22 @@ pub fn internal_canvas_fill_rect<'gc>(
             },
         };
 
-        // Get the current fill style color
         let data = res.canvases.get(rid).unwrap();
+
         res.renderers.get_mut(rid).unwrap().render_rect(
             rect,
             &RenderState {
                 fill_style: data.fill_style,
                 global_alpha: data.global_alpha,
-                transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-                line_cap: LineCap::default(),
-                line_join: LineJoin::default(),
-                miter_limit: 10.0,
-                composite_operation: CompositeOperation::default(),
+                transform: data.transform,
+                line_cap: data.line_cap,
+                line_join: data.line_join,
+                miter_limit: data.miter_limit,
+                shadow_blur: data.shadow_blur,
+                shadow_color: data.shadow_color,
+                shadow_offset_x: data.shadow_offset_x,
+                shadow_offset_y: data.shadow_offset_y,
+                composite_operation: data.composite_operation,
             },
         );
     } else {
@@ -714,10 +727,14 @@ pub fn internal_canvas_fill<'gc>(
                 &RenderState {
                     fill_style: data.fill_style,
                     global_alpha: data.global_alpha,
-                    transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-                    line_cap: LineCap::default(),
-                    line_join: LineJoin::default(),
-                    miter_limit: 10.0,
+                    transform: data.transform,
+                    line_cap: data.line_cap,
+                    line_join: data.line_join,
+                    miter_limit: data.miter_limit,
+                    shadow_blur: data.shadow_blur,
+                    shadow_color: data.shadow_color,
+                    shadow_offset_x: data.shadow_offset_x,
+                    shadow_offset_y: data.shadow_offset_y,
                     composite_operation: data.composite_operation,
                 },
             );
@@ -762,10 +779,14 @@ pub fn internal_canvas_stroke<'gc>(
                 &RenderState {
                     fill_style: data.stroke_style,
                     global_alpha: data.global_alpha,
-                    transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-                    line_cap: LineCap::default(),
-                    line_join: LineJoin::default(),
-                    miter_limit: 10.0,
+                    transform: data.transform,
+                    line_cap: data.line_cap,
+                    line_join: data.line_join,
+                    miter_limit: data.miter_limit,
+                    shadow_blur: data.shadow_blur,
+                    shadow_color: data.shadow_color,
+                    shadow_offset_x: data.shadow_offset_x,
+                    shadow_offset_y: data.shadow_offset_y,
                     composite_operation: data.composite_operation,
                 },
             );
@@ -1182,9 +1203,13 @@ pub fn internal_canvas_save<'gc>(
         transform: data.transform,
         line_dash: data.line_dash.clone(),
         line_dash_offset: data.line_dash_offset,
-        line_cap: LineCap::default(),
-        line_join: LineJoin::default(),
-        miter_limit: 10.0,
+        line_cap: data.line_cap,
+        line_join: data.line_join,
+        miter_limit: data.miter_limit,
+        shadow_blur: data.shadow_blur,
+        shadow_color: data.shadow_color.clone(),
+        shadow_offset_x: data.shadow_offset_x,
+        shadow_offset_y: data.shadow_offset_y,
         composite_operation: data.composite_operation,
     };
     data.state_stack.push(current_state);
@@ -1231,16 +1256,31 @@ pub fn internal_canvas_restore<'gc>(
     Ok(Value::Undefined)
 }
 
+/// Rendering context parameters grouped to avoid too many function arguments
+#[allow(dead_code)]
+pub struct RenderContext<'a> {
+    pub fill_style: &'a crate::ext::canvas::FillStyle,
+    pub stroke_style: &'a crate::ext::canvas::FillStyle,
+    pub line_width: f64,
+    pub global_alpha: f32,
+    pub transform: [f64; 6],
+    pub line_cap: LineCap,
+    pub line_join: LineJoin,
+    pub miter_limit: f64,
+    pub composite_operation: CompositeOperation,
+    pub shadow_blur: f64,
+    pub shadow_color: &'a crate::ext::canvas::FillStyle,
+    pub shadow_offset_x: f64,
+    pub shadow_offset_y: f64,
+}
+
 /// Process all saved commands and render them using the renderer
 #[allow(dead_code, clippy::needless_lifetimes)]
 pub fn process_all_commands<'gc>(
     commands: &Vec<CanvasCommand<'gc>>,
     renderer: &mut crate::ext::canvas::renderer::Renderer,
     agent: &mut Agent,
-    fill_style: &crate::ext::canvas::FillStyle,
-    stroke_style: &crate::ext::canvas::FillStyle,
-    line_width: f64,
-    global_alpha: f32,
+    ctx: &RenderContext<'_>,
 ) {
     let mut current_path = Vec::new();
 
@@ -1371,13 +1411,17 @@ pub fn process_all_commands<'gc>(
                     renderer.render_polygon(
                         current_path.clone(),
                         &RenderState {
-                            fill_style: fill_style.clone(),
-                            global_alpha,
-                            transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-                            line_cap: LineCap::default(),
-                            line_join: LineJoin::default(),
-                            miter_limit: 10.0,
-                            composite_operation: CompositeOperation::default(),
+                            fill_style: ctx.fill_style.clone(),
+                            global_alpha: ctx.global_alpha,
+                            transform: ctx.transform,
+                            line_cap: ctx.line_cap,
+                            line_join: ctx.line_join,
+                            miter_limit: ctx.miter_limit,
+                            shadow_blur: ctx.shadow_blur,
+                            shadow_color: ctx.shadow_color.clone(),
+                            shadow_offset_x: ctx.shadow_offset_x,
+                            shadow_offset_y: ctx.shadow_offset_y,
+                            composite_operation: ctx.composite_operation,
                         },
                     );
                 }
@@ -1387,15 +1431,19 @@ pub fn process_all_commands<'gc>(
                     renderer.render_polyline(
                         current_path.clone(),
                         &RenderState {
-                            fill_style: stroke_style.clone(),
-                            global_alpha,
-                            transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-                            line_cap: LineCap::default(),
-                            line_join: LineJoin::default(),
-                            miter_limit: 10.0,
-                            composite_operation: CompositeOperation::default(),
+                            fill_style: ctx.stroke_style.clone(),
+                            global_alpha: ctx.global_alpha,
+                            transform: ctx.transform,
+                            line_cap: ctx.line_cap,
+                            line_join: ctx.line_join,
+                            miter_limit: ctx.miter_limit,
+                            shadow_blur: ctx.shadow_blur,
+                            shadow_color: ctx.shadow_color.clone(),
+                            shadow_offset_x: ctx.shadow_offset_x,
+                            shadow_offset_y: ctx.shadow_offset_y,
+                            composite_operation: ctx.composite_operation,
                         },
-                        line_width,
+                        ctx.line_width,
                     );
                 }
             }
@@ -1420,13 +1468,17 @@ pub fn process_all_commands<'gc>(
                 renderer.render_rect(
                     rect,
                     &RenderState {
-                        fill_style: fill_style.clone(),
-                        global_alpha,
-                        transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-                        line_cap: LineCap::default(),
-                        line_join: LineJoin::default(),
-                        miter_limit: 10.0,
-                        composite_operation: CompositeOperation::default(),
+                        fill_style: ctx.fill_style.clone(),
+                        global_alpha: ctx.global_alpha,
+                        transform: ctx.transform,
+                        line_cap: ctx.line_cap,
+                        line_join: ctx.line_join,
+                        miter_limit: ctx.miter_limit,
+                        shadow_blur: ctx.shadow_blur,
+                        shadow_color: ctx.shadow_color.clone(),
+                        shadow_offset_x: ctx.shadow_offset_x,
+                        shadow_offset_y: ctx.shadow_offset_y,
+                        composite_operation: ctx.composite_operation,
                     },
                 );
             }
@@ -1461,15 +1513,19 @@ pub fn process_all_commands<'gc>(
                 renderer.render_polyline(
                     rect_path,
                     &RenderState {
-                        fill_style: stroke_style.clone(),
-                        global_alpha,
-                        transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-                        line_cap: LineCap::default(),
-                        line_join: LineJoin::default(),
-                        miter_limit: 10.0,
-                        composite_operation: CompositeOperation::default(),
+                        fill_style: ctx.stroke_style.clone(),
+                        global_alpha: ctx.global_alpha,
+                        transform: ctx.transform,
+                        line_cap: ctx.line_cap,
+                        line_join: ctx.line_join,
+                        miter_limit: ctx.miter_limit,
+                        shadow_blur: ctx.shadow_blur,
+                        shadow_color: ctx.shadow_color.clone(),
+                        shadow_offset_x: ctx.shadow_offset_x,
+                        shadow_offset_y: ctx.shadow_offset_y,
+                        composite_operation: ctx.composite_operation,
                     },
-                    line_width,
+                    ctx.line_width,
                 );
             }
             CanvasCommand::ClearRect {
@@ -1505,6 +1561,15 @@ pub fn process_all_commands<'gc>(
                         line_cap: LineCap::default(),
                         line_join: LineJoin::default(),
                         miter_limit: 10.0,
+                        shadow_blur: 0.0,
+                        shadow_color: FillStyle::Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 0.0,
+                        },
+                        shadow_offset_x: 0.0,
+                        shadow_offset_y: 0.0,
                         composite_operation: CompositeOperation::default(),
                     },
                 ); // White background
@@ -1553,13 +1618,17 @@ pub fn process_all_commands<'gc>(
             } => {
                 // Create render state for the image
                 let render_state = RenderState {
-                    fill_style: fill_style.clone(),
-                    global_alpha,
-                    transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0], // Use identity transform for now
-                    line_cap: LineCap::default(),
-                    line_join: LineJoin::default(),
-                    miter_limit: 10.0,
-                    composite_operation: CompositeOperation::default(),
+                    fill_style: ctx.fill_style.clone(),
+                    global_alpha: ctx.global_alpha,
+                    transform: ctx.transform,
+                    line_cap: ctx.line_cap,
+                    line_join: ctx.line_join,
+                    miter_limit: ctx.miter_limit,
+                    shadow_blur: ctx.shadow_blur,
+                    shadow_color: ctx.shadow_color.clone(),
+                    shadow_offset_x: ctx.shadow_offset_x,
+                    shadow_offset_y: ctx.shadow_offset_y,
+                    composite_operation: ctx.composite_operation,
                 };
 
                 // Render the image

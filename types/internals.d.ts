@@ -568,6 +568,68 @@ declare namespace __andromeda__ {
     rid: number,
   ): string;
 
+  export function internal_canvas_get_shadow_blur(rid: number): number;
+
+  /**
+   * The `internal_canvas_set_shadow_blur` function sets the shadow blur amount for the canvas context.
+   */
+  export function internal_canvas_set_shadow_blur(
+    rid: number,
+    blur: number,
+  ): void;
+
+  /**
+   * The `internal_canvas_get_shadow_color` function gets the shadow color of the canvas context.
+   * Returns the shadow color as a CSS color string.
+   */
+  export function internal_canvas_get_shadow_color(rid: number): string;
+
+  /**
+   * The `internal_canvas_set_shadow_color` function sets the shadow color for the canvas context.
+   * Accepts CSS color strings like '#000000', 'rgba(0, 0, 0, 0.5)', 'black', etc.
+   */
+  export function internal_canvas_set_shadow_color(
+    rid: number,
+    color: string,
+  ): void;
+
+  /**
+   * The `internal_canvas_get_shadow_offset_x` function gets the shadow offset in the X direction.
+   */
+  export function internal_canvas_get_shadow_offset_x(rid: number): number;
+
+  /**
+   * The `internal_canvas_set_shadow_offset_x` function sets the shadow offset in the X direction.
+   */
+  export function internal_canvas_set_shadow_offset_x(
+    rid: number,
+    offsetX: number,
+  ): void;
+
+  /**
+   * The `internal_canvas_get_shadow_offset_y` function gets the shadow offset in the Y direction.
+   */
+  export function internal_canvas_get_shadow_offset_y(rid: number): number;
+
+  /**
+   * The `internal_canvas_set_shadow_offset_y` function sets the shadow offset in the Y direction.
+   */
+  export function internal_canvas_set_shadow_offset_y(
+    rid: number,
+    offsetY: number,
+  ): void;
+
+  /**
+   * The `internal_canvas_create_pattern` function creates a pattern from an image with repetition mode.
+   * @param imageRid - The resource ID of the image to use for the pattern.
+   * @param repetition - The repetition mode: "repeat", "repeat-x", "repeat-y", or "no-repeat".
+   * @returns The resource ID of the created pattern.
+   */
+  export function internal_canvas_create_pattern(
+    imageRid: number,
+    repetition: string,
+  ): number;
+
   /**
    * The `internal_canvas_set_global_composite_operation` function sets the global composite operation of the canvas context.
    * Accepts composite operation names like 'source-over', 'multiply', 'screen', 'overlay', etc.

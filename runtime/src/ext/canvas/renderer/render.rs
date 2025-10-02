@@ -5,6 +5,7 @@
 use wgpu::PollType;
 
 use crate::FillStyle;
+use crate::ext::canvas::fill_style;
 
 use super::*;
 pub struct Renderer {
@@ -46,6 +47,16 @@ impl Renderer {
                 transform: transform_to_mat3(&render_state.transform),
                 has_texture: 0,
                 composite_operation: render_state.composite_operation as u32,
+                shadow_blur: render_state.shadow_blur as f32,
+                shadow_color: get_shadow_color(render_state),
+                shadow_offset: (
+                    render_state.shadow_offset_x as f32,
+                    render_state.shadow_offset_y as f32,
+                ),
+                line_cap: line_cap_to_u32(&render_state.line_cap),
+                line_join: line_join_to_u32(&render_state.line_join),
+                miter_limit: render_state.miter_limit as f32,
+                pattern_repetition: 0,
             },
             gradient: vec![],
         }
@@ -412,7 +423,7 @@ impl Renderer {
         let uniforms = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Uniforms"),
             mapped_at_creation: false,
-            size: 160, // Size required by shader with composite_operation field added
+            size: 192, // Size required by shader with shadow and line style fields (with proper alignment)
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
         });
         self.queue
@@ -504,6 +515,16 @@ impl Renderer {
                     transform: transform_to_mat3(&render_state.transform),
                     has_texture: 0,
                     composite_operation: render_state.composite_operation as u32,
+                    shadow_blur: render_state.shadow_blur as f32,
+                    shadow_color: get_shadow_color(render_state),
+                    shadow_offset: (
+                        render_state.shadow_offset_x as f32,
+                        render_state.shadow_offset_y as f32,
+                    ),
+                    line_cap: line_cap_to_u32(&render_state.line_cap),
+                    line_join: line_join_to_u32(&render_state.line_join),
+                    miter_limit: render_state.miter_limit as f32,
+                    pattern_repetition: 0,
                 },
                 gradient: vec![],
             },
@@ -522,6 +543,16 @@ impl Renderer {
                     transform: transform_to_mat3(&render_state.transform),
                     has_texture: 0,
                     composite_operation: render_state.composite_operation as u32,
+                    shadow_blur: render_state.shadow_blur as f32,
+                    shadow_color: get_shadow_color(render_state),
+                    shadow_offset: (
+                        render_state.shadow_offset_x as f32,
+                        render_state.shadow_offset_y as f32,
+                    ),
+                    line_cap: line_cap_to_u32(&render_state.line_cap),
+                    line_join: line_join_to_u32(&render_state.line_join),
+                    miter_limit: render_state.miter_limit as f32,
+                    pattern_repetition: 0,
                 },
                 gradient: gradient.color_stops.clone(),
             },
@@ -540,6 +571,16 @@ impl Renderer {
                     transform: transform_to_mat3(&render_state.transform),
                     has_texture: 0,
                     composite_operation: render_state.composite_operation as u32,
+                    shadow_blur: render_state.shadow_blur as f32,
+                    shadow_color: get_shadow_color(render_state),
+                    shadow_offset: (
+                        render_state.shadow_offset_x as f32,
+                        render_state.shadow_offset_y as f32,
+                    ),
+                    line_cap: line_cap_to_u32(&render_state.line_cap),
+                    line_join: line_join_to_u32(&render_state.line_join),
+                    miter_limit: render_state.miter_limit as f32,
+                    pattern_repetition: 0,
                 },
                 gradient: gradient.color_stops.clone(),
             },
@@ -558,10 +599,57 @@ impl Renderer {
                     transform: transform_to_mat3(&render_state.transform),
                     has_texture: 0,
                     composite_operation: render_state.composite_operation as u32,
+                    shadow_blur: render_state.shadow_blur as f32,
+                    shadow_color: get_shadow_color(render_state),
+                    shadow_offset: (
+                        render_state.shadow_offset_x as f32,
+                        render_state.shadow_offset_y as f32,
+                    ),
+                    line_cap: line_cap_to_u32(&render_state.line_cap),
+                    line_join: line_join_to_u32(&render_state.line_join),
+                    miter_limit: render_state.miter_limit as f32,
+                    pattern_repetition: 0,
                 },
                 gradient: gradient.color_stops.clone(),
             },
-            _ => unimplemented!(),
+            FillStyle::Pattern { repetition, .. } => {
+                // Pattern uses fill_style = 4 and has_texture = 1
+                let repetition_mode = match repetition {
+                    fill_style::PatternRepetition::Repeat => 0,
+                    fill_style::PatternRepetition::RepeatX => 1,
+                    fill_style::PatternRepetition::RepeatY => 2,
+                    fill_style::PatternRepetition::NoRepeat => 3,
+                };
+
+                FillData {
+                    uniforms: Uniforms {
+                        color: [1.0, 1.0, 1.0, 1.0], // White to not tint the pattern
+                        gradient_start: (0.0, 0.0),
+                        gradient_end: (0.0, 0.0),
+                        fill_style: 4,
+                        global_alpha: render_state.global_alpha,
+                        radius_start: 0.0,
+                        radius_end: 0.0,
+                        stroke_color: [0.0, 0.0, 0.0, 0.0],
+                        stroke_width: 0.0,
+                        is_stroke: 0,
+                        transform: transform_to_mat3(&render_state.transform),
+                        has_texture: 1,
+                        composite_operation: render_state.composite_operation as u32,
+                        shadow_blur: render_state.shadow_blur as f32,
+                        shadow_color: get_shadow_color(render_state),
+                        shadow_offset: (
+                            render_state.shadow_offset_x as f32,
+                            render_state.shadow_offset_y as f32,
+                        ),
+                        line_cap: line_cap_to_u32(&render_state.line_cap),
+                        line_join: line_join_to_u32(&render_state.line_join),
+                        miter_limit: render_state.miter_limit as f32,
+                        pattern_repetition: repetition_mode,
+                    },
+                    gradient: vec![],
+                }
+            }
         }
     }
 
@@ -592,6 +680,15 @@ impl Renderer {
 
     pub fn render_rect(&mut self, rect: Rect, render_state: &RenderState) {
         let fill_data = self.create_fill_data(render_state);
+
+        // Check if we need a texture for pattern fill style
+        let pattern_image_rid =
+            if let FillStyle::Pattern { image_rid, .. } = &render_state.fill_style {
+                Some(*image_rid)
+            } else {
+                None
+            };
+
         // Apply transformation to all four corners of the rectangle
         let top_left = transform_point(&rect.start, &render_state.transform);
         let bottom_right = transform_point(&rect.end, &render_state.transform);
@@ -615,17 +712,58 @@ impl Renderer {
         let bl = translate_coords(&bottom_left, &self.dimensions);
         let br = translate_coords(&bottom_right, &self.dimensions);
 
+        // Render shadow first if enabled
+        if is_shadow_enabled(render_state) {
+            let shadow_fill_data = create_shadow_fill_data(render_state, &fill_data);
+            let offset_x =
+                (render_state.shadow_offset_x / self.dimensions.width as f64) as f32 * 2.0;
+            let offset_y =
+                -(render_state.shadow_offset_y / self.dimensions.height as f64) as f32 * 2.0;
+
+            let shadow_vertex = vec![
+                (tl.0 + offset_x, tl.1 + offset_y),
+                (bl.0 + offset_x, bl.1 + offset_y),
+                (tr.0 + offset_x, tr.1 + offset_y),
+                (br.0 + offset_x, br.1 + offset_y),
+            ];
+
+            self.create_render_command_with_texture(
+                RenderData {
+                    vertex: shadow_vertex,
+                    fill_data: shadow_fill_data,
+                    length: 4,
+                },
+                None,
+            );
+        }
+
         let vertex = vec![(tl.0, tl.1), (bl.0, bl.1), (tr.0, tr.1), (br.0, br.1)];
 
-        self.create_render_command(RenderData {
-            vertex,
-            fill_data,
-            length: 4,
-        });
+        let texture_view = pattern_image_rid
+            .and_then(|image_rid| self.texture_cache.get(&image_rid))
+            .map(|t| t.create_view(&Default::default()));
+
+        self.create_render_command_with_texture_view(
+            RenderData {
+                vertex,
+                fill_data,
+                length: 4,
+            },
+            texture_view,
+        );
     }
 
     pub fn render_polygon(&mut self, polygon: Path, render_state: &RenderState) {
         let fill_data = self.create_fill_data(render_state);
+
+        // Check if we need a texture for pattern fill style
+        let pattern_image_rid =
+            if let FillStyle::Pattern { image_rid, .. } = &render_state.fill_style {
+                Some(*image_rid)
+            } else {
+                None
+            };
+
         let mut data = Vec::new();
         if let 0 = polygon.len() % 2 {
             for i in 0..(polygon.len() / 2) {
@@ -638,6 +776,33 @@ impl Renderer {
                 data.push(&polygon[polygon.len() - 1 - i]);
             }
             data.push(&polygon[(polygon.len() - 1) / 2]);
+        }
+
+        // Render shadow first if enabled
+        if is_shadow_enabled(render_state) {
+            let shadow_fill_data = create_shadow_fill_data(render_state, &fill_data);
+            let offset_x =
+                (render_state.shadow_offset_x / self.dimensions.width as f64) as f32 * 2.0;
+            let offset_y =
+                -(render_state.shadow_offset_y / self.dimensions.height as f64) as f32 * 2.0;
+
+            let shadow_vertex: Vec<Coordinate> = data
+                .iter()
+                .map(|p| {
+                    let transformed = transform_point(p, &render_state.transform);
+                    let coords = translate_coords(&transformed, &self.dimensions);
+                    (coords.0 + offset_x, coords.1 + offset_y)
+                })
+                .collect();
+
+            self.create_render_command_with_texture(
+                RenderData {
+                    vertex: shadow_vertex,
+                    fill_data: shadow_fill_data,
+                    length: data.len() as u32,
+                },
+                None,
+            ); // Shadows don't use textures
         };
         // Apply transformation to each point before translating to clip space
         let vertex = data
@@ -648,11 +813,19 @@ impl Renderer {
             })
             .collect::<Vec<Coordinate>>();
 
-        self.create_render_command(RenderData {
-            vertex,
-            fill_data,
-            length: polygon.len() as u32,
-        });
+        // Handle texture for patterns - create view before mutable borrow
+        let texture_view = pattern_image_rid
+            .and_then(|image_rid| self.texture_cache.get(&image_rid))
+            .map(|t| t.create_view(&Default::default()));
+
+        self.create_render_command_with_texture_view(
+            RenderData {
+                vertex,
+                fill_data,
+                length: polygon.len() as u32,
+            },
+            texture_view,
+        );
     }
 
     /// Renders a quadratic Bezier curve from start point through control point to end point
@@ -1195,6 +1368,59 @@ impl Renderer {
     }
 }
 
+/// Helper function to check if shadow is enabled
+fn is_shadow_enabled(render_state: &RenderState) -> bool {
+    render_state.shadow_blur > 0.0
+        || render_state.shadow_offset_x != 0.0
+        || render_state.shadow_offset_y != 0.0
+}
+
+/// Helper function to extract shadow color as Color array
+fn get_shadow_color(render_state: &RenderState) -> [f32; 4] {
+    match &render_state.shadow_color {
+        FillStyle::Color { r, g, b, a } => [*r, *g, *b, *a],
+        _ => [0.0, 0.0, 0.0, 0.0], // Default to transparent black
+    }
+}
+
+/// Helper function to convert LineCap to u32
+fn line_cap_to_u32(line_cap: &LineCap) -> u32 {
+    match line_cap {
+        LineCap::Butt => 0,
+        LineCap::Round => 1,
+        LineCap::Square => 2,
+    }
+}
+
+/// Helper function to convert LineJoin to u32
+fn line_join_to_u32(line_join: &LineJoin) -> u32 {
+    match line_join {
+        LineJoin::Bevel => 0,
+        LineJoin::Round => 1,
+        LineJoin::Miter => 2,
+    }
+}
+
+/// Helper function to create shadow fill data by modifying the main fill data
+fn create_shadow_fill_data(render_state: &RenderState, main_fill_data: &FillData) -> FillData {
+    let shadow_color = get_shadow_color(render_state);
+    let mut shadow_uniforms = main_fill_data.uniforms.clone();
+
+    // Override with shadow-specific properties
+    shadow_uniforms.color = shadow_color;
+    shadow_uniforms.stroke_color = shadow_color;
+    shadow_uniforms.fill_style = 0; // Force solid color fill for shadows
+    shadow_uniforms.is_stroke = 0; // Shadows are always fills, never strokes
+
+    // For simple shadows (no blur), we render at the shadow offset position
+    // This is handled by translating the geometry, not the transform
+
+    FillData {
+        uniforms: shadow_uniforms,
+        gradient: vec![], // Shadows don't use gradients, just solid color
+    }
+}
+
 /// Helper function to create uniforms for image rendering
 fn create_image_uniforms(render_state: &RenderState) -> Uniforms {
     Uniforms {
@@ -1211,6 +1437,16 @@ fn create_image_uniforms(render_state: &RenderState) -> Uniforms {
         transform: transform_to_mat3(&render_state.transform),
         has_texture: 1,
         composite_operation: render_state.composite_operation as u32,
+        shadow_blur: render_state.shadow_blur as f32,
+        shadow_color: get_shadow_color(render_state),
+        shadow_offset: (
+            render_state.shadow_offset_x as f32,
+            render_state.shadow_offset_y as f32,
+        ),
+        line_cap: line_cap_to_u32(&render_state.line_cap),
+        line_join: line_join_to_u32(&render_state.line_join),
+        miter_limit: render_state.miter_limit as f32,
+        pattern_repetition: 0, // Not used for images
     }
 }
 

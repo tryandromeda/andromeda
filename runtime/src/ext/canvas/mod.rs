@@ -49,6 +49,15 @@ struct CanvasData<'gc> {
     // Line dash state (segments and offset)
     line_dash: Vec<f64>,
     line_dash_offset: f64,
+    // Line style properties
+    line_cap: renderer::LineCap,
+    line_join: renderer::LineJoin,
+    miter_limit: f64,
+    // Shadow properties
+    shadow_blur: f64,
+    shadow_color: FillStyle,
+    shadow_offset_x: f64,
+    shadow_offset_y: f64,
     // Path state for renderer
     current_path: Vec<renderer::Point>,
     path_started: bool,
@@ -208,6 +217,99 @@ impl CanvasExt {
                     "internal_canvas_get_line_dash",
                     Self::internal_canvas_get_line_dash,
                     1,
+                    false,
+                ),
+                // Line style properties
+                ExtensionOp::new(
+                    "internal_canvas_set_line_cap",
+                    Self::internal_canvas_set_line_cap,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_line_cap",
+                    Self::internal_canvas_get_line_cap,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_set_line_join",
+                    Self::internal_canvas_set_line_join,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_line_join",
+                    Self::internal_canvas_get_line_join,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_set_miter_limit",
+                    Self::internal_canvas_set_miter_limit,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_miter_limit",
+                    Self::internal_canvas_get_miter_limit,
+                    1,
+                    false,
+                ),
+                // Shadow properties
+                ExtensionOp::new(
+                    "internal_canvas_set_shadow_blur",
+                    Self::internal_canvas_set_shadow_blur,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_shadow_blur",
+                    Self::internal_canvas_get_shadow_blur,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_set_shadow_color",
+                    Self::internal_canvas_set_shadow_color,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_shadow_color",
+                    Self::internal_canvas_get_shadow_color,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_set_shadow_offset_x",
+                    Self::internal_canvas_set_shadow_offset_x,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_shadow_offset_x",
+                    Self::internal_canvas_get_shadow_offset_x,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_set_shadow_offset_y",
+                    Self::internal_canvas_set_shadow_offset_y,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_shadow_offset_y",
+                    Self::internal_canvas_get_shadow_offset_y,
+                    1,
+                    false,
+                ),
+                // Pattern operations
+                ExtensionOp::new(
+                    "internal_canvas_create_pattern",
+                    Self::internal_canvas_create_pattern,
+                    2,
                     false,
                 ),
                 ExtensionOp::new(
@@ -505,6 +607,20 @@ impl CanvasExt {
             // Initialize dash state
             line_dash: Vec::new(),
             line_dash_offset: 0.0,
+            // Line style properties
+            line_cap: renderer::LineCap::default(),
+            line_join: renderer::LineJoin::default(),
+            miter_limit: 10.0,
+            // Shadow properties (defaults: no shadow)
+            shadow_blur: 0.0,
+            shadow_color: FillStyle::Color {
+                r: 0.0,
+                g: 0.0,
+                b: 0.0,
+                a: 0.0,
+            },
+            shadow_offset_x: 0.0,
+            shadow_offset_y: 0.0,
             current_path: Vec::new(),
             path_started: false,
             state_stack: Vec::new(),
@@ -1033,7 +1149,11 @@ impl CanvasExt {
             FillStyle::ConicGradient(gradient) => {
                 Ok(Value::from_i64(agent, gradient.rid as i64, gc.nogc()).unbind())
             }
-            _ => unimplemented!(),
+            FillStyle::Pattern { image_rid, .. } => {
+                // Return the image RID as a number for now
+                // In a full implementation, this would return a CanvasPattern object
+                Ok(Value::from_i64(agent, *image_rid as i64, gc.nogc()).unbind())
+            }
         }
     }
 
@@ -1097,12 +1217,14 @@ impl CanvasExt {
         let storage = host_data.storage.borrow();
         let res: &CanvasResources = storage.get().unwrap();
         let data = res.canvases.get(rid).unwrap();
+        let stroke_style = data.stroke_style.clone();
 
-        // Convert stroke style back to CSS string representation
-        let css_string = match &data.stroke_style {
+        // Drop storage borrow before creating string
+        drop(storage);
+
+        match &stroke_style {
             FillStyle::Color { r, g, b, a } => {
-                if *a == 1.0 {
-                    // RGB format for opaque colors
+                let css_string = if *a == 1.0 {
                     format!(
                         "rgb({}, {}, {})",
                         (*r * 255.0) as u8,
@@ -1110,7 +1232,6 @@ impl CanvasExt {
                         (*b * 255.0) as u8
                     )
                 } else {
-                    // RGBA format for transparent colors
                     format!(
                         "rgba({}, {}, {}, {})",
                         (*r * 255.0) as u8,
@@ -1118,15 +1239,23 @@ impl CanvasExt {
                         (*b * 255.0) as u8,
                         a
                     )
-                }
+                };
+                Ok(Value::from_string(agent, css_string, gc.nogc()).unbind())
             }
-            _ => "rgb(0, 0, 0)".to_string(), // Default fallback
-        };
-
-        // Drop storage borrow before creating string
-        drop(storage);
-
-        Ok(Value::from_string(agent, css_string, gc.nogc()).unbind())
+            FillStyle::LinearGradient(gradient) => {
+                Ok(Value::from_i64(agent, gradient.rid as i64, gc.nogc()).unbind())
+            }
+            FillStyle::RadialGradient(gradient) => {
+                Ok(Value::from_i64(agent, gradient.rid as i64, gc.nogc()).unbind())
+            }
+            FillStyle::ConicGradient(gradient) => {
+                Ok(Value::from_i64(agent, gradient.rid as i64, gc.nogc()).unbind())
+            }
+            FillStyle::Pattern { image_rid, .. } => {
+                // Return the image RID as a number for now
+                Ok(Value::from_i64(agent, *image_rid as i64, gc.nogc()).unbind())
+            }
+        }
     }
 
     /// Internal op to get the current line width of a canvas context
@@ -2053,6 +2182,15 @@ impl CanvasExt {
                 line_cap: LineCap::default(),
                 line_join: LineJoin::default(),
                 miter_limit: 10.0,
+                shadow_blur: 0.0,
+                shadow_color: FillStyle::Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 0.0,
+                },
+                shadow_offset_x: 0.0,
+                shadow_offset_y: 0.0,
                 composite_operation: renderer::CompositeOperation::default(),
             };
 
@@ -2440,6 +2578,10 @@ impl CanvasExt {
                 line_cap: renderer::LineCap::default(),
                 line_join: renderer::LineJoin::default(),
                 miter_limit: 10.0,
+                shadow_blur: data.shadow_blur,
+                shadow_color: data.shadow_color,
+                shadow_offset_x: data.shadow_offset_x,
+                shadow_offset_y: data.shadow_offset_y,
                 composite_operation: data.composite_operation,
             };
 
@@ -2701,6 +2843,447 @@ impl CanvasExt {
         drop(storage); // Drop the borrow
 
         Ok(Value::Undefined)
+    }
+
+    // ========== PHASE 2 IMPLEMENTATIONS: LINE STYLES ==========
+
+    /// Internal op to set lineCap property
+    fn internal_canvas_set_line_cap<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let cap_str = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid) {
+            let cap_string = cap_str.as_str(agent).unwrap_or("butt");
+            canvas.line_cap = match cap_string {
+                "round" => renderer::LineCap::Round,
+                "square" => renderer::LineCap::Square,
+                _ => renderer::LineCap::Butt,
+            };
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to get lineCap property
+    fn internal_canvas_get_line_cap<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let canvas = res.canvases.get(rid).unwrap();
+
+        let cap_str = match canvas.line_cap {
+            renderer::LineCap::Butt => "butt",
+            renderer::LineCap::Round => "round",
+            renderer::LineCap::Square => "square",
+        };
+
+        drop(storage);
+        Ok(Value::from_string(agent, cap_str.to_string(), gc.nogc()).unbind())
+    }
+
+    /// Internal op to set lineJoin property
+    fn internal_canvas_set_line_join<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let join_str = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid) {
+            let join_string = join_str.as_str(agent).unwrap_or("miter");
+            canvas.line_join = match join_string {
+                "round" => renderer::LineJoin::Round,
+                "bevel" => renderer::LineJoin::Bevel,
+                _ => renderer::LineJoin::Miter,
+            };
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to get lineJoin property
+    fn internal_canvas_get_line_join<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let canvas = res.canvases.get(rid).unwrap();
+
+        let join_str = match canvas.line_join {
+            renderer::LineJoin::Miter => "miter",
+            renderer::LineJoin::Round => "round",
+            renderer::LineJoin::Bevel => "bevel",
+        };
+
+        drop(storage);
+        Ok(Value::from_string(agent, join_str.to_string(), gc.nogc()).unbind())
+    }
+
+    /// Internal op to set miterLimit property
+    fn internal_canvas_set_miter_limit<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let limit = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid)
+            && limit > 0.0
+        {
+            canvas.miter_limit = limit;
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to get miterLimit property
+    fn internal_canvas_get_miter_limit<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let canvas = res.canvases.get(rid).unwrap();
+        let limit = canvas.miter_limit;
+
+        drop(storage);
+        Ok(Value::from_f64(agent, limit, gc.nogc()).unbind())
+    }
+
+    // ========== PHASE 2 IMPLEMENTATIONS: SHADOWS ==========
+
+    /// Internal op to set shadowBlur property
+    fn internal_canvas_set_shadow_blur<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let blur = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid) {
+            canvas.shadow_blur = blur.max(0.0);
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to get shadowBlur property
+    fn internal_canvas_get_shadow_blur<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let canvas = res.canvases.get(rid).unwrap();
+        let blur = canvas.shadow_blur;
+
+        drop(storage);
+        Ok(Value::from_f64(agent, blur, gc.nogc()).unbind())
+    }
+
+    /// Internal op to set shadowColor property
+    fn internal_canvas_set_shadow_color<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let color_str = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+        let color_string = color_str
+            .as_str(agent)
+            .unwrap_or("rgba(0,0,0,0)")
+            .to_string();
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid)
+            && let Ok(shadow_color) = FillStyle::from_css_color(&color_string)
+        {
+            canvas.shadow_color = shadow_color;
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to get shadowColor property
+    fn internal_canvas_get_shadow_color<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let canvas = res.canvases.get(rid).unwrap();
+
+        let color_str = match &canvas.shadow_color {
+            FillStyle::Color { r, g, b, a } => {
+                if *a == 1.0 {
+                    format!(
+                        "rgb({}, {}, {})",
+                        (*r * 255.0) as u8,
+                        (*g * 255.0) as u8,
+                        (*b * 255.0) as u8
+                    )
+                } else {
+                    format!(
+                        "rgba({}, {}, {}, {})",
+                        (*r * 255.0) as u8,
+                        (*g * 255.0) as u8,
+                        (*b * 255.0) as u8,
+                        a
+                    )
+                }
+            }
+            _ => "rgba(0, 0, 0, 0)".to_string(),
+        };
+
+        drop(storage);
+        Ok(Value::from_string(agent, color_str, gc.nogc()).unbind())
+    }
+
+    /// Internal op to set shadowOffsetX property
+    fn internal_canvas_set_shadow_offset_x<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let offset_x = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid) {
+            canvas.shadow_offset_x = offset_x;
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to get shadowOffsetX property
+    fn internal_canvas_get_shadow_offset_x<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let canvas = res.canvases.get(rid).unwrap();
+        let offset_x = canvas.shadow_offset_x;
+
+        drop(storage);
+        Ok(Value::from_f64(agent, offset_x, gc.nogc()).unbind())
+    }
+
+    /// Internal op to set shadowOffsetY property
+    fn internal_canvas_set_shadow_offset_y<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let offset_y = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid) {
+            canvas.shadow_offset_y = offset_y;
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to get shadowOffsetY property
+    fn internal_canvas_get_shadow_offset_y<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let canvas = res.canvases.get(rid).unwrap();
+        let offset_y = canvas.shadow_offset_y;
+
+        drop(storage);
+        Ok(Value::from_f64(agent, offset_y, gc.nogc()).unbind())
+    }
+
+    // ========== PHASE 2 IMPLEMENTATIONS: PATTERNS ==========
+
+    /// Internal op to create a pattern from an image with repetition mode
+    fn internal_canvas_create_pattern<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let image_rid = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let repetition_str = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+        let repetition_string = repetition_str.as_str(agent).unwrap_or("repeat").to_string();
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        let repetition = repetition_string
+            .parse::<fill_style::PatternRepetition>()
+            .unwrap_or(fill_style::PatternRepetition::Repeat);
+
+        let pattern = FillStyle::Pattern {
+            image_rid,
+            repetition,
+        };
+
+        let pattern_rid = res.fill_styles.push(pattern);
+
+        Ok(Value::Integer(SmallInteger::from(
+            pattern_rid.index() as i32
+        )))
     }
 }
 

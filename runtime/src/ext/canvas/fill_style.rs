@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::ext::canvas::renderer::{ColorStop, Coordinate};
+use std::str::FromStr;
 
 /// Represents different fill styles for Canvas 2D operations
 #[derive(Clone, Debug)]
@@ -17,8 +18,33 @@ pub enum FillStyle {
     LinearGradient(LinearGradient),
     RadialGradient(RadialGradient),
     ConicGradient(ConicGradient),
-    /// Pattern (placeholder for future implementation)
-    Pattern,
+    /// Pattern with image resource ID and repetition mode
+    Pattern {
+        image_rid: u32,
+        repetition: PatternRepetition,
+    },
+}
+
+/// Pattern repetition modes
+#[derive(Clone, Debug, PartialEq)]
+pub enum PatternRepetition {
+    Repeat,
+    RepeatX,
+    RepeatY,
+    NoRepeat,
+}
+
+impl FromStr for PatternRepetition {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "repeat-x" => Self::RepeatX,
+            "repeat-y" => Self::RepeatY,
+            "no-repeat" => Self::NoRepeat,
+            _ => Self::Repeat, // default
+        })
+    }
 }
 
 #[derive(Clone, Debug)]

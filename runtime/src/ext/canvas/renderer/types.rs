@@ -28,7 +28,7 @@ pub struct Rect {
 pub type Color = [f32; 4];
 
 /// Line cap style for stroke operations
-#[derive(Clone, Debug, PartialEq, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Default)]
 pub enum LineCap {
     #[default]
     Butt,
@@ -37,7 +37,7 @@ pub enum LineCap {
 }
 
 /// Line join style for stroke operations
-#[derive(Clone, Debug, PartialEq, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Default)]
 pub enum LineJoin {
     Bevel,
     Round,
@@ -155,6 +155,11 @@ pub struct RenderState {
     pub line_join: LineJoin,
     pub miter_limit: f64,
     pub composite_operation: CompositeOperation,
+    // Shadow properties
+    pub shadow_blur: f64,
+    pub shadow_color: FillStyle,
+    pub shadow_offset_x: f64,
+    pub shadow_offset_y: f64,
 }
 
 impl Default for RenderState {
@@ -167,6 +172,15 @@ impl Default for RenderState {
             line_join: LineJoin::default(),
             miter_limit: 10.0,
             composite_operation: CompositeOperation::default(),
+            shadow_blur: 0.0,
+            shadow_color: FillStyle::Color {
+                r: 0.0,
+                g: 0.0,
+                b: 0.0,
+                a: 0.0,
+            },
+            shadow_offset_x: 0.0,
+            shadow_offset_y: 0.0,
         }
     }
 }

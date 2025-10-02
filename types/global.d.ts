@@ -766,25 +766,31 @@ declare class CanvasRenderingContext2D {
   save(): void;
   /** Restores the most recently saved canvas state from the stack. */
   restore(): void;
-  
+
   // Image Drawing APIs
   /** Draws an image onto the canvas at the specified coordinates. */
   drawImage(image: ImageBitmap, dx: number, dy: number): void;
   /** Draws an image onto the canvas with scaling. */
-  drawImage(image: ImageBitmap, dx: number, dy: number, dWidth: number, dHeight: number): void;
+  drawImage(
+    image: ImageBitmap,
+    dx: number,
+    dy: number,
+    dWidth: number,
+    dHeight: number,
+  ): void;
   /** Draws a portion of an image onto the canvas with optional scaling. */
   drawImage(
-    image: ImageBitmap, 
-    sx: number, 
-    sy: number, 
-    sWidth: number, 
-    sHeight: number, 
-    dx: number, 
-    dy: number, 
-    dWidth: number, 
-    dHeight: number
+    image: ImageBitmap,
+    sx: number,
+    sy: number,
+    sWidth: number,
+    sHeight: number,
+    dx: number,
+    dy: number,
+    dWidth: number,
+    dHeight: number,
   ): void;
-  
+
   // ImageData APIs
   /** Creates a new ImageData object with the specified dimensions. */
   createImageData(width: number, height: number): ImageData;
@@ -816,7 +822,7 @@ declare class ImageBitmap {
 declare class ImageData {
   /** Creates a new ImageData object with the specified dimensions. */
   constructor(width: number, height: number);
-  
+
   /** The width of the ImageData in pixels. */
   readonly width: number;
   /** The height of the ImageData in pixels. */
