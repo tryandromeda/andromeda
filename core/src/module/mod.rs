@@ -1506,16 +1506,10 @@ impl ModuleVisitor {
                         source_name: None,
                     });
                 }
-            } else if let Some(_declaration) = &decl.declaration {
+            } else if let Some(declaration) = &decl.declaration {
                 // export const/let/var/function/class declarations
-                // For now, we'll mark these as generic exports
-                // TODO: extract the actual names
-                self.exports.push(ModuleExport {
-                    name: Some("declaration".to_owned()),
-                    is_reexport: false,
-                    source_module: None,
-                    source_name: None,
-                });
+                // Extract the actual names from the declaration
+                self.extract_declaration_names(declaration);
             }
         }
     }
@@ -1527,6 +1521,126 @@ impl ModuleVisitor {
             ast::ModuleExportName::IdentifierName(name) => name.name.as_str().to_owned(),
             ast::ModuleExportName::IdentifierReference(name) => name.name.as_str().to_owned(),
             ast::ModuleExportName::StringLiteral(lit) => lit.value.as_str().to_owned(),
+        }
+    }
+
+    /// Extract export names from declaration AST nodes
+    fn extract_declaration_names(&mut self, declaration: &ast::Declaration) {
+        match declaration {
+            ast::Declaration::VariableDeclaration(var_decl) => {
+                // Handle: export const x = 1, y = 2;
+                for declarator in &var_decl.declarations {
+                    self.extract_binding_names(&declarator.id.kind);
+                }
+            }
+            ast::Declaration::FunctionDeclaration(func) => {
+                // Handle: export function foo() {}
+                if let Some(id) = &func.id {
+                    self.exports.push(ModuleExport {
+                        name: Some(id.name.as_str().to_owned()),
+                        is_reexport: false,
+                        source_module: None,
+                        source_name: None,
+                    });
+                }
+            }
+            ast::Declaration::ClassDeclaration(class) => {
+                // Handle: export class Foo {}
+                if let Some(id) = &class.id {
+                    self.exports.push(ModuleExport {
+                        name: Some(id.name.as_str().to_owned()),
+                        is_reexport: false,
+                        source_module: None,
+                        source_name: None,
+                    });
+                }
+            }
+            ast::Declaration::TSTypeAliasDeclaration(type_alias) => {
+                // Handle: export type Foo = string;
+                self.exports.push(ModuleExport {
+                    name: Some(type_alias.id.name.as_str().to_owned()),
+                    is_reexport: false,
+                    source_module: None,
+                    source_name: None,
+                });
+            }
+            ast::Declaration::TSInterfaceDeclaration(interface) => {
+                // Handle: export interface Foo {}
+                self.exports.push(ModuleExport {
+                    name: Some(interface.id.name.as_str().to_owned()),
+                    is_reexport: false,
+                    source_module: None,
+                    source_name: None,
+                });
+            }
+            ast::Declaration::TSEnumDeclaration(enum_decl) => {
+                // Handle: export enum Foo {}
+                self.exports.push(ModuleExport {
+                    name: Some(enum_decl.id.name.as_str().to_owned()),
+                    is_reexport: false,
+                    source_module: None,
+                    source_name: None,
+                });
+            }
+            ast::Declaration::TSModuleDeclaration(module_decl) => {
+                // Handle: export namespace Foo {} or export module Foo {}
+                if let ast::TSModuleDeclarationName::Identifier(id) = &module_decl.id {
+                    self.exports.push(ModuleExport {
+                        name: Some(id.name.as_str().to_owned()),
+                        is_reexport: false,
+                        source_module: None,
+                        source_name: None,
+                    });
+                }
+            }
+            ast::Declaration::TSImportEqualsDeclaration(import_equals) => {
+                // Handle: export import Foo = require('foo');
+                self.exports.push(ModuleExport {
+                    name: Some(import_equals.id.name.as_str().to_owned()),
+                    is_reexport: false,
+                    source_module: None,
+                    source_name: None,
+                });
+            }
+        }
+    }
+
+    /// Extract names from binding patterns (handles destructuring)
+    fn extract_binding_names(&mut self, binding: &ast::BindingPatternKind) {
+        match binding {
+            ast::BindingPatternKind::BindingIdentifier(id) => {
+                // Simple binding: const x = 1
+                self.exports.push(ModuleExport {
+                    name: Some(id.name.as_str().to_owned()),
+                    is_reexport: false,
+                    source_module: None,
+                    source_name: None,
+                });
+            }
+            ast::BindingPatternKind::ObjectPattern(obj_pattern) => {
+                // Object destructuring: const { x, y } = obj
+                for property in &obj_pattern.properties {
+                    self.extract_binding_names(&property.value.kind);
+                }
+                // Handle rest: const { ...rest } = obj
+                if let Some(rest) = &obj_pattern.rest {
+                    self.extract_binding_names(&rest.argument.kind);
+                }
+            }
+            ast::BindingPatternKind::ArrayPattern(arr_pattern) => {
+                // Array destructuring: const [x, y] = arr
+                for element in arr_pattern.elements.iter().flatten() {
+                    self.extract_binding_names(&element.kind);
+                }
+                // Handle rest: const [...rest] = arr
+                if let Some(rest) = &arr_pattern.rest {
+                    self.extract_binding_names(&rest.argument.kind);
+                }
+            }
+            ast::BindingPatternKind::AssignmentPattern(assignment) => {
+                // Default values: const { x = 5 } = obj
+                self.extract_binding_names(&assignment.left.kind);
+            }
         }
     }
 }
