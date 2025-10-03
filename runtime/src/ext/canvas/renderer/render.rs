@@ -383,7 +383,10 @@ impl Renderer {
             // map buffer for reading (callback-based API)
             buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
             // poll until mapping is ready
-            self.device.poll(PollType::Wait).unwrap();
+            self.device.poll(PollType::Wait {
+                submission_index: None,
+                timeout: None, 
+            }).unwrap();
             // now read mapped data
             let mapped_data = buffer_slice.get_mapped_range().to_vec();
 

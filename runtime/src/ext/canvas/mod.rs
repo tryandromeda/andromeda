@@ -3347,6 +3347,7 @@ fn create_wgpu_device_sync() -> (wgpu::Device, wgpu::Queue) {
             label: None,
             memory_hints: Default::default(),
             trace: wgpu::Trace::default(),
+            experimental_features: wgpu::ExperimentalFeatures::default(),
         }))
         .unwrap();
 
