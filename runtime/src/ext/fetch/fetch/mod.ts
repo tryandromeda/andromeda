@@ -1,10 +1,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// deno-lint-ignore-file no-explicit-any prefer-const no-unused-vars
 
-// Note: Request, Response, and Headers are expected to be available globally
-
-// Helper functions
 function getHeadersAsList(headers: any): [string, string][] {
   const headersList: [string, string][] = [];
 
@@ -270,14 +268,25 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
           bodyData = response.body;
         } else if (
           typeof response.body === "object" &&
-          "length" in response.body
+          "length" in response.body &&
+          typeof response.body.length === "number" &&
+          isFinite(response.body.length)
         ) {
           // Convert object with numeric keys to Uint8Array
-          const length = response.body.length ||
-            Object.keys(response.body).length;
+          const length = response.body.length;
           bodyData = new Uint8Array(length);
           for (let i = 0; i < length; i++) {
             bodyData[i] = response.body[i] || 0;
+          }
+        } else if (typeof response.body === "object") {
+          // Try to get keys if length is not available or invalid
+          const keys = Object.keys(response.body).filter(k => !isNaN(Number(k)));
+          if (keys.length > 0) {
+            const length = keys.length;
+            bodyData = new Uint8Array(length);
+            for (let i = 0; i < length; i++) {
+              bodyData[i] = response.body[i] || 0;
+            }
           }
         }
       }

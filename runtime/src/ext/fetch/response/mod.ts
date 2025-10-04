@@ -1,177 +1,287 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // deno-lint-ignore-file no-explicit-any
 
-class Response {
-  #response;
-  #headers: any;
+// Get body classes from globalThis (loaded from body files)
+const extractBody = (globalThis as any).extractBody;
+const _InnerBody = (globalThis as any).InnerBody;
+const BodyMixin = (globalThis as any).BodyMixin;
+const BODY_SYMBOL = (globalThis as any).BODY_SYMBOL;
+const CONTENT_TYPE_SYMBOL = (globalThis as any).CONTENT_TYPE_SYMBOL;
+
+// Import Headers class and utilities from the headers module
+const Headers = globalThis.Headers as unknown as {
+  new (init?: HeadersInit): Headers;
+  setHeadersList(target: Headers, list: Array<[string, string]>): void;
+  setHeadersGuard(target: Headers, guard: string): void;
+};
+const fillHeaders = (globalThis as any).fillHeaders as (
+  headers: Headers,
+  object: HeadersInit,
+) => void;
+
+const { setHeadersList, setHeadersGuard } = Headers;
+
+// Use symbols instead of private fields for internal state
+const RESPONSE_INTERNAL = Symbol("response.internal");
+const RESPONSE_HEADERS = Symbol("response.headers");
+
+/**
+ * Response initialization options.
+ * @see https://fetch.spec.whatwg.org/#responseinit
+ */
+interface ResponseInit {
+  status?: number;
+  statusText?: string;
+  headers?: HeadersInit;
+  // Internal properties
+  headersList?: Array<[string, string]>;
+  type?: ResponseType;
+  url?: string;
+}
+
+class Response extends BodyMixin {
   /**
    * The new Response(body, init) constructor steps are:
    * @see https://fetch.spec.whatwg.org/#dom-response
    */
-  constructor(body: any, init: ResponseInit) {
-    // 1. Set this's response to a new response.
-    this.#response = makeResponse(init);
+  constructor(body: BodyInit | null = null, init: ResponseInit = {}) {
+    // Extract body if provided (must be done before super)
+    const extracted = body !== null ? extractBody(body) : { body: null, contentType: null };
+    
+    // Initialize the BodyMixin with the body and content type
+    super(extracted.body, extracted.contentType);
 
-    // 2. Set this's headers to a new Headers object with this's relevant realm, whose header list is this's response's header list and guard is "response".
-    this.#headers = new Headers();
-    setHeadersList(this.#headers, this.#response.headersList || []);
-    setHeadersGuard(this.#headers, "response");
+    // Initialize internal fields using symbols (not declared as class fields)
+    const internalResponse = makeResponse(init);
+    (this as any)[RESPONSE_INTERNAL] = internalResponse;
+    (this as any)[RESPONSE_HEADERS] = new Headers();
+    
+    // Set this's headers
+    setHeadersList((this as any)[RESPONSE_HEADERS], internalResponse.headersList || []);
+    setHeadersGuard((this as any)[RESPONSE_HEADERS], "response");
 
-    // 3. Let bodyWithType be null.
-    let bodyWithType = null;
-
-    // 4. If body is non-null, then set bodyWithType to the result of extracting body.
-    if (body != null) {
-      const [extractedBody, type] = extractBody(body);
-      bodyWithType = { body: extractedBody, type };
-    }
-    // 5. Perform initialize a response given this, init, and bodyWithType.
-    initializeAResponse(this, init, bodyWithType);
+    // Perform initialize a response
+    initializeAResponse(this, init, extracted.body, extracted.contentType);
   }
 
-  static getResponse(response: Response) {
-    return response.#response;
+  /**
+   * Gets the internal response object.
+   */
+  static getResponse(response: Response): InternalResponse {
+    return (response as any)[RESPONSE_INTERNAL];
   }
 
-  get type() {
-    return this.#response.type;
+  /**
+   * Gets the response type.
+   */
+  get type(): ResponseType {
+    return (this as any)[RESPONSE_INTERNAL].type;
   }
 
   /**
    * The url getter steps are to return this's response's URL.
    */
-  get url() {
-    return this.#response.url;
+  get url(): string {
+    return (this as any)[RESPONSE_INTERNAL].url;
   }
 
   /**
    * Returns true if the response is the result of a redirect; otherwise false.
    */
-  get redirected() {
-    return this.#response.url.length > 1;
+  get redirected(): boolean {
+    return (this as any)[RESPONSE_INTERNAL].url.length > 1;
   }
 
-  /** The status getter steps are to return this's response's status. */
-  get status() {
-    return this.#response.status;
+  /**
+   * The status getter steps are to return this's response's status.
+   */
+  get status(): number {
+    return (this as any)[RESPONSE_INTERNAL].status;
   }
 
-  /** The ok getter steps are to return true if this's response's status is an ok status; otherwise false. */
-  get ok() {
-    const status = this.#response.status;
+  /**
+   * The ok getter steps are to return true if this's response's status is an ok status; otherwise false.
+   */
+  get ok(): boolean {
+    const status = (this as any)[RESPONSE_INTERNAL].status;
     return status >= 200 && status <= 299;
   }
 
-  /** The statusText getter steps are to return this's response's status message. */
-  get statusText() {
-    return this.#response.statusText;
+  /**
+   * The statusText getter steps are to return this's response's status message.
+   */
+  get statusText(): string {
+    return (this as any)[RESPONSE_INTERNAL].statusText;
   }
 
   /**
    * Gets the headers.
    */
-  get headers() {
-    return this.#headers;
-  }
-
-  // TODO
-  get body() {
-    return this.#response.body;
+  get headers(): Headers {
+    return (this as any)[RESPONSE_HEADERS];
   }
 
   /**
-   * Returns a promise that resolves with the result of parsing the response body as text.
+   * Gets the body as a ReadableStream.
+   * @see https://fetch.spec.whatwg.org/#dom-body-body
    */
-  async text(): Promise<string> {
-    const body = this.#response.body;
-    if (!body) {
-      return "";
+  get body(): ReadableStream<Uint8Array> | null {
+    if (!(this as any)[BODY_SYMBOL]) {
+      return null;
     }
-
-    // Handle body object with source property (from extractBody)
-    let actualBody = body;
-    if (body && typeof body === "object" && "source" in body) {
-      actualBody = body.source;
-    }
-
-    // If body is a Uint8Array, decode it as UTF-8
-    if (actualBody instanceof Uint8Array) {
-      const decoder = new TextDecoder();
-      return decoder.decode(actualBody);
-    }
-
-    // If body is already a string
-    if (typeof actualBody === "string") {
-      return actualBody;
-    }
-
-    // Handle object with numeric keys (like the one we get from TLS)
-    if (typeof actualBody === "object" && actualBody !== null) {
-      const length = actualBody.length || Object.keys(actualBody).length;
-      const uint8Array = new Uint8Array(length);
-      for (let i = 0; i < length; i++) {
-        uint8Array[i] = actualBody[i] || 0;
-      }
-      const decoder = new TextDecoder();
-      return decoder.decode(uint8Array);
-    }
-
-    return String(actualBody);
+    return (this as any)[BODY_SYMBOL].stream;
   }
 
   /**
-   * Returns a promise that resolves with the result of parsing the response body as JSON.
+   * Clones the response.
+   * @see https://fetch.spec.whatwg.org/#dom-response-clone
    */
-  async json(): Promise<any> {
-    const text = await this.text();
-    return JSON.parse(text);
+  clone(): Response {
+    // 1. If this is unusable, then throw a TypeError.
+    if (this.bodyUsed) {
+      throw new TypeError("Response body is already used");
+    }
+
+    // 2. Let clonedResponse be the result of cloning this's response.
+    const clonedInternalResponse = cloneResponse((this as any)[RESPONSE_INTERNAL]);
+
+    // 3. Clone the body if present
+    let clonedBody: any = null;
+    if ((this as any)[BODY_SYMBOL]) {
+      clonedBody = (this as any)[BODY_SYMBOL].clone();
+    }
+
+    // 4. Create a new Response with null body first (to initialize private fields)
+    const cloned = new Response(null, {
+      status: clonedInternalResponse.status,
+      statusText: clonedInternalResponse.statusText,
+      headersList: [...clonedInternalResponse.headersList],
+    });
+
+    // 5. Manually set the cloned body
+    (cloned as any)[BODY_SYMBOL] = clonedBody;
+    (cloned as any)[CONTENT_TYPE_SYMBOL] = (this as any)[CONTENT_TYPE_SYMBOL];
+
+    return cloned;
   }
+
+  /**
+   * Creates an error response.
+   * @see https://fetch.spec.whatwg.org/#dom-response-error
+   */
+  static error(): Response {
+    const response = new Response(null, {
+      type: "error",
+      status: 0,
+      statusText: "",
+    });
+    setHeadersGuard((response as any)[RESPONSE_HEADERS], "immutable");
+    return response;
+  }
+
+  /**
+   * Creates a redirect response.
+   * @see https://fetch.spec.whatwg.org/#dom-response-redirect
+   */
+  static redirect(url: string | URL, status: number = 302): Response {
+    // 1. Let parsedURL be the result of parsing url with current settings object's API base URL.
+    const parsedURL = new URL(url, globalThis.location?.href);
+
+    // 2. If parsedURL is failure, then throw a TypeError.
+    if (!parsedURL) {
+      throw new TypeError("Invalid URL");
+    }
+
+    // 3. If status is not a redirect status, then throw a RangeError.
+    if (![301, 302, 303, 307, 308].includes(status)) {
+      throw new RangeError("Invalid redirect status");
+    }
+
+    // 4. Let response be a new response.
+    const response = new Response(null, {
+      status,
+      statusText: "",
+    });
+
+    // 5. Set response's Location header to parsedURL, serialized and isomorphic encoded.
+    response.headers.set("Location", parsedURL.toString());
+
+    // 6. Return response.
+    return response;
+  }
+
+  /**
+   * Creates a JSON response.
+   * @see https://fetch.spec.whatwg.org/#dom-response-json
+   */
+  static json(data: unknown, init: ResponseInit = {}): Response {
+    // 1. Let bytes be the result of running serialize a JavaScript value to JSON bytes on data.
+    const bytes = new TextEncoder().encode(JSON.stringify(data));
+
+    // 2. Let response be the result of creating a Response object, given a new response, "response", and this's relevant Realm.
+    const response = new Response(bytes, init);
+
+    // 3. Perform initialize a response given response, init, and (a new body whose stream is a new ReadableStream object, "application/json").
+    response.headers.set("Content-Type", "application/json");
+
+    // 4. Return response.
+    return response;
+  }
+}
+
+/**
+ * Internal response representation.
+ */
+interface InternalResponse {
+  aborted: boolean;
+  rangeRequested: boolean;
+  timingAllowPassed: boolean;
+  requestIncludesCredentials: boolean;
+  type: ResponseType;
+  status: number;
+  timingInfo: unknown;
+  cacheState: string;
+  statusText: string;
+  url: string;
+  headersList: Array<[string, string]>;
 }
 
 const { getResponse } = Response;
 
-function makeResponse(init: ResponseInit) {
+function makeResponse(init: ResponseInit): InternalResponse {
   return {
     aborted: false,
     rangeRequested: false,
     timingAllowPassed: false,
     requestIncludesCredentials: false,
-    type: "default",
-    status: 200,
+    type: init.type || "default",
+    status: init.status || 200,
     timingInfo: null,
     cacheState: "",
-    statusText: "",
-    url: "",
-    body: null,
-    headersList: [],
-    ...init,
+    statusText: init.statusText || "",
+    url: init.url || "",
+    headersList: init.headersList || [],
   };
 }
 
 function initializeAResponse(
   response: Response,
   init: ResponseInit,
-  body: {
-    body: any;
-    type: any;
-  } | null,
-) {
+  body: any,
+  contentType: string | null,
+): void {
   // 1. If init["status"] is not in the range 200 to 599, inclusive, then throw a RangeError.
-  if (
-    init.status != null && (init.status < 200 || init.status > 599)
-  ) {
+  if (init.status != null && (init.status < 200 || init.status > 599)) {
     throw new RangeError(
-      `The status provided (${init.status}) is not equal to 101 and outside the range [200, 599]`,
+      `The status provided (${init.status}) is outside the range [200, 599]`,
     );
   }
 
-  // 2. If init["statusText"] is not the empty string and does not match the reason-phrase token production, then throw a TypeError.
-  // TODO: implement RegExp.
-  if (
-    init.statusText && !isValidReasonPhrase(init.statusText)
-  ) {
-    throw new TypeError(
-      `Invalid status text: "${init.statusText}"`,
-    );
+  // 2. If init["statusText"] is not a valid reason phrase, then throw a TypeError.
+  if (init.statusText && !isValidReasonPhrase(init.statusText)) {
+    throw new TypeError(`Invalid status text: "${init.statusText}"`);
   }
 
   // 3. Set response's response's status to init["status"].
@@ -186,40 +296,49 @@ function initializeAResponse(
 
   // 5. If init["headers"] exists, then fill response's headers with init["headers"].
   if (init.headers != null) {
-    // Fill the headers object with the provided headers
     fillHeaders(response.headers, init.headers);
   }
 
   // Handle headersList if provided
   if (init.headersList != null && Array.isArray(init.headersList)) {
-    // Update the internal response headersList
     getResponse(response).headersList = init.headersList;
-    // Also update the Headers object
     setHeadersList(response.headers, init.headersList);
   }
 
   // 6. If body is non-null, then:
   if (body != null) {
     // 1. If response's status is a null body status, then throw a TypeError.
-    // NOTE: 101 and 103 are included in null body status due to their use elsewhere. They do not affect this step.
     if (nullBodyStatus(response.status)) {
       throw new TypeError(
         `Response with status ${response.status} cannot have a body.`,
       );
     }
-    // 2. Set response's body to body's body.
-    getResponse(response).body = body.body;
-    // 3. If body's type is non-null and response's header list does not contain `Content-Type`, then append (`Content-Type`, body's type) to response's header list.
+
+    // 2. If contentType is non-null and response's header list does not contain `Content-Type`,
+    //    then append (`Content-Type`, contentType) to response's header list.
+    if (contentType && !response.headers.has("Content-Type")) {
+      response.headers.set("Content-Type", contentType);
+    }
   }
 }
 
-// Check whether |statusText| is a ByteString and
-// matches the Reason-Phrase token production.
-// RFC 2616: https://tools.ietf.org/html/rfc2616
-// RFC 7230: https://tools.ietf.org/html/rfc7230
-// "reason-phrase = *( HTAB / SP / VCHAR / obs-text )"
-// https://github.com/chromium/chromium/blob/94.0.4604.1/third_party/blink/renderer/core/fetch/response.cc#L116
-function isValidReasonPhrase(statusText: string) {
+/**
+ * Clones an internal response object.
+ */
+function cloneResponse(response: InternalResponse): InternalResponse {
+  return {
+    ...response,
+    headersList: response.headersList.map(([k, v]) =>
+      [k, v] as [string, string]
+    ),
+  };
+}
+
+/**
+ * Checks if a status text is a valid reason phrase.
+ * @see https://tools.ietf.org/html/rfc7230
+ */
+function isValidReasonPhrase(statusText: string): boolean {
   for (let i = 0; i < statusText.length; ++i) {
     const c = statusText.charCodeAt(i);
     if (
@@ -245,4 +364,4 @@ function nullBodyStatus(status: number): boolean {
 }
 
 // Export Response to globalThis
-globalThis.Response = Response;
+globalThis.Response = Response as unknown as typeof globalThis.Response;

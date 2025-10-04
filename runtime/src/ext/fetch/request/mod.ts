@@ -1,10 +1,26 @@
-// deno-lint-ignore-file no-explicit-any prefer-const no-unused-vars
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// deno-lint-ignore-file no-explicit-any
 
-// @ts-ignore deno lint stuff
-type RequestInfo = Request;
+const extractBody = (globalThis as any).extractBody;
+const BodyMixin = (globalThis as any).BodyMixin;
+const BODY_SYMBOL = (globalThis as any).BODY_SYMBOL;
+const CONTENT_TYPE_SYMBOL = (globalThis as any).CONTENT_TYPE_SYMBOL;
+
+const Headers = (globalThis as any).Headers;
+const { setHeadersList, setHeadersGuard, getHeadersList } = Headers;
+
+type RequestInfo = Request | string | URL;
+
+type BodyInit =
+  | ReadableStream<Uint8Array>
+  | Blob
+  | ArrayBuffer
+  | ArrayBufferView
+  | FormData
+  | URLSearchParams
+  | string;
 
 // method => normalized method
 const KNOWN_METHODS = {
@@ -24,268 +40,240 @@ const KNOWN_METHODS = {
   "put": "PUT",
 };
 
-/** @category Fetch */
-interface RequestInit extends RequestInitType {
-  /**
-   * A BodyInit object or null to set request's body.
-   */
+/**
+ * Request initialization options.
+ * @see https://fetch.spec.whatwg.org/#requestinit
+ */
+interface RequestInit {
   body?: BodyInit | null;
-  /**
-   * A string indicating how the request will interact with the browser's cache
-   * to set request's cache.
-   */
   cache?: RequestCache;
-  /**
-   * A string indicating whether credentials will be sent with the request
-   * always, never, or only when sent to a same-origin URL. Sets request's
-   * credentials.
-   */
   credentials?: RequestCredentials;
-  /**
-   * A cryptographic hash of the resource to be fetched by request. Sets
-   * request's integrity.
-   */
+  headers?: HeadersInit;
   integrity?: string;
-  /**
-   * A boolean to set request's keepalive.
-   */
   keepalive?: boolean;
-  /**
-   * A string to set request's method.
-   */
-  // @ts-ignore deno lint stuff
-  method?: keyof typeof KNOWN_METHODS;
-  /**
-   * A string to indicate whether the request will use CORS, or will be
-   * restricted to same-origin URLs. Sets request's mode.
-   */
+  method?: string;
   mode?: RequestMode;
-  /**
-   * A string indicating whether request follows redirects, results in an error
-   * upon encountering a redirect, or returns the redirect (in an opaque
-   * fashion). Sets request's redirect.
-   */
   redirect?: RequestRedirect;
-  /**
-   * A string whose value is a same-origin URL, "about:client", or the empty
-   * string, to set request's referrer.
-   */
   referrer?: string;
-  /**
-   * A referrer policy to set request's referrerPolicy.
-   */
   referrerPolicy?: ReferrerPolicy;
-  /**
-   * An AbortSignal to set request's signal.
-   */
   signal?: AbortSignal | null;
-  /**
-   * Can only be null. Used to disassociate request from any Window.
-   */
-  // @ts-ignore deno lint stuff
   window?: any;
 }
 
-const requestSymbol = Symbol("[[request]]");
-const signalSymbol = Symbol("[[signal]]");
-const bodySymbol = Symbol("[[body]]");
-// @ts-ignore deno lint stuff
-class Request {
-  [requestSymbol]: any;
-  #headers: Headers;
-  [signalSymbol]: AbortSignal | null = null;
-  [bodySymbol]: any = null;
+// Use symbols instead of private fields for internal state
+const REQUEST_INTERNAL = Symbol("request.internal");
+const REQUEST_HEADERS = Symbol("request.headers");
+const REQUEST_SIGNAL = Symbol("request.signal");
 
-  /** https://fetch.spec.whatwg.org/#request-class */
+/**
+ * Request class represents an HTTP request.
+ * @see https://fetch.spec.whatwg.org/#request-class
+ */
+class Request extends BodyMixin {
+  /**
+   * The Request(input, init) constructor steps are:
+   * @see https://fetch.spec.whatwg.org/#dom-request
+   */
   constructor(
     input: RequestInfo,
-    init: RequestInit = { __proto__: null } as any,
+    init: RequestInit = {},
   ) {
+    // Initialize body as null initially
+    super(null, null);
+
+    // Initialize internal fields using symbols (not declared as class fields)
+    (this as any)[REQUEST_INTERNAL] = null;
+    (this as any)[REQUEST_HEADERS] = new Headers();
+    (this as any)[REQUEST_SIGNAL] = null;
+
     // 1. Let request be null.
     let request: any = null;
 
     // 2. Let fallbackMode be null.
-    let fallbackMode: any = null;
+    let fallbackMode: RequestMode | null = null;
 
-    // 3. Let baseURL be this’s relevant settings object’s API base URL.
-    // const baseUrl = environmentSettingsObject.settingsObject.baseUrl
+    // 3. Let baseURL be this's relevant settings object's API base URL.
+    const baseURL = globalThis.location?.href || "http://localhost/";
 
     // 4. Let signal be null.
-    let signal: any = null;
+    let signal: AbortSignal | null = null;
 
     // 5. If input is a string, then:
     if (typeof input === "string") {
       // 1. Let parsedURL be the result of parsing input with baseURL.
+      const parsedURL = new URL(input, baseURL);
+      
       // 2. If parsedURL is failure, then throw a TypeError.
-      // 3. If parsedURL includes credentials, then throw a TypeError.
-      // 4. Set request to a new request whose URL is parsedURL.
-      // 5. Set fallbackMode to "cors"
-      const parsedURL = new URL(input);
-      request = newInnerRequest(
-        "GET",
-        parsedURL as any,
-        () => [],
-        null,
-        true,
-      );
-    } else {
-      // 6. Otherwise:
-      //  1. Assert: input is a Request object.
-      //  2. Set request to input’s request.
-      //  3. Set signal to input’s signal.
-      if (!Object.prototype.isPrototypeOf.call(RequestPrototype, input)) {
-        throw new TypeError("Unreachable");
+      if (!parsedURL) {
+        throw new TypeError("Invalid URL");
       }
 
-      const originalReq = input[requestSymbol];
-      // fold in of step 12 from below
-      request = cloneInnerRequest(originalReq, true);
-      request.redirectCount = 0; // reset to 0 - cloneInnerRequest copies the value
-      signal = input[signalSymbol];
+      // 3. If parsedURL includes credentials, then throw a TypeError.
+      if (parsedURL.username || parsedURL.password) {
+        throw new TypeError("Request cannot be constructed from a URL that includes credentials");
+      }
+
+      // 4. Set request to a new request whose URL is parsedURL.
+      request = newInnerRequest("GET", parsedURL.toString());
+      
+      // 5. Set fallbackMode to "cors".
+      fallbackMode = "cors";
+    } else if (input instanceof URL) {
+      // Handle URL objects
+      const parsedURL = input;
+      
+      if (parsedURL.username || parsedURL.password) {
+        throw new TypeError("Request cannot be constructed from a URL that includes credentials");
+      }
+
+      request = newInnerRequest("GET", parsedURL.toString());
+      fallbackMode = "cors";
+    } else {
+      // 6. Otherwise:
+      // 1. Assert: input is a Request object.
+      if (!(input instanceof Request)) {
+        throw new TypeError("Invalid input");
+      }
+
+      // 2. Set request to input's request.
+      request = (input as any)[REQUEST_INTERNAL];
+      
+      // 3. Set signal to input's signal.
+      signal = (input as any)[REQUEST_SIGNAL];
     }
 
-    // 7. Let origin be this’s relevant settings object’s origin.
-    // 8. Let traversableForUserPrompts be "client".
-    // 9. If request’s traversable for user prompts is an environment settings object and its origin is same origin with origin,
-    //    then set traversableForUserPrompts to request’s traversable for user prompts.
-    // 10. If init["window"] exists and is non-null, then throw a TypeError.
-    if (init.window != null) {
-      throw new TypeError(`'window' option '${window}' must be null`);
+    // 7-9. Origin, window, and service workers handling (simplified)
+    
+    // 10. Let window be "client".
+    const _windowValue = "client";
+
+    // 11. If init["window"] exists, then:
+    if (init.window !== undefined) {
+      // 1. If init["window"] is non-null, then throw a TypeError.
+      if (init.window !== null) {
+        throw new TypeError("Window can only be set to null");
+      }
+      // 2. Set window to "no-window".
+      // windowValue = "no-window"; (not used further in this implementation)
     }
-    // 11. If init["window"] exists, then set traversableForUserPrompts to "no-traversable".
 
-    // 12. is folded into the else statement of step 6 above.
-
-    const initHasKey = Object.keys(init).length !== 0;
+    // 12. Set request to a new request with the following properties:
+    request = cloneInnerRequest(request);
 
     // 13. If init is not empty, then:
-    if (initHasKey) {
-      // 1. If request’s mode is "navigate", then set it to "same-origin".
+    if (Object.keys(init).length > 0) {
+      // 1. If request's mode is "navigate", then set it to "same-origin".
       if (request.mode === "navigate") {
         request.mode = "same-origin";
       }
 
-      // 2. Unset request’s reload-navigation flag.
+      // 2. Unset request's reload-navigation flag.
       request.reloadNavigation = false;
 
-      // 3. Unset request’s history-navigation flag.
+      // 3. Unset request's history-navigation flag.
       request.historyNavigation = false;
 
-      // 4. Set request’s origin to "client".
+      // 4. Set request's origin to "client".
       request.origin = "client";
 
-      // 5. Set request’s referrer to "client"
+      // 5. Set request's referrer to "client"
       request.referrer = "client";
 
-      // 6. Set request’s referrer policy to the empty string.
+      // 6. Set request's referrer policy to the empty string.
       request.referrerPolicy = "";
 
-      // 7. Set request’s URL to request’s current URL.
-      request.url = request.urlList[request.urlList.length - 1];
+      // 7. Set request's URL to request's current URL.
+      request.url = request.currentUrl();
 
-      // 8. Set request’s URL list to « request’s URL ».
+      // 8. Set request's URL list to « request's URL ».
       request.urlList = [request.url];
     }
 
     // 14. If init["referrer"] exists, then:
     if (init.referrer !== undefined) {
-      // 1. Let referrer be init["referrer"].
       const referrer = init.referrer;
-
-      // 2. If referrer is the empty string, then set request’s referrer to "no-referrer".
+      
+      // 1. Let referrerURL be empty string.
       if (referrer === "") {
+        // 2. Set request's referrer to "no-referrer".
         request.referrer = "no-referrer";
       } else {
-        // 1. Let parsedReferrer be the result of parsing referrer with baseURL.
-        // 2. If parsedReferrer is failure, then throw a TypeError.
-        let parsedReferrer;
+        // 3. Let parsedReferrer be the result of parsing referrer with baseURL.
         try {
-          parsedReferrer = new URL(referrer);
-        } catch (err) {
-          throw new TypeError(`Referrer "${referrer}" is not a valid URL.`, {
-            cause: err,
-          });
+          const parsedReferrer = new URL(referrer, baseURL);
+          
+          // 4. If parsedReferrer is failure, then throw a TypeError.
+          // 5. If parsedReferrer's scheme is "about" and path is "client", or parsedReferrer's origin is not same origin with origin, then set request's referrer to "client".
+          if (parsedReferrer.protocol === "about:" && parsedReferrer.pathname === "client") {
+            request.referrer = "client";
+          } else {
+            // 6. Otherwise, set request's referrer to parsedReferrer.
+            request.referrer = parsedReferrer.toString();
+          }
+        } catch {
+          throw new TypeError("Invalid referrer URL");
         }
-
-        // 3. If one of the following is true
-        // - parsedReferrer’s scheme is "about" and path is the string "client"
-        // - parsedReferrer’s origin is not same origin with origin
-        // then set request’s referrer to "client".
-        // TODO: sameOrigin
-        //
-        // 4. Otherwise, set request’s referrer to parsedReferrer.
-        request.referrer = parsedReferrer;
       }
     }
 
-    // 15. If init["referrerPolicy"] exists, then set request’s referrer policy
-    // to it.
+    // 15. If init["referrerPolicy"] exists, then set request's referrer policy to it.
     if (init.referrerPolicy !== undefined) {
       request.referrerPolicy = init.referrerPolicy;
     }
 
     // 16. Let mode be init["mode"] if it exists, and fallbackMode otherwise.
-    let mode;
-    if (init.mode !== undefined) {
-      mode = init.mode;
-    } else {
-      mode = fallbackMode;
-    }
+    const mode = init.mode !== undefined ? init.mode : fallbackMode;
 
     // 17. If mode is "navigate", then throw a TypeError.
     if (mode === "navigate") {
-      throw new TypeError(
-        "Request constructor: invalid request mode navigate.",
-      );
+      throw new TypeError("Mode cannot be navigate");
     }
 
-    // 18. If mode is non-null, set request’s mode to mode.
-    if (mode != null) {
+    // 18. If mode is non-null, set request's mode to mode.
+    if (mode !== null) {
       request.mode = mode;
     }
 
-    // 19. If init["credentials"] exists, then set request’s credentials mode to it.
+    // 19. If init["credentials"] exists, then set request's credentials mode to it.
     if (init.credentials !== undefined) {
       request.credentials = init.credentials;
     }
 
-    // 20. If init["cache"] exists, then set request’s cache mode to it.
+    // 20. If init["cache"] exists, then set request's cache mode to it.
     if (init.cache !== undefined) {
       request.cache = init.cache;
     }
 
-    // 21. If request’s cache mode is "only-if-cached" and request’s mode is
-    // not "same-origin", then throw a TypeError.
+    // 21. If request's cache mode is "only-if-cached" and request's mode is not "same-origin", then throw a TypeError.
     if (request.cache === "only-if-cached" && request.mode !== "same-origin") {
-      throw new TypeError(
-        "'only-if-cached' can be set only with 'same-origin' mode",
-      );
+      throw new TypeError("only-if-cached cache mode requires same-origin mode");
     }
 
-    // 22. If init["redirect"] exists, then set request’s redirect mode to it.
+    // 22. If init["redirect"] exists, then set request's redirect mode to it.
     if (init.redirect !== undefined) {
-      request.redirectMode = init.redirect;
+      request.redirect = init.redirect;
     }
 
-    // 23. If init["integrity"] exists, then set request’s integrity metadata to it.
-    if (init.integrity != null) {
-      request.integrity = String(init.integrity);
+    // 23. If init["integrity"] exists, then set request's integrity metadata to it.
+    if (init.integrity !== undefined) {
+      request.integrity = init.integrity;
     }
 
-    // 24. If init["keepalive"] exists, then set request’s keepalive to it.
+    // 24. If init["keepalive"] exists, then set request's keepalive to it.
     if (init.keepalive !== undefined) {
-      request.keepalive = Boolean(init.keepalive);
+      request.keepalive = init.keepalive;
     }
 
     // 25. If init["method"] exists, then:
     if (init.method !== undefined) {
       // 1. Let method be init["method"].
-      // 2. If method is not a method or method is a forbidden method, then throw a TypeError.
-      // 3. Normalize method.
-      // 4. Set request’s method to method.
-      const method = init.method;
-      request.method = KNOWN_METHODS[method] ??
-        validateAndNormalizeMethod(method);
+      let method = init.method;
+
+      // 2. If method is not a method or method is a forbidden method, throw a TypeError.
+      method = validateAndNormalizeMethod(method);
+
+      // 3. Set request's method to method.
+      request.method = method;
     }
 
     // 26. If init["signal"] exists, then set signal to it.
@@ -293,305 +281,276 @@ class Request {
       signal = init.signal;
     }
 
-    // 27. Set this’s request to request.
-    this[requestSymbol] = request;
+    // 27. Set this's request to request.
+    (this as any)[REQUEST_INTERNAL] = request;
 
-    // // 28. Set this’s signal to a new AbortSignal object with this’s relevant
-    //    // Realm.
-    //    // TODO: could this be simplified with AbortSignal.any
-    //    // (https://dom.spec.whatwg.org/#dom-abortsignal-any)
-    //    const ac = new AbortController()
-    // this.#signal = ac.signal;
+    // 28. Set this's signal to a new AbortSignal object with this's relevant Realm.
+    (this as any)[REQUEST_SIGNAL] = signal;
 
-    // 29 & 30.
-    // TODO: AbortSignal
-    // if (signal !== null) {
-    //   this[_signalCache] = createDependentAbortSignal([signal], prefix);
-    // }
+    // 29. Set this's headers to a new Headers object with this's relevant Realm, whose header list is request's header list and guard is "request".
+    (this as any)[REQUEST_HEADERS] = new Headers();
+    setHeadersList((this as any)[REQUEST_HEADERS], request.headerList || []);
+    setHeadersGuard((this as any)[REQUEST_HEADERS], "request");
 
-    // 31. Set this's headers to a new Headers object with this's relevant realm,
-    //     whose header list is request's header list and guard is "request".
-    this.#headers = new Headers();
-    setHeadersList(this.#headers, request.headersList || []);
-    setHeadersGuard(this.#headers, "request");
-
-    // 32. If this’s request’s mode is "no-cors", then:
-    const corsSafeListedMethods = ["GET", "HEAD", "POST"] as const;
-    const corsSafeListedMethodsSet = new Set(corsSafeListedMethods);
+    // 30. If this's request's mode is "no-cors", then:
     if (request.mode === "no-cors") {
-      // 1. If this’s request’s method is not a CORS-safelisted method,
-      // then throw a TypeError.
-      if (!corsSafeListedMethodsSet.has(request.method)) {
-        throw new TypeError(
-          `'${request.method} is unsupported in no-cors mode.`,
-        );
+      // 1. If this's request's method is not a CORS-safelisted method, throw a TypeError.
+      if (!["GET", "HEAD", "POST"].includes(request.method)) {
+        throw new TypeError("Method not allowed in no-cors mode");
       }
+
       // 2. Set this's headers's guard to "request-no-cors".
-      setHeadersGuard(this.#headers, "request-no-cors");
+      setHeadersGuard((this as any)[REQUEST_HEADERS], "request-no-cors");
     }
 
-    // 33.
-    if (init.headers || Object.keys(init).length > 0) {
-      const headerList = getHeadersList(this.#headers);
-      const headers = init.headers ?? headerList.slice(
-        0,
-        headerList.length,
-      );
-      if (headerList.length !== 0) {
-        headerList.splice(0, headerList.length);
-      }
-      fillHeaders(this.#headers, headers);
+    // 31. If init["headers"] exists, then fill this's headers with init["headers"].
+    if (init.headers !== undefined) {
+      (globalThis as any).fillHeaders((this as any)[REQUEST_HEADERS], init.headers);
     }
 
-    // 34. Let inputBody be input’s request’s body if input is a Request object; otherwise null.
+    // 32. Let inputBody be input's request's body if input is a Request object; otherwise null.
     let inputBody: any = null;
-    if (Object.prototype.isPrototypeOf.call(RequestPrototype, input)) {
-      inputBody = input[bodySymbol];
+    if (input instanceof Request) {
+      inputBody = (input as any)[BODY_SYMBOL];
     }
 
-    // 35. If either init["body"] exists and is non-null or inputBody is non-null, and request’s method is `GET` or `HEAD`, then throw a TypeError.
-    if (
-      (request.method === "GET" || request.method === "HEAD") &&
-      ((init.body !== undefined && init.body !== null) ||
-        inputBody !== null)
-    ) {
+    // 33. If either init["body"] exists and is non-null or inputBody is non-null, and request's method is `GET` or `HEAD`, throw a TypeError.
+    if (((init.body !== undefined && init.body !== null) || inputBody !== null) && 
+        (request.method === "GET" || request.method === "HEAD")) {
       throw new TypeError("Request with GET/HEAD method cannot have body");
     }
 
-    // 36. Let initBody be null.
-    let initBody = null;
+    // 34. Let initBody be null.
+    let initBody: any = null;
 
-    // 37. If init["body"] exists and is non-null, then:
-    // Let bodyWithType be the result of extracting init["body"], with keepalive set to request’s keepalive.
-    // Set initBody to bodyWithType’s body.
-    // Let type be bodyWithType’s type.
-    // If type is non-null and this’s headers’s header list does not contain `Content-Type`, then append (`Content-Type`, type) to this’s headers.
-    // TODO
+    // 35. If init["body"] exists and is non-null, then:
+    if (init.body !== undefined && init.body !== null) {
+      // 1. Let bodyWithType be the result of extracting init["body"].
+      const extracted = extractBody(init.body);
+      initBody = extracted.body;
+      const contentType = extracted.contentType;
 
-    // 38. Let inputOrInitBody be initBody if it is non-null; otherwise inputBody.
-    const inputOrInitBody = initBody ?? inputBody;
+      // 2. Set initBody to bodyWithType's body.
+      // 3. Let type be bodyWithType's type.
+      // 4. If type is non-null and this's headers's header list does not contain `Content-Type`, then append (`Content-Type`, type) to this's headers.
+      if (contentType && !(this as any)[REQUEST_HEADERS].has("Content-Type")) {
+        (this as any)[REQUEST_HEADERS].set("Content-Type", contentType);
+      }
+    }
 
-    // 39. If inputOrInitBody is non-null and inputOrInitBody’s source is null, then:
-    // If initBody is non-null and init["duplex"] does not exist, then throw a TypeError.
-    // If this’s request’s mode is neither "same-origin" nor "cors", then throw a TypeError.
-    // Set this’s request’s use-CORS-preflight flag.
+    // 36. Let body be initBody.
+    let finalBody = initBody;
 
-    let finalBody = inputOrInitBody;
-
-    // 41. If initBody is null and inputBody is non-null, then:
+    // 37. If initBody is null and inputBody is non-null, then:
     if (initBody === null && inputBody !== null) {
       // 1. If input is unusable, then throw a TypeError.
-      if (input[bodySymbol] && input[bodySymbol].unusable()) {
-        throw new TypeError("Input request's body is unusable");
+      if (input instanceof Request && input.bodyUsed) {
+        throw new TypeError("Cannot construct a Request with a Request that has already been used");
       }
-      // 2. Set finalBody to the result of creating a proxy for inputBody.
-      finalBody = (inputBody as any).createProxy();
+
+      // 2. Set body to the result of cloning inputBody.
+      finalBody = inputBody.clone();
     }
 
-    // 42. Set this’s request’s body to finalBody.
-    request.body = finalBody;
-
-    this[requestSymbol] = request;
+    // 38. Set this's request's body to body.
+    (this as any)[BODY_SYMBOL] = finalBody;
+    
+    // Also update content type
+    const contentTypeHeader = (this as any)[REQUEST_HEADERS].get("Content-Type");
+    (this as any)[CONTENT_TYPE_SYMBOL] = contentTypeHeader;
   }
 
-  // Returns request’s HTTP method, which is "GET" by default.
-  get method() {
-    return this[requestSymbol].method;
+  /**
+   * Returns request's HTTP method.
+   * @see https://fetch.spec.whatwg.org/#dom-request-method
+   */
+  get method(): string {
+    return (this as any)[REQUEST_INTERNAL].method;
   }
 
-  // Returns the URL of request as a string.
-  get url() {
-    // The url getter steps are to return this’s request’s URL, serialized.
-    return this[requestSymbol].url;
+  /**
+   * Returns the URL of request as a string.
+   * @see https://fetch.spec.whatwg.org/#dom-request-url
+   */
+  get url(): string {
+    return (this as any)[REQUEST_INTERNAL].url;
   }
 
-  // Returns a Headers object consisting of the headers associated with request.
-  // Note that headers added in the network layer by the user agent will not
-  // be accounted for in this object, e.g., the "Host" header.
-  get headers() {
-    return this.#headers;
+  /**
+   * Returns a Headers object consisting of the headers associated with request.
+   * @see https://fetch.spec.whatwg.org/#dom-request-headers
+   */
+  get headers(): Headers {
+    return (this as any)[REQUEST_HEADERS];
   }
 
-  // Returns the kind of resource requested by request, e.g., "document"
-  // or "script".
-  get destination() {
-    // The destination getter are to return this’s request’s destination.
-    return this[requestSymbol].destination;
+  /**
+   * Returns the mode associated with request.
+   * @see https://fetch.spec.whatwg.org/#dom-request-mode
+   */
+  get mode(): RequestMode {
+    return (this as any)[REQUEST_INTERNAL].mode;
   }
 
-  // Returns the referrer of request. Its value can be a same-origin URL if
-  // explicitly set in init, the empty string to indicate no referrer, and
-  // "about:client" when defaulting to the global’s default. This is used
-  // during fetching to determine the value of the `Referer` header of the
-  // request being made.
-  get referrer() {
-    if (this[requestSymbol].referrer === "no-referrer") {
+  /**
+   * Returns the credentials mode associated with request.
+   * @see https://fetch.spec.whatwg.org/#dom-request-credentials
+   */
+  get credentials(): RequestCredentials {
+    return (this as any)[REQUEST_INTERNAL].credentials;
+  }
+
+  /**
+   * Returns the cache mode associated with request.
+   * @see https://fetch.spec.whatwg.org/#dom-request-cache
+   */
+  get cache(): RequestCache {
+    return (this as any)[REQUEST_INTERNAL].cache;
+  }
+
+  /**
+   * Returns the redirect mode associated with request.
+   * @see https://fetch.spec.whatwg.org/#dom-request-redirect
+   */
+  get redirect(): RequestRedirect {
+    return (this as any)[REQUEST_INTERNAL].redirect;
+  }
+
+  /**
+   * Returns the referrer of request.
+   * @see https://fetch.spec.whatwg.org/#dom-request-referrer
+   */
+  get referrer(): string {
+    const ref = (this as any)[REQUEST_INTERNAL].referrer;
+    if (ref === "no-referrer") {
       return "";
     }
-
-    // 2. If this’s request’s referrer is "client", then return
-    // "about:client".
-    if (this[requestSymbol].referrer === "client") {
+    if (ref === "client") {
       return "about:client";
     }
-
-    // Return this's request's referrer, serialized.
-    const referrer = this[requestSymbol].referrer;
-    if (!referrer) return "";
-    if (typeof referrer === "string") return referrer;
-    return referrer.href || String(referrer);
+    return ref;
   }
 
-  // Returns the referrer policy associated with request.
-  // This is used during fetching to compute the value of the request’s
-  // referrer.
-  get referrerPolicy() {
-    return this[requestSymbol].referrerPolicy;
+  /**
+   * Returns the referrer policy associated with request.
+   * @see https://fetch.spec.whatwg.org/#dom-request-referrerpolicy
+   */
+  get referrerPolicy(): ReferrerPolicy {
+    return (this as any)[REQUEST_INTERNAL].referrerPolicy || "";
   }
 
-  // Returns the mode associated with request, which is a string indicating
-  // whether the request will use CORS, or will be restricted to same-origin
-  // URLs.
-  get mode() {
-    return this[requestSymbol].mode;
+  /**
+   * Returns the subresource integrity metadata associated with request.
+   * @see https://fetch.spec.whatwg.org/#dom-request-integrity
+   */
+  get integrity(): string {
+    return (this as any)[REQUEST_INTERNAL].integrity || "";
   }
 
-  // Returns the credentials mode associated with request,
-  // which is a string indicating whether credentials will be sent with the
-  // request always, never, or only when sent to a same-origin URL.
-  get credentials() {
-    return this[requestSymbol].credentials;
+  /**
+   * Returns a boolean indicating whether or not request can outlive the global in which it was created.
+   * @see https://fetch.spec.whatwg.org/#dom-request-keepalive
+   */
+  get keepalive(): boolean {
+    return (this as any)[REQUEST_INTERNAL].keepalive || false;
   }
 
-  // Returns the cache mode associated with request,
-  // which is a string indicating how the request will
-  // interact with the browser’s cache when fetching.
-  get cache() {
-    return this[requestSymbol].cache;
+  /**
+   * Returns the signal associated with request.
+   * @see https://fetch.spec.whatwg.org/#dom-request-signal
+   */
+  get signal(): AbortSignal {
+    // If no signal, create a never-aborted signal
+    if (!(this as any)[REQUEST_SIGNAL]) {
+      (this as any)[REQUEST_SIGNAL] = new AbortSignal();
+    }
+    return (this as any)[REQUEST_SIGNAL];
   }
 
-  // Returns the redirect mode associated with request,
-  // which is a string indicating how redirects for the
-  // request will be handled during fetching. A request
-  // will follow redirects by default.
-  get redirect() {
-    return this[requestSymbol].redirect;
+  /**
+   * Returns the body as a ReadableStream.
+   * @see https://fetch.spec.whatwg.org/#dom-body-body
+   */
+  get body(): ReadableStream<Uint8Array> | null {
+    if (!(this as any)[BODY_SYMBOL]) {
+      return null;
+    }
+    return (this as any)[BODY_SYMBOL].stream;
   }
 
-  get integrity() {
-    return this[requestSymbol].integrity;
-  }
+  /**
+   * Clones the request.
+   * @see https://fetch.spec.whatwg.org/#dom-request-clone
+   */
+  clone(): Request {
+    // 1. If this is unusable, then throw a TypeError.
+    if (this.bodyUsed) {
+      throw new TypeError("Cannot clone a request that has already been used");
+    }
 
-  // Returns a boolean indicating whether or not request can outlive the
-  // global in which it was created.
-  get keepalive() {
-    return this[requestSymbol].keepalive;
-  }
+    // 2. Let clonedRequest be the result of cloning this's request.
+    const clonedInternalRequest = cloneInnerRequest((this as any)[REQUEST_INTERNAL]);
 
-  get isReloadNavigation() {
-    return this[requestSymbol].reloadNavigation;
-  }
+    // 3. Let clonedRequestObject be the result of creating a Request object, given clonedRequest, this's headers's guard, and this's relevant Realm.
+    const cloned = Object.create(Request.prototype);
+    (cloned as any)[REQUEST_INTERNAL] = clonedInternalRequest;
+    (cloned as any)[REQUEST_SIGNAL] = (this as any)[REQUEST_SIGNAL];
+    
+    // Clone headers
+    (cloned as any)[REQUEST_HEADERS] = new Headers();
+    const headerList = getHeadersList((this as any)[REQUEST_HEADERS]);
+    setHeadersList((cloned as any)[REQUEST_HEADERS], headerList.map((h: any) => [h[0], h[1]]));
+    const currentGuard = ((this as any)[REQUEST_HEADERS] as any).guard || "request";
+    setHeadersGuard((cloned as any)[REQUEST_HEADERS], currentGuard);
 
-  get isHistoryNavigation() {
-    return this[requestSymbol].historyNavigation;
-  }
+    // Clone body if present
+    let clonedBody: any = null;
+    if ((this as any)[BODY_SYMBOL]) {
+      clonedBody = (this as any)[BODY_SYMBOL].clone();
+    }
 
-  get signal() {
-    return this[signalSymbol];
-  }
+    // Set up the body
+    BodyMixin.call(cloned, clonedBody, (this as any)[CONTENT_TYPE_SYMBOL]);
+    (cloned as any)[BODY_SYMBOL] = clonedBody;
+    (cloned as any)[CONTENT_TYPE_SYMBOL] = (this as any)[CONTENT_TYPE_SYMBOL];
 
-  get body() {
-    return this[requestSymbol].body ? this[requestSymbol].body.stream : null;
-  }
-
-  get bodyUsed() {
-    return !!this[requestSymbol].body;
-  }
-
-  get duplex() {
-    return "half";
+    // 4. Return clonedRequestObject.
+    return cloned;
   }
 }
 
-function newInnerRequest(
-  method: string,
-  url: () => string,
-  headerList: () => [string, string][],
-  body: any,
-  maybeBlob: any,
-): any {
-  let blobUrlEntry = null;
-  if (
-    maybeBlob &&
-    typeof url === "string"
-    // url.startsWith("blob:")
-  ) {
-    // TODO: the blobFromObjectUrl is file api
-    // blobUrlEntry = blobFromObjectUrl(url);
-    throw new Error("not support blob");
-  }
+/**
+ * Creates a new inner request object.
+ */
+function newInnerRequest(method: string, url: string): any {
   return {
-    methodInner: method,
-    get method() {
-      return this.methodInner;
-    },
-    set method(value) {
-      this.methodInner = value;
-    },
-    headerListInner: null,
-    get headerList() {
-      if (this.headerListInner === null) {
-        try {
-          this.headerListInner = headerList();
-        } catch {
-          throw new TypeError("Cannot read headers: request closed");
-        }
-      }
-      return this.headerListInner;
-    },
-    set headerList(value) {
-      this.headerListInner = value;
-    },
-    get headersList() {
-      return this.headerList;
-    },
-    set headersList(value) {
-      this.headerList = value;
-    },
-    body,
-    redirectMode: "follow",
-    redirectCount: 0,
-    urlList: [typeof url === "string" ? () => url : url],
-    urlListProcessed: [],
-    clientRid: null,
-    blobUrlEntry,
-    url,
+    method: method,
+    url: url,
+    headerList: [],
+    body: null,
+    mode: "cors",
+    credentials: "same-origin",
+    cache: "default",
+    redirect: "follow",
+    referrer: "client",
+    referrerPolicy: "",
+    integrity: "",
+    keepalive: false,
+    reloadNavigation: false,
+    historyNavigation: false,
+    urlList: [url],
     currentUrl() {
-      const currentIndex = this.urlList.length - 1;
-      if (this.urlListProcessed[currentIndex] === undefined) {
-        try {
-          this.urlListProcessed[currentIndex] = this.urlList[currentIndex]();
-        } catch {
-          throw new TypeError("Cannot read url: request closed");
-        }
-      }
-      return this.urlListProcessed[currentIndex];
+      return this.url;
     },
   };
 }
 
-configureInterface(Request);
-const RequestPrototype = Request.prototype;
-// mixinBody(RequestPrototype, _body, _mimeType);
-
-// Export Request to globalThis
-globalThis.Request = Request;
-
-/** https://fetch.spec.whatwg.org/#concept-request-clone */
+/**
+ * Clones an inner request object.
+ * @see https://fetch.spec.whatwg.org/#concept-request-clone
+ */
 function cloneInnerRequest(request: any, skipBody = false): any {
-  const headerList = request.headerList.push(
-    (x: any) => [x[0], x[1]],
-  );
+  const headerList = request.headerList.map((h: any) => [h[0], h[1]]);
 
   let body = null;
   if (request.body !== null && !skipBody) {
@@ -599,92 +558,47 @@ function cloneInnerRequest(request: any, skipBody = false): any {
   }
 
   return {
-    mode: request.mode,
     method: request.method,
+    url: request.url,
     headerList,
     body,
-    redirectMode: request.redirectMode,
-    redirectCount: request.redirectCount,
-    urlList: [() => request.url()],
-    urlListProcessed: [request.url()],
-    clientRid: request.clientRid,
-    blobUrlEntry: request.blobUrlEntry,
-    url() {
-      if (this.urlListProcessed[0] === undefined) {
-        try {
-          this.urlListProcessed[0] = this.urlList[0]();
-        } catch {
-          throw new TypeError("Cannot read url: request closed");
-        }
-      }
-      return this.urlListProcessed[0];
-    },
+    mode: request.mode,
+    credentials: request.credentials,
+    cache: request.cache,
+    redirect: request.redirect,
+    referrer: request.referrer,
+    referrerPolicy: request.referrerPolicy,
+    integrity: request.integrity,
+    keepalive: request.keepalive,
+    reloadNavigation: request.reloadNavigation || false,
+    historyNavigation: request.historyNavigation || false,
+    urlList: [...request.urlList],
     currentUrl() {
-      const currentIndex = this.urlList.length - 1;
-      if (this.urlListProcessed[currentIndex] === undefined) {
-        try {
-          this.urlListProcessed[currentIndex] = this.urlList[currentIndex]();
-        } catch {
-          throw new TypeError("Cannot read url: request closed");
-        }
-      }
-      return this.urlListProcessed[currentIndex];
+      return this.url;
     },
   };
 }
 
-function validateAndNormalizeMethod(m: string): string {
-  // const upperCase = byteUpperCase(m);
-  // TODO: replace and uppercase
-  const upperCase = m;
-  if (
-    upperCase === "CONNECT" || upperCase === "TRACE" || upperCase === "TRACK"
-  ) {
-    throw new TypeError("Method is forbidden");
+/**
+ * Validates and normalizes an HTTP method.
+ */
+function validateAndNormalizeMethod(method: string): string {
+  // Normalize to uppercase
+  const upperMethod = method.toUpperCase();
+
+  // Check if it's a forbidden method
+  if (["CONNECT", "TRACE", "TRACK"].includes(upperMethod)) {
+    throw new TypeError(`Method ${method} is forbidden`);
   }
-  return upperCase;
+
+  // Return normalized method for known methods
+  if (upperMethod in KNOWN_METHODS) {
+    return (KNOWN_METHODS as any)[upperMethod];
+  }
+
+  // Return as-is for custom methods
+  return method;
 }
 
-function configureInterface(interface_: any) {
-  configureProperties(interface_);
-  configureProperties(interface_.prototype);
-  Object.defineProperty(interface_.prototype, Symbol.toStringTag, {
-    // @ts-ignore:
-    __proto__: null,
-    value: interface_.name,
-    enumerable: false,
-    configurable: true,
-    writable: false,
-  });
-}
-
-function configureProperties(obj: any) {
-  const descriptors = Object.getOwnPropertyDescriptors(obj);
-  for (const key in descriptors) {
-    if (!Object.hasOwn(descriptors, key)) {
-      continue;
-    }
-    if (key === "constructor") continue;
-    if (key === "prototype") continue;
-    const descriptor = descriptors[key];
-    if (
-      Reflect.has(descriptor, "value") &&
-      typeof descriptor.value === "function"
-    ) {
-      Object.defineProperty(obj, key, {
-        // @ts-ignore:
-        __proto__: null,
-        enumerable: true,
-        writable: true,
-        configurable: true,
-      });
-    } else if (Reflect.has(descriptor, "get")) {
-      Object.defineProperty(obj, key, {
-        // @ts-ignore:
-        __proto__: null,
-        enumerable: true,
-        configurable: true,
-      });
-    }
-  }
-}
+// Export Request to globalThis
+(globalThis as any).Request = Request;
