@@ -244,6 +244,7 @@ impl WptTestExecutor {
     }
 
     fn calculate_adjusted_timeout(&self, test_path: &Path) -> Duration {
+        #[allow(unused_mut)]
         let mut timeout = self.config.timeout;
 
         // Check for known slow tests
