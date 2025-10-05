@@ -65,7 +65,7 @@ dependencies = [
 
 [[package]]
 name = "andromeda"
-version = "0.1.0-draft47"
+version = "0.1.0-draft48"
 dependencies = [
  "andromeda-core",
  "andromeda-runtime",
@@ -117,7 +117,7 @@ dependencies = [
 
 [[package]]
 name = "andromeda-core"
-version = "0.1.0-draft47"
+version = "0.1.0-draft48"
 dependencies = [
  "anyhow",
  "anymap",
@@ -140,7 +140,7 @@ dependencies = [
 
 [[package]]
 name = "andromeda-runtime"
-version = "0.1.0-draft47"
+version = "0.1.0-draft48"
 dependencies = [
  "andromeda-core",
  "anyhow",
@@ -1858,9 +1858,9 @@ checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
 name = "hotpath"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11cc16808fc766e6d9c94446dad87e969aed05c90893ac7117c056c00c7164f3"
+checksum = "8d7597a54e880a603c1982b2cc1b3fc2015670eec77fd733fe395e81913006d3"
 dependencies = [
  "arc-swap",
  "cfg-if",
@@ -1879,9 +1879,9 @@ dependencies = [
 
 [[package]]
 name = "hotpath-macros"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7999c7c40a8d21e7a02db1443947fb285c8dc6968375e3c587f08d818d3a8e27"
+checksum = "430aebfe503410f85d96cf6b980bbab6ca2a6e8abca518e5e0cc5c54fdee7fc1"
 dependencies = [
  "proc-macro2",
  "quote",

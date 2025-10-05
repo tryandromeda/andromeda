@@ -4,49 +4,49 @@
   "wpt": {
     "overall": {
       "total_tests": 698,
-      "pass": 51,
-      "fail": 256,
-      "crash": 387,
-      "timeout": 0,
+      "pass": 168,
+      "fail": 173,
+      "crash": 352,
+      "timeout": 1,
       "skip": 4,
-      "pass_rate": 7.306590257879657
+      "pass_rate": 24.068767908309454
     },
     "suites": {
       "console": {
         "total_tests": 13,
-        "pass": 5,
+        "pass": 7,
         "fail": 2,
-        "crash": 4,
+        "crash": 2,
         "timeout": 0,
         "skip": 2,
-        "pass_rate": 38.46153846153847
+        "pass_rate": 53.84615384615385
       },
       "fetch": {
         "total_tests": 650,
-        "pass": 42,
-        "fail": 229,
-        "crash": 377,
-        "timeout": 0,
+        "pass": 146,
+        "fail": 159,
+        "crash": 342,
+        "timeout": 1,
         "skip": 2,
-        "pass_rate": 6.461538461538462
+        "pass_rate": 22.46153846153846
       },
       "route": {
         "total_tests": 1,
-        "pass": 0,
+        "pass": 1,
         "fail": 0,
-        "crash": 1,
+        "crash": 0,
         "timeout": 0,
         "skip": 0,
-        "pass_rate": 0.0
+        "pass_rate": 100.0
       },
       "url": {
         "total_tests": 34,
-        "pass": 4,
-        "fail": 25,
-        "crash": 5,
+        "pass": 14,
+        "fail": 12,
+        "crash": 8,
         "timeout": 0,
         "skip": 0,
-        "pass_rate": 11.76470588235294
+        "pass_rate": 41.17647058823529
       }
     },
     "trend": {

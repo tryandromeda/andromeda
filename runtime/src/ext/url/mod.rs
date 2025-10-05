@@ -225,10 +225,13 @@ impl URLExt {
         let url = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
         match Url::parse(url.as_str(agent).expect("String is not valid UTF-8")) {
             Ok(url) => {
-                Ok(
-                    Value::from_string(agent, url.host_str().unwrap_or("").to_string(), gc.nogc())
-                        .unbind(),
-                )
+                let host_str = url.host_str().unwrap_or("").to_string();
+                let result = if let Some(port) = url.port() {
+                    format!("{}:{}", host_str, port)
+                } else {
+                    host_str
+                };
+                Ok(Value::from_string(agent, result, gc.nogc()).unbind())
             }
             Err(e) => Ok(Value::from_string(agent, format!("Error: {e}"), gc.nogc()).unbind()),
         }

@@ -346,6 +346,8 @@ impl WptRunner {
             timeout: config.timeout,
             optimize_console_log: true,
             binary_path: None,
+            max_retries: 2,
+            verbose: config.verbose,
         };
 
         Self {
@@ -373,7 +375,15 @@ impl WptRunner {
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.config.timeout = timeout;
 
-        self.executor = self.executor.timeout(timeout);
+        // Rebuild executor with new timeout
+        let executor_config = TestExecutorConfig {
+            timeout: self.config.timeout,
+            optimize_console_log: true,
+            binary_path: None,
+            max_retries: 2,
+            verbose: self.config.verbose,
+        };
+        self.executor = WptTestExecutor::with_config(executor_config);
         self
     }
 

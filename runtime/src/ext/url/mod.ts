@@ -65,12 +65,21 @@ class URL {
   constructor(url: string, base?: string) {
     this.url = url;
     this.base = base;
-    this.serialized = base ?
+    const parsed = base ?
       __andromeda__.internal_url_parse(url, base) :
       __andromeda__.internal_url_parse_no_base(url);
+    
+    if (parsed.startsWith("Error:")) {
+      throw new TypeError("Invalid URL");
+    }
+    this.serialized = parsed;
   }
 
   toString() {
+    return this.serialized;
+  }
+
+  toJSON() {
     return this.serialized;
   }
 
@@ -82,8 +91,29 @@ class URL {
     return this.serialized;
   }
 
-  static parse(url: string, base?: string) {
-    return new this(url, base);
+  set href(value: string) {
+    const parsed = __andromeda__.internal_url_parse_no_base(value);
+    if (parsed.startsWith("Error:")) {
+      throw new TypeError("Invalid URL");
+    }
+    this.serialized = parsed;
+  }
+
+  static parse(url: string, base?: string): URL | null {
+    try {
+      return new this(url, base);
+    } catch {
+      return null;
+    }
+  }
+
+  static canParse(url: string, base?: string): boolean {
+    try {
+      new URL(url, base);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   get protocol(): string {
@@ -117,7 +147,24 @@ class URL {
   }
 
   get host(): string {
-    return __andromeda__.internal_url_get_host(this.serialized);
+    const hostname = __andromeda__.internal_url_get_hostname(this.serialized);
+    const port = __andromeda__.internal_url_get_port(this.serialized);
+    if (port) {
+      return `${hostname}:${port}`;
+    }
+    return hostname;
+  }
+
+  set host(v: string) {
+    const colonIndex = v.lastIndexOf(":");
+    if (colonIndex !== -1) {
+      const hostname = v.substring(0, colonIndex);
+      const port = v.substring(colonIndex + 1);
+      this.serialized = __andromeda__.internal_url_set_hostname(this.serialized, hostname);
+      this.serialized = __andromeda__.internal_url_set_port(this.serialized, port);
+    } else {
+      this.serialized = __andromeda__.internal_url_set_hostname(this.serialized, v);
+    }
   }
 
   get hostname(): string {
@@ -151,7 +198,8 @@ class URL {
   }
 
   get search(): string {
-    return __andromeda__.internal_url_get_search(this.serialized);
+    const query = __andromeda__.internal_url_get_search(this.serialized);
+    return query ? `?${query}` : "";
   }
 
   set search(v: string) {
@@ -159,7 +207,8 @@ class URL {
   }
 
   get hash(): string {
-    return __andromeda__.internal_url_get_hash(this.serialized);
+    const fragment = __andromeda__.internal_url_get_hash(this.serialized);
+    return fragment ? `#${fragment}` : "";
   }
 
   set hash(v: string) {
@@ -170,6 +219,10 @@ class URL {
 class URLSearchParams {
   #pairs: Array<[string, string]> = [];
   #url?: URL;
+
+  get size(): number {
+    return this.#pairs.length;
+  }
 
   constructor(
     init?: string | Array<[string, string]> | Record<string, string> | URL,
@@ -246,9 +299,13 @@ class URLSearchParams {
     this.#updateURL();
   }
 
-  delete(name: string) {
+  delete(name: string, value?: string) {
     const before = this.#pairs.length;
-    this.#pairs = this.#pairs.filter(([k, _]) => k !== name);
+    if (value !== undefined) {
+      this.#pairs = this.#pairs.filter(([k, v]) => !(k === name && v === value));
+    } else {
+      this.#pairs = this.#pairs.filter(([k, _]) => k !== name);
+    }
     if (this.#pairs.length !== before) this.#updateURL();
   }
 
@@ -263,9 +320,16 @@ class URLSearchParams {
     return res;
   }
 
-  has(name: string) {
-    for (const [k, _] of this.#pairs) if (k === name) return true;
-    return false;
+  has(name: string, value?: string): boolean {
+    if (value !== undefined) {
+      for (const [k, v] of this.#pairs) {
+        if (k === name && v === value) return true;
+      }
+      return false;
+    } else {
+      for (const [k, _] of this.#pairs) if (k === name) return true;
+      return false;
+    }
   }
 
   toString() {
@@ -289,9 +353,16 @@ class URLSearchParams {
   *values() {
     for (const [, v] of this.#pairs) yield v;
   }
-}
 
-// searchParams is defined per-instance in the constructor above.
+  sort() {
+    this.#pairs.sort((a, b) => {
+      if (a[0] < b[0]) return -1;
+      if (a[0] > b[0]) return 1;
+      return 0;
+    });
+    this.#updateURL();
+  }
+}
 
 // @ts-ignore globalThis is not readonly
 globalThis.URL = URL;
