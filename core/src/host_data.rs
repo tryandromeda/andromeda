@@ -60,11 +60,11 @@ impl<UserMacroTask> HostData<UserMacroTask> {
         F::Output: Send + 'static,
     {
         let macro_task_count = self.macro_task_count.clone();
-        macro_task_count.fetch_add(1, Ordering::Relaxed);
+        macro_task_count.fetch_add(1, Ordering::Release);
 
         let task_handle = tokio::spawn(async move {
             future.await;
-            macro_task_count.fetch_sub(1, Ordering::Relaxed);
+            macro_task_count.fetch_sub(1, Ordering::Release);
         });
 
         let task_id = TaskId::from_index(self.task_count.fetch_add(1, Ordering::Relaxed));
@@ -80,7 +80,7 @@ impl<UserMacroTask> HostData<UserMacroTask> {
         task.abort();
 
         // Manually decrease the macro tasks counter as the task was aborted.
-        self.macro_task_count.fetch_sub(1, Ordering::Relaxed);
+        self.macro_task_count.fetch_sub(1, Ordering::Release);
     }
 
     /// Clear a MacroTask given it's [TaskId].
@@ -97,7 +97,7 @@ impl<UserMacroTask> HostData<UserMacroTask> {
         task.abort();
 
         // Manually decrease the macro tasks counter as the task was aborted.
-        self.macro_task_count.fetch_sub(1, Ordering::Relaxed);
+        self.macro_task_count.fetch_sub(1, Ordering::Release);
         Ok(())
     }
 

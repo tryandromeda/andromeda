@@ -95,7 +95,7 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
     }
 
     pub fn any_pending_macro_tasks(&self) -> bool {
-        self.host_data.macro_task_count.load(Ordering::Relaxed) > 0
+        self.host_data.macro_task_count.load(Ordering::Acquire) > 0
     }
 
     /// Resolve a module specifier relative to a referrer path
@@ -784,12 +784,20 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                 });
             }
 
-            // If both the microtasks and macrotasks queues are empty we can end the event loop
-            if !self.host_hooks.any_pending_macro_tasks() {
+            // Try to handle a macro task without blocking
+            // This handles the case where a task completed so fast that the counter
+            // was already decremented but the message is still in the channel
+            let has_macro_task = self.try_handle_macro_task();
+            
+            // Only exit if there are no pending tasks AND no message was processed
+            if !has_macro_task && !self.host_hooks.any_pending_macro_tasks() {
                 break;
             }
-
-            self.handle_macro_task();
+            
+            // If we saw pending tasks but got no message, block waiting for one
+            if !has_macro_task && self.host_hooks.any_pending_macro_tasks() {
+                self.handle_macro_task();
+            }
         }
 
         RuntimeOutput {
@@ -823,6 +831,35 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                 );
             }
             _ => {}
+        }
+    }
+
+    // Try to handle a macro task without blocking, returns true if a task was handled
+    pub fn try_handle_macro_task(&mut self) -> bool {
+        match self.config.macro_task_rx.try_recv() {
+            Ok(MacroTask::ResolvePromise(root_value)) => {
+                self.agent.run_in_realm(&self.realm_root, |agent, gc| {
+                    let value = root_value.take(agent);
+                    if let Value::Promise(promise) = value {
+                        let promise_capability = PromiseCapability::from_promise(promise, false);
+                        promise_capability.resolve(agent, Value::Undefined, gc);
+                    } else {
+                        panic!("Attempted to resolve a non-promise value");
+                    }
+                });
+                true
+            }
+            // Let the user runtime handle its macro tasks
+            Ok(MacroTask::User(e)) => {
+                (self.config.eventloop_handler)(
+                    e,
+                    &mut self.agent,
+                    &self.realm_root,
+                    &self.host_hooks.host_data,
+                );
+                true
+            }
+            _ => false
         }
     }
 }
