@@ -1,10 +1,17 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// deno-lint-ignore-file no-explicit-any prefer-const no-unused-vars
 
-// Note: Request, Response, and Headers are expected to be available globally
+// CORS and response filtering helpers (loaded from cors.ts and response_filter.ts)
+const corsCheck = (globalThis as any).corsCheck;
+const corsPreflightCheck = (globalThis as any).corsPreflightCheck;
+const createCORSPreflightRequest =
+  (globalThis as any).createCORSPreflightRequest;
+const filterResponse = (globalThis as any).filterResponse;
+const createOpaqueRedirectFilteredResponse =
+  (globalThis as any).createOpaqueRedirectFilteredResponse;
 
-// Helper functions
 function getHeadersAsList(headers: any): [string, string][] {
   const headersList: [string, string][] = [];
 
@@ -270,14 +277,27 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
           bodyData = response.body;
         } else if (
           typeof response.body === "object" &&
-          "length" in response.body
+          "length" in response.body &&
+          typeof response.body.length === "number" &&
+          isFinite(response.body.length)
         ) {
           // Convert object with numeric keys to Uint8Array
-          const length = response.body.length ||
-            Object.keys(response.body).length;
+          const length = response.body.length;
           bodyData = new Uint8Array(length);
           for (let i = 0; i < length; i++) {
             bodyData[i] = response.body[i] || 0;
+          }
+        } else if (typeof response.body === "object") {
+          // Try to get keys if length is not available or invalid
+          const keys = Object.keys(response.body).filter(k =>
+            !isNaN(Number(k))
+          );
+          if (keys.length > 0) {
+            const length = keys.length;
+            bodyData = new Uint8Array(length);
+            for (let i = 0; i < length; i++) {
+              bodyData[i] = response.body[i] || 0;
+            }
           }
         }
       }
@@ -285,8 +305,7 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
       responseObject = new Response(bodyData, {
         status: response.status,
         statusText: response.statusText,
-        headersList: response.headersList || [],
-      });
+      } as any);
 
       // Add additional properties that might be needed
       Object.defineProperty(responseObject, "url", {
@@ -516,7 +535,39 @@ const mainFetch = async (fetchParams: any, recursive = false) => {
   // TODO: Implement mixed content upgrade
 
   // 7. If should request be blocked due to a bad port, should fetching request be blocked as mixed content, should request be blocked by Content Security Policy, or should request be blocked by Integrity Policy Policy returns blocked, then set response to a network error.
-  // TODO: Implement blocking checks
+
+  // Check if fetching should be blocked as mixed content
+  const shouldBlockMixedContent = (globalThis as unknown as {
+    __shouldFetchingRequestBeBlockedAsMixedContent?: (
+      req: unknown,
+    ) => "allowed" | "blocked";
+  }).__shouldFetchingRequestBeBlockedAsMixedContent;
+
+  if (shouldBlockMixedContent) {
+    const result = shouldBlockMixedContent(request);
+    if (result === "blocked") {
+      return networkError();
+    }
+  }
+
+  // Bad port check - block requests to dangerous ports
+  // Per spec, these ports should be blocked for security reasons
+  const badPorts = new Set([
+    1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77, 79,
+    87, 95, 101, 102, 103, 104, 109, 110, 111, 113, 115, 117, 119, 123, 135, 137,
+    139, 143, 161, 179, 389, 427, 465, 512, 513, 514, 515, 526, 530, 531, 532,
+    540, 548, 554, 556, 563, 587, 601, 636, 989, 990, 993, 995, 1719, 1720, 1723,
+    2049, 3659, 4045, 5060, 5061, 6000, 6566, 6665, 6666, 6667, 6668, 6669, 6697,
+    10080
+  ]);
+  
+  const requestURL = new URL(request.url);
+  if (requestURL.port && badPorts.has(parseInt(requestURL.port, 10))) {
+    return networkError();
+  }
+  
+  // TODO: Implement CSP check
+  // TODO: Implement Integrity Policy check
 
   // 8. If request's referrer policy is the empty string, then set request's referrer policy to request's policy container's referrer policy.
   if (request.referrerPolicy === "") {
@@ -675,7 +726,7 @@ const mainFetch = async (fetchParams: any, recursive = false) => {
       //  1.If request's response tainting is "cors", then:
       if (request.responseTainting === "cors") {
         //    1. Let headerNames be the result of extracting header list values given `Access-Control-Expose-Headers` and response's header list.
-        const headerNames = null;
+        const headerNames: string | null = null;
         //    2. If request's credentials mode is not "include" and headerNames contains `*`, then set response's CORS-exposed header-name list to all unique header names in response's header list.
         if (
           request.credentialsMode !== "include" &&
@@ -717,7 +768,7 @@ const mainFetch = async (fetchParams: any, recursive = false) => {
     }
 
     // 15. Let internalResponse be response, if response is a network error; otherwise response's internal response.
-    const internalResponse = response?.type === "error" ?
+    let internalResponse = response?.type === "error" ?
       response :
       response?.internalResponse || response;
 
@@ -746,9 +797,33 @@ const mainFetch = async (fetchParams: any, recursive = false) => {
     //  - should internalResponse to request be blocked due to its MIME type
     //  - should internalResponse to request be blocked due to nosniff
     // then set response and internalResponse to a network error.
-    if (response?.type !== "error") {
-      if (false || false || false || false) {
-        response = internalResponse = networkError();
+    if (response?.type !== "error" && internalResponse) {
+      let shouldBlock = false;
+
+      // Check if response should be blocked as mixed content
+      const shouldBlockMixedContentResponse = (globalThis as unknown as {
+        __shouldResponseToRequestBeBlockedAsMixedContent?: (
+          req: unknown,
+          res: unknown,
+        ) => "allowed" | "blocked";
+      }).__shouldResponseToRequestBeBlockedAsMixedContent;
+
+      if (shouldBlockMixedContentResponse) {
+        const result = shouldBlockMixedContentResponse(
+          request,
+          internalResponse,
+        );
+        if (result === "blocked") {
+          shouldBlock = true;
+        }
+      }
+
+      // TODO: Implement CSP check
+      // TODO: Implement MIME type check
+      // TODO: Implement nosniff check
+
+      if (shouldBlock) {
+        response = networkError();
       }
     }
 
@@ -791,11 +866,18 @@ const mainFetch = async (fetchParams: any, recursive = false) => {
       }
 
       //  3. Let processBody given bytes be these steps:
-      const processBody = (bytes: Uint8Array) => {
+      const processBody = async (bytes: Uint8Array) => {
         //    1. If bytes do not match request's integrity metadata, then run processBodyError and abort these steps. [SRI]
-        if (!true) {
-          processBodyError();
-          return;
+        const doesMatch = (globalThis as any).__doesResponseMatchIntegrityMetadata;
+        if (doesMatch) {
+          const integrityValid = await doesMatch(
+            { integrity: request.integrityMetadata, origin: request.origin, mode: request.mode },
+            { body: bytes, type: response.type, url: response.urlList?.[0] }
+          );
+          if (!integrityValid) {
+            processBodyError();
+            return;
+          }
         }
         //    2. Set response's body to bytes as a body.
         response.body = bytes;
@@ -1012,18 +1094,57 @@ const schemeFetch = async (fetchParams: any) => {
     // ↪︎ "data"
     case "data": {
       //   1. Let dataURLStruct be the result of running the data: URL processor on request's current URL.
-      const urlString = request.currentURL.href;
+      const urlString = request.currentURL.href || String(request.currentURL);
       let dataURLStruct = null;
+      
       if (urlString.startsWith("data:")) {
         const commaIndex = urlString.indexOf(",");
         if (commaIndex !== -1) {
-          const mimeType = urlString.substring(5, commaIndex) ||
-            "text/plain;charset=US-ASCII";
-          const data = urlString.substring(commaIndex + 1);
-          const body = new TextEncoder().encode(data);
+          // Parse MIME type and parameters (everything between "data:" and ",")
+          let mimeTypeStr = urlString.substring(5, commaIndex).trim();
+          const dataStr = urlString.substring(commaIndex + 1);
+          
+          // Check if base64 encoded
+          const isBase64 = mimeTypeStr.endsWith(";base64");
+          if (isBase64) {
+            mimeTypeStr = mimeTypeStr.slice(0, -7).trim(); // Remove ";base64"
+          }
+          
+          // Default MIME type if not specified
+          const mimeType = mimeTypeStr || "text/plain;charset=US-ASCII";
+          
+          let body: Uint8Array;
+          
+          if (isBase64) {
+            // Base64 decode
+            try {
+              // Remove whitespace from base64 string
+              const cleanedData = dataStr.replace(/\s/g, "");
+              // Use atob for base64 decoding
+              const binaryString = atob(cleanedData);
+              body = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                body[i] = binaryString.charCodeAt(i);
+              }
+            } catch (e) {
+              // Invalid base64
+              return networkError();
+            }
+          } else {
+            // Percent-decode the data
+            try {
+              const decoded = decodeURIComponent(dataStr);
+              body = new TextEncoder().encode(decoded);
+            } catch (e) {
+              // Invalid percent-encoding, use as-is
+              body = new TextEncoder().encode(dataStr);
+            }
+          }
+          
           dataURLStruct = { mimeType, body };
         }
       }
+      
       //   2. If dataURLStruct is failure, then return a network error.
       if (dataURLStruct === null) {
         return networkError();
@@ -1046,8 +1167,72 @@ const schemeFetch = async (fetchParams: any) => {
     case "file": {
       //    For now, unfortunate as it is, file: URLs are left as an exercise for the reader.
       //    When in doubt, return a network error.
-      // TODO: Implement file: URL handling
-      return networkError();
+      
+      // Implement file: URL handling
+      try {
+        const fileURL = new URL(
+          request.currentURL.href || String(request.currentURL)
+        );
+        
+        // Get the path from the URL
+        // file:///path/to/file -> /path/to/file
+        let filePath = decodeURIComponent(fileURL.pathname);
+        
+        // Security check: only allow GET requests for file: URLs
+        if (request.method !== "GET") {
+          return networkError();
+        }
+        
+        // Read the file asynchronously
+        const readFileAsync = (__andromeda__ as any).internal_read_file_async;
+        if (!readFileAsync) {
+          return networkError();
+        }
+        
+        const body = await readFileAsync(filePath);
+        
+        // Detect MIME type from file extension
+        const getMimeType = (path: string): string => {
+          const ext = path.split(".").pop()?.toLowerCase();
+          const mimeTypes: Record<string, string> = {
+            "html": "text/html",
+            "htm": "text/html",
+            "css": "text/css",
+            "js": "text/javascript",
+            "mjs": "text/javascript",
+            "json": "application/json",
+            "txt": "text/plain",
+            "xml": "application/xml",
+            "png": "image/png",
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            "gif": "image/gif",
+            "svg": "image/svg+xml",
+            "ico": "image/x-icon",
+            "pdf": "application/pdf",
+            "zip": "application/zip",
+            "wasm": "application/wasm",
+          };
+          return mimeTypes[ext || ""] || "application/octet-stream";
+        };
+        
+        const mimeType = getMimeType(filePath);
+        
+        return {
+          type: "basic",
+          status: 200,
+          statusText: "OK",
+          headersList: [
+            ["Content-Type", mimeType],
+            ["Content-Length", String(body.length)],
+          ],
+          body: body,
+          urlList: [request.currentURL],
+        };
+      } catch (error) {
+        // File not found, permission denied, or other error
+        return networkError();
+      }
     }
 
     // ↪︎ HTTP(S) scheme
@@ -1153,10 +1338,19 @@ const httpFetch = async (fetchParams: any, makeCORSPreflight = false) => {
   // 5. If either request's response tainting or response's type is "opaque", and the cross-origin resource policy check with request's origin, request's client, request's destination, and internalResponse returns blocked, then return a network error.
   // NOTE: The cross-origin resource policy check runs for responses coming from the network and responses coming from the service worker. This is different from the CORS check, as request's client and the service worker can have different embedder policies.
   if (
-    (request.responseTainting === "opaque" || response?.type === "opaque") &&
-    "allowed" === "blocked"
+    (request.responseTainting === "opaque" || response?.type === "opaque")
   ) {
-    return networkError();
+    // Perform CORP check
+    const corpCheck =
+      (globalThis as unknown as {
+        __corpCheck?: (req: unknown, res: unknown) => boolean;
+      }).__corpCheck;
+    if (corpCheck && internalResponse) {
+      const corpAllowed = corpCheck(request, internalResponse);
+      if (!corpAllowed) {
+        return networkError();
+      }
+    }
   }
 
   // 6. If internalResponse's status is a redirect status:
@@ -1180,8 +1374,12 @@ const httpFetch = async (fetchParams: any, makeCORSPreflight = false) => {
       case "manual":
         // 1. If request's mode is "navigate", then set fetchParams's controller's next manual redirect steps to run HTTP-redirect fetch given fetchParams and response.
         if (request.mode === "navigate") {
-          // TODO: manual redirect処理
-          fetchParams.controller.nextManualRedirectSteps = () => response;
+          // Set up the manual redirect steps to be invoked later by navigation
+          if (fetchParams.controller) {
+            fetchParams.controller.nextManualRedirectSteps = async () => {
+              return await httpRedirectFetch(fetchParams, response);
+            };
+          }
         } // 2. Otherwise, set response to an opaque-redirect filtered response whose internal response is internalResponse.
         else {
           response = {
@@ -1656,7 +1854,7 @@ const httpRedirectFetch = async (fetchParams: any, response: any) => {
   const internalResponse = response?.internalResponse || response;
 
   // 3. Let locationURL be internalResponse's location URL given request's current URL's fragment.
-  let locationURL = null;
+  let locationURL: URL | null = null;
   const locationHeader = internalResponse.headersList?.find(
     ([name]: [string, string]) => name.toLowerCase() === "location",
   );
@@ -1668,19 +1866,14 @@ const httpRedirectFetch = async (fetchParams: any, response: any) => {
         locationURL.hash = request.currentURL.hash;
       }
     } catch (e) {
-      // Invalid URL, will be handled as failure
-      locationURL = "failure";
+      // Invalid URL, return network error
+      return networkError();
     }
   }
 
   // 4. If locationURL is null, then return response.
   if (locationURL === null) {
     return response;
-  }
-
-  // 5. If locationURL is failure, then return a network error.
-  if (locationURL === "failure") {
-    return networkError();
   }
 
   // 6. If locationURL's scheme is not an HTTP(S) scheme, then return a network error.
@@ -1755,7 +1948,8 @@ const httpRedirectFetch = async (fetchParams: any, response: any) => {
       }
     } else if (request.headersList && Array.isArray(request.headersList)) {
       request.headersList = request.headersList.filter(
-        ([name]) => !requestBodyHeaders.includes(name.toLowerCase()),
+        ([name]: [string, string]) =>
+          !requestBodyHeaders.includes(name.toLowerCase()),
       );
     }
   }
@@ -1771,7 +1965,8 @@ const httpRedirectFetch = async (fetchParams: any, response: any) => {
       }
     } else if (request.headersList && Array.isArray(request.headersList)) {
       request.headersList = request.headersList.filter(
-        ([name]) => !corsNonWildcardHeaders.includes(name.toLowerCase()),
+        ([name]: [string, string]) =>
+          !corsNonWildcardHeaders.includes(name.toLowerCase()),
       );
     }
   }
@@ -1804,8 +1999,22 @@ const httpRedirectFetch = async (fetchParams: any, response: any) => {
   request.urlList.push(locationURL);
 
   // 19. Invoke set request's referrer policy on redirect on request and internalResponse. [REFERRER]
-  // TODO: Implement proper referrer policy handling on redirect
-  // This would check for Referrer-Policy header in the response and update request's referrer policy
+  // Check for Referrer-Policy header in the response and update request's referrer policy
+  const referrerPolicyHeader = internalResponse.headersList?.find(
+    ([name]: [string, string]) => name.toLowerCase() === "referrer-policy"
+  );
+  if (referrerPolicyHeader && referrerPolicyHeader[1]) {
+    const policy = referrerPolicyHeader[1].trim();
+    // Valid referrer policies per spec
+    const validPolicies = [
+      "no-referrer", "no-referrer-when-downgrade", "same-origin", 
+      "origin", "strict-origin", "origin-when-cross-origin",
+      "strict-origin-when-cross-origin", "unsafe-url"
+    ];
+    if (validPolicies.includes(policy)) {
+      request.referrerPolicy = policy;
+    }
+  }
 
   // 20. Let recursive be true.
   let recursive = true;
@@ -1941,10 +2150,35 @@ const httpNetworkOrCacheFetch = async (
   }
 
   // 12. Append a request `Origin` header for httpRequest.
-  // TODO: Implement proper Origin header handling
+  // Per spec, append Origin header for CORS and non-GET/HEAD requests
+  if (httpRequest.mode === "cors" || (httpRequest.method !== "GET" && httpRequest.method !== "HEAD")) {
+    if (!hasRequestHeader(httpRequest, "Origin")) {
+      const origin = httpRequest.origin || "null";
+      setRequestHeader(httpRequest, "Origin", origin);
+    }
+  }
 
   // 13. Append the Fetch metadata headers for httpRequest. [FETCH-METADATA]
-  // TODO: Implement Fetch metadata headers
+  // Sec-Fetch-Site: Indicates the relationship between request initiator and target
+  if (!hasRequestHeader(httpRequest, "Sec-Fetch-Site")) {
+    const requestOrigin = httpRequest.origin;
+    const targetOrigin = new URL(httpRequest.currentURL.href || httpRequest.currentURL).origin;
+    let site = "same-origin";
+    if (requestOrigin !== targetOrigin) {
+      site = "cross-site"; // Simplified - should check for same-site
+    }
+    setRequestHeader(httpRequest, "Sec-Fetch-Site", site);
+  }
+  
+  // Sec-Fetch-Mode: The request's mode
+  if (!hasRequestHeader(httpRequest, "Sec-Fetch-Mode")) {
+    setRequestHeader(httpRequest, "Sec-Fetch-Mode", httpRequest.mode || "cors");
+  }
+  
+  // Sec-Fetch-Dest: The request's destination
+  if (!hasRequestHeader(httpRequest, "Sec-Fetch-Dest")) {
+    setRequestHeader(httpRequest, "Sec-Fetch-Dest", httpRequest.destination || "empty");
+  }
 
   // 14. If httpRequest's initiator is "prefetch", then set a structured field value given (`Sec-Purpose`, the token prefetch) in httpRequest's header list.
   if (httpRequest.initiator === "prefetch") {
@@ -1993,7 +2227,8 @@ const httpNetworkOrCacheFetch = async (
   }
 
   // 19. If httpRequest's header list contains `Range`, then append (`Accept-Encoding`, `identity`) to httpRequest's header list.
-  if (hasRequestHeader(httpRequest, "Range")) {
+  // This prevents encoding that would break range requests
+  if (hasRequestHeader(httpRequest, "Range") && !hasRequestHeader(httpRequest, "Accept-Encoding")) {
     setRequestHeader(httpRequest, "Accept-Encoding", "identity");
   }
 
@@ -2003,11 +2238,40 @@ const httpNetworkOrCacheFetch = async (
   // 21. If includeCredentials is true, then:
   if (includeCredentials) {
     //  1. Append a request `Cookie` header for httpRequest.
-    // TODO: Implement Cookie handling
+    const generateCookieHeader = (globalThis as any).generateCookieHeader;
+    if (generateCookieHeader && !hasRequestHeader(httpRequest, "Cookie")) {
+      const cookieHeader = generateCookieHeader(
+        httpRequest.currentURL.href || String(httpRequest.currentURL)
+      );
+      if (cookieHeader) {
+        setRequestHeader(httpRequest, "Cookie", cookieHeader);
+      }
+    }
 
     //  2. If httpRequest's header list does not contain `Authorization`, then:
     if (!hasRequestHeader(httpRequest, "Authorization")) {
-      // TODO: Implement Authorization header handling
+      // Check if we have stored credentials for this origin
+      const getStoredCredentials = (globalThis as any).getStoredCredentials;
+      if (getStoredCredentials) {
+        const requestURL = new URL(
+          httpRequest.currentURL.href || String(httpRequest.currentURL)
+        );
+        const origin = requestURL.origin;
+        
+        // Try to get credentials for common realm (empty string means any realm)
+        const credentials = getStoredCredentials(origin, "");
+        if (credentials) {
+          // Generate Basic auth header from stored credentials
+          const generateBasicAuth = (globalThis as any).generateBasicAuth;
+          if (generateBasicAuth) {
+            const authHeader = generateBasicAuth(
+              credentials.username,
+              credentials.password
+            );
+            setRequestHeader(httpRequest, "Authorization", authHeader);
+          }
+        }
+      }
     }
   }
 

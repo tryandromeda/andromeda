@@ -4,67 +4,6 @@
 
 // deno-lint-ignore-file no-unused-vars
 
-/**
- * The `assert` function tests if a condition is `true`. If the condition is `false`, an error is thrown with an optional message.
- *
- * @example
- * ```ts
- * assert(1 === 1, "The condition is true!");
- * ```
- */
-function assert(condition: boolean, message: string) {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
-
-/**
- * The `assertEquals` function tests if two values are equal.
- *
- * @example
- * ```ts
- * assertEquals(1, 1, "The values are equal!");
- * ```
- */
-function assertEquals<A>(value1: A, value2: A, message: string) {
-  if (value1 !== value2) {
-    console.error(message);
-  }
-}
-
-/**
- * The `assertNotEquals` function tests if two values are not equal.
- *
- * @example
- * ```ts
- * assertNotEquals(1, 2, "The values are not equal!");
- * ```
- */
-function assertNotEquals<A>(value1: A, value2: A, message: string) {
-  if (value1 === value2) {
-    console.error(message);
-  }
-}
-
-/**
- * The `assertThrows` function tests if a function throws an error.
- *
- * @example
- * ```ts
- * assertThrows(() => {
- *  throw new Error("Hello, World!");
- * }, "An error occurred!");
- */
-function assertThrows(fn: () => void, message: string) {
-  try {
-    fn();
-  } catch (error) {
-    return;
-  }
-
-  console.error(message);
-}
-
 // Signal type definition
 type Signal =
   | "SIGABRT"
