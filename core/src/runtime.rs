@@ -788,12 +788,12 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             // This handles the case where a task completed so fast that the counter
             // was already decremented but the message is still in the channel
             let has_macro_task = self.try_handle_macro_task();
-            
+
             // Only exit if there are no pending tasks AND no message was processed
             if !has_macro_task && !self.host_hooks.any_pending_macro_tasks() {
                 break;
             }
-            
+
             // If we saw pending tasks but got no message, block waiting for one
             if !has_macro_task && self.host_hooks.any_pending_macro_tasks() {
                 self.handle_macro_task();
@@ -859,7 +859,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                 );
                 true
             }
-            _ => false
+            _ => false,
         }
     }
 }
