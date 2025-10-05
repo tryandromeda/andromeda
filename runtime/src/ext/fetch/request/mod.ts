@@ -13,6 +13,8 @@ const { setHeadersList, setHeadersGuard, getHeadersList } = Headers;
 
 type RequestInfo = Request | string | URL;
 
+type RequestPriority = "high" | "low" | "auto";
+
 type BodyInit =
   | ReadableStream<Uint8Array>
   | Blob
@@ -58,6 +60,8 @@ interface RequestInit {
   referrerPolicy?: ReferrerPolicy;
   signal?: AbortSignal | null;
   window?: any;
+  priority?: RequestPriority;
+  duplex?: "half";
 }
 
 // Use symbols instead of private fields for internal state
@@ -456,6 +460,22 @@ class Request extends BodyMixin {
   }
 
   /**
+   * Returns a boolean indicating whether or not request is for a reload navigation.
+   * @see https://fetch.spec.whatwg.org/#dom-request-isreloadnavigation
+   */
+  get isReloadNavigation(): boolean {
+    return (this as any)[REQUEST_INTERNAL].reloadNavigation || false;
+  }
+
+  /**
+   * Returns a boolean indicating whether or not request is for a history navigation (a.k.a. back-forward navigation).
+   * @see https://fetch.spec.whatwg.org/#dom-request-ishistorynavigation
+   */
+  get isHistoryNavigation(): boolean {
+    return (this as any)[REQUEST_INTERNAL].historyNavigation || false;
+  }
+
+  /**
    * Returns the signal associated with request.
    * @see https://fetch.spec.whatwg.org/#dom-request-signal
    */
@@ -465,6 +485,22 @@ class Request extends BodyMixin {
       (this as any)[REQUEST_SIGNAL] = new AbortSignal();
     }
     return (this as any)[REQUEST_SIGNAL];
+  }
+
+  /**
+   * Returns "`half`", meaning the fetch will be half-duplex.
+   * @see https://fetch.spec.whatwg.org/#dom-request-duplex
+   */
+  get duplex(): "half" {
+    return "half";
+  }
+
+  /**
+   * Returns request's priority.
+   * @see https://fetch.spec.whatwg.org/#dom-request-priority
+   */
+  get priority(): RequestPriority {
+    return (this as any)[REQUEST_INTERNAL].priority || "auto";
   }
 
   /**

@@ -3,6 +3,13 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // deno-lint-ignore-file no-explicit-any prefer-const no-unused-vars
 
+// CORS and response filtering helpers (loaded from cors.ts and response_filter.ts)
+const corsCheck = (globalThis as any).corsCheck;
+const corsPreflightCheck = (globalThis as any).corsPreflightCheck;
+const createCORSPreflightRequest = (globalThis as any).createCORSPreflightRequest;
+const filterResponse = (globalThis as any).filterResponse;
+const createOpaqueRedirectFilteredResponse = (globalThis as any).createOpaqueRedirectFilteredResponse;
+
 function getHeadersAsList(headers: any): [string, string][] {
   const headersList: [string, string][] = [];
 
@@ -294,8 +301,7 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
       responseObject = new Response(bodyData, {
         status: response.status,
         statusText: response.statusText,
-        headersList: response.headersList || [],
-      });
+      } as any);
 
       // Add additional properties that might be needed
       Object.defineProperty(responseObject, "url", {
@@ -1665,7 +1671,7 @@ const httpRedirectFetch = async (fetchParams: any, response: any) => {
   const internalResponse = response?.internalResponse || response;
 
   // 3. Let locationURL be internalResponse's location URL given request's current URL's fragment.
-  let locationURL = null;
+  let locationURL: URL | null = null;
   const locationHeader = internalResponse.headersList?.find(
     ([name]: [string, string]) => name.toLowerCase() === "location",
   );
@@ -1677,19 +1683,14 @@ const httpRedirectFetch = async (fetchParams: any, response: any) => {
         locationURL.hash = request.currentURL.hash;
       }
     } catch (e) {
-      // Invalid URL, will be handled as failure
-      locationURL = "failure";
+      // Invalid URL, return network error
+      return networkError();
     }
   }
 
   // 4. If locationURL is null, then return response.
   if (locationURL === null) {
     return response;
-  }
-
-  // 5. If locationURL is failure, then return a network error.
-  if (locationURL === "failure") {
-    return networkError();
   }
 
   // 6. If locationURL's scheme is not an HTTP(S) scheme, then return a network error.
@@ -1764,7 +1765,7 @@ const httpRedirectFetch = async (fetchParams: any, response: any) => {
       }
     } else if (request.headersList && Array.isArray(request.headersList)) {
       request.headersList = request.headersList.filter(
-        ([name]) => !requestBodyHeaders.includes(name.toLowerCase()),
+        ([name]: [string, string]) => !requestBodyHeaders.includes(name.toLowerCase()),
       );
     }
   }
@@ -1780,7 +1781,7 @@ const httpRedirectFetch = async (fetchParams: any, response: any) => {
       }
     } else if (request.headersList && Array.isArray(request.headersList)) {
       request.headersList = request.headersList.filter(
-        ([name]) => !corsNonWildcardHeaders.includes(name.toLowerCase()),
+        ([name]: [string, string]) => !corsNonWildcardHeaders.includes(name.toLowerCase()),
       );
     }
   }

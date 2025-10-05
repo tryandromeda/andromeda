@@ -114,6 +114,7 @@ class BodyMixin implements Body {
 
   /**
    * Returns a promise that resolves with a Uint8Array.
+   * @see https://fetch.spec.whatwg.org/#dom-body-bytes
    */
   async bytes(): Promise<Uint8Array> {
     return await consumeBytes(this.getBody());

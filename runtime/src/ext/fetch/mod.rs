@@ -20,6 +20,8 @@ impl FetchExt {
                 include_str!("./body/consume.ts"),
                 include_str!("./body/body_mixin.ts"),
                 include_str!("./headers/mod.ts"),
+                include_str!("./cors.ts"),
+                include_str!("./response_filter.ts"),
                 include_str!("./request/mod.ts"),
                 include_str!("./response/mod.ts"),
                 include_str!("./fetch/mod.ts"),
