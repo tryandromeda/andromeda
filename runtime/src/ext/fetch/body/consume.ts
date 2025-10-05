@@ -46,7 +46,7 @@ async function consumeFormData(
   contentType?: string | null,
 ): Promise<FormData> {
   const bytes = await body.consume();
-  
+
   if (!contentType) {
     throw new TypeError("Missing Content-Type for FormData");
   }
@@ -111,13 +111,13 @@ function parseMultipartFormData(
 ): FormData {
   const formData = new FormData();
   const decoder = new TextDecoder();
-  
+
   // Convert boundary to bytes
   const boundaryBytes = new TextEncoder().encode("--" + boundary);
   const finalBoundaryBytes = new TextEncoder().encode("--" + boundary + "--");
 
   let start = 0;
-  
+
   // Find first boundary
   start = indexOfBytes(bytes, boundaryBytes, start);
   if (start === -1) {
@@ -215,10 +215,11 @@ function parsePart(
   }
 
   const filename = extractDispositionParam(disposition, "filename");
-  
+
   if (filename) {
     // File field
-    const contentType = headers.get("content-type") || "application/octet-stream";
+    const contentType = headers.get("content-type") ||
+      "application/octet-stream";
     const blob = new Blob([trimmedBody], { type: contentType });
     const file = new File([blob], filename, { type: contentType });
     formData.append(name, file);
@@ -236,11 +237,11 @@ function parseUrlEncodedFormData(bytes: Uint8Array): FormData {
   const formData = new FormData();
   const text = new TextDecoder().decode(bytes);
   const params = new URLSearchParams(text);
-  
+
   for (const [name, value] of params.entries()) {
     formData.append(name, value);
   }
-  
+
   return formData;
 }
 
@@ -269,18 +270,18 @@ function indexOfBytes(
 function parseHeaders(text: string): Map<string, string> {
   const headers = new Map<string, string>();
   const lines = text.split(/\r?\n/);
-  
+
   for (const line of lines) {
     const colonIndex = line.indexOf(":");
     if (colonIndex === -1) {
       continue;
     }
-    
+
     const name = line.slice(0, colonIndex).trim().toLowerCase();
     const value = line.slice(colonIndex + 1).trim();
     headers.set(name, value);
   }
-  
+
   return headers;
 }
 

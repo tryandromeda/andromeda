@@ -17,7 +17,7 @@ const CONTENT_TYPE_SYMBOL = Symbol("contentType");
 /**
  * The Body mixin provides methods for reading body content.
  * This is implemented by both Request and Response.
- * 
+ *
  * @see https://fetch.spec.whatwg.org/#body-mixin
  */
 interface Body {
@@ -109,7 +109,10 @@ class BodyMixin implements Body {
    * Returns a promise that resolves with a Blob.
    */
   async blob(): Promise<Blob> {
-    return await consumeBlob(this.getBody(), (this as any)[CONTENT_TYPE_SYMBOL]);
+    return await consumeBlob(
+      this.getBody(),
+      (this as any)[CONTENT_TYPE_SYMBOL],
+    );
   }
 
   /**
@@ -124,7 +127,10 @@ class BodyMixin implements Body {
    * Returns a promise that resolves with FormData.
    */
   async formData(): Promise<FormData> {
-    return await consumeFormData(this.getBody(), (this as any)[CONTENT_TYPE_SYMBOL]);
+    return await consumeFormData(
+      this.getBody(),
+      (this as any)[CONTENT_TYPE_SYMBOL],
+    );
   }
 
   /**

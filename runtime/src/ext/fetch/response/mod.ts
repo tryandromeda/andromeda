@@ -12,7 +12,7 @@ const CONTENT_TYPE_SYMBOL = (globalThis as any).CONTENT_TYPE_SYMBOL;
 
 // Import Headers class and utilities from the headers module
 const Headers = globalThis.Headers as unknown as {
-  new (init?: HeadersInit): Headers;
+  new(init?: HeadersInit): Headers;
   setHeadersList(target: Headers, list: Array<[string, string]>): void;
   setHeadersGuard(target: Headers, guard: string): void;
 };
@@ -48,8 +48,10 @@ class Response extends BodyMixin {
    */
   constructor(body: BodyInit | null = null, init: ResponseInit = {}) {
     // Extract body if provided (must be done before super)
-    const extracted = body !== null ? extractBody(body) : { body: null, contentType: null };
-    
+    const extracted = body !== null ?
+      extractBody(body) :
+      { body: null, contentType: null };
+
     // Initialize the BodyMixin with the body and content type
     super(extracted.body, extracted.contentType);
 
@@ -57,9 +59,12 @@ class Response extends BodyMixin {
     const internalResponse = makeResponse(init);
     (this as any)[RESPONSE_INTERNAL] = internalResponse;
     (this as any)[RESPONSE_HEADERS] = new Headers();
-    
+
     // Set this's headers
-    setHeadersList((this as any)[RESPONSE_HEADERS], internalResponse.headersList || []);
+    setHeadersList(
+      (this as any)[RESPONSE_HEADERS],
+      internalResponse.headersList || [],
+    );
     setHeadersGuard((this as any)[RESPONSE_HEADERS], "response");
 
     // Perform initialize a response
@@ -145,7 +150,9 @@ class Response extends BodyMixin {
     }
 
     // 2. Let clonedResponse be the result of cloning this's response.
-    const clonedInternalResponse = cloneResponse((this as any)[RESPONSE_INTERNAL]);
+    const clonedInternalResponse = cloneResponse(
+      (this as any)[RESPONSE_INTERNAL],
+    );
 
     // 3. Clone the body if present
     let clonedBody: any = null;

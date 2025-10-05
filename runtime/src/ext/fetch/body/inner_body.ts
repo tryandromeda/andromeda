@@ -15,7 +15,7 @@ const LENGTH = Symbol("length");
 /**
  * InnerBody manages the body content for Request and Response objects.
  * It handles streaming, cloning, and consumption tracking according to the Fetch spec.
- * 
+ *
  * @see https://fetch.spec.whatwg.org/#concept-body
  */
 class InnerBody {
@@ -23,7 +23,12 @@ class InnerBody {
    * Creates an InnerBody from a stream or static data.
    * @param streamOrStatic - Either a ReadableStream or an object with {body, consumed}
    */
-  constructor(streamOrStatic: ReadableStream<Uint8Array> | { body: Uint8Array | string; consumed: boolean }) {
+  constructor(
+    streamOrStatic: ReadableStream<Uint8Array> | {
+      body: Uint8Array | string;
+      consumed: boolean;
+    },
+  ) {
     if (streamOrStatic instanceof ReadableStream) {
       (this as any)[STREAM] = streamOrStatic;
       (this as any)[SOURCE] = null;
@@ -31,7 +36,7 @@ class InnerBody {
     } else {
       // Static body - create a ReadableStream from it
       const { body, consumed } = streamOrStatic;
-      
+
       if (consumed) {
         // Already consumed - create an empty stream
         (this as any)[STREAM] = new ReadableStream({
@@ -42,17 +47,17 @@ class InnerBody {
         (this as any)[SOURCE] = null;
       } else {
         // Create stream from static data
-        const chunk = typeof body === "string" 
-          ? new TextEncoder().encode(body) 
-          : body;
-        
+        const chunk = typeof body === "string" ?
+          new TextEncoder().encode(body) :
+          body;
+
         (this as any)[STREAM] = new ReadableStream({
           start(controller) {
             controller.enqueue(chunk);
             controller.close();
           },
         });
-        
+
         (this as any)[SOURCE] = body;
         (this as any)[LENGTH] = chunk.byteLength;
       }
@@ -130,11 +135,11 @@ class InnerBody {
     try {
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) {
           break;
         }
-        
+
         // Handle Andromeda's ReadableStream returning strings instead of Uint8Array
         let chunk: Uint8Array;
         if (typeof value === "string") {
@@ -146,7 +151,7 @@ class InnerBody {
           // Fallback: try to convert to string then to bytes
           chunk = new TextEncoder().encode(String(value));
         }
-        
+
         chunks.push(chunk);
         totalLength += chunk.byteLength;
       }
@@ -207,16 +212,16 @@ class InnerBody {
 
     // Tee the stream to create two independent streams
     const [stream1, stream2] = (this as any)[STREAM].tee();
-    
+
     // Update this body's stream to stream1
     (this as any)[STREAM] = stream1;
-    
+
     // Create a new body with stream2
     const clonedBody = Object.create(InnerBody.prototype);
     (clonedBody as any)[STREAM] = stream2;
     (clonedBody as any)[SOURCE] = null;
     (clonedBody as any)[LENGTH] = (this as any)[LENGTH];
-    
+
     return clonedBody;
   }
 
@@ -231,7 +236,9 @@ class InnerBody {
   /**
    * Creates an InnerBody from a source value.
    */
-  static from(source: BodySource | ReadableStream<Uint8Array> | InnerBody): InnerBody {
+  static from(
+    source: BodySource | ReadableStream<Uint8Array> | InnerBody,
+  ): InnerBody {
     if (source instanceof InnerBody) {
       return source;
     }

@@ -15,7 +15,7 @@ const extractCORSExposedHeaderNames = (globalThis as any)
 /**
  * Create a basic filtered response
  * @see https://fetch.spec.whatwg.org/#concept-basic-filtered-response
- * 
+ *
  * A basic filtered response is a filtered response whose type is "basic" and
  * header list excludes any headers in internal response's header list whose
  * name is a forbidden response-header name.
@@ -43,7 +43,7 @@ export function createBasicFilteredResponse(internalResponse: any): any {
 /**
  * Create a CORS filtered response
  * @see https://fetch.spec.whatwg.org/#concept-cors-filtered-response
- * 
+ *
  * A CORS filtered response is a filtered response whose type is "cors" and
  * header list excludes any headers in internal response's header list whose
  * name is not a CORS-safelisted response-header name, given internal response's
@@ -86,7 +86,9 @@ export function createCORSFilteredResponse(internalResponse: any): any {
       }
 
       // If wildcard, allow all except Set-Cookie headers
-      if (hasWildcard && lowerName !== "set-cookie" && lowerName !== "set-cookie2") {
+      if (
+        hasWildcard && lowerName !== "set-cookie" && lowerName !== "set-cookie2"
+      ) {
         return true;
       }
 
@@ -105,7 +107,7 @@ export function createCORSFilteredResponse(internalResponse: any): any {
 /**
  * Create an opaque filtered response
  * @see https://fetch.spec.whatwg.org/#concept-opaque-filtered-response
- * 
+ *
  * An opaque filtered response is a filtered response whose type is "opaque",
  * URL list is the empty list, status is 0, status message is the empty byte sequence,
  * header list is empty, and body is null.
@@ -126,12 +128,14 @@ export function createOpaqueFilteredResponse(internalResponse: any): any {
 /**
  * Create an opaque-redirect filtered response
  * @see https://fetch.spec.whatwg.org/#concept-opaque-redirect-filtered-response
- * 
+ *
  * An opaque-redirect filtered response is a filtered response whose type is
  * "opaqueredirect", status is 0, status message is the empty byte sequence,
  * header list is empty, and body is null.
  */
-export function createOpaqueRedirectFilteredResponse(internalResponse: any): any {
+export function createOpaqueRedirectFilteredResponse(
+  internalResponse: any,
+): any {
   return {
     type: "opaqueredirect",
     urlList: internalResponse.urlList || [],

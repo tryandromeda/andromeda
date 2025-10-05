@@ -128,7 +128,7 @@ export function extractCORSExposedHeaderNames(
 /**
  * CORS check
  * @see https://fetch.spec.whatwg.org/#concept-cors-check
- * 
+ *
  * Returns true if the CORS check passes, false otherwise
  */
 export function corsCheck(
@@ -185,18 +185,18 @@ export function corsPreflightCheck(
     response.headersList,
     "access-control-allow-methods",
   );
-  const methods = methodsHeader
-    ? methodsHeader.split(",").map((m) => m.trim().toUpperCase())
-    : [];
+  const methods = methodsHeader ?
+    methodsHeader.split(",").map((m) => m.trim().toUpperCase()) :
+    [];
 
   // 2. Let headerNames be the result of getting, decoding, and splitting `Access-Control-Allow-Headers` from response's header list.
   const headersHeader = getHeader(
     response.headersList,
     "access-control-allow-headers",
   );
-  const headerNames = headersHeader
-    ? headersHeader.split(",").map((h) => h.trim().toLowerCase())
-    : [];
+  const headerNames = headersHeader ?
+    headersHeader.split(",").map((h) => h.trim().toLowerCase()) :
+    [];
 
   // 3. If request's method is not in methods and is not a CORS-safelisted method, then return failure.
   if (
@@ -281,7 +281,10 @@ export function createCORSPreflightRequest(request: any): any {
     const value = unsafeHeaders.join(", ");
 
     // 2. Append (`Access-Control-Request-Headers`, value) to preflightRequest's header list.
-    preflightRequest.headersList.push(["Access-Control-Request-Headers", value]);
+    preflightRequest.headersList.push([
+      "Access-Control-Request-Headers",
+      value,
+    ]);
   }
 
   // 6. Return preflightRequest.
@@ -326,6 +329,9 @@ function serializeOrigin(origin: any): string {
 (globalThis as any).corsPreflightCheck = corsPreflightCheck;
 (globalThis as any).createCORSPreflightRequest = createCORSPreflightRequest;
 (globalThis as any).isCORSSafelistedMethod = isCORSSafelistedMethod;
-(globalThis as any).isCORSSafelistedRequestHeader = isCORSSafelistedRequestHeader;
-(globalThis as any).extractCORSExposedHeaderNames = extractCORSExposedHeaderNames;
-(globalThis as any).CORS_NON_WILDCARD_REQUEST_HEADERS = CORS_NON_WILDCARD_REQUEST_HEADERS;
+(globalThis as any).isCORSSafelistedRequestHeader =
+  isCORSSafelistedRequestHeader;
+(globalThis as any).extractCORSExposedHeaderNames =
+  extractCORSExposedHeaderNames;
+(globalThis as any).CORS_NON_WILDCARD_REQUEST_HEADERS =
+  CORS_NON_WILDCARD_REQUEST_HEADERS;

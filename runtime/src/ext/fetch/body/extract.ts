@@ -29,10 +29,10 @@ interface ExtractedBody {
 
 /**
  * Extracts a body from a BodyInit value.
- * 
+ *
  * This implements the "extract a body" algorithm from the Fetch specification.
  * @see https://fetch.spec.whatwg.org/#concept-bodyinit-extract
- * 
+ *
  * @param object - The BodyInit value to extract from
  * @returns An ExtractedBody with the body and content type
  */
@@ -50,7 +50,7 @@ function extractBody(object: BodyInit): ExtractedBody {
   // Blob
   if (object instanceof Blob) {
     contentType = object.type || null;
-    
+
     // Convert Blob to ReadableStream
     const stream = object.stream();
     body = new InnerBody(stream);
@@ -62,7 +62,7 @@ function extractBody(object: BodyInit): ExtractedBody {
     // FormData is serialized as multipart/form-data
     const boundary = generateBoundary();
     contentType = `multipart/form-data; boundary=${boundary}`;
-    
+
     const encoded = encodeFormData(object, boundary);
     body = new InnerBody({ body: encoded, consumed: false });
     return { body, contentType };
@@ -71,7 +71,7 @@ function extractBody(object: BodyInit): ExtractedBody {
   // URLSearchParams
   if (object instanceof URLSearchParams) {
     contentType = "application/x-www-form-urlencoded;charset=UTF-8";
-    
+
     const encoded = new TextEncoder().encode(object.toString());
     body = new InnerBody({ body: encoded, consumed: false });
     return { body, contentType };
@@ -80,7 +80,7 @@ function extractBody(object: BodyInit): ExtractedBody {
   // String
   if (typeof object === "string") {
     contentType = "text/plain;charset=UTF-8";
-    
+
     const encoded = new TextEncoder().encode(object);
     body = new InnerBody({ body: encoded, consumed: false });
     return { body, contentType };
@@ -117,7 +117,7 @@ function extractBody(object: BodyInit): ExtractedBody {
  */
 function generateBoundary(): string {
   // Generate a random boundary using crypto
-  const boundary = "----formdata-andromeda-" + 
+  const boundary = "----formdata-andromeda-" +
     Array.from(crypto.getRandomValues(new Uint8Array(16)))
       .map(b => b.toString(16).padStart(2, "0"))
       .join("");
@@ -140,7 +140,9 @@ function encodeFormData(formData: FormData, boundary: string): Uint8Array {
       // Text field
       parts.push(
         encoder.encode(
-          `Content-Disposition: form-data; name="${escapeQuotes(name)}"\r\n\r\n`,
+          `Content-Disposition: form-data; name="${
+            escapeQuotes(name)
+          }"\r\n\r\n`,
         ),
       );
       parts.push(encoder.encode(value));
@@ -149,14 +151,16 @@ function encodeFormData(formData: FormData, boundary: string): Uint8Array {
       // File field
       const filename = value.name || "blob";
       const contentType = value.type || "application/octet-stream";
-      
+
       parts.push(
         encoder.encode(
-          `Content-Disposition: form-data; name="${escapeQuotes(name)}"; filename="${escapeQuotes(filename)}"\r\n`,
+          `Content-Disposition: form-data; name="${
+            escapeQuotes(name)
+          }"; filename="${escapeQuotes(filename)}"\r\n`,
         ),
       );
       parts.push(encoder.encode(`Content-Type: ${contentType}\r\n\r\n`));
-      
+
       // Note: This is synchronous for simplicity
       // In a real implementation, we might want to handle this asynchronously
       // For now, we'll need to add a sync way to read the blob

@@ -106,7 +106,7 @@ class Request extends BodyMixin {
     if (typeof input === "string") {
       // 1. Let parsedURL be the result of parsing input with baseURL.
       const parsedURL = new URL(input, baseURL);
-      
+
       // 2. If parsedURL is failure, then throw a TypeError.
       if (!parsedURL) {
         throw new TypeError("Invalid URL");
@@ -114,20 +114,24 @@ class Request extends BodyMixin {
 
       // 3. If parsedURL includes credentials, then throw a TypeError.
       if (parsedURL.username || parsedURL.password) {
-        throw new TypeError("Request cannot be constructed from a URL that includes credentials");
+        throw new TypeError(
+          "Request cannot be constructed from a URL that includes credentials",
+        );
       }
 
       // 4. Set request to a new request whose URL is parsedURL.
       request = newInnerRequest("GET", parsedURL.toString());
-      
+
       // 5. Set fallbackMode to "cors".
       fallbackMode = "cors";
     } else if (input instanceof URL) {
       // Handle URL objects
       const parsedURL = input;
-      
+
       if (parsedURL.username || parsedURL.password) {
-        throw new TypeError("Request cannot be constructed from a URL that includes credentials");
+        throw new TypeError(
+          "Request cannot be constructed from a URL that includes credentials",
+        );
       }
 
       request = newInnerRequest("GET", parsedURL.toString());
@@ -141,13 +145,13 @@ class Request extends BodyMixin {
 
       // 2. Set request to input's request.
       request = (input as any)[REQUEST_INTERNAL];
-      
+
       // 3. Set signal to input's signal.
       signal = (input as any)[REQUEST_SIGNAL];
     }
 
     // 7-9. Origin, window, and service workers handling (simplified)
-    
+
     // 10. Let window be "client".
     const _windowValue = "client";
 
@@ -196,7 +200,7 @@ class Request extends BodyMixin {
     // 14. If init["referrer"] exists, then:
     if (init.referrer !== undefined) {
       const referrer = init.referrer;
-      
+
       // 1. Let referrerURL be empty string.
       if (referrer === "") {
         // 2. Set request's referrer to "no-referrer".
@@ -205,10 +209,13 @@ class Request extends BodyMixin {
         // 3. Let parsedReferrer be the result of parsing referrer with baseURL.
         try {
           const parsedReferrer = new URL(referrer, baseURL);
-          
+
           // 4. If parsedReferrer is failure, then throw a TypeError.
           // 5. If parsedReferrer's scheme is "about" and path is "client", or parsedReferrer's origin is not same origin with origin, then set request's referrer to "client".
-          if (parsedReferrer.protocol === "about:" && parsedReferrer.pathname === "client") {
+          if (
+            parsedReferrer.protocol === "about:" &&
+            parsedReferrer.pathname === "client"
+          ) {
             request.referrer = "client";
           } else {
             // 6. Otherwise, set request's referrer to parsedReferrer.
@@ -250,7 +257,9 @@ class Request extends BodyMixin {
 
     // 21. If request's cache mode is "only-if-cached" and request's mode is not "same-origin", then throw a TypeError.
     if (request.cache === "only-if-cached" && request.mode !== "same-origin") {
-      throw new TypeError("only-if-cached cache mode requires same-origin mode");
+      throw new TypeError(
+        "only-if-cached cache mode requires same-origin mode",
+      );
     }
 
     // 22. If init["redirect"] exists, then set request's redirect mode to it.
@@ -309,7 +318,10 @@ class Request extends BodyMixin {
 
     // 31. If init["headers"] exists, then fill this's headers with init["headers"].
     if (init.headers !== undefined) {
-      (globalThis as any).fillHeaders((this as any)[REQUEST_HEADERS], init.headers);
+      (globalThis as any).fillHeaders(
+        (this as any)[REQUEST_HEADERS],
+        init.headers,
+      );
     }
 
     // 32. Let inputBody be input's request's body if input is a Request object; otherwise null.
@@ -319,8 +331,10 @@ class Request extends BodyMixin {
     }
 
     // 33. If either init["body"] exists and is non-null or inputBody is non-null, and request's method is `GET` or `HEAD`, throw a TypeError.
-    if (((init.body !== undefined && init.body !== null) || inputBody !== null) && 
-        (request.method === "GET" || request.method === "HEAD")) {
+    if (
+      ((init.body !== undefined && init.body !== null) || inputBody !== null) &&
+      (request.method === "GET" || request.method === "HEAD")
+    ) {
       throw new TypeError("Request with GET/HEAD method cannot have body");
     }
 
@@ -349,7 +363,9 @@ class Request extends BodyMixin {
     if (initBody === null && inputBody !== null) {
       // 1. If input is unusable, then throw a TypeError.
       if (input instanceof Request && input.bodyUsed) {
-        throw new TypeError("Cannot construct a Request with a Request that has already been used");
+        throw new TypeError(
+          "Cannot construct a Request with a Request that has already been used",
+        );
       }
 
       // 2. Set body to the result of cloning inputBody.
@@ -358,9 +374,11 @@ class Request extends BodyMixin {
 
     // 38. Set this's request's body to body.
     (this as any)[BODY_SYMBOL] = finalBody;
-    
+
     // Also update content type
-    const contentTypeHeader = (this as any)[REQUEST_HEADERS].get("Content-Type");
+    const contentTypeHeader = (this as any)[REQUEST_HEADERS].get(
+      "Content-Type",
+    );
     (this as any)[CONTENT_TYPE_SYMBOL] = contentTypeHeader;
   }
 
@@ -525,18 +543,24 @@ class Request extends BodyMixin {
     }
 
     // 2. Let clonedRequest be the result of cloning this's request.
-    const clonedInternalRequest = cloneInnerRequest((this as any)[REQUEST_INTERNAL]);
+    const clonedInternalRequest = cloneInnerRequest(
+      (this as any)[REQUEST_INTERNAL],
+    );
 
     // 3. Let clonedRequestObject be the result of creating a Request object, given clonedRequest, this's headers's guard, and this's relevant Realm.
     const cloned = Object.create(Request.prototype);
     (cloned as any)[REQUEST_INTERNAL] = clonedInternalRequest;
     (cloned as any)[REQUEST_SIGNAL] = (this as any)[REQUEST_SIGNAL];
-    
+
     // Clone headers
     (cloned as any)[REQUEST_HEADERS] = new Headers();
     const headerList = getHeadersList((this as any)[REQUEST_HEADERS]);
-    setHeadersList((cloned as any)[REQUEST_HEADERS], headerList.map((h: any) => [h[0], h[1]]));
-    const currentGuard = ((this as any)[REQUEST_HEADERS] as any).guard || "request";
+    setHeadersList(
+      (cloned as any)[REQUEST_HEADERS],
+      headerList.map((h: any) => [h[0], h[1]]),
+    );
+    const currentGuard = ((this as any)[REQUEST_HEADERS] as any).guard ||
+      "request";
     setHeadersGuard((cloned as any)[REQUEST_HEADERS], currentGuard);
 
     // Clone body if present

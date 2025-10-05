@@ -6,9 +6,11 @@
 // CORS and response filtering helpers (loaded from cors.ts and response_filter.ts)
 const corsCheck = (globalThis as any).corsCheck;
 const corsPreflightCheck = (globalThis as any).corsPreflightCheck;
-const createCORSPreflightRequest = (globalThis as any).createCORSPreflightRequest;
+const createCORSPreflightRequest =
+  (globalThis as any).createCORSPreflightRequest;
 const filterResponse = (globalThis as any).filterResponse;
-const createOpaqueRedirectFilteredResponse = (globalThis as any).createOpaqueRedirectFilteredResponse;
+const createOpaqueRedirectFilteredResponse =
+  (globalThis as any).createOpaqueRedirectFilteredResponse;
 
 function getHeadersAsList(headers: any): [string, string][] {
   const headersList: [string, string][] = [];
@@ -287,7 +289,9 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
           }
         } else if (typeof response.body === "object") {
           // Try to get keys if length is not available or invalid
-          const keys = Object.keys(response.body).filter(k => !isNaN(Number(k)));
+          const keys = Object.keys(response.body).filter(k =>
+            !isNaN(Number(k))
+          );
           if (keys.length > 0) {
             const length = keys.length;
             bodyData = new Uint8Array(length);
@@ -531,7 +535,24 @@ const mainFetch = async (fetchParams: any, recursive = false) => {
   // TODO: Implement mixed content upgrade
 
   // 7. If should request be blocked due to a bad port, should fetching request be blocked as mixed content, should request be blocked by Content Security Policy, or should request be blocked by Integrity Policy Policy returns blocked, then set response to a network error.
-  // TODO: Implement blocking checks
+
+  // Check if fetching should be blocked as mixed content
+  const shouldBlockMixedContent = (globalThis as unknown as {
+    __shouldFetchingRequestBeBlockedAsMixedContent?: (
+      req: unknown,
+    ) => "allowed" | "blocked";
+  }).__shouldFetchingRequestBeBlockedAsMixedContent;
+
+  if (shouldBlockMixedContent) {
+    const result = shouldBlockMixedContent(request);
+    if (result === "blocked") {
+      return networkError();
+    }
+  }
+
+  // TODO: Implement bad port check
+  // TODO: Implement CSP check
+  // TODO: Implement Integrity Policy check
 
   // 8. If request's referrer policy is the empty string, then set request's referrer policy to request's policy container's referrer policy.
   if (request.referrerPolicy === "") {
@@ -690,7 +711,7 @@ const mainFetch = async (fetchParams: any, recursive = false) => {
       //  1.If request's response tainting is "cors", then:
       if (request.responseTainting === "cors") {
         //    1. Let headerNames be the result of extracting header list values given `Access-Control-Expose-Headers` and response's header list.
-        const headerNames = null;
+        const headerNames: string | null = null;
         //    2. If request's credentials mode is not "include" and headerNames contains `*`, then set response's CORS-exposed header-name list to all unique header names in response's header list.
         if (
           request.credentialsMode !== "include" &&
@@ -732,7 +753,7 @@ const mainFetch = async (fetchParams: any, recursive = false) => {
     }
 
     // 15. Let internalResponse be response, if response is a network error; otherwise response's internal response.
-    const internalResponse = response?.type === "error" ?
+    let internalResponse = response?.type === "error" ?
       response :
       response?.internalResponse || response;
 
@@ -761,9 +782,33 @@ const mainFetch = async (fetchParams: any, recursive = false) => {
     //  - should internalResponse to request be blocked due to its MIME type
     //  - should internalResponse to request be blocked due to nosniff
     // then set response and internalResponse to a network error.
-    if (response?.type !== "error") {
-      if (false || false || false || false) {
-        response = internalResponse = networkError();
+    if (response?.type !== "error" && internalResponse) {
+      let shouldBlock = false;
+
+      // Check if response should be blocked as mixed content
+      const shouldBlockMixedContentResponse = (globalThis as unknown as {
+        __shouldResponseToRequestBeBlockedAsMixedContent?: (
+          req: unknown,
+          res: unknown,
+        ) => "allowed" | "blocked";
+      }).__shouldResponseToRequestBeBlockedAsMixedContent;
+
+      if (shouldBlockMixedContentResponse) {
+        const result = shouldBlockMixedContentResponse(
+          request,
+          internalResponse,
+        );
+        if (result === "blocked") {
+          shouldBlock = true;
+        }
+      }
+
+      // TODO: Implement CSP check
+      // TODO: Implement MIME type check
+      // TODO: Implement nosniff check
+
+      if (shouldBlock) {
+        response = networkError();
       }
     }
 
@@ -1168,10 +1213,19 @@ const httpFetch = async (fetchParams: any, makeCORSPreflight = false) => {
   // 5. If either request's response tainting or response's type is "opaque", and the cross-origin resource policy check with request's origin, request's client, request's destination, and internalResponse returns blocked, then return a network error.
   // NOTE: The cross-origin resource policy check runs for responses coming from the network and responses coming from the service worker. This is different from the CORS check, as request's client and the service worker can have different embedder policies.
   if (
-    (request.responseTainting === "opaque" || response?.type === "opaque") &&
-    "allowed" === "blocked"
+    (request.responseTainting === "opaque" || response?.type === "opaque")
   ) {
-    return networkError();
+    // Perform CORP check
+    const corpCheck =
+      (globalThis as unknown as {
+        __corpCheck?: (req: unknown, res: unknown) => boolean;
+      }).__corpCheck;
+    if (corpCheck && internalResponse) {
+      const corpAllowed = corpCheck(request, internalResponse);
+      if (!corpAllowed) {
+        return networkError();
+      }
+    }
   }
 
   // 6. If internalResponse's status is a redirect status:
@@ -1765,7 +1819,8 @@ const httpRedirectFetch = async (fetchParams: any, response: any) => {
       }
     } else if (request.headersList && Array.isArray(request.headersList)) {
       request.headersList = request.headersList.filter(
-        ([name]: [string, string]) => !requestBodyHeaders.includes(name.toLowerCase()),
+        ([name]: [string, string]) =>
+          !requestBodyHeaders.includes(name.toLowerCase()),
       );
     }
   }
@@ -1781,7 +1836,8 @@ const httpRedirectFetch = async (fetchParams: any, response: any) => {
       }
     } else if (request.headersList && Array.isArray(request.headersList)) {
       request.headersList = request.headersList.filter(
-        ([name]: [string, string]) => !corsNonWildcardHeaders.includes(name.toLowerCase()),
+        ([name]: [string, string]) =>
+          !corsNonWildcardHeaders.includes(name.toLowerCase()),
       );
     }
   }
