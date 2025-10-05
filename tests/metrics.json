@@ -3,15 +3,51 @@
   "version": "0.1.0",
   "wpt": {
     "overall": {
-      "total_tests": 698,
-      "pass": 168,
-      "fail": 173,
-      "crash": 352,
-      "timeout": 1,
+      "total_tests": 2023,
+      "pass": 491,
+      "fail": 483,
+      "crash": 1037,
+      "timeout": 8,
       "skip": 4,
-      "pass_rate": 24.068767908309454
+      "pass_rate": 24.270884824518042
     },
     "suites": {
+      "FileAPI": {
+        "total_tests": 91,
+        "pass": 12,
+        "fail": 21,
+        "crash": 56,
+        "timeout": 2,
+        "skip": 0,
+        "pass_rate": 13.186813186813188
+      },
+      "WebCryptoAPI": {
+        "total_tests": 114,
+        "pass": 38,
+        "fail": 5,
+        "crash": 71,
+        "timeout": 0,
+        "skip": 0,
+        "pass_rate": 33.33333333333333
+      },
+      "battery-status": {
+        "total_tests": 26,
+        "pass": 5,
+        "fail": 7,
+        "crash": 14,
+        "timeout": 0,
+        "skip": 0,
+        "pass_rate": 19.230769230769234
+      },
+      "compression": {
+        "total_tests": 20,
+        "pass": 13,
+        "fail": 3,
+        "crash": 2,
+        "timeout": 2,
+        "skip": 0,
+        "pass_rate": 65.0
+      },
       "console": {
         "total_tests": 13,
         "pass": 7,
@@ -20,6 +56,24 @@
         "timeout": 0,
         "skip": 2,
         "pass_rate": 53.84615384615385
+      },
+      "dom": {
+        "total_tests": 640,
+        "pass": 116,
+        "fail": 187,
+        "crash": 336,
+        "timeout": 1,
+        "skip": 0,
+        "pass_rate": 18.125
+      },
+      "encoding": {
+        "total_tests": 224,
+        "pass": 68,
+        "fail": 19,
+        "crash": 136,
+        "timeout": 1,
+        "skip": 0,
+        "pass_rate": 30.357142857142854
       },
       "fetch": {
         "total_tests": 650,
@@ -30,6 +84,15 @@
         "skip": 2,
         "pass_rate": 22.46153846153846
       },
+      "hr-time": {
+        "total_tests": 22,
+        "pass": 5,
+        "fail": 5,
+        "crash": 12,
+        "timeout": 0,
+        "skip": 0,
+        "pass_rate": 22.727272727272727
+      },
       "route": {
         "total_tests": 1,
         "pass": 1,
@@ -39,6 +102,24 @@
         "skip": 0,
         "pass_rate": 100.0
       },
+      "storage": {
+        "total_tests": 36,
+        "pass": 19,
+        "fail": 4,
+        "crash": 13,
+        "timeout": 0,
+        "skip": 0,
+        "pass_rate": 52.77777777777778
+      },
+      "streams": {
+        "total_tests": 110,
+        "pass": 28,
+        "fail": 57,
+        "crash": 24,
+        "timeout": 1,
+        "skip": 0,
+        "pass_rate": 25.454545454545453
+      },
       "url": {
         "total_tests": 34,
         "pass": 14,
@@ -47,6 +128,15 @@
         "timeout": 0,
         "skip": 0,
         "pass_rate": 41.17647058823529
+      },
+      "web-locks": {
+        "total_tests": 42,
+        "pass": 19,
+        "fail": 2,
+        "crash": 21,
+        "timeout": 0,
+        "skip": 0,
+        "pass_rate": 45.23809523809524
       }
     },
     "trend": {
