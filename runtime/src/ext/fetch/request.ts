@@ -660,5 +660,4 @@ function validateAndNormalizeMethod(method: string): string {
   return method;
 }
 
-// Export Request to globalThis
 (globalThis as any).Request = Request;
