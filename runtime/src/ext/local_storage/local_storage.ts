@@ -2,6 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+// Web Storage API implementation following:
+// https://html.spec.whatwg.org/multipage/webstorage.html
+// https://webidl.spec.whatwg.org/
+
+// deno-lint-ignore-file no-explicit-any
+
+const webidl = (globalThis as any).webidl;
+
 interface Storage {
   readonly length: number;
   key(index: number): string | null;
@@ -9,61 +17,86 @@ interface Storage {
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
   clear(): void;
+  [name: string]: any;
 }
 
 class StorageImpl implements Storage {
-  storageType: boolean;
+  #persistent: boolean;
 
   constructor(persistent: boolean) {
     __andromeda__.storage_new(persistent);
-    this.storageType = persistent;
+    this.#persistent = persistent;
+    // Set brand after construction
+    (this as any)[webidl.brand] = webidl.brand;
   }
 
   get length(): number {
-    return __andromeda__.storage_length(this.storageType);
+    // TODO: re-enable branding checks
+    // webidl.assertBranded(this, StoragePrototype);
+    return __andromeda__.storage_length(this.#persistent);
   }
 
   key(index: number): string | null {
-    return __andromeda__.storage_key(this.storageType, index);
+    // TODO: re-enable branding checks
+    // webidl.assertBranded(this, StoragePrototype);
+    const prefix = "Failed to execute 'key' on 'Storage'";
+    webidl.requiredArguments(arguments.length, 1, prefix);
+    index = webidl.converters["unsigned long"](index, prefix, "Argument 1");
+    return __andromeda__.storage_key(this.#persistent, index);
   }
 
   getItem(key: string): string | null {
-    if (typeof key !== "string") {
-      key = String(key);
-    }
-    return __andromeda__.storage_getItem(this.storageType, key);
+    // TODO: re-enable branding checks
+    // webidl.assertBranded(this, StoragePrototype);
+    const prefix = "Failed to execute 'getItem' on 'Storage'";
+    webidl.requiredArguments(arguments.length, 1, prefix);
+    key = webidl.converters.DOMString(key, prefix, "Argument 1");
+    return __andromeda__.storage_getItem(this.#persistent, key);
   }
+
   setItem(key: string, value: string): void {
-    if (typeof key !== "string") {
-      key = String(key);
-    }
-    if (typeof value !== "string") {
-      value = String(value);
-    }
-    __andromeda__.storage_setItem(this.storageType, key, value);
+    // TODO: re-enable branding checks
+    // webidl.assertBranded(this, StoragePrototype);
+    const prefix = "Failed to execute 'setItem' on 'Storage'";
+    webidl.requiredArguments(arguments.length, 2, prefix);
+    key = webidl.converters.DOMString(key, prefix, "Argument 1");
+    value = webidl.converters.DOMString(value, prefix, "Argument 2");
+    __andromeda__.storage_setItem(this.#persistent, key, value);
   }
 
   removeItem(key: string): void {
-    if (typeof key !== "string") {
-      key = String(key);
-    }
-    __andromeda__.storage_removeItem(this.storageType, key);
+    // TODO: re-enable branding checks
+    // webidl.assertBranded(this, StoragePrototype);
+    const prefix = "Failed to execute 'removeItem' on 'Storage'";
+    webidl.requiredArguments(arguments.length, 1, prefix);
+    key = webidl.converters.DOMString(key, prefix, "Argument 1");
+    __andromeda__.storage_removeItem(this.#persistent, key);
   }
 
   clear(): void {
-    __andromeda__.storage_clear(this.storageType);
+    // TODO: re-enable branding checks
+    // webidl.assertBranded(this, StoragePrototype);
+    __andromeda__.storage_clear(this.#persistent);
+  }
+
+  _getPersistent(): boolean {
+    return this.#persistent;
   }
 }
+
+webidl.configureInterface(StorageImpl);
+// deno-lint-ignore no-unused-vars
+const StoragePrototype = StorageImpl.prototype;
 
 function createStorage(persistent: boolean): Storage {
   const storage = new StorageImpl(persistent);
 
-  return new Proxy(storage as unknown as Storage, {
+  const proxy = new Proxy(storage, {
     deleteProperty(target, key) {
       if (typeof key === "symbol") {
         return Reflect.deleteProperty(target, key);
       }
-      target.removeItem(key as string);
+      target.removeItem(key);
       return true;
     },
 
@@ -71,21 +104,22 @@ function createStorage(persistent: boolean): Storage {
       if (typeof key === "symbol") {
         return Reflect.defineProperty(target, key, descriptor);
       }
-      target.setItem(key as string, String(descriptor.value));
+      target.setItem(key, String(descriptor.value));
       return true;
     },
+
     get(target, key) {
       if (typeof key === "symbol") {
-        return (target as unknown as Record<symbol, unknown>)[key];
+        return (target as any)[key];
       }
       if (Reflect.has(target, key)) {
-        const value = (target as unknown as Record<string, unknown>)[key];
+        const value = (target as any)[key];
         if (typeof value === "function") {
           return value.bind(target);
         }
         return value;
       }
-      return target.getItem(key as string) ?? undefined;
+      return target.getItem(key) ?? undefined;
     },
 
     set(target, key, value) {
@@ -95,7 +129,7 @@ function createStorage(persistent: boolean): Storage {
           configurable: true,
         });
       }
-      target.setItem(key as string, String(value));
+      target.setItem(key, String(value));
       return true;
     },
 
@@ -103,12 +137,12 @@ function createStorage(persistent: boolean): Storage {
       if (Reflect.has(target, key)) {
         return true;
       }
-      return typeof key === "string" &&
-        typeof target.getItem(key) === "string";
+      return typeof key === "string" && typeof target.getItem(key) === "string";
     },
+
     ownKeys(target) {
       const keys = __andromeda__.storage_iterate_keys(
-        (target as StorageImpl).storageType,
+        (target as StorageImpl)._getPersistent(),
       ) as string[];
       return keys;
     },
@@ -121,7 +155,7 @@ function createStorage(persistent: boolean): Storage {
         return undefined;
       }
 
-      const value = target.getItem(key as string);
+      const value = target.getItem(key);
       if (value === null) {
         return undefined;
       }
@@ -133,6 +167,8 @@ function createStorage(persistent: boolean): Storage {
       };
     },
   });
+
+  return proxy;
 }
 
 let localStorageInstance: Storage | undefined;
@@ -166,4 +202,11 @@ Object.defineProperty(globalThis, "sessionStorage", {
   },
   configurable: true,
   enumerable: true,
+});
+
+Object.defineProperty(globalThis, "Storage", {
+  value: StorageImpl,
+  writable: true,
+  enumerable: false,
+  configurable: true,
 });
