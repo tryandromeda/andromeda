@@ -312,3 +312,4 @@ globalThis.Headers = Headers;
 globalThis.setHeadersList = setHeadersList;
 globalThis.setHeadersGuard = setHeadersGuard;
 globalThis.getHeadersList = getHeadersList;
+globalThis.fillHeaders = fillHeaders;

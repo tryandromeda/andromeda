@@ -16,10 +16,18 @@ pub use tcp::*;
 pub use udp::*;
 pub use unix::*;
 
+use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex as StdMutex};
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::sync::Mutex;
+
+// Global TCP stream storage for accepted connections
+lazy_static::lazy_static! {
+    static ref GLOBAL_TCP_STREAMS: Arc<StdMutex<HashMap<u32, Arc<Mutex<TcpStream>>>>> =
+        Arc::new(StdMutex::new(HashMap::new()));
+    static ref NEXT_STREAM_ID: Arc<StdMutex<u32>> = Arc::new(StdMutex::new(1));
+}
 
 use nova_vm::{
     ecmascript::{
@@ -113,11 +121,16 @@ impl NetExt {
                 ),
                 ExtensionOp::new("tcp_listen", Self::internal_tcp_listen, 2, false),
                 ExtensionOp::new("tcp_accept", Self::internal_tcp_accept, 1, false),
-                ExtensionOp::new("tcp_accept_async", Self::internal_tcp_accept_async, 1, true),
+                ExtensionOp::new(
+                    "tcp_accept_async",
+                    Self::internal_tcp_accept_async,
+                    1,
+                    false,
+                ),
                 ExtensionOp::new("tcp_read", Self::internal_tcp_read, 2, false),
-                ExtensionOp::new("tcp_read_async", Self::internal_tcp_read_async, 2, true),
+                ExtensionOp::new("tcp_read_async", Self::internal_tcp_read_async, 2, false),
                 ExtensionOp::new("tcp_write", Self::internal_tcp_write, 2, false),
-                ExtensionOp::new("tcp_write_async", Self::internal_tcp_write_async, 2, true),
+                ExtensionOp::new("tcp_write_async", Self::internal_tcp_write_async, 2, false),
                 ExtensionOp::new("tcp_close", Self::internal_tcp_close, 1, false),
                 ExtensionOp::new("tcp_set_nodelay", Self::internal_tcp_set_nodelay, 2, false),
                 ExtensionOp::new(
@@ -128,7 +141,7 @@ impl NetExt {
                 ),
                 ExtensionOp::new("udp_bind", Self::internal_udp_bind, 2, false),
                 ExtensionOp::new("udp_send", Self::internal_udp_send, 3, false),
-                ExtensionOp::new("udp_send_async", Self::internal_udp_send_async, 3, true),
+                ExtensionOp::new("udp_send_async", Self::internal_udp_send_async, 3, false),
                 ExtensionOp::new("udp_receive", Self::internal_udp_receive, 2, false),
                 ExtensionOp::new(
                     "udp_receive_async",
@@ -463,11 +476,23 @@ impl NetExt {
                                     return;
                                 }
                             };
-                            // Note: We can't easily store the new stream resource from async context
-                            // This would need architectural changes to support properly
+
+                            // Get next resource ID and store stream in global map
+                            let resource_id = {
+                                let mut next_id = NEXT_STREAM_ID.lock().unwrap();
+                                let id = *next_id;
+                                *next_id += 1;
+                                id
+                            };
+
+                            GLOBAL_TCP_STREAMS
+                                .lock()
+                                .unwrap()
+                                .insert(resource_id, Arc::new(Mutex::new(stream)));
+
                             let result = format!(
-                                "{{\"success\":true,\"localAddr\":\"{}\",\"remoteAddr\":\"{}\",\"resourceId\":0}}",
-                                local_addr, remote_addr
+                                "{{\"success\":true,\"localAddr\":\"{}\",\"remoteAddr\":\"{}\",\"resourceId\":{}}}",
+                                local_addr, remote_addr, resource_id
                             );
                             macro_task_tx
                                 .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
@@ -565,14 +590,53 @@ impl NetExt {
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
 
-        host_data.spawn_macro_task(async move {
-            macro_task_tx
-                .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
-                    root_value,
-                    format!("Error: TCP read not yet fully implemented for resource {} with buffer size {}", resource_id, buffer_size),
-                )))
-                .unwrap();
-        });
+        // Get stream from global map
+        let stream_opt = GLOBAL_TCP_STREAMS
+            .lock()
+            .unwrap()
+            .get(&resource_id)
+            .cloned();
+
+        match stream_opt {
+            Some(stream) => {
+                host_data.spawn_macro_task(async move {
+                    use tokio::io::AsyncReadExt;
+
+                    let mut stream_guard = stream.lock().await;
+                    let mut buffer = vec![0u8; buffer_size];
+
+                    match stream_guard.read(&mut buffer).await {
+                        Ok(n) => {
+                            buffer.truncate(n);
+                            let data = String::from_utf8_lossy(&buffer).to_string();
+                            macro_task_tx
+                                .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
+                                    root_value, data,
+                                )))
+                                .unwrap();
+                        }
+                        Err(e) => {
+                            macro_task_tx
+                                .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                                    root_value,
+                                    format!("Error reading from TCP stream: {}", e),
+                                )))
+                                .unwrap();
+                        }
+                    }
+                });
+            }
+            None => {
+                host_data.spawn_macro_task(async move {
+                    macro_task_tx
+                        .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                            root_value,
+                            format!("Error: TCP stream resource {} not found", resource_id),
+                        )))
+                        .unwrap();
+                });
+            }
+        }
 
         Ok(Value::Promise(promise_capability.promise()).unbind())
     }
@@ -630,18 +694,53 @@ impl NetExt {
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
 
-        host_data.spawn_macro_task(async move {
-            macro_task_tx
-                .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
-                    root_value,
-                    format!(
-                        "Error: TCP write not yet fully implemented for resource {} with {} bytes",
-                        resource_id,
-                        data.len()
-                    ),
-                )))
-                .unwrap();
-        });
+        // Get stream from global map
+        let stream_opt = GLOBAL_TCP_STREAMS
+            .lock()
+            .unwrap()
+            .get(&resource_id)
+            .cloned();
+
+        match stream_opt {
+            Some(stream) => {
+                host_data.spawn_macro_task(async move {
+                    use tokio::io::AsyncWriteExt;
+
+                    let mut stream_guard = stream.lock().await;
+                    let bytes = data.as_bytes();
+
+                    match stream_guard.write_all(bytes).await {
+                        Ok(()) => {
+                            let result =
+                                format!("{{\"success\":true,\"bytesWritten\":{}}}", bytes.len());
+                            macro_task_tx
+                                .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
+                                    root_value, result,
+                                )))
+                                .unwrap();
+                        }
+                        Err(e) => {
+                            macro_task_tx
+                                .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                                    root_value,
+                                    format!("Error writing to TCP stream: {}", e),
+                                )))
+                                .unwrap();
+                        }
+                    }
+                });
+            }
+            None => {
+                host_data.spawn_macro_task(async move {
+                    macro_task_tx
+                        .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                            root_value,
+                            format!("Error: TCP stream resource {} not found", resource_id),
+                        )))
+                        .unwrap();
+                });
+            }
+        }
 
         Ok(Value::Promise(promise_capability.promise()).unbind())
     }
@@ -672,13 +771,19 @@ impl NetExt {
 
         let rid = Rid::from_index(resource_id);
 
+        // Remove from global stream map first
+        let removed_from_global = GLOBAL_TCP_STREAMS.lock().unwrap().remove(&resource_id);
+
         // Try to remove from both TCP streams and listeners
         let result = match Self::get_net_resources_mut(agent) {
             Ok(resources) => {
                 let removed_stream = resources.tcp_streams.remove(rid);
                 let removed_listener = resources.tcp_listeners.remove(rid);
 
-                if removed_stream.is_some() || removed_listener.is_some() {
+                if removed_stream.is_some()
+                    || removed_listener.is_some()
+                    || removed_from_global.is_some()
+                {
                     format!("{{\"success\":true,\"resourceId\":{}}}", resource_id)
                 } else {
                     "Error: Resource not found".to_string()
