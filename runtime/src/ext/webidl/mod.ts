@@ -315,6 +315,56 @@ const converters = {
   // Timestamp converters
   DOMTimeStamp: createIntegerConversion(64, { unsigned: true }),
   DOMHighResTimeStamp: (V: unknown): number => toNumber(V),
+  BufferSource: (
+    V: unknown,
+    prefix?: string,
+    context?: string,
+    // deno-lint-ignore no-explicit-any
+    opts: any = {},
+  ): ArrayBuffer | ArrayBufferView => {
+    if (webidl.bufferSourceTypes.isArrayBufferView(V)) {
+      if (
+        opts.allowShared === false &&
+        bufferSourceTypes.isSharedArrayBuffer((V as ArrayBufferView).buffer)
+      ) {
+        throw makeException(
+          TypeError,
+          "is a view on a SharedArrayBuffer, which is not allowed",
+          prefix,
+          context,
+        );
+      }
+      return V;
+    }
+
+    if (bufferSourceTypes.isArrayBuffer(V)) {
+      if (
+        opts.allowShared === false && bufferSourceTypes.isSharedArrayBuffer(V)
+      ) {
+        throw makeException(
+          TypeError,
+          "is a SharedArrayBuffer, which is not allowed",
+          prefix,
+          context,
+        );
+      }
+      return V;
+    }
+
+    if (
+      opts.allowShared !== false && bufferSourceTypes.isSharedArrayBuffer(V)
+    ) {
+      // deno-lint-ignore no-explicit-any
+      return V as any;
+    }
+
+    throw makeException(
+      TypeError,
+      "is not of type BufferSource (ArrayBuffer or ArrayBufferView)",
+      prefix,
+      context,
+    );
+  },
 };
 
 // Utility function to create nullable converters
@@ -340,6 +390,7 @@ function createNullableConverter<T>(
 
 // Utility function to create sequence converters
 // Used by other modules to create sequence type converters
+// Per WebIDL spec 3.2.17 - sequence<T> conversion algorithm
 function createSequenceConverter<T>(
   converter: (
     V: unknown,
@@ -376,7 +427,9 @@ function createSequenceConverter<T>(
       );
     }
 
-    const iterator = iter();
+    // Call iterator with proper `this` binding per WebIDL spec 3.2.17
+    // This ensures Symbol.iterator methods work correctly with their expected context
+    const iterator = iter.call(obj);
     const array: T[] = [];
     while (true) {
       const res = iterator.next();
@@ -818,7 +871,6 @@ function createFrozenArrayConverter<T>(
   };
 }
 
-
 function convertSymbol(V: unknown, prefix?: string, context?: string): symbol {
   if (typeof V !== "symbol") {
     throw makeException(
@@ -856,7 +908,6 @@ function clampToRange(
 ): number {
   return Math.min(Math.max(value, min), max);
 }
-
 
 function enforceRange(
   value: number,

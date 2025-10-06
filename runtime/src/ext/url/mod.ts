@@ -68,7 +68,7 @@ class URL {
     const parsed = base ?
       __andromeda__.internal_url_parse(url, base) :
       __andromeda__.internal_url_parse_no_base(url);
-    
+
     if (parsed.startsWith("Error:")) {
       throw new TypeError("Invalid URL");
     }
@@ -160,10 +160,19 @@ class URL {
     if (colonIndex !== -1) {
       const hostname = v.substring(0, colonIndex);
       const port = v.substring(colonIndex + 1);
-      this.serialized = __andromeda__.internal_url_set_hostname(this.serialized, hostname);
-      this.serialized = __andromeda__.internal_url_set_port(this.serialized, port);
+      this.serialized = __andromeda__.internal_url_set_hostname(
+        this.serialized,
+        hostname,
+      );
+      this.serialized = __andromeda__.internal_url_set_port(
+        this.serialized,
+        port,
+      );
     } else {
-      this.serialized = __andromeda__.internal_url_set_hostname(this.serialized, v);
+      this.serialized = __andromeda__.internal_url_set_hostname(
+        this.serialized,
+        v,
+      );
     }
   }
 
@@ -302,7 +311,9 @@ class URLSearchParams {
   delete(name: string, value?: string) {
     const before = this.#pairs.length;
     if (value !== undefined) {
-      this.#pairs = this.#pairs.filter(([k, v]) => !(k === name && v === value));
+      this.#pairs = this.#pairs.filter(([k, v]) =>
+        !(k === name && v === value)
+      );
     } else {
       this.#pairs = this.#pairs.filter(([k, _]) => k !== name);
     }

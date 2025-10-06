@@ -553,19 +553,93 @@ const mainFetch = async (fetchParams: any, recursive = false) => {
   // Bad port check - block requests to dangerous ports
   // Per spec, these ports should be blocked for security reasons
   const badPorts = new Set([
-    1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77, 79,
-    87, 95, 101, 102, 103, 104, 109, 110, 111, 113, 115, 117, 119, 123, 135, 137,
-    139, 143, 161, 179, 389, 427, 465, 512, 513, 514, 515, 526, 530, 531, 532,
-    540, 548, 554, 556, 563, 587, 601, 636, 989, 990, 993, 995, 1719, 1720, 1723,
-    2049, 3659, 4045, 5060, 5061, 6000, 6566, 6665, 6666, 6667, 6668, 6669, 6697,
-    10080
+    1,
+    7,
+    9,
+    11,
+    13,
+    15,
+    17,
+    19,
+    20,
+    21,
+    22,
+    23,
+    25,
+    37,
+    42,
+    43,
+    53,
+    69,
+    77,
+    79,
+    87,
+    95,
+    101,
+    102,
+    103,
+    104,
+    109,
+    110,
+    111,
+    113,
+    115,
+    117,
+    119,
+    123,
+    135,
+    137,
+    139,
+    143,
+    161,
+    179,
+    389,
+    427,
+    465,
+    512,
+    513,
+    514,
+    515,
+    526,
+    530,
+    531,
+    532,
+    540,
+    548,
+    554,
+    556,
+    563,
+    587,
+    601,
+    636,
+    989,
+    990,
+    993,
+    995,
+    1719,
+    1720,
+    1723,
+    2049,
+    3659,
+    4045,
+    5060,
+    5061,
+    6000,
+    6566,
+    6665,
+    6666,
+    6667,
+    6668,
+    6669,
+    6697,
+    10080,
   ]);
-  
+
   const requestURL = new URL(request.url);
   if (requestURL.port && badPorts.has(parseInt(requestURL.port, 10))) {
     return networkError();
   }
-  
+
   // TODO: Implement CSP check
   // TODO: Implement Integrity Policy check
 
@@ -868,11 +942,16 @@ const mainFetch = async (fetchParams: any, recursive = false) => {
       //  3. Let processBody given bytes be these steps:
       const processBody = async (bytes: Uint8Array) => {
         //    1. If bytes do not match request's integrity metadata, then run processBodyError and abort these steps. [SRI]
-        const doesMatch = (globalThis as any).__doesResponseMatchIntegrityMetadata;
+        const doesMatch =
+          (globalThis as any).__doesResponseMatchIntegrityMetadata;
         if (doesMatch) {
           const integrityValid = await doesMatch(
-            { integrity: request.integrityMetadata, origin: request.origin, mode: request.mode },
-            { body: bytes, type: response.type, url: response.urlList?.[0] }
+            {
+              integrity: request.integrityMetadata,
+              origin: request.origin,
+              mode: request.mode,
+            },
+            { body: bytes, type: response.type, url: response.urlList?.[0] },
           );
           if (!integrityValid) {
             processBodyError();
@@ -1096,25 +1175,25 @@ const schemeFetch = async (fetchParams: any) => {
       //   1. Let dataURLStruct be the result of running the data: URL processor on request's current URL.
       const urlString = request.currentURL.href || String(request.currentURL);
       let dataURLStruct = null;
-      
+
       if (urlString.startsWith("data:")) {
         const commaIndex = urlString.indexOf(",");
         if (commaIndex !== -1) {
           // Parse MIME type and parameters (everything between "data:" and ",")
           let mimeTypeStr = urlString.substring(5, commaIndex).trim();
           const dataStr = urlString.substring(commaIndex + 1);
-          
+
           // Check if base64 encoded
           const isBase64 = mimeTypeStr.endsWith(";base64");
           if (isBase64) {
             mimeTypeStr = mimeTypeStr.slice(0, -7).trim(); // Remove ";base64"
           }
-          
+
           // Default MIME type if not specified
           const mimeType = mimeTypeStr || "text/plain;charset=US-ASCII";
-          
+
           let body: Uint8Array;
-          
+
           if (isBase64) {
             // Base64 decode
             try {
@@ -1140,11 +1219,11 @@ const schemeFetch = async (fetchParams: any) => {
               body = new TextEncoder().encode(dataStr);
             }
           }
-          
+
           dataURLStruct = { mimeType, body };
         }
       }
-      
+
       //   2. If dataURLStruct is failure, then return a network error.
       if (dataURLStruct === null) {
         return networkError();
@@ -1167,30 +1246,30 @@ const schemeFetch = async (fetchParams: any) => {
     case "file": {
       //    For now, unfortunate as it is, file: URLs are left as an exercise for the reader.
       //    When in doubt, return a network error.
-      
+
       // Implement file: URL handling
       try {
         const fileURL = new URL(
-          request.currentURL.href || String(request.currentURL)
+          request.currentURL.href || String(request.currentURL),
         );
-        
+
         // Get the path from the URL
         // file:///path/to/file -> /path/to/file
         let filePath = decodeURIComponent(fileURL.pathname);
-        
+
         // Security check: only allow GET requests for file: URLs
         if (request.method !== "GET") {
           return networkError();
         }
-        
+
         // Read the file asynchronously
         const readFileAsync = (__andromeda__ as any).internal_read_file_async;
         if (!readFileAsync) {
           return networkError();
         }
-        
+
         const body = await readFileAsync(filePath);
-        
+
         // Detect MIME type from file extension
         const getMimeType = (path: string): string => {
           const ext = path.split(".").pop()?.toLowerCase();
@@ -1215,9 +1294,9 @@ const schemeFetch = async (fetchParams: any) => {
           };
           return mimeTypes[ext || ""] || "application/octet-stream";
         };
-        
+
         const mimeType = getMimeType(filePath);
-        
+
         return {
           type: "basic",
           status: 200,
@@ -1341,10 +1420,9 @@ const httpFetch = async (fetchParams: any, makeCORSPreflight = false) => {
     (request.responseTainting === "opaque" || response?.type === "opaque")
   ) {
     // Perform CORP check
-    const corpCheck =
-      (globalThis as unknown as {
-        __corpCheck?: (req: unknown, res: unknown) => boolean;
-      }).__corpCheck;
+    const corpCheck = (globalThis as unknown as {
+      __corpCheck?: (req: unknown, res: unknown) => boolean;
+    }).__corpCheck;
     if (corpCheck && internalResponse) {
       const corpAllowed = corpCheck(request, internalResponse);
       if (!corpAllowed) {
@@ -2001,15 +2079,20 @@ const httpRedirectFetch = async (fetchParams: any, response: any) => {
   // 19. Invoke set request's referrer policy on redirect on request and internalResponse. [REFERRER]
   // Check for Referrer-Policy header in the response and update request's referrer policy
   const referrerPolicyHeader = internalResponse.headersList?.find(
-    ([name]: [string, string]) => name.toLowerCase() === "referrer-policy"
+    ([name]: [string, string]) => name.toLowerCase() === "referrer-policy",
   );
   if (referrerPolicyHeader && referrerPolicyHeader[1]) {
     const policy = referrerPolicyHeader[1].trim();
     // Valid referrer policies per spec
     const validPolicies = [
-      "no-referrer", "no-referrer-when-downgrade", "same-origin", 
-      "origin", "strict-origin", "origin-when-cross-origin",
-      "strict-origin-when-cross-origin", "unsafe-url"
+      "no-referrer",
+      "no-referrer-when-downgrade",
+      "same-origin",
+      "origin",
+      "strict-origin",
+      "origin-when-cross-origin",
+      "strict-origin-when-cross-origin",
+      "unsafe-url",
     ];
     if (validPolicies.includes(policy)) {
       request.referrerPolicy = policy;
@@ -2151,7 +2234,10 @@ const httpNetworkOrCacheFetch = async (
 
   // 12. Append a request `Origin` header for httpRequest.
   // Per spec, append Origin header for CORS and non-GET/HEAD requests
-  if (httpRequest.mode === "cors" || (httpRequest.method !== "GET" && httpRequest.method !== "HEAD")) {
+  if (
+    httpRequest.mode === "cors" ||
+    (httpRequest.method !== "GET" && httpRequest.method !== "HEAD")
+  ) {
     if (!hasRequestHeader(httpRequest, "Origin")) {
       const origin = httpRequest.origin || "null";
       setRequestHeader(httpRequest, "Origin", origin);
@@ -2162,22 +2248,27 @@ const httpNetworkOrCacheFetch = async (
   // Sec-Fetch-Site: Indicates the relationship between request initiator and target
   if (!hasRequestHeader(httpRequest, "Sec-Fetch-Site")) {
     const requestOrigin = httpRequest.origin;
-    const targetOrigin = new URL(httpRequest.currentURL.href || httpRequest.currentURL).origin;
+    const targetOrigin =
+      new URL(httpRequest.currentURL.href || httpRequest.currentURL).origin;
     let site = "same-origin";
     if (requestOrigin !== targetOrigin) {
       site = "cross-site"; // Simplified - should check for same-site
     }
     setRequestHeader(httpRequest, "Sec-Fetch-Site", site);
   }
-  
+
   // Sec-Fetch-Mode: The request's mode
   if (!hasRequestHeader(httpRequest, "Sec-Fetch-Mode")) {
     setRequestHeader(httpRequest, "Sec-Fetch-Mode", httpRequest.mode || "cors");
   }
-  
+
   // Sec-Fetch-Dest: The request's destination
   if (!hasRequestHeader(httpRequest, "Sec-Fetch-Dest")) {
-    setRequestHeader(httpRequest, "Sec-Fetch-Dest", httpRequest.destination || "empty");
+    setRequestHeader(
+      httpRequest,
+      "Sec-Fetch-Dest",
+      httpRequest.destination || "empty",
+    );
   }
 
   // 14. If httpRequest's initiator is "prefetch", then set a structured field value given (`Sec-Purpose`, the token prefetch) in httpRequest's header list.
@@ -2228,7 +2319,10 @@ const httpNetworkOrCacheFetch = async (
 
   // 19. If httpRequest's header list contains `Range`, then append (`Accept-Encoding`, `identity`) to httpRequest's header list.
   // This prevents encoding that would break range requests
-  if (hasRequestHeader(httpRequest, "Range") && !hasRequestHeader(httpRequest, "Accept-Encoding")) {
+  if (
+    hasRequestHeader(httpRequest, "Range") &&
+    !hasRequestHeader(httpRequest, "Accept-Encoding")
+  ) {
     setRequestHeader(httpRequest, "Accept-Encoding", "identity");
   }
 
@@ -2241,7 +2335,7 @@ const httpNetworkOrCacheFetch = async (
     const generateCookieHeader = (globalThis as any).generateCookieHeader;
     if (generateCookieHeader && !hasRequestHeader(httpRequest, "Cookie")) {
       const cookieHeader = generateCookieHeader(
-        httpRequest.currentURL.href || String(httpRequest.currentURL)
+        httpRequest.currentURL.href || String(httpRequest.currentURL),
       );
       if (cookieHeader) {
         setRequestHeader(httpRequest, "Cookie", cookieHeader);
@@ -2254,10 +2348,10 @@ const httpNetworkOrCacheFetch = async (
       const getStoredCredentials = (globalThis as any).getStoredCredentials;
       if (getStoredCredentials) {
         const requestURL = new URL(
-          httpRequest.currentURL.href || String(httpRequest.currentURL)
+          httpRequest.currentURL.href || String(httpRequest.currentURL),
         );
         const origin = requestURL.origin;
-        
+
         // Try to get credentials for common realm (empty string means any realm)
         const credentials = getStoredCredentials(origin, "");
         if (credentials) {
@@ -2266,7 +2360,7 @@ const httpNetworkOrCacheFetch = async (
           if (generateBasicAuth) {
             const authHeader = generateBasicAuth(
               credentials.username,
-              credentials.password
+              credentials.password,
             );
             setRequestHeader(httpRequest, "Authorization", authHeader);
           }
