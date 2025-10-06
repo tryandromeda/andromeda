@@ -31,6 +31,7 @@ mod url;
 mod virtualfs;
 mod web;
 mod web_locks;
+mod webidl;
 
 pub use broadcast_channel::*;
 #[cfg(feature = "storage")]
@@ -61,3 +62,4 @@ pub use url::*;
 pub use virtualfs::*;
 pub use web::*;
 pub use web_locks::*;
+pub use webidl::*;

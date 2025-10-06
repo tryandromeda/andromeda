@@ -631,8 +631,206 @@ function configureProperties(obj: object): void {
   }
 }
 
-// Utility functions
-// Used by other modules for argument validation
+// Utility function to create record converters
+// Used by other modules to create record<K, V> type converters
+function createRecordConverter<K extends string, V>(
+  keyConverter: (
+    V: unknown,
+    prefix?: string,
+    context?: string,
+    opts?: ConversionOptions,
+  ) => K,
+  valueConverter: (
+    V: unknown,
+    prefix?: string,
+    context?: string,
+    opts?: ConversionOptions,
+  ) => V,
+) {
+  return (
+    V: unknown,
+    prefix?: string,
+    context?: string,
+    opts: ConversionOptions = {},
+  ): Record<K, V> => {
+    if (type(V) !== "Object") {
+      throw makeException(
+        TypeError,
+        "can not be converted to a record",
+        prefix,
+        context,
+      );
+    }
+
+    const result: Record<K, V> = {} as Record<K, V>;
+    const obj = V as Record<string, unknown>;
+
+    // Get own property keys (both string and symbol, but we only care about strings)
+    const keys = Object.keys(obj);
+
+    for (const key of keys) {
+      const typedKey = keyConverter(key, prefix, `${context}, key`, opts);
+      const typedValue = valueConverter(
+        obj[key],
+        prefix,
+        `${context}, value for key "${key}"`,
+        opts,
+      );
+      result[typedKey] = typedValue;
+    }
+
+    return result;
+  };
+}
+
+// Utility function to create union type converters
+// Used by other modules to create union type converters
+function createUnionConverter<T>(
+  types: Array<{
+    test: (V: unknown) => boolean;
+    convert: (
+      V: unknown,
+      prefix?: string,
+      context?: string,
+      opts?: ConversionOptions,
+    ) => T;
+  }>,
+) {
+  return (
+    V: unknown,
+    prefix?: string,
+    context?: string,
+    opts: ConversionOptions = {},
+  ): T => {
+    for (const { test, convert } of types) {
+      if (test(V)) {
+        return convert(V, prefix, context, opts);
+      }
+    }
+    throw makeException(
+      TypeError,
+      "is not a valid value for this union type",
+      prefix,
+      context,
+    );
+  };
+}
+
+// Promise utilities
+// Used by other modules to create and resolve promises
+function createPromiseConverter<T>(
+  innerConverter: (
+    V: unknown,
+    prefix?: string,
+    context?: string,
+    opts?: ConversionOptions,
+  ) => T,
+) {
+  return (
+    V: unknown,
+    prefix?: string,
+    context?: string,
+    opts: ConversionOptions = {},
+  ): Promise<T> => {
+    return Promise.resolve(V).then((value) =>
+      innerConverter(value, prefix, context, opts)
+    );
+  };
+}
+
+// Buffer source type utilities
+const bufferSourceTypes = {
+  isArrayBuffer: (V: unknown): V is ArrayBuffer => {
+    return V instanceof ArrayBuffer;
+  },
+  isSharedArrayBuffer: (V: unknown): V is SharedArrayBuffer => {
+    return typeof SharedArrayBuffer !== "undefined" &&
+      V instanceof SharedArrayBuffer;
+  },
+  isArrayBufferView: (V: unknown): V is ArrayBufferView => {
+    return ArrayBuffer.isView(V);
+  },
+  isTypedArray: (V: unknown): boolean => {
+    return V instanceof Int8Array ||
+      V instanceof Uint8Array ||
+      V instanceof Uint8ClampedArray ||
+      V instanceof Int16Array ||
+      V instanceof Uint16Array ||
+      V instanceof Int32Array ||
+      V instanceof Uint32Array ||
+      V instanceof Float32Array ||
+      V instanceof Float64Array ||
+      (typeof BigInt64Array !== "undefined" && V instanceof BigInt64Array) ||
+      (typeof BigUint64Array !== "undefined" && V instanceof BigUint64Array);
+  },
+  isDataView: (V: unknown): V is DataView => {
+    return V instanceof DataView;
+  },
+};
+
+// Callback function converter
+function createCallbackConverter(
+  name: string,
+  allowNonCallable = false,
+) {
+  return (
+    V: unknown,
+    prefix?: string,
+    context?: string,
+    // deno-lint-ignore no-explicit-any
+  ): any => {
+    if (typeof V !== "function") {
+      if (allowNonCallable && typeof V === "object" && V !== null) {
+        return V;
+      }
+      throw makeException(
+        TypeError,
+        `is not a function`,
+        prefix,
+        context,
+      );
+    }
+    return V;
+  };
+}
+
+function createFrozenArrayConverter<T>(
+  elementConverter: (
+    V: unknown,
+    prefix?: string,
+    context?: string,
+    opts?: ConversionOptions,
+  ) => T,
+) {
+  return (
+    V: unknown,
+    prefix?: string,
+    context?: string,
+    opts: ConversionOptions = {},
+  ): ReadonlyArray<T> => {
+    const sequence = createSequenceConverter(elementConverter)(
+      V,
+      prefix,
+      context,
+      opts,
+    );
+    return Object.freeze(sequence);
+  };
+}
+
+
+function convertSymbol(V: unknown, prefix?: string, context?: string): symbol {
+  if (typeof V !== "symbol") {
+    throw makeException(
+      TypeError,
+      "is not a symbol",
+      prefix,
+      context,
+    );
+  }
+  return V;
+}
+
 function requiredArguments(
   length: number,
   required: number,
@@ -645,3 +843,72 @@ function requiredArguments(
     throw new TypeError(errMsg);
   }
 }
+
+function isPlatformObject(V: unknown, prototype: object): boolean {
+  return typeof V === "object" && V !== null &&
+    Object.prototype.isPrototypeOf.call(prototype, V);
+}
+
+function clampToRange(
+  value: number,
+  min: number,
+  max: number,
+): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+
+function enforceRange(
+  value: number,
+  min: number,
+  max: number,
+  prefix?: string,
+  context?: string,
+): number {
+  if (!Number.isFinite(value)) {
+    throw makeException(
+      TypeError,
+      "is not a finite number",
+      prefix,
+      context,
+    );
+  }
+  if (value < min || value > max) {
+    throw makeException(
+      TypeError,
+      `is outside the accepted range of ${min} to ${max}, inclusive`,
+      prefix,
+      context,
+    );
+  }
+  return value;
+}
+
+const webidl = {
+  converters,
+  createNullableConverter,
+  createSequenceConverter,
+  createRecordConverter,
+  createUnionConverter,
+  createPromiseConverter,
+  createFrozenArrayConverter,
+  createCallbackConverter,
+  createEnumConverter,
+  createDictionaryConverter,
+  createInterfaceConverter,
+  createBranded,
+  assertBranded,
+  configureInterface,
+  configureProperties,
+  requiredArguments,
+  isPlatformObject,
+  clampToRange,
+  enforceRange,
+  bufferSourceTypes,
+  convertSymbol,
+  makeException,
+  type,
+};
+
+// deno-lint-ignore no-explicit-any
+(globalThis as any).webidl = webidl;
