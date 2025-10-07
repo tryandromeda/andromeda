@@ -65,7 +65,7 @@ dependencies = [
 
 [[package]]
 name = "andromeda"
-version = "0.1.0-draft48"
+version = "0.1.0-draft49"
 dependencies = [
  "andromeda-core",
  "andromeda-runtime",
@@ -117,7 +117,7 @@ dependencies = [
 
 [[package]]
 name = "andromeda-core"
-version = "0.1.0-draft48"
+version = "0.1.0-draft49"
 dependencies = [
  "anyhow",
  "anymap",
@@ -140,7 +140,7 @@ dependencies = [
 
 [[package]]
 name = "andromeda-runtime"
-version = "0.1.0-draft48"
+version = "0.1.0-draft49"
 dependencies = [
  "andromeda-core",
  "anyhow",
@@ -1858,9 +1858,9 @@ checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
 name = "hotpath"
-version = "0.3.1"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d7597a54e880a603c1982b2cc1b3fc2015670eec77fd733fe395e81913006d3"
+checksum = "3f6f795f3087ad831962e399bbec051b5ac5b0fda67edeb127c083c07edfaaa1"
 dependencies = [
  "arc-swap",
  "cfg-if",
@@ -1879,9 +1879,9 @@ dependencies = [
 
 [[package]]
 name = "hotpath-macros"
-version = "0.3.1"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "430aebfe503410f85d96cf6b980bbab6ca2a6e8abca518e5e0cc5c54fdee7fc1"
+checksum = "c3342ecdf54aea01282430da683a38526124d58eff76ba20e758259fe31bf171"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2754,7 +2754,7 @@ checksum = "0676bb32a98c1a483ce53e500a81ad9c3d5b3f7c920c28c24e9cb0980d0b5bc8"
 [[package]]
 name = "nova_vm"
 version = "0.3.1"
-source = "git+https://github.com/trynova/nova?rev=81774d30bd814d8b7ea050e252557890f76c9b69#81774d30bd814d8b7ea050e252557890f76c9b69"
+source = "git+https://github.com/trynova/nova?rev=cf2e8ea9a5a4cb0d70d9723e4b42ed7131026bcf#cf2e8ea9a5a4cb0d70d9723e4b42ed7131026bcf"
 dependencies = [
  "ahash",
  "fast-float",
@@ -4391,7 +4391,7 @@ dependencies = [
 [[package]]
 name = "small_string"
 version = "0.2.0"
-source = "git+https://github.com/trynova/nova?rev=81774d30bd814d8b7ea050e252557890f76c9b69#81774d30bd814d8b7ea050e252557890f76c9b69"
+source = "git+https://github.com/trynova/nova?rev=cf2e8ea9a5a4cb0d70d9723e4b42ed7131026bcf#cf2e8ea9a5a4cb0d70d9723e4b42ed7131026bcf"
 dependencies = [
  "wtf8",
 ]

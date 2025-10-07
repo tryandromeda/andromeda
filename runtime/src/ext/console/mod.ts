@@ -295,9 +295,9 @@ function createTable(data: ConsoleValue[], headers?: string[]): string {
   const table: string[][] = [];
   const firstItem = data[0];
   const cols = headers ||
-    (typeof firstItem === "object" && firstItem !== null
-      ? Object.keys(firstItem as Record<string, ConsoleValue>)
-      : []);
+    (typeof firstItem === "object" && firstItem !== null ?
+      Object.keys(firstItem as Record<string, ConsoleValue>) :
+      []);
 
   // Add header row
   table.push(["(index)", ...cols]);
@@ -306,9 +306,9 @@ function createTable(data: ConsoleValue[], headers?: string[]): string {
   data.forEach((row, index) => {
     const tableRow = [index.toString()];
     cols.forEach((col) => {
-      const value = row && typeof row === "object"
-        ? (row as Record<string, ConsoleValue>)[col]
-        : "";
+      const value = row && typeof row === "object" ?
+        (row as Record<string, ConsoleValue>)[col] :
+        "";
       tableRow.push(formatValue(value));
     });
     table.push(tableRow);
