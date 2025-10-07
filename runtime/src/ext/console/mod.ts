@@ -1,10 +1,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
-// External function declarations for runtime operations
-
-// Type definitions
 type ConsoleValue =
   | string
   | number
@@ -13,6 +9,25 @@ type ConsoleValue =
   | undefined
   | object
   | ConsoleValue[];
+
+// deno-lint-ignore no-explicit-any
+const webidl = (globalThis as any as {
+  webidl: {
+    converters: {
+      any: (v: unknown) => unknown;
+      boolean: (v: unknown, prefix?: string, context?: string) => boolean;
+      DOMString: (v: unknown, prefix?: string, context?: string) => string;
+    };
+    createSequenceConverter: <T>(
+      converter: (v: unknown, prefix?: string, context?: string) => T,
+    ) => (v: unknown, prefix?: string, context?: string) => T[];
+    requiredArguments: (
+      length: number,
+      required: number,
+      prefix: string,
+    ) => void;
+  };
+}).webidl;
 
 // ANSI color codes for styling output
 const COLORS = {
@@ -280,9 +295,9 @@ function createTable(data: ConsoleValue[], headers?: string[]): string {
   const table: string[][] = [];
   const firstItem = data[0];
   const cols = headers ||
-    (typeof firstItem === "object" && firstItem !== null ?
-      Object.keys(firstItem as Record<string, ConsoleValue>) :
-      []);
+    (typeof firstItem === "object" && firstItem !== null
+      ? Object.keys(firstItem as Record<string, ConsoleValue>)
+      : []);
 
   // Add header row
   table.push(["(index)", ...cols]);
@@ -291,9 +306,9 @@ function createTable(data: ConsoleValue[], headers?: string[]): string {
   data.forEach((row, index) => {
     const tableRow = [index.toString()];
     cols.forEach((col) => {
-      const value = row && typeof row === "object" ?
-        (row as Record<string, ConsoleValue>)[col] :
-        "";
+      const value = row && typeof row === "object"
+        ? (row as Record<string, ConsoleValue>)[col]
+        : "";
       tableRow.push(formatValue(value));
     });
     table.push(tableRow);
@@ -403,6 +418,12 @@ const andromedaConsole = {
    * ```
    */
   assert(condition?: boolean, ...args: ConsoleValue[]) {
+    condition = webidl.converters.boolean(
+      condition,
+      "console.assert",
+      "Argument 1",
+    );
+
     if (condition) return; // Early return if condition is true
 
     let message: string;
@@ -452,8 +473,13 @@ const andromedaConsole = {
    * ```
    */
   count(label: string = "default") {
+    label = webidl.converters.DOMString(
+      label,
+      "console.count",
+      "Argument 1",
+    );
     const message = __andromeda__.count(label);
-    console.info(message);
+    andromedaConsole.info(message);
   },
 
   /**
@@ -466,11 +492,17 @@ const andromedaConsole = {
    * ```
    */
   countReset(label: string = "default") {
+    label = webidl.converters.DOMString(
+      label,
+      "console.countReset",
+      "Argument 1",
+    );
+
     const message = __andromeda__.count_reset(label);
     if (message.includes("does not exist")) {
-      console.warn(message);
+      andromedaConsole.warn(message);
     } else {
-      console.info(message);
+      andromedaConsole.info(message);
     }
   },
 
@@ -485,12 +517,14 @@ const andromedaConsole = {
    * ```
    */
   group(...args: ConsoleValue[]) {
-    if (args.length > 0) {
-      console.log(formatArgs(args));
+    const indent = getIndent();
+    const label = __andromeda__.group_start(
+      args.length > 0 ? String(args[0]) : "",
+    );
+    if (label) {
+      __andromeda__.internal_print(`${indent}${label}\n`);
     }
-    __andromeda__.group_start(args.length > 0 ? String(args[0]) : "");
   },
-
   /**
    * Creates a new inline group in the console output that is initially collapsed.
    * In this implementation, it behaves the same as group().
@@ -530,20 +564,32 @@ const andromedaConsole = {
    * ```
    */
   table(tabularData?: ConsoleValue, properties?: string[]) {
+    tabularData = webidl.converters.any(tabularData) as ConsoleValue;
+    if (properties !== undefined) {
+      // Create sequence<DOMString> converter using WebIDL utility
+      const sequenceConverter = webidl.createSequenceConverter(
+        webidl.converters.DOMString,
+      );
+      properties = sequenceConverter(
+        properties,
+        "console.table",
+        "Argument 2",
+      );
+    }
     if (tabularData === null || tabularData === undefined) {
-      console.log(tabularData);
+      andromedaConsole.log(tabularData);
       return;
     }
 
     if (Array.isArray(tabularData)) {
-      console.log(createTable(tabularData, properties));
+      andromedaConsole.log(createTable(tabularData, properties));
     } else if (typeof tabularData === "object") {
       const entries = Object.entries(
         tabularData as Record<string, ConsoleValue>,
       ).map(([key, value]) => ({ Key: key, Value: value }));
-      console.log(createTable(entries));
+      andromedaConsole.log(createTable(entries));
     } else {
-      console.log(tabularData);
+      andromedaConsole.log(tabularData);
     }
   },
 
@@ -556,9 +602,9 @@ const andromedaConsole = {
    * ```
    */
   dir(obj?: ConsoleValue, _options?: Record<string, ConsoleValue>) {
-    // Simple implementation - in a full implementation this would show
-    // an expandable object representation
-    console.log(formatValue(obj));
+    obj = webidl.converters.any(obj) as ConsoleValue;
+    // TODO: display an expandable object representation
+    andromedaConsole.log(formatValue(obj));
   },
 
   /**
@@ -571,8 +617,7 @@ const andromedaConsole = {
    * ```
    */
   dirxml(...args: ConsoleValue[]) {
-    // For non-browser environments, this behaves like dir()
-    args.forEach((arg) => console.dir(arg));
+    andromedaConsole.log(...args);
   },
 
   /**
@@ -587,9 +632,14 @@ const andromedaConsole = {
    * ```
    */
   time(label: string = "default") {
+    label = webidl.converters.DOMString(
+      label,
+      "console.time",
+      "Argument 1",
+    );
     const result = __andromeda__.time_start(label);
     if (result) {
-      console.warn(result);
+      andromedaConsole.warn(result);
     }
   },
 
@@ -604,14 +654,19 @@ const andromedaConsole = {
    * ```
    */
   timeLog(label: string = "default", ...args: ConsoleValue[]) {
+    label = webidl.converters.DOMString(
+      label,
+      "console.timeLog",
+      "Argument 1",
+    );
     const result = __andromeda__.time_log(
       label,
       args.length > 0 ? formatArgs(args) : "",
     );
     if (result.includes("does not exist")) {
-      console.warn(result);
+      andromedaConsole.warn(result);
     } else {
-      console.info(result);
+      andromedaConsole.info(result);
     }
   },
 
@@ -627,11 +682,16 @@ const andromedaConsole = {
    * ```
    */
   timeEnd(label: string = "default") {
+    label = webidl.converters.DOMString(
+      label,
+      "console.timeEnd",
+      "Argument 1",
+    );
     const result = __andromeda__.time_end(label);
     if (result.includes("does not exist")) {
-      console.warn(result);
+      andromedaConsole.warn(result);
     } else {
-      console.info(result);
+      andromedaConsole.info(result);
     }
   },
 
@@ -646,33 +706,32 @@ const andromedaConsole = {
   trace(...args: ConsoleValue[]) {
     const message = args.length > 0 ? formatArgs(args) : "Trace";
     const stack = __andromeda__.get_stack_trace();
-    console.log(`${message}\n${stack}`);
+    const indent = getIndent();
+    __andromeda__.internal_print_err(
+      `${COLORS.fg.cyan}${indent}${message}\n${stack}${COLORS.reset}\n`,
+    );
   },
 
   /**
-   * Starts a profile (no-op in this implementation).
-   * This method exists for compatibility.
+   * Starts a profile
    */
   profile(_label?: string) {
-    // No-op in this implementation
+    // TODO: implement profiling if needed
   },
 
   /**
-   * Ends a profile (no-op in this implementation).
-   * This method exists for compatibility.
+   * Ends a profile
    */
   profileEnd(_label?: string) {
-    // No-op in this implementation
+    // TODO: implement profiling end if needed
   },
 
   /**
-   * Adds a timestamp to the console (no-op in this implementation).
-   * This method exists for compatibility.
+   * Adds a timestamp to the console
    */
   timeStamp(_label?: string) {
-    // No-op in this implementation
+    // TODO: implement timestamp if needed
   },
 };
 
-// // Export the console object
 globalThis.console = andromedaConsole;
