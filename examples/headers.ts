@@ -17,3 +17,13 @@ console.log("myHeaders", myHeaders2.get("Set-Cookie")); // greeting=hellogreetin
 const myAppendHeader = new Headers();
 myAppendHeader.append("Content-Type", "image/jpeg");
 console.log("myAppendHeader", myAppendHeader.get("Content-Type")); // 'image/jpeg'
+
+// Create a new test Headers object
+// https://developer.mozilla.org/en-US/docs/Web/API/Headers/forEach
+myHeaders.append("Content-Type", "application/json");
+myHeaders.append("Cookie", "This is a demo cookie");
+myHeaders.append("compression", "gzip");
+
+myHeaders.forEach((value, key) => {
+  console.log(`${key} ==> ${value}`);
+});
