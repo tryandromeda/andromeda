@@ -7,7 +7,6 @@ class Headers {
   #guard: HeadersGuard = "none";
   #headerList: HeaderList = [];
 
-  // TODO: this is HeaderList type
   // https://fetch.spec.whatwg.org/#headers-class
   constructor(init = undefined) {
     fillHeaders(this, init);
@@ -95,27 +94,13 @@ class Headers {
     }
   }
 
-  // Iterator methods
-  *entries(): IterableIterator<[string, string]> {
-    for (const header of this.#headerList) {
-      yield [header[0], header[1]];
+  // TODO: move to webidl
+  forEach(callback) {
+    const pairs = this.#headerList;
+    for (let i = 0; i < pairs.length; i++) {
+      const entry = pairs[i];
+      callback(entry[1], entry[0], this);
     }
-  }
-
-  *keys(): IterableIterator<string> {
-    for (const [name] of this.#headerList) {
-      yield name;
-    }
-  }
-
-  *values(): IterableIterator<string> {
-    for (const [, value] of this.#headerList) {
-      yield value;
-    }
-  }
-
-  [Symbol.iterator](): IterableIterator<[string, string]> {
-    return this.entries();
   }
 
   get headerList() {

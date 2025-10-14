@@ -55,36 +55,10 @@ function createHttpResponse(
 ): string {
   const lines = [`HTTP/1.1 ${statusCode} ${statusText}`];
 
-  // TODO: Headers.forEach() is not implemented, so we manually process common headers
-  // TODO: Implement a generic way to iterate all headers once Headers.forEach() is available
-  const contentType = headers.get("Content-Type");
-  if (contentType) {
-    lines.push(`Content-Type: ${contentType}`);
-  }
-
-  // Access-Control headers for CORS
-  const corsOrigin = headers.get("Access-Control-Allow-Origin");
-  if (corsOrigin) {
-    lines.push(`Access-Control-Allow-Origin: ${corsOrigin}`);
-  }
-  const corsMethods = headers.get("Access-Control-Allow-Methods");
-  if (corsMethods) {
-    lines.push(`Access-Control-Allow-Methods: ${corsMethods}`);
-  }
-  const corsHeaders = headers.get("Access-Control-Allow-Headers");
-  if (corsHeaders) {
-    lines.push(`Access-Control-Allow-Headers: ${corsHeaders}`);
-  }
-
-  // Custom headers
-  const customHeader = headers.get("X-Custom-Header");
-  if (customHeader) {
-    lines.push(`X-Custom-Header: ${customHeader}`);
-  }
-  const serverTime = headers.get("X-Server-Time");
-  if (serverTime) {
-    lines.push(`X-Server-Time: ${serverTime}`);
-  }
+  // Iterate all headers using forEach
+  headers.forEach((value, name) => {
+    lines.push(`${name}: ${value}`);
+  });
 
   if (!headers.has("Content-Length")) {
     lines.push(`Content-Length: ${body.length}`);
