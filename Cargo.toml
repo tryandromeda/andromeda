@@ -40,11 +40,7 @@ libffi = "4.1.2"
 libsui = "0.10.0"
 log = "0.4.28"
 lsp-types = "0.97.0"
-nova_vm = { git = "https://github.com/trynova/nova", rev = "cf2e8ea9a5a4cb0d70d9723e4b42ed7131026bcf", features = [
-    "typescript",
-    "annex-b",
-    "proposals"
-] }
+nova_vm = { git = "https://github.com/trynova/nova", rev = "cf2e8ea9a5a4cb0d70d9723e4b42ed7131026bcf" }
 nu-ansi-term = "0.50.1"
 owo-colors = "4.2.3"
 oxc_codegen = "0.93.0"
