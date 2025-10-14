@@ -41,13 +41,13 @@ dprint-plugin-json.workspace = true
 indexmap.workspace = true
 reedline.workspace = true
 nu-ansi-term.workspace = true
-nova_vm = { workspace = true, features = [
+nova_vm.workspace = true
+andromeda-core.workspace = true
+andromeda-runtime = { workspace = true, features = [
     "typescript",
     "annex-b",
     "proposals"
 ] }
-andromeda-core.workspace = true
-andromeda-runtime.workspace = true
 anyhow.workspace = true
 rustls.workspace = true
 oxc_ast.workspace = true
