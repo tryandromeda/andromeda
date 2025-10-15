@@ -1,4 +1,4 @@
-# Andromeda 🌌
+# Andromeda
 
 <a href="https://github.com/tryandromeda/andromeda"><img align="right" src="./assets/andromeda.svg" alt="Andromeda" width="150"/></a>
 
@@ -13,32 +13,33 @@ TypeScript support**, **rich Web APIs**, and **native performance** - making it
 perfect for scripts, utilities, and applications that need to run fast without
 the complexity of traditional Node.js setups.
 
-## ✨ Key Features
+## Key Features
 
-- 🚀 **Zero-configuration TypeScript** - Run `.ts` files directly, no
+- **Zero-configuration TypeScript** - Run `.ts` files directly, no
   transpilation needed
-- 🗺️ **Import Maps** - Modern module resolution with bare specifiers and CDN
+- **Import Maps** - Modern module resolution with bare specifiers and CDN
   integration
-- 🎨 **GPU-Accelerated Canvas** - Hardware-accelerated 2D Canvas API with WGPU
+**Built-in HTTP Server** - Create web servers and APIs with minimal configuration
+- **GPU-Accelerated Canvas** - Hardware-accelerated 2D Canvas API with WGPU
   backend and PNG export
-- 🔐 **Web Crypto API** - Industry-standard cryptographic primitives
-- 📒 **SQLite Support** - Built-in support for SQLite databases
-- 📁 **File System Access** - Simple APIs for reading/writing files
-- 💾 **Web Storage** - localStorage and sessionStorage APIs for data persistence
-- ⚡ **Native Performance** - Rust-powered execution with Nova's optimized JS
+- **Web Crypto API** - Industry-standard cryptographic primitives
+- **SQLite Support** - Built-in support for SQLite databases
+- **File System Access** - Simple APIs for reading/writing files
+- **Web Storage** - localStorage and sessionStorage APIs for data persistence
+- **Native Performance** - Rust-powered execution with Nova's optimized JS
   engine
-- 🛠️ **Developer Tools** - Interactive REPL, code formatter, single-file
+- **Developer Tools** - Interactive REPL, code formatter, single-file
   compilation, and performance profiling with hotpath
-- 📊 **Performance Profiling** - Integrated hotpath profiler for identifying
-  bottlenecks and optimizing runtime performance
-- 🌐 **Web Standards** - TextEncoder/Decoder, Performance API, and more
-- 🔧 **Extensible** - Modular architecture with optional features
-- 🔧 **Self-Updating** - Built-in upgrade system to stay current with latest
+- **Performance Profiling** - Integrated hotpath profiler for identifying
+  bottlenecks and optimizing runtime performance for andromeda development
+- **Web Standards** - TextEncoder/Decoder, Performance API, and more
+- **Extensible** - Modular architecture with optional features
+- **Self-Updating** - Built-in upgrade system to stay current with latest
   releases
-- 🔧 **Shell Integration** - Auto-completion support for bash, zsh, fish, and
+- **Shell Integration** - Auto-completion support for bash, zsh, fish, and
   PowerShell
 
-## 🎯 Standards & Compatibility
+## Standards & Compatibility
 
 Andromeda aims to be **[WinterTC](https://wintertc.org/)** compliant, ensuring
 interoperability and compatibility with the broader JavaScript ecosystem.
@@ -48,14 +49,40 @@ ECMAScript standards and common runtime behaviors.
 > **Note:** ⚠️ Andromeda is in active development. While functional, it's not
 > yet recommended for production use.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
+
+Platform specific instructions:
+
+Linux/Mac:
+
+```sh
+curl -fsSL https://tryandromeda.dev/install.sh | bash
+```
+
+Windows (PowerShell):
+
+```sh
+irm -Uri "https://tryandromeda.dev/install.ps1" | Invoke-Expression
+```
+
+Windows (CMD):
+
+```sh
+curl -L -o install.bat https://tryandromeda.dev/install.bat && install.bat
+```
 
 Install Andromeda using Cargo:
 
 ```sh
 cargo install --git https://github.com/tryandromeda/andromeda andromeda
+```
+
+Install Andromeda using winget:
+
+```sh
+winget install --id Andromeda.Andromeda
 ```
 
 ### Running Code
@@ -89,7 +116,6 @@ ctx.arc(200, 150, 50, 0, Math.PI * 2);
 ctx.fill();
 
 // Save as PNG
-canvas.render();
 canvas.saveAsPng("output.png");
 console.log("Image saved to output.png");
 ```
@@ -110,7 +136,7 @@ console.log(flatten([[1, 2], [3, [4, 5]]], 1));
 console.log(flatten([[1, 2], [3, [4, 5]]], 2));
 ```
 
-## 🛠️ Core APIs
+## Core APIs
 
 ### File System
 
@@ -118,6 +144,10 @@ console.log(flatten([[1, 2], [3, [4, 5]]], 2));
 // Read and write files synchronously
 const content = Andromeda.readTextFileSync("input.txt");
 Andromeda.writeTextFileSync("output.txt", content.toUpperCase());
+
+// and asynchronously
+const contentAsync = await Andromeda.readTextFile("input.txt");
+await Andromeda.writeTextFile("output.txt", contentAsync.toUpperCase());
 
 // Access environment variables
 const home = Andromeda.env.get("HOME");
@@ -193,7 +223,7 @@ console.log(users);
 db.close();
 ```
 
-## 🎯 Developer Experience
+## Developer Experience
 
 ### Interactive REPL
 
@@ -202,12 +232,9 @@ Andromeda includes a powerful REPL with enhanced developer experience:
 ```sh
 # Start the interactive REPL
 andromeda repl
-
-# REPL with debugging options
-andromeda repl --print-internals --expose-internals --disable-gc
 ```
 
-**✨ REPL Features:**
+**REPL Features:**
 
 - **Advanced Syntax Highlighting** - TypeScript-aware coloring with keyword
   recognition
@@ -256,7 +283,7 @@ editor:
 andromeda lsp
 ```
 
-**✨ LSP Features:**
+**LSP Features:**
 
 - **Real-time Diagnostics** - Live error reporting as you type
 - **Comprehensive Linting** - 5 built-in rules for code quality:
@@ -300,7 +327,7 @@ andromeda upgrade
 andromeda upgrade --force
 
 # Upgrade to specific version
-andromeda upgrade --version v0.1.2
+andromeda upgrade --version 0.1.0-draft-49
 
 # Preview what would be upgraded
 andromeda upgrade --dry-run
@@ -318,24 +345,8 @@ Tasks are defined in your `andromeda.json`, `andromeda.toml`, or `andromeda.yaml
 {
   "tasks": {
     "dev": "andromeda run src/main.ts",
-    "build": {
-      "description": "Build the project",
-      "command": "echo Building project...",
-      "env": {
-        "NODE_ENV": "production"
-      }
-    },
-    "test": {
-      "description": "Run tests after building",
-      "command": "andromeda run tests/main.ts",
-      "dependencies": ["build"]
-    },
-    "deploy": {
-      "description": "Deploy to production",
-      "command": "echo Deploying...",
-      "dependencies": ["test"],
-      "cwd": "./dist"
-    }
+    "build": "echo Building project...",
+    "test": "andromeda run tests/main.ts",
   }
 }
 ```
@@ -350,12 +361,9 @@ andromeda task
 andromeda task dev
 andromeda task build
 andromeda task test
-
-# Dependencies are automatically resolved
-andromeda task deploy  # Will run: build → test → deploy
 ```
 
-## 🏗️ Architecture & Extensions
+## Architecture & Extensions
 
 Andromeda is built with a modular architecture, allowing features to be enabled
 or disabled as needed:
@@ -376,15 +384,6 @@ or disabled as needed:
 | **URL**           | URL parsing and manipulation  | `URL`, `URLSearchParams`                                                       |
 | **Web**           | Web standards                 | `TextEncoder`, `TextDecoder`, `navigator`, `queueMicrotask()`                  |
 
-### Advanced Features
-
-- **Microtask Scheduling** - `queueMicrotask()` for proper async execution order
-- **Navigator API** - Complete `navigator.userAgent` and platform detection
-- **Structured Clone** - Web platform structured clone algorithm for object
-  serialization
-- **Performance Timing** - High-precision timing with marks and measurements
-- **Hardware Acceleration** - WGPU-based GPU rendering for Canvas operations
-
 ## Crates
 
 | Crate                             | Description                                    |
@@ -393,19 +392,19 @@ or disabled as needed:
 | [**andromeda-core**](/core)       | Core runtime engine and JavaScript execution   |
 | [**andromeda-runtime**](/runtime) | Runtime extensions and Web API implementations |
 
-## 🤝 Contributing
+## Contributing
 
 Andromeda is an open-source project and welcomes contributions! Whether you're
 interested in:
 
-- 🐛 **Bug fixes** - Help improve stability
-- ✨ **New features** - Add runtime capabilities
-- 📚 **Documentation** - Improve guides and examples
-- 🧪 **Testing** - Expand test coverage
+- **Bug fixes** - Help improve stability
+- **New features** - Add runtime capabilities
+- **Documentation** - Improve guides and examples
+- **Testing** - Expand test coverage
 
 Join our [Discord community](https://discord.gg/tgjAnX2Ny3) to discuss ideas and
 get involved!
 
-## 📜 License
+## License
 
 [Mozilla Public License Version 2.0](./LICENSE.md)
