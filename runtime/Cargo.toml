@@ -17,6 +17,9 @@ hotpath = ["dep:hotpath", "hotpath/hotpath", "andromeda-core/hotpath"]
 hotpath-alloc-bytes-total = ["hotpath/hotpath-alloc-bytes-total"]
 hotpath-alloc-count-total= ["hotpath/hotpath-alloc-count-total"]
 hotpath-off = ["hotpath/hotpath-off"]
+typescript = ["nova_vm/typescript"]
+annex-b = ["nova_vm/annex-b"]
+proposals = ["nova_vm/proposals"]
 
 [dependencies]
 andromeda-core.workspace = true

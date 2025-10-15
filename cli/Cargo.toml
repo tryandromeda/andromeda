@@ -43,7 +43,11 @@ reedline.workspace = true
 nu-ansi-term.workspace = true
 nova_vm.workspace = true
 andromeda-core.workspace = true
-andromeda-runtime.workspace = true
+andromeda-runtime = { workspace = true, features = [
+    "typescript",
+    "annex-b",
+    "proposals"
+] }
 anyhow.workspace = true
 rustls.workspace = true
 oxc_ast.workspace = true
