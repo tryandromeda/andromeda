@@ -13,6 +13,9 @@ TypeScript support**, **rich Web APIs**, and **native performance** - making it
 perfect for scripts, utilities, and applications that need to run fast without
 the complexity of traditional Node.js setups.
 
+Join our [Discord community](https://discord.gg/tgjAnX2Ny3) to discuss ideas and
+get involved!
+
 ## Key Features
 
 - **Zero-configuration TypeScript** - Run `.ts` files directly, no
