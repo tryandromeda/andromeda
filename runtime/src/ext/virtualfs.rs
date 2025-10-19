@@ -203,8 +203,8 @@ where
 #[derive(Default)]
 pub struct VirtualFsExt;
 
+#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
 impl VirtualFsExt {
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "vfs",
@@ -447,7 +447,6 @@ impl VirtualFsExt {
     }
 
     /// Read a text file and return the content as a string.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_read_text_file<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -494,7 +493,6 @@ impl VirtualFsExt {
     }
 
     /// Write a text file with the content of the second argument.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_write_text_file<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -645,7 +643,6 @@ impl VirtualFsExt {
     }
 
     /// Check if a file or directory exists.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_exists<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -733,7 +730,6 @@ impl VirtualFsExt {
     }
 
     /// Create a directory recursively (mkdir -p equivalent).
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_mk_dir_all<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -789,7 +785,6 @@ impl VirtualFsExt {
     }
 
     /// Remove a file or empty directory.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_remove<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -842,7 +837,6 @@ impl VirtualFsExt {
     }
 
     /// Copy a file from source to destination path.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_copy_file<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -934,7 +928,6 @@ impl VirtualFsExt {
     }
 
     /// Open a file and return a resource ID (RID).
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_open_file<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -985,7 +978,6 @@ impl VirtualFsExt {
     }
 
     /// Read binary file content and return as a string representation of bytes.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_read_file<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -1030,7 +1022,6 @@ impl VirtualFsExt {
     }
 
     /// Write binary data to a file (expects base64 encoded data).
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_write_file<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -1120,7 +1111,6 @@ impl VirtualFsExt {
     }
 
     /// Get file/directory statistics.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_stat<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -1171,7 +1161,6 @@ impl VirtualFsExt {
     }
 
     /// Get link statistics (like stat but doesn't follow symlinks).
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_lstat<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -1183,7 +1172,6 @@ impl VirtualFsExt {
     }
 
     /// List directory contents.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_read_dir<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -1240,7 +1228,6 @@ impl VirtualFsExt {
     }
 
     /// Remove a directory and all its contents recursively.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_remove_all<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -1307,7 +1294,6 @@ impl VirtualFsExt {
     }
 
     /// Rename/move a file or directory.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_rename<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -1433,7 +1419,6 @@ impl VirtualFsExt {
     }
 
     /// Truncate a file to a specific size.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_truncate<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -1534,7 +1519,6 @@ impl VirtualFsExt {
     }
 
     /// Change file/directory permissions.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_chmod<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -1590,7 +1574,6 @@ impl VirtualFsExt {
     }
 
     /// Create a symbolic link.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_symlink<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -1660,7 +1643,6 @@ impl VirtualFsExt {
     }
 
     /// Read the target of a symbolic link.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_read_link<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -1708,7 +1690,6 @@ impl VirtualFsExt {
     }
 
     /// Resolve path to canonical absolute path, following symlinks.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_real_path<'gc>(
         agent: &mut Agent,
         _this: Value,

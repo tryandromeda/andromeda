@@ -10,6 +10,6 @@ function measureFn<T>(fn: () => T, name: string): T {
   return result;
 }
 
-for (let i = 0; i < 100; i++) {
+for (let i = 0; i < 90; i++) {
   console.log(`Iteration ${i}: ${measureFn(() => i * i, `Square of ${i}`)}`);
 }

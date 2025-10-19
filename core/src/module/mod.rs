@@ -388,8 +388,8 @@ impl Default for HttpModuleLoader {
     }
 }
 
+#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
 impl ModuleLoader for HttpModuleLoader {
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     fn load_module(&self, specifier: &str) -> ModuleResult<String> {
         // Check cache first
         {
@@ -1099,6 +1099,7 @@ impl ModuleSystemStats {
     }
 }
 
+#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
 impl ModuleSystem {
     /// Create a new module system with the given loader
     pub fn new(loader: Box<dyn ModuleLoader>) -> Self {
@@ -1137,7 +1138,6 @@ impl ModuleSystem {
     }
 
     /// Load a module and all its dependencies
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn load_module(&mut self, specifier: &str, base: Option<&str>) -> ModuleResult<String> {
         let resolved = self.resolve_specifier(specifier, base)?;
 
@@ -1163,7 +1163,6 @@ impl ModuleSystem {
     }
 
     /// Recursively load a module and its dependencies
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     fn load_module_recursive(
         &mut self,
         specifier: &str,

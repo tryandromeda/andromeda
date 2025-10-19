@@ -21,8 +21,8 @@ pub use subtle::SubtleCrypto;
 #[derive(Default)]
 pub struct CryptoExt;
 
+#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
 impl CryptoExt {
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "crypto",
@@ -159,7 +159,6 @@ impl CryptoExt {
             files: vec![include_str!("./mod.ts")],
         }
     }
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     fn internal_crypto_get_random_values<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -183,7 +182,6 @@ impl CryptoExt {
         .unbind()
         .into())
     }
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     fn internal_crypto_random_uuid<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -224,7 +222,6 @@ impl CryptoExt {
                 .into(),
         )
     }
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     fn internal_subtle_digest<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -234,7 +231,6 @@ impl CryptoExt {
         SubtleCrypto::digest(agent, args, gc)
     }
 
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     fn internal_subtle_generate_key<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -262,7 +258,6 @@ impl CryptoExt {
         SubtleCrypto::export_key(agent, args, gc)
     }
 
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     fn internal_subtle_encrypt<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -272,7 +267,6 @@ impl CryptoExt {
         SubtleCrypto::encrypt(agent, args, gc)
     }
 
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     fn internal_subtle_decrypt<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -282,7 +276,6 @@ impl CryptoExt {
         SubtleCrypto::decrypt(agent, args, gc)
     }
 
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     fn internal_subtle_sign<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -292,7 +285,6 @@ impl CryptoExt {
         SubtleCrypto::sign(agent, args, gc)
     }
 
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     fn internal_subtle_verify<'gc>(
         agent: &mut Agent,
         _this: Value,

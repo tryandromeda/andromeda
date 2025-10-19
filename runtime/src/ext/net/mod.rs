@@ -106,8 +106,8 @@ struct NetExtResources {
 #[derive(Default)]
 pub struct NetExt;
 
+#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
 impl NetExt {
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "andromeda:net",
@@ -218,7 +218,6 @@ impl NetExt {
     }
 
     /// TCP connect operation (synchronous)
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_tcp_connect<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -333,7 +332,6 @@ impl NetExt {
     }
 
     /// TCP listen operation (synchronous)
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_tcp_listen<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -398,7 +396,6 @@ impl NetExt {
     }
 
     /// TCP accept operation (synchronous)
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_tcp_accept<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -527,7 +524,6 @@ impl NetExt {
     }
 
     /// TCP read operation (synchronous)
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_tcp_read<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -1054,7 +1050,6 @@ impl NetExt {
     }
 
     /// DNS resolve operation (synchronous)
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_dns_resolve<'gc>(
         agent: &mut Agent,
         _this: Value,
