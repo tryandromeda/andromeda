@@ -32,7 +32,7 @@ jobs:
 
       - name: Checkout base
         run: |
-          git checkout ${{ github.event.pull_request.base.sha || env.BASE_SHA }}
+          git checkout ${{ github.event.pull_request.base.sha }}
 
       - id: base_timing_metrics
         run: |
@@ -48,7 +48,7 @@ jobs:
           mkdir -p /tmp/metrics
           echo '${{ steps.head_timing_metrics.outputs.metrics }}' > /tmp/metrics/head.json
           echo '${{ steps.base_timing_metrics.outputs.metrics }}' > /tmp/metrics/base.json
-          echo '${{ github.event.pull_request.number || env.PR_NUMBER || inputs.pr_number }}' > /tmp/metrics/pr_number.txt
+          echo '${{ github.event.pull_request.number }}' > /tmp/metrics/pr_number.txt
 
       - uses: actions/upload-artifact@v4
         with:
