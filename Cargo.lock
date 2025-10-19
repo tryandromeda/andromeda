@@ -470,7 +470,7 @@ dependencies = [
  "bitflags 2.9.4",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.12.1",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -785,7 +785,7 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fde0e0ec90c9dfb3b4b1a0891a7dcd0e2bffde2f7efed5fe7c9bb00e5bfb915e"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -1858,9 +1858,9 @@ checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
 name = "hotpath"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d5b80eefbfa1dd07f91b85f6204a48489806e68fd79bc3db259d3849dca4c05"
+checksum = "62626f62c197dbe9468c905c223c4ee99128ac4ca205a39c959d877cbdf92313"
 dependencies = [
  "arc-swap",
  "cfg-if",
@@ -1880,9 +1880,9 @@ dependencies = [
 
 [[package]]
 name = "hotpath-macros"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d110c5443084ffef9bd6a3b77ee007f57094d6c46f0f1e217d68f3e6991690c"
+checksum = "9341cb29b2ec52cb278711748c1238bc932078b5cf03c393020f3d15c6f38b62"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2113,7 +2113,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b0f83760fb341a774ed326568e19f5a863af4a952def8c39f9ab92fd95b88e5"
 dependencies = [
  "equivalent",
- "hashbrown 0.16.0",
+ "hashbrown 0.15.5",
  "serde",
  "serde_core",
 ]
