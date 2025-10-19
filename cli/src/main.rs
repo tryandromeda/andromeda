@@ -198,7 +198,7 @@ enum ConfigFileFormat {
     Yaml,
 }
 
-#[cfg_attr(feature = "hotpath", hotpath::main(percentiles = [50, 95, 99]))]
+#[cfg_attr(feature = "hotpath", hotpath::main(percentiles = [50, 95, 99], limit = 10))]
 fn main() {
     // Initialize beautiful error reporting from CLI
     init_error_reporting();

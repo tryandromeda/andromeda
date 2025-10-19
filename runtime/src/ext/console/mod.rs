@@ -27,8 +27,8 @@ pub struct ConsoleStorage {
 #[derive(Default)]
 pub struct ConsoleExt;
 
+#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
 impl ConsoleExt {
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn new_extension() -> Extension {
         Extension {
             name: "console",
@@ -60,7 +60,6 @@ impl ConsoleExt {
     }
 
     /// Print function that prints to stdout
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     fn internal_print<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -86,7 +85,6 @@ impl ConsoleExt {
     }
 
     /// Print function that prints to stderr
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     fn internal_print_err<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -484,7 +482,6 @@ impl ConsoleExt {
     }
 
     /// Internal read for reading from the console.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_read<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -527,7 +524,6 @@ impl ConsoleExt {
     }
 
     /// Internal write for writing to the console.
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn internal_write<'gc>(
         agent: &mut Agent,
         _this: Value,

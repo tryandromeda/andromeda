@@ -1858,9 +1858,9 @@ checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
 name = "hotpath"
-version = "0.4.1"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f6f795f3087ad831962e399bbec051b5ac5b0fda67edeb127c083c07edfaaa1"
+checksum = "0d5b80eefbfa1dd07f91b85f6204a48489806e68fd79bc3db259d3849dca4c05"
 dependencies = [
  "arc-swap",
  "cfg-if",
@@ -1871,6 +1871,7 @@ dependencies = [
  "hdrhistogram",
  "hotpath-macros",
  "prettytable-rs",
+ "quanta",
  "serde",
  "serde_json",
  "tokio",
@@ -1879,9 +1880,9 @@ dependencies = [
 
 [[package]]
 name = "hotpath-macros"
-version = "0.4.1"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3342ecdf54aea01282430da683a38526124d58eff76ba20e758259fe31bf171"
+checksum = "7d110c5443084ffef9bd6a3b77ee007f57094d6c46f0f1e217d68f3e6991690c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3653,6 +3654,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "quanta"
+version = "0.12.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3ab5a9d756f0d97bdc89019bd2e4ea098cf9cde50ee7564dde6b81ccc8f06c7"
+dependencies = [
+ "crossbeam-utils",
+ "libc",
+ "once_cell",
+ "raw-cpuid",
+ "wasi 0.11.1+wasi-snapshot-preview1",
+ "web-sys",
+ "winapi",
+]
+
+[[package]]
 name = "quick-error"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3795,6 +3811,15 @@ dependencies = [
  "rav1e",
  "rayon",
  "rgb",
+]
+
+[[package]]
+name = "raw-cpuid"
+version = "11.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "498cd0dc59d73224351ee52a95fee0f1a617a2eae0e7d9d720cc622c73a54186"
+dependencies = [
+ "bitflags 2.9.4",
 ]
 
 [[package]]
