@@ -13,7 +13,7 @@ use std::path::PathBuf;
 mod bundle;
 use bundle::bundle;
 mod compile;
-use compile::{ANDROMEDA_JS_CODE_SECTION, compile};
+use compile::{ANDROMEDA_JS_CODE_SECTION, ANDROMEDA_CONFIG_SECTION, EmbeddedConfig, compile};
 mod repl;
 use repl::run_repl_with_config;
 mod run;
@@ -76,6 +76,14 @@ enum Command {
         // The output binary location
         #[arg(required = true)]
         out: PathBuf,
+
+        /// Enable verbose output in the compiled binary
+        #[arg(short, long)]
+        verbose: bool,
+
+        /// Disable strict mode in the compiled binary
+        #[arg(short = 's', long)]
+        no_strict: bool,
     },
 
     /// Start an interactive REPL (Read-Eval-Print Loop)
@@ -220,10 +228,26 @@ fn main() {
 fn run_main() -> Result<()> {
     // Check if this is currently a single-file executable
     if let Ok(Some(js)) = find_section(ANDROMEDA_JS_CODE_SECTION) {
-        // TODO: Store verbose and strict settings in a config section of the resultant binary
+        // Try to load embedded config, fall back to defaults if not found
+        let (verbose, no_strict) = match find_section(ANDROMEDA_CONFIG_SECTION) {
+            Ok(Some(config_bytes)) => {
+                match serde_json::from_slice::<EmbeddedConfig>(&config_bytes) {
+                    Ok(config) => (config.verbose, config.no_strict),
+                    Err(_) => {
+                        // If config is corrupted or in old format, use defaults
+                        (false, false)
+                    }
+                }
+            }
+            _ => {
+                // No config section found (old binary format), use defaults
+                (false, false)
+            }
+        };
+
         return run(
-            false,
-            false,
+            verbose,
+            no_strict,
             vec![RuntimeFile::Embedded {
                 path: String::from("internal"),
                 content: js,
@@ -286,8 +310,8 @@ fn run_main() -> Result<()> {
                     .collect();
                 run(verbose, no_strict, runtime_files)
             }
-            Command::Compile { path, out } => {
-                compile(out.as_path(), path.as_path()).map_err(|e| {
+            Command::Compile { path, out, verbose, no_strict } => {
+                compile(out.as_path(), path.as_path(), verbose, no_strict).map_err(|e| {
                     error::AndromedaError::compile_error(
                         format!("Compilation failed: {e}"),
                         path.clone(),
@@ -295,7 +319,19 @@ fn run_main() -> Result<()> {
                         Some(e),
                     )
                 })?;
-                println!("✅ Successfully created the output binary at {out:?}");
+                let mut config_info = Vec::new();
+                if verbose {
+                    config_info.push("verbose mode enabled");
+                }
+                if no_strict {
+                    config_info.push("strict mode disabled");
+                }
+                let config_str = if !config_info.is_empty() {
+                    format!(" ({})", config_info.join(", "))
+                } else {
+                    String::new()
+                };
+                println!("✅ Successfully created the output binary at {out:?}{config_str}");
                 Ok(())
             }
             Command::Repl {
