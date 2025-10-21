@@ -4,13 +4,27 @@
 
 use crate::error::{AndromedaError, Result, read_file_with_context};
 use libsui::{Elf, Macho, PortableExecutable};
+use serde::{Deserialize, Serialize};
 use std::{env::current_exe, fs::File, path::Path};
 
 pub static ANDROMEDA_JS_CODE_SECTION: &str = "ANDROMEDABINCODE";
+pub static ANDROMEDA_CONFIG_SECTION: &str = "ANDROMEDACONFIG";
+
+/// Configuration embedded in compiled binaries
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmbeddedConfig {
+    pub verbose: bool,
+    pub no_strict: bool,
+}
 
 #[allow(clippy::result_large_err)]
 #[cfg_attr(feature = "hotpath", hotpath::measure)]
-pub fn compile(result_name: &Path, input_file: &Path) -> Result<()> {
+pub fn compile(
+    result_name: &Path,
+    input_file: &Path,
+    verbose: bool,
+    no_strict: bool,
+) -> Result<()> {
     // Validate input file exists and is readable
     if !input_file.exists() {
         return Err(AndromedaError::file_not_found(
@@ -45,6 +59,16 @@ pub fn compile(result_name: &Path, input_file: &Path) -> Result<()> {
 
     let js = js_content.into_bytes();
 
+    // Create embedded config
+    let config = EmbeddedConfig { verbose, no_strict };
+    let config_json = serde_json::to_vec(&config).map_err(|e| {
+        AndromedaError::config_error(
+            "Failed to serialize embedded config".to_string(),
+            None,
+            Some(Box::new(e)),
+        )
+    })?;
+
     // Validate output directory exists or can be created
     if let Some(parent) = result_name.parent()
         && !parent.exists()
@@ -70,6 +94,7 @@ pub fn compile(result_name: &Path, input_file: &Path) -> Result<()> {
 
     match os {
         "macos" => {
+            // First pass: write JS code section
             Macho::from(exe)
                 .map_err(|e| {
                     AndromedaError::compile_error(
@@ -91,7 +116,45 @@ pub fn compile(result_name: &Path, input_file: &Path) -> Result<()> {
                 .build_and_sign(&mut out)
                 .map_err(|e| {
                     AndromedaError::compile_error(
-                        "Failed to build and sign macOS executable".to_string(),
+                        "Failed to build and sign macOS executable (first pass)".to_string(),
+                        input_file.to_path_buf(),
+                        result_name.to_path_buf(),
+                        Some(Box::new(e)),
+                    )
+                })?;
+
+            // Second pass: re-read and add config section
+            let exe_with_js = std::fs::read(result_name)
+                .map_err(|e| AndromedaError::file_read_error(result_name.to_path_buf(), e))?;
+            let mut out = File::create(result_name).map_err(|e| {
+                AndromedaError::permission_denied(
+                    format!("creating output file {}", result_name.display()),
+                    Some(result_name.to_path_buf()),
+                    e,
+                )
+            })?;
+            Macho::from(exe_with_js)
+                .map_err(|e| {
+                    AndromedaError::compile_error(
+                        "Failed to parse macOS executable (second pass)".to_string(),
+                        input_file.to_path_buf(),
+                        result_name.to_path_buf(),
+                        Some(Box::new(e)),
+                    )
+                })?
+                .write_section(ANDROMEDA_CONFIG_SECTION, config_json)
+                .map_err(|e| {
+                    AndromedaError::compile_error(
+                        "Failed to write config section to macOS executable".to_string(),
+                        input_file.to_path_buf(),
+                        result_name.to_path_buf(),
+                        Some(Box::new(e)),
+                    )
+                })?
+                .build_and_sign(&mut out)
+                .map_err(|e| {
+                    AndromedaError::compile_error(
+                        "Failed to build and sign macOS executable (second pass)".to_string(),
                         input_file.to_path_buf(),
                         result_name.to_path_buf(),
                         Some(Box::new(e)),
@@ -99,11 +162,32 @@ pub fn compile(result_name: &Path, input_file: &Path) -> Result<()> {
                 })?;
         }
         "linux" => {
-            Elf::new(&exe)
-                .append(ANDROMEDA_JS_CODE_SECTION, &js, &mut out)
+            let elf = Elf::new(&exe);
+            elf.append(ANDROMEDA_JS_CODE_SECTION, &js, &mut out)
                 .map_err(|e| {
                     AndromedaError::compile_error(
                         "Failed to append JavaScript section to Linux executable".to_string(),
+                        input_file.to_path_buf(),
+                        result_name.to_path_buf(),
+                        Some(Box::new(e)),
+                    )
+                })?;
+            // Note: libsui's Elf doesn't support multiple appends in sequence
+            // We need to re-read the file and append the config section
+            let exe_with_js = std::fs::read(result_name)
+                .map_err(|e| AndromedaError::file_read_error(result_name.to_path_buf(), e))?;
+            let mut out = File::create(result_name).map_err(|e| {
+                AndromedaError::permission_denied(
+                    format!("creating output file {}", result_name.display()),
+                    Some(result_name.to_path_buf()),
+                    e,
+                )
+            })?;
+            Elf::new(&exe_with_js)
+                .append(ANDROMEDA_CONFIG_SECTION, &config_json, &mut out)
+                .map_err(|e| {
+                    AndromedaError::compile_error(
+                        "Failed to append config section to Linux executable".to_string(),
                         input_file.to_path_buf(),
                         result_name.to_path_buf(),
                         Some(Box::new(e)),
@@ -124,6 +208,15 @@ pub fn compile(result_name: &Path, input_file: &Path) -> Result<()> {
                 .map_err(|e| {
                     AndromedaError::compile_error(
                         "Failed to write JavaScript resource to Windows executable".to_string(),
+                        input_file.to_path_buf(),
+                        result_name.to_path_buf(),
+                        Some(Box::new(e)),
+                    )
+                })?
+                .write_resource(ANDROMEDA_CONFIG_SECTION, config_json)
+                .map_err(|e| {
+                    AndromedaError::compile_error(
+                        "Failed to write config resource to Windows executable".to_string(),
                         input_file.to_path_buf(),
                         result_name.to_path_buf(),
                         Some(Box::new(e)),
