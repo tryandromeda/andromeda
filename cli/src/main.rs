@@ -231,7 +231,7 @@ fn run_main() -> Result<()> {
         // Try to load embedded config, fall back to defaults if not found
         let (verbose, no_strict) = match find_section(ANDROMEDA_CONFIG_SECTION) {
             Ok(Some(config_bytes)) => {
-                match serde_json::from_slice::<EmbeddedConfig>(&config_bytes) {
+                match serde_json::from_slice::<EmbeddedConfig>(config_bytes) {
                     Ok(config) => (config.verbose, config.no_strict),
                     Err(_) => {
                         // If config is corrupted or in old format, use defaults
