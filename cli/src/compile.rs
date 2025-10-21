@@ -19,7 +19,12 @@ pub struct EmbeddedConfig {
 
 #[allow(clippy::result_large_err)]
 #[cfg_attr(feature = "hotpath", hotpath::measure)]
-pub fn compile(result_name: &Path, input_file: &Path, verbose: bool, no_strict: bool) -> Result<()> {
+pub fn compile(
+    result_name: &Path,
+    input_file: &Path,
+    verbose: bool,
+    no_strict: bool,
+) -> Result<()> {
     // Validate input file exists and is readable
     if !input_file.exists() {
         return Err(AndromedaError::file_not_found(
@@ -117,7 +122,7 @@ pub fn compile(result_name: &Path, input_file: &Path, verbose: bool, no_strict: 
                         Some(Box::new(e)),
                     )
                 })?;
-            
+
             // Second pass: re-read and add config section
             let exe_with_js = std::fs::read(result_name)
                 .map_err(|e| AndromedaError::file_read_error(result_name.to_path_buf(), e))?;

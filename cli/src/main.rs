@@ -13,7 +13,7 @@ use std::path::PathBuf;
 mod bundle;
 use bundle::bundle;
 mod compile;
-use compile::{ANDROMEDA_JS_CODE_SECTION, ANDROMEDA_CONFIG_SECTION, EmbeddedConfig, compile};
+use compile::{ANDROMEDA_CONFIG_SECTION, ANDROMEDA_JS_CODE_SECTION, EmbeddedConfig, compile};
 mod repl;
 use repl::run_repl_with_config;
 mod run;
@@ -310,7 +310,12 @@ fn run_main() -> Result<()> {
                     .collect();
                 run(verbose, no_strict, runtime_files)
             }
-            Command::Compile { path, out, verbose, no_strict } => {
+            Command::Compile {
+                path,
+                out,
+                verbose,
+                no_strict,
+            } => {
                 compile(out.as_path(), path.as_path(), verbose, no_strict).map_err(|e| {
                     error::AndromedaError::compile_error(
                         format!("Compilation failed: {e}"),
