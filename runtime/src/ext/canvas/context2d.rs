@@ -1211,6 +1211,10 @@ pub fn internal_canvas_save<'gc>(
         shadow_offset_x: data.shadow_offset_x,
         shadow_offset_y: data.shadow_offset_y,
         composite_operation: data.composite_operation,
+        font: data.font.clone(),
+        text_align: data.text_align,
+        text_baseline: data.text_baseline,
+        direction: data.direction,
     };
     data.state_stack.push(current_state);
 

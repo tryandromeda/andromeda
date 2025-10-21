@@ -1026,6 +1026,96 @@ declare namespace __andromeda__ {
   export function internal_image_data_get_data(rid: number): string;
 
   /**
+   * The `internal_canvas_set_font` function sets the current text font.
+   * Uses CSS font syntax (e.g., "16px Arial", "bold 14px 'Times New Roman'").
+   */
+  export function internal_canvas_set_font(rid: number, font: string): void;
+
+  /**
+   * The `internal_canvas_get_font` function gets the current text font.
+   * Returns the font as a CSS font string.
+   */
+  export function internal_canvas_get_font(rid: number): string;
+
+  /**
+   * The `internal_canvas_set_text_align` function sets the text alignment.
+   * Possible values: "start", "end", "left", "right", "center".
+   */
+  export function internal_canvas_set_text_align(
+    rid: number,
+    align: string,
+  ): void;
+
+  /**
+   * The `internal_canvas_get_text_align` function gets the text alignment.
+   * Returns the text alignment as a string.
+   */
+  export function internal_canvas_get_text_align(rid: number): string;
+
+  /**
+   * The `internal_canvas_set_text_baseline` function sets the text baseline.
+   * Possible values: "alphabetic", "top", "hanging", "middle", "ideographic", "bottom".
+   */
+  export function internal_canvas_set_text_baseline(
+    rid: number,
+    baseline: string,
+  ): void;
+
+  /**
+   * The `internal_canvas_get_text_baseline` function gets the text baseline.
+   * Returns the text baseline as a string.
+   */
+  export function internal_canvas_get_text_baseline(rid: number): string;
+
+  /**
+   * The `internal_canvas_set_direction` function sets the text direction.
+   * Possible values: "ltr", "rtl", "inherit".
+   */
+  export function internal_canvas_set_direction(
+    rid: number,
+    direction: string,
+  ): void;
+
+  /**
+   * The `internal_canvas_get_direction` function gets the text direction.
+   * Returns the text direction as a string.
+   */
+  export function internal_canvas_get_direction(rid: number): string;
+
+  /**
+   * The `internal_canvas_measure_text` function measures the dimensions of the specified text.
+   * Returns a JSON string containing TextMetrics data with all measurement properties.
+   */
+  export function internal_canvas_measure_text(
+    rid: number,
+    text: string,
+  ): string;
+
+  /**
+   * The `internal_canvas_fill_text` function draws filled text at the specified position.
+   * Optional maxWidth parameter can constrain the text width.
+   */
+  export function internal_canvas_fill_text(
+    rid: number,
+    text: string,
+    x: number,
+    y: number,
+    maxWidth?: number,
+  ): void;
+
+  /**
+   * The `internal_canvas_stroke_text` function draws stroked (outlined) text at the specified position.
+   * Optional maxWidth parameter can constrain the text width.
+   */
+  export function internal_canvas_stroke_text(
+    rid: number,
+    text: string,
+    x: number,
+    y: number,
+    maxWidth?: number,
+  ): void;
+
+  /**
    * The `internal_text_encode` function encodes a string into a byte sequence.
    */
   export function internal_text_encode(input: string): string;

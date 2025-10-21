@@ -790,6 +790,94 @@ class CanvasRenderingContext2D {
   }
 
   /**
+   * Gets or sets the current text font.
+   */
+  get font(): string {
+    return __andromeda__.internal_canvas_get_font(this.#rid);
+  }
+
+  set font(value: string) {
+    __andromeda__.internal_canvas_set_font(this.#rid, value);
+  }
+
+  /**
+   * Gets or sets the text alignment.
+   */
+  get textAlign(): string {
+    return __andromeda__.internal_canvas_get_text_align(this.#rid);
+  }
+
+  set textAlign(value: string) {
+    __andromeda__.internal_canvas_set_text_align(this.#rid, value);
+  }
+
+  /**
+   * Gets or sets the text baseline.
+   */
+  get textBaseline(): string {
+    return __andromeda__.internal_canvas_get_text_baseline(this.#rid);
+  }
+
+  set textBaseline(value: string) {
+    __andromeda__.internal_canvas_set_text_baseline(this.#rid, value);
+  }
+
+  /**
+   * Gets or sets the text direction.
+   */
+  get direction(): string {
+    return __andromeda__.internal_canvas_get_direction(this.#rid);
+  }
+
+  set direction(value: string) {
+    __andromeda__.internal_canvas_set_direction(this.#rid, value);
+  }
+
+  /**
+   * Returns a TextMetrics object containing the measured dimensions of the specified text.
+   */
+  measureText(text: string): TextMetrics {
+    const json = __andromeda__.internal_canvas_measure_text(this.#rid, text);
+    const data = JSON.parse(json);
+    return new TextMetrics(
+      data.width,
+      data.actualBoundingBoxLeft,
+      data.actualBoundingBoxRight,
+      data.fontBoundingBoxAscent,
+      data.fontBoundingBoxDescent,
+      data.actualBoundingBoxAscent,
+      data.actualBoundingBoxDescent,
+      data.emHeightAscent,
+      data.emHeightDescent,
+      data.hangingBaseline,
+      data.alphabeticBaseline,
+      data.ideographicBaseline,
+    );
+  }
+
+  /**
+   * Fills a given text at the given (x,y) position.
+   */
+  fillText(text: string, x: number, y: number, maxWidth?: number): void {
+    if (maxWidth !== undefined) {
+      __andromeda__.internal_canvas_fill_text(this.#rid, text, x, y, maxWidth);
+    } else {
+      __andromeda__.internal_canvas_fill_text(this.#rid, text, x, y);
+    }
+  }
+
+  /**
+   * Strokes the outlines of a given text at the given (x,y) position.
+   */
+  strokeText(text: string, x: number, y: number, maxWidth?: number): void {
+    if (maxWidth !== undefined) {
+      __andromeda__.internal_canvas_stroke_text(this.#rid, text, x, y, maxWidth);
+    } else {
+      __andromeda__.internal_canvas_stroke_text(this.#rid, text, x, y);
+    }
+  }
+
+  /**
    * Determines whether the specified point is contained in the given path.
    */
   isPointInPath(
@@ -1003,10 +1091,58 @@ class ImageData {
   }
 }
 
+/**
+ * Represents the dimensions of a piece of text in the canvas.
+ * Returned by CanvasRenderingContext2D.measureText().
+ */
+class TextMetrics {
+  readonly width: number;
+  readonly actualBoundingBoxLeft: number;
+  readonly actualBoundingBoxRight: number;
+  readonly fontBoundingBoxAscent: number;
+  readonly fontBoundingBoxDescent: number;
+  readonly actualBoundingBoxAscent: number;
+  readonly actualBoundingBoxDescent: number;
+  readonly emHeightAscent: number;
+  readonly emHeightDescent: number;
+  readonly hangingBaseline: number;
+  readonly alphabeticBaseline: number;
+  readonly ideographicBaseline: number;
+
+  constructor(
+    width: number,
+    actualBoundingBoxLeft: number,
+    actualBoundingBoxRight: number,
+    fontBoundingBoxAscent: number,
+    fontBoundingBoxDescent: number,
+    actualBoundingBoxAscent: number,
+    actualBoundingBoxDescent: number,
+    emHeightAscent: number,
+    emHeightDescent: number,
+    hangingBaseline: number,
+    alphabeticBaseline: number,
+    ideographicBaseline: number,
+  ) {
+    this.width = width;
+    this.actualBoundingBoxLeft = actualBoundingBoxLeft;
+    this.actualBoundingBoxRight = actualBoundingBoxRight;
+    this.fontBoundingBoxAscent = fontBoundingBoxAscent;
+    this.fontBoundingBoxDescent = fontBoundingBoxDescent;
+    this.actualBoundingBoxAscent = actualBoundingBoxAscent;
+    this.actualBoundingBoxDescent = actualBoundingBoxDescent;
+    this.emHeightAscent = emHeightAscent;
+    this.emHeightDescent = emHeightDescent;
+    this.hangingBaseline = hangingBaseline;
+    this.alphabeticBaseline = alphabeticBaseline;
+    this.ideographicBaseline = ideographicBaseline;
+  }
+}
+
 // Export classes to global scope
 Object.assign(globalThis, {
   Path2D,
   OffscreenCanvas,
   ImageData,
   CanvasPattern,
+  TextMetrics,
 });

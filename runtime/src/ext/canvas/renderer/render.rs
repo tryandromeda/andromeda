@@ -1313,7 +1313,7 @@ impl Renderer {
         let uniforms = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Uniforms"),
             mapped_at_creation: false,
-            size: 160,
+            size: 192, // Updated to match actual Uniforms struct size
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
         });
         self.queue
