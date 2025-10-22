@@ -195,9 +195,10 @@ impl TextRenderer {
 
                 let final_alpha = ((alpha as u16 * color[3] as u16) / 255) as u8;
 
-                target[target_idx] = color[0];
-                target[target_idx + 1] = color[1];
-                target[target_idx + 2] = color[2];
+                let alpha_f = final_alpha as f32 / 255.0;
+                target[target_idx] = (color[0] as f32 * alpha_f) as u8;
+                target[target_idx + 1] = (color[1] as f32 * alpha_f) as u8;
+                target[target_idx + 2] = (color[2] as f32 * alpha_f) as u8;
                 target[target_idx + 3] = final_alpha;
             }
         }

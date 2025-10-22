@@ -68,5 +68,9 @@ ctx.fillRect(125, 320, 100, 60);
 ctx.fillStyle = "rgba(0, 255, 255, 0.6)"; // Semi-transparent cyan
 ctx.fillRect(175, 320, 100, 60);
 
+ctx.fillStyle = "#707d70";
+ctx.font = "48px sans-serif";
+ctx.fillText("Hello from Andromeda!", 50, 60);
+
 const saved = canvas.saveAsPng("test.demo.png");
 console.log(`Canvas save result: ${saved}`);

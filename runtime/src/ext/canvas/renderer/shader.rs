@@ -370,7 +370,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         }
         
         let tex_color = textureSample(texture, texture_sampler, tex_coord);
-        src_color = vec4f(tex_color.rgb, tex_color.a * uniforms.global_alpha);
+        src_color = tex_color * uniforms.global_alpha;
     } else if (uniforms.is_stroke == 1u) {
         src_color = uniforms.stroke_color;
         src_color.w *= uniforms.global_alpha;
