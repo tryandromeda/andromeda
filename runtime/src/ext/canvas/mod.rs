@@ -4,9 +4,12 @@
 
 pub mod context2d;
 pub mod fill_style;
+pub mod font_system;
 pub mod path2d;
 pub mod renderer;
 pub mod state;
+pub mod text;
+pub mod text_metrics;
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable, Rid};
 use std::ops::DerefMut;
 
@@ -35,6 +38,36 @@ use nova_vm::{
     },
     engine::context::{Bindable, GcScope},
 };
+
+// Helper functions for text rendering
+fn calculate_baseline_offset(
+    baseline: &state::TextBaseline,
+    font_descriptor: &font_system::FontDescriptor,
+    text_height: f64,
+) -> f64 {
+    // Note: Y coordinate in canvas is positive downward
+    // The baseline offset adjusts where the text bitmap is placed relative to the Y coordinate
+    match baseline {
+        state::TextBaseline::Top => 0.0, // Top of text at Y
+        state::TextBaseline::Hanging => font_descriptor.size as f64 * 0.2, // Slightly below top
+        state::TextBaseline::Middle => text_height / 2.0 - font_descriptor.size as f64 * 0.8, // Center vertically
+        state::TextBaseline::Alphabetic => -font_descriptor.size as f64 * 0.2, // Baseline is ~20% up from bottom
+        state::TextBaseline::Ideographic => 0.0, // Similar to bottom for CJK
+        state::TextBaseline::Bottom => -text_height, // Bottom of text at Y
+    }
+}
+
+fn calculate_alignment_offset(
+    align: &state::TextAlign,
+    _direction: &state::Direction,
+    text_width: f64,
+) -> f64 {
+    match align {
+        state::TextAlign::Left | state::TextAlign::Start => 0.0,
+        state::TextAlign::Center => -text_width / 2.0,
+        state::TextAlign::Right | state::TextAlign::End => -text_width,
+    }
+}
 
 /// A Canvas extension
 #[derive(Clone)]
@@ -67,6 +100,11 @@ struct CanvasData<'gc> {
     transform: [f64; 6],
     // Composite operation for blending
     composite_operation: renderer::CompositeOperation,
+    // Text properties
+    font: String,
+    text_align: state::TextAlign,
+    text_baseline: state::TextBaseline,
+    direction: state::Direction,
 }
 
 struct CanvasResources<'gc> {
@@ -75,6 +113,7 @@ struct CanvasResources<'gc> {
     images: ResourceTable<ImageData>,
     renderers: ResourceTable<renderer::Renderer>,
     fill_styles: ResourceTable<FillStyle>,
+    next_texture_id: u32,
 }
 
 /// Stored image dimensions and pixel data
@@ -303,6 +342,73 @@ impl CanvasExt {
                     "internal_canvas_get_shadow_offset_y",
                     Self::internal_canvas_get_shadow_offset_y,
                     1,
+                    false,
+                ),
+                // Text properties
+                ExtensionOp::new(
+                    "internal_canvas_set_font",
+                    Self::internal_canvas_set_font,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_font",
+                    Self::internal_canvas_get_font,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_set_text_align",
+                    Self::internal_canvas_set_text_align,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_text_align",
+                    Self::internal_canvas_get_text_align,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_set_text_baseline",
+                    Self::internal_canvas_set_text_baseline,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_text_baseline",
+                    Self::internal_canvas_get_text_baseline,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_set_direction",
+                    Self::internal_canvas_set_direction,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_get_direction",
+                    Self::internal_canvas_get_direction,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_measure_text",
+                    Self::internal_canvas_measure_text,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_fill_text",
+                    Self::internal_canvas_fill_text,
+                    4,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_stroke_text",
+                    Self::internal_canvas_stroke_text,
+                    4,
                     false,
                 ),
                 // Pattern operations
@@ -576,6 +682,7 @@ impl CanvasExt {
                     images: ResourceTable::new(),
                     renderers: ResourceTable::new(),
                     fill_styles: ResourceTable::new(),
+                    next_texture_id: 1000, // Start from 1000 to avoid conflict with regular image RIDs
                 });
             })),
             files: vec![include_str!("./mod.ts"), include_str!("./image.ts")],
@@ -628,6 +735,11 @@ impl CanvasExt {
             transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
             // Default composite operation is source-over
             composite_operation: renderer::CompositeOperation::default(),
+            // Text properties - Canvas2D defaults
+            font: "10px sans-serif".to_string(),
+            text_align: state::TextAlign::default(),
+            text_baseline: state::TextBaseline::default(),
+            direction: state::Direction::default(),
         });
 
         // Create renderer with GPU device
@@ -3248,6 +3360,570 @@ impl CanvasExt {
 
         drop(storage);
         Ok(Value::from_f64(agent, offset_y, gc.nogc()).unbind())
+    }
+
+    // ========== TEXT PROPERTIES ==========
+
+    /// Internal op to set font property
+    fn internal_canvas_set_font<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let font_str = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+        let font_string = font_str
+            .as_str(agent)
+            .unwrap_or("10px sans-serif")
+            .to_string();
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid) {
+            // Validate font string by attempting to parse it
+            if font_system::FontManager::parse_font_string(&font_string).is_ok() {
+                canvas.font = font_string;
+            }
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to get font property
+    fn internal_canvas_get_font<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let canvas = res.canvases.get(rid).unwrap();
+        let font = canvas.font.clone();
+
+        drop(storage);
+        Ok(Value::from_string(agent, font, gc.nogc()).unbind())
+    }
+
+    /// Internal op to set textAlign property
+    fn internal_canvas_set_text_align<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let align_str = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid) {
+            let align_string = align_str.as_str(agent).unwrap_or("start");
+            canvas.text_align = match align_string {
+                "left" => state::TextAlign::Left,
+                "right" => state::TextAlign::Right,
+                "center" => state::TextAlign::Center,
+                "start" => state::TextAlign::Start,
+                "end" => state::TextAlign::End,
+                _ => state::TextAlign::Start,
+            };
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to get textAlign property
+    fn internal_canvas_get_text_align<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let canvas = res.canvases.get(rid).unwrap();
+
+        let align_str = match canvas.text_align {
+            state::TextAlign::Start => "start",
+            state::TextAlign::End => "end",
+            state::TextAlign::Left => "left",
+            state::TextAlign::Right => "right",
+            state::TextAlign::Center => "center",
+        };
+
+        drop(storage);
+        Ok(Value::from_string(agent, align_str.to_string(), gc.nogc()).unbind())
+    }
+
+    /// Internal op to set textBaseline property
+    fn internal_canvas_set_text_baseline<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let baseline_str = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid) {
+            let baseline_string = baseline_str.as_str(agent).unwrap_or("alphabetic");
+            canvas.text_baseline = match baseline_string {
+                "top" => state::TextBaseline::Top,
+                "hanging" => state::TextBaseline::Hanging,
+                "middle" => state::TextBaseline::Middle,
+                "alphabetic" => state::TextBaseline::Alphabetic,
+                "ideographic" => state::TextBaseline::Ideographic,
+                "bottom" => state::TextBaseline::Bottom,
+                _ => state::TextBaseline::Alphabetic,
+            };
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to get textBaseline property
+    fn internal_canvas_get_text_baseline<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let canvas = res.canvases.get(rid).unwrap();
+
+        let baseline_str = match canvas.text_baseline {
+            state::TextBaseline::Top => "top",
+            state::TextBaseline::Hanging => "hanging",
+            state::TextBaseline::Middle => "middle",
+            state::TextBaseline::Alphabetic => "alphabetic",
+            state::TextBaseline::Ideographic => "ideographic",
+            state::TextBaseline::Bottom => "bottom",
+        };
+
+        drop(storage);
+        Ok(Value::from_string(agent, baseline_str.to_string(), gc.nogc()).unbind())
+    }
+
+    /// Internal op to set direction property
+    fn internal_canvas_set_direction<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let direction_str = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut canvas) = res.canvases.get_mut(rid) {
+            let direction_string = direction_str.as_str(agent).unwrap_or("inherit");
+            canvas.direction = match direction_string {
+                "ltr" => state::Direction::Ltr,
+                "rtl" => state::Direction::Rtl,
+                "inherit" => state::Direction::Inherit,
+                _ => state::Direction::Inherit,
+            };
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to get direction property
+    fn internal_canvas_get_direction<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let canvas = res.canvases.get(rid).unwrap();
+
+        let direction_str = match canvas.direction {
+            state::Direction::Ltr => "ltr",
+            state::Direction::Rtl => "rtl",
+            state::Direction::Inherit => "inherit",
+        };
+
+        drop(storage);
+        Ok(Value::from_string(agent, direction_str.to_string(), gc.nogc()).unbind())
+    }
+
+    /// Internal op to measure text and return TextMetrics
+    fn internal_canvas_measure_text<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let text_str = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+        let text = text_str.as_str(agent).unwrap_or("");
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let canvas = res.canvases.get(rid).unwrap();
+        let font_string = canvas.font.clone();
+        drop(storage);
+
+        // Parse the font string
+        let font_descriptor = match font_system::FontManager::parse_font_string(&font_string) {
+            Ok(descriptor) => descriptor,
+            Err(_) => {
+                // Return default metrics on parse error
+                let json = r#"{"width":0,"actualBoundingBoxLeft":0,"actualBoundingBoxRight":0,"fontBoundingBoxAscent":0,"fontBoundingBoxDescent":0,"actualBoundingBoxAscent":0,"actualBoundingBoxDescent":0,"emHeightAscent":0,"emHeightDescent":0,"hangingBaseline":0,"alphabeticBaseline":0,"ideographicBaseline":0}"#;
+                return Ok(Value::from_string(agent, json.to_string(), gc.nogc()).unbind());
+            }
+        };
+
+        // Create a font manager for measurement
+        let mut font_manager = font_system::FontManager::new();
+
+        // Measure the text
+        let metrics = match text_metrics::TextMetrics::measure(
+            text,
+            &mut font_manager,
+            &font_descriptor,
+        ) {
+            Ok(metrics) => metrics,
+            Err(_) => {
+                // Return default metrics on measurement error
+                let json = r#"{"width":0,"actualBoundingBoxLeft":0,"actualBoundingBoxRight":0,"fontBoundingBoxAscent":0,"fontBoundingBoxDescent":0,"actualBoundingBoxAscent":0,"actualBoundingBoxDescent":0,"emHeightAscent":0,"emHeightDescent":0,"hangingBaseline":0,"alphabeticBaseline":0,"ideographicBaseline":0}"#;
+                return Ok(Value::from_string(agent, json.to_string(), gc.nogc()).unbind());
+            }
+        };
+
+        // Serialize metrics to JSON
+        let json = format!(
+            r#"{{"width":{},"actualBoundingBoxLeft":{},"actualBoundingBoxRight":{},"fontBoundingBoxAscent":{},"fontBoundingBoxDescent":{},"actualBoundingBoxAscent":{},"actualBoundingBoxDescent":{},"emHeightAscent":{},"emHeightDescent":{},"hangingBaseline":{},"alphabeticBaseline":{},"ideographicBaseline":{}}}"#,
+            metrics.width,
+            metrics.actual_bounding_box_left,
+            metrics.actual_bounding_box_right,
+            metrics.font_bounding_box_ascent,
+            metrics.font_bounding_box_descent,
+            metrics.actual_bounding_box_ascent,
+            metrics.actual_bounding_box_descent,
+            metrics.em_height_ascent,
+            metrics.em_height_descent,
+            metrics.hanging_baseline,
+            metrics.alphabetic_baseline,
+            metrics.ideographic_baseline
+        );
+
+        Ok(Value::from_string(agent, json, gc.nogc()).unbind())
+    }
+
+    /// Internal op to render filled text on the canvas
+    fn internal_canvas_fill_text<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+
+        let text_str = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+        let text = text_str.as_str(agent).unwrap().to_string();
+
+        let x = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let y = args
+            .get(3)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+
+        // Optional max_width parameter (not fully implemented yet, but parsed for future use)
+        let _max_width = if args.len() > 4 {
+            Some(
+                args.get(4)
+                    .to_number(agent, gc.reborrow())
+                    .unbind()?
+                    .into_f64(agent),
+            )
+        } else {
+            None
+        };
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(canvas) = res.canvases.get(rid) {
+            // Get current font and parse it
+            let font_descriptor = match font_system::FontManager::parse_font_string(&canvas.font) {
+                Ok(desc) => desc,
+                Err(_) => return Ok(Value::Undefined), // Silently fail on invalid font
+            };
+
+            // Create FontManager and TextRenderer
+            let mut text_renderer = text::TextRenderer::new();
+
+            // Get fill color from fill_style (defaulting to black)
+            let color = match &canvas.fill_style {
+                FillStyle::Color { r, g, b, a } => [
+                    (r * 255.0) as u8,
+                    (g * 255.0) as u8,
+                    (b * 255.0) as u8,
+                    (a * 255.0) as u8,
+                ],
+                _ => [0, 0, 0, 255], // Default to black for gradients/patterns
+            };
+
+            // Render text to bitmap
+            let (bitmap, width, height) =
+                match text_renderer.render_text_to_bitmap(&text, &font_descriptor, color) {
+                    Ok(result) => result,
+                    Err(_) => return Ok(Value::Undefined), // Silently fail on render error
+                };
+
+            if width == 0 || height == 0 {
+                return Ok(Value::Undefined); // Nothing to render
+            }
+
+            // Upload bitmap as texture and render it
+            if let Some(mut renderer) = res.renderers.get_mut(rid) {
+                // Generate a unique texture ID for this text
+                let texture_id = res.next_texture_id;
+                res.next_texture_id += 1;
+
+                // Upload bitmap to GPU
+                renderer.load_image_texture(texture_id, &bitmap, width, height);
+
+                // Create render state from canvas
+                let render_state = renderer::RenderState {
+                    fill_style: canvas.fill_style.clone(),
+                    global_alpha: canvas.global_alpha,
+                    transform: canvas.transform,
+                    line_cap: canvas.line_cap,
+                    line_join: canvas.line_join,
+                    miter_limit: canvas.miter_limit,
+                    shadow_blur: canvas.shadow_blur,
+                    shadow_color: canvas.shadow_color.clone(),
+                    shadow_offset_x: canvas.shadow_offset_x,
+                    shadow_offset_y: canvas.shadow_offset_y,
+                    composite_operation: canvas.composite_operation,
+                };
+
+                // Calculate baseline adjustment
+                let baseline_offset = calculate_baseline_offset(
+                    &canvas.text_baseline,
+                    &font_descriptor,
+                    height as f64,
+                );
+
+                // Calculate alignment adjustment
+                let align_offset =
+                    calculate_alignment_offset(&canvas.text_align, &canvas.direction, width as f64);
+
+                // Render text bitmap as textured rectangle
+                renderer.render_image(
+                    texture_id,
+                    0.0,
+                    0.0,
+                    width as f64,
+                    height as f64,
+                    x + align_offset,
+                    y + baseline_offset,
+                    width as f64,
+                    height as f64,
+                    &render_state,
+                );
+            }
+        }
+
+        Ok(Value::Undefined)
+    }
+
+    /// Internal op to render stroked (outlined) text on the canvas
+    fn internal_canvas_stroke_text<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind().unwrap() as u32;
+        let rid = Rid::from_index(rid_val);
+
+        let text_str = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+        let text = text_str.as_str(agent).unwrap().to_string();
+
+        let x = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let y = args
+            .get(3)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+
+        // Optional max_width parameter
+        let _max_width = if args.len() > 4 {
+            Some(
+                args.get(4)
+                    .to_number(agent, gc.reborrow())
+                    .unbind()?
+                    .into_f64(agent),
+            )
+        } else {
+            None
+        };
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(canvas) = res.canvases.get(rid) {
+            // Get current font and parse it
+            let font_descriptor = match font_system::FontManager::parse_font_string(&canvas.font) {
+                Ok(desc) => desc,
+                Err(_) => return Ok(Value::Undefined),
+            };
+
+            // For now, stroke text is rendered the same as fill text
+            // TODO: Implement actual text stroking with line width
+            let mut text_renderer = text::TextRenderer::new();
+
+            // Get stroke color from stroke_style (defaulting to black)
+            let color = match &canvas.stroke_style {
+                FillStyle::Color { r, g, b, a } => [
+                    (r * 255.0) as u8,
+                    (g * 255.0) as u8,
+                    (b * 255.0) as u8,
+                    (a * 255.0) as u8,
+                ],
+                _ => [0, 0, 0, 255], // Default to black for gradients/patterns
+            };
+
+            let (bitmap, width, height) =
+                match text_renderer.render_text_to_bitmap(&text, &font_descriptor, color) {
+                    Ok(result) => result,
+                    Err(_) => return Ok(Value::Undefined),
+                };
+
+            if width == 0 || height == 0 {
+                return Ok(Value::Undefined);
+            }
+
+            if let Some(mut renderer) = res.renderers.get_mut(rid) {
+                let texture_id = res.next_texture_id;
+                res.next_texture_id += 1;
+
+                renderer.load_image_texture(texture_id, &bitmap, width, height);
+
+                let render_state = renderer::RenderState {
+                    fill_style: canvas.stroke_style.clone(), // Use stroke style for stroked text
+                    global_alpha: canvas.global_alpha,
+                    transform: canvas.transform,
+                    line_cap: canvas.line_cap,
+                    line_join: canvas.line_join,
+                    miter_limit: canvas.miter_limit,
+                    shadow_blur: canvas.shadow_blur,
+                    shadow_color: canvas.shadow_color.clone(),
+                    shadow_offset_x: canvas.shadow_offset_x,
+                    shadow_offset_y: canvas.shadow_offset_y,
+                    composite_operation: canvas.composite_operation,
+                };
+
+                let baseline_offset = calculate_baseline_offset(
+                    &canvas.text_baseline,
+                    &font_descriptor,
+                    height as f64,
+                );
+
+                let align_offset =
+                    calculate_alignment_offset(&canvas.text_align, &canvas.direction, width as f64);
+
+                renderer.render_image(
+                    texture_id,
+                    0.0,
+                    0.0,
+                    width as f64,
+                    height as f64,
+                    x + align_offset,
+                    y + baseline_offset,
+                    width as f64,
+                    height as f64,
+                    &render_state,
+                );
+            }
+        }
+
+        Ok(Value::Undefined)
     }
 
     // ========== PHASE 2 IMPLEMENTATIONS: PATTERNS ==========

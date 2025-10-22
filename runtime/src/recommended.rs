@@ -14,8 +14,7 @@ use nova_vm::{
 
 use crate::{
     BroadcastChannelExt, ConsoleExt, CronExt, FetchExt, FfiExt, FileExt, NetExt, ProcessExt,
-    RuntimeMacroTask, ServeExt, StreamsExt, TimeExt, TlsExt, URLExt, WebExt, WebIDLExt,
-    WebLocksExt,
+    RuntimeMacroTask, StreamsExt, TimeExt, TlsExt, URLExt, WebExt, WebIDLExt, WebLocksExt,
 };
 
 #[cfg(not(feature = "virtualfs"))]
@@ -46,7 +45,7 @@ pub fn recommended_extensions() -> Vec<Extension> {
         TlsExt::new_extension(),
         FfiExt::new_extension(),
         #[cfg(feature = "serve")]
-        ServeExt::new_extension(),
+        crate::ServeExt::new_extension(),
         #[cfg(feature = "canvas")]
         crate::CanvasExt::new_extension(),
         #[cfg(feature = "crypto")]

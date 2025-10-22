@@ -5,6 +5,53 @@
 use crate::FillStyle;
 use crate::ext::canvas::renderer::{CompositeOperation, LineCap, LineJoin};
 
+/// Text alignment values for Canvas2D
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TextAlign {
+    Start,
+    End,
+    Left,
+    Right,
+    Center,
+}
+
+impl Default for TextAlign {
+    fn default() -> Self {
+        Self::Start
+    }
+}
+
+/// Text baseline values for Canvas2D
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TextBaseline {
+    Top,
+    Hanging,
+    Middle,
+    Alphabetic,
+    Ideographic,
+    Bottom,
+}
+
+impl Default for TextBaseline {
+    fn default() -> Self {
+        Self::Alphabetic
+    }
+}
+
+/// Text direction values for Canvas2D
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Direction {
+    Ltr,
+    Rtl,
+    Inherit,
+}
+
+impl Default for Direction {
+    fn default() -> Self {
+        Self::Inherit
+    }
+}
+
 /// Canvas drawing state that can be saved and restored
 #[derive(Clone)]
 pub struct CanvasState {
@@ -24,6 +71,11 @@ pub struct CanvasState {
     pub shadow_color: FillStyle,
     pub shadow_offset_x: f64,
     pub shadow_offset_y: f64,
+    // Text properties
+    pub font: String,
+    pub text_align: TextAlign,
+    pub text_baseline: TextBaseline,
+    pub direction: Direction,
 }
 
 impl Default for CanvasState {
@@ -66,6 +118,11 @@ impl CanvasState {
             },
             shadow_offset_x: 0.0,
             shadow_offset_y: 0.0,
+            // Text properties - Canvas2D defaults
+            font: "10px sans-serif".to_string(),
+            text_align: TextAlign::default(),
+            text_baseline: TextBaseline::default(),
+            direction: Direction::default(),
         }
     }
 }
