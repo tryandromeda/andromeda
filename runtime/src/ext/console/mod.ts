@@ -713,24 +713,80 @@ const andromedaConsole = {
   },
 
   /**
-   * Starts a profile
+   * Starts a JavaScript CPU profile with an optional label.
+   * Following WHATWG Console specification.
+   *
+   * Note: In browser DevTools, this would start CPU profiling.
+   * In Andromeda, we log the profile start event.
+   *
+   * @example
+   * ```ts
+   * console.profile("MyProfile");
+   * // ... code to profile
+   * console.profileEnd("MyProfile");
+   * ```
    */
-  profile(_label?: string) {
-    // TODO: implement profiling if needed
+  profile(label?: string) {
+    label = label !== undefined
+      ? webidl.converters.DOMString(label, "console.profile", "Argument 1")
+      : "";
+
+    const profileLabel = label || "Profile";
+    const message = `Profile '${profileLabel}' started`;
+    andromedaConsole.info(message);
   },
 
   /**
-   * Ends a profile
+   * Stops the JavaScript CPU profile with the specified label.
+   * Following WHATWG Console specification.
+   *
+   * @example
+   * ```ts
+   * console.profile("MyProfile");
+   * // ... code to profile
+   * console.profileEnd("MyProfile");
+   * ```
    */
-  profileEnd(_label?: string) {
-    // TODO: implement profiling end if needed
+  profileEnd(label?: string) {
+    label = label !== undefined
+      ? webidl.converters.DOMString(
+        label,
+        "console.profileEnd",
+        "Argument 1",
+      )
+      : "";
+
+    const profileLabel = label || "Profile";
+    const message = `Profile '${profileLabel}' finished`;
+    andromedaConsole.info(message);
   },
 
   /**
-   * Adds a timestamp to the console
+   * Adds a timestamp marker to the browser's Performance or Waterfall tool.
+   * Following WHATWG Console specification.
+   *
+   * In Andromeda, this logs a timestamp with the current time in milliseconds.
+   *
+   * @example
+   * ```ts
+   * console.timeStamp("checkpoint-1");
+   * // ... some code
+   * console.timeStamp("checkpoint-2");
+   * ```
    */
-  timeStamp(_label?: string) {
-    // TODO: implement timestamp if needed
+  timeStamp(label?: string) {
+    label = label !== undefined
+      ? webidl.converters.DOMString(
+        label,
+        "console.timeStamp",
+        "Argument 1",
+      )
+      : "";
+
+    const timestamp = Date.now();
+    const timestampLabel = label || "timestamp";
+    const message = `${timestampLabel}: ${timestamp}ms`;
+    andromedaConsole.info(message);
   },
 };
 
