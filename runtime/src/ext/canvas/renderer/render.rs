@@ -390,7 +390,7 @@ impl Renderer {
             pass.set_pipeline(&self.pipeline);
             // Set stencil reference value to 1 (only draw where stencil is 1)
             pass.set_stencil_reference(if self.clip_path.is_some() { 1 } else { 0 });
-            
+
             for command in &self.commands {
                 pass.set_bind_group(0, &command.bind_group, &[]);
                 pass.set_vertex_buffer(0, command.vertex.slice(..));
@@ -1448,10 +1448,12 @@ impl Renderer {
     /// Render the clipping path to the stencil buffer
     fn render_clip_to_stencil(&self, encoder: &mut wgpu::CommandEncoder, clip_path: &Path) {
         // Create a simple pipeline for writing to stencil buffer
-        let module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Stencil Shader"),
-            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::from(
-                r#"
+        let module = self
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("Stencil Shader"),
+                source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::from(
+                    r#"
                 @vertex
                 fn vs_main(@location(0) position: vec2f) -> @builtin(position) vec4f {
                     return vec4f(position, 0.0, 1.0);
@@ -1462,81 +1464,85 @@ impl Renderer {
                     return vec4f(0.0, 0.0, 0.0, 0.0);
                 }
                 "#,
-            )),
-        });
+                )),
+            });
 
-        let pipeline_layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Stencil Pipeline Layout"),
-            bind_group_layouts: &[],
-            push_constant_ranges: &[],
-        });
+        let pipeline_layout = self
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Stencil Pipeline Layout"),
+                bind_group_layouts: &[],
+                push_constant_ranges: &[],
+            });
 
-        let stencil_pipeline = self.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Stencil Pipeline"),
-            layout: Some(&pipeline_layout),
-            cache: None,
-            vertex: wgpu::VertexState {
-                module: &module,
-                entry_point: Some("vs_main"),
-                compilation_options: Default::default(),
-                buffers: &[wgpu::VertexBufferLayout {
-                    array_stride: 8, // 2 floats (x, y)
-                    step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: &[wgpu::VertexAttribute {
-                        format: wgpu::VertexFormat::Float32x2,
-                        offset: 0,
-                        shader_location: 0,
-                    }],
-                }],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &module,
-                entry_point: Some("fs_main"),
-                compilation_options: Default::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: self.background.format(),
-                    blend: None,
-                    write_mask: wgpu::ColorWrites::empty(), // Don't write to color buffer
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: None,
-                polygon_mode: wgpu::PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: wgpu::TextureFormat::Depth24PlusStencil8,
-                depth_write_enabled: false,
-                depth_compare: wgpu::CompareFunction::Always,
-                stencil: wgpu::StencilState {
-                    front: wgpu::StencilFaceState {
-                        compare: wgpu::CompareFunction::Always,
-                        fail_op: wgpu::StencilOperation::Keep,
-                        depth_fail_op: wgpu::StencilOperation::Keep,
-                        pass_op: wgpu::StencilOperation::Replace,
+        let stencil_pipeline =
+            self.device
+                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some("Stencil Pipeline"),
+                    layout: Some(&pipeline_layout),
+                    cache: None,
+                    vertex: wgpu::VertexState {
+                        module: &module,
+                        entry_point: Some("vs_main"),
+                        compilation_options: Default::default(),
+                        buffers: &[wgpu::VertexBufferLayout {
+                            array_stride: 8, // 2 floats (x, y)
+                            step_mode: wgpu::VertexStepMode::Vertex,
+                            attributes: &[wgpu::VertexAttribute {
+                                format: wgpu::VertexFormat::Float32x2,
+                                offset: 0,
+                                shader_location: 0,
+                            }],
+                        }],
                     },
-                    back: wgpu::StencilFaceState {
-                        compare: wgpu::CompareFunction::Always,
-                        fail_op: wgpu::StencilOperation::Keep,
-                        depth_fail_op: wgpu::StencilOperation::Keep,
-                        pass_op: wgpu::StencilOperation::Replace,
+                    fragment: Some(wgpu::FragmentState {
+                        module: &module,
+                        entry_point: Some("fs_main"),
+                        compilation_options: Default::default(),
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format: self.background.format(),
+                            blend: None,
+                            write_mask: wgpu::ColorWrites::empty(), // Don't write to color buffer
+                        })],
+                    }),
+                    primitive: wgpu::PrimitiveState {
+                        topology: wgpu::PrimitiveTopology::TriangleList,
+                        strip_index_format: None,
+                        front_face: wgpu::FrontFace::Ccw,
+                        cull_mode: None,
+                        polygon_mode: wgpu::PolygonMode::Fill,
+                        unclipped_depth: false,
+                        conservative: false,
                     },
-                    read_mask: 0xff,
-                    write_mask: 0xff,
-                },
-                bias: wgpu::DepthBiasState::default(),
-            }),
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-        });
+                    depth_stencil: Some(wgpu::DepthStencilState {
+                        format: wgpu::TextureFormat::Depth24PlusStencil8,
+                        depth_write_enabled: false,
+                        depth_compare: wgpu::CompareFunction::Always,
+                        stencil: wgpu::StencilState {
+                            front: wgpu::StencilFaceState {
+                                compare: wgpu::CompareFunction::Always,
+                                fail_op: wgpu::StencilOperation::Keep,
+                                depth_fail_op: wgpu::StencilOperation::Keep,
+                                pass_op: wgpu::StencilOperation::Replace,
+                            },
+                            back: wgpu::StencilFaceState {
+                                compare: wgpu::CompareFunction::Always,
+                                fail_op: wgpu::StencilOperation::Keep,
+                                depth_fail_op: wgpu::StencilOperation::Keep,
+                                pass_op: wgpu::StencilOperation::Replace,
+                            },
+                            read_mask: 0xff,
+                            write_mask: 0xff,
+                        },
+                        bias: wgpu::DepthBiasState::default(),
+                    }),
+                    multisample: wgpu::MultisampleState {
+                        count: 1,
+                        mask: !0,
+                        alpha_to_coverage_enabled: false,
+                    },
+                    multiview: None,
+                });
 
         // Convert path to triangles using a simple fan triangulation
         let mut vertices = Vec::new();
@@ -1545,7 +1551,7 @@ impl Renderer {
                 let p0 = translate_coords(&clip_path[0], &self.dimensions);
                 let p1 = translate_coords(&clip_path[i], &self.dimensions);
                 let p2 = translate_coords(&clip_path[i + 1], &self.dimensions);
-                
+
                 vertices.extend_from_slice(&p0.0.to_ne_bytes());
                 vertices.extend_from_slice(&p0.1.to_ne_bytes());
                 vertices.extend_from_slice(&p1.0.to_ne_bytes());
