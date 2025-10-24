@@ -2304,6 +2304,7 @@ impl CanvasExt {
                 shadow_offset_x: 0.0,
                 shadow_offset_y: 0.0,
                 composite_operation: renderer::CompositeOperation::default(),
+                clip_path: None,
             };
 
             renderer.render_stroke_rect(rect, &render_state, stroke_color, line_width as f32);
@@ -2687,14 +2688,15 @@ impl CanvasExt {
                 fill_style: data.fill_style,
                 global_alpha: data.global_alpha,
                 transform: data.transform,
-                line_cap: renderer::LineCap::default(),
-                line_join: renderer::LineJoin::default(),
-                miter_limit: 10.0,
+                line_cap: data.line_cap,
+                line_join: data.line_join,
+                miter_limit: data.miter_limit,
                 shadow_blur: data.shadow_blur,
                 shadow_color: data.shadow_color,
                 shadow_offset_x: data.shadow_offset_x,
                 shadow_offset_y: data.shadow_offset_y,
                 composite_operation: data.composite_operation,
+                clip_path: None,
             };
 
             // Render the image
@@ -3772,6 +3774,7 @@ impl CanvasExt {
                     shadow_offset_x: canvas.shadow_offset_x,
                     shadow_offset_y: canvas.shadow_offset_y,
                     composite_operation: canvas.composite_operation,
+                    clip_path: None,
                 };
 
                 // Calculate baseline adjustment
@@ -3897,6 +3900,7 @@ impl CanvasExt {
                     shadow_offset_x: canvas.shadow_offset_x,
                     shadow_offset_y: canvas.shadow_offset_y,
                     composite_operation: canvas.composite_operation,
+                    clip_path: None,
                 };
 
                 let baseline_offset = calculate_baseline_offset(

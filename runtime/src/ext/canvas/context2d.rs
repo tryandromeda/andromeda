@@ -485,6 +485,7 @@ pub fn internal_canvas_clear_rect<'gc>(
                 shadow_offset_x: 0.0,
                 shadow_offset_y: 0.0,
                 composite_operation: CompositeOperation::default(),
+                clip_path: None,
             },
         );
     } else {
@@ -595,6 +596,7 @@ pub fn internal_canvas_fill_rect<'gc>(
                 shadow_offset_x: data.shadow_offset_x,
                 shadow_offset_y: data.shadow_offset_y,
                 composite_operation: data.composite_operation,
+                clip_path: None,
             },
         );
     } else {
@@ -736,6 +738,7 @@ pub fn internal_canvas_fill<'gc>(
                     shadow_offset_x: data.shadow_offset_x,
                     shadow_offset_y: data.shadow_offset_y,
                     composite_operation: data.composite_operation,
+                    clip_path: None,
                 },
             );
         }
@@ -788,6 +791,7 @@ pub fn internal_canvas_stroke<'gc>(
                     shadow_offset_x: data.shadow_offset_x,
                     shadow_offset_y: data.shadow_offset_y,
                     composite_operation: data.composite_operation,
+                    clip_path: None,
                 },
             );
         }
@@ -1426,6 +1430,7 @@ pub fn process_all_commands<'gc>(
                             shadow_offset_x: ctx.shadow_offset_x,
                             shadow_offset_y: ctx.shadow_offset_y,
                             composite_operation: ctx.composite_operation,
+                            clip_path: None,
                         },
                     );
                 }
@@ -1446,6 +1451,7 @@ pub fn process_all_commands<'gc>(
                             shadow_offset_x: ctx.shadow_offset_x,
                             shadow_offset_y: ctx.shadow_offset_y,
                             composite_operation: ctx.composite_operation,
+                            clip_path: None,
                         },
                         ctx.line_width,
                     );
@@ -1483,6 +1489,7 @@ pub fn process_all_commands<'gc>(
                         shadow_offset_x: ctx.shadow_offset_x,
                         shadow_offset_y: ctx.shadow_offset_y,
                         composite_operation: ctx.composite_operation,
+                        clip_path: None,
                     },
                 );
             }
@@ -1528,6 +1535,7 @@ pub fn process_all_commands<'gc>(
                         shadow_offset_x: ctx.shadow_offset_x,
                         shadow_offset_y: ctx.shadow_offset_y,
                         composite_operation: ctx.composite_operation,
+                        clip_path: None,
                     },
                     ctx.line_width,
                 );
@@ -1575,6 +1583,7 @@ pub fn process_all_commands<'gc>(
                         shadow_offset_x: 0.0,
                         shadow_offset_y: 0.0,
                         composite_operation: CompositeOperation::default(),
+                        clip_path: None,
                     },
                 ); // White background
             }
@@ -1598,10 +1607,9 @@ pub fn process_all_commands<'gc>(
                 // Update stroke style
                 // Note: The actual style change is handled by the renderer
             }
-            CanvasCommand::Clip { path: _ } => {
-                // Apply clipping to the current renderer state
-                // TODO: Implement proper clipping in the renderer
-                // For now, this is a placeholder that stores the clipping path
+            CanvasCommand::Clip { path } => {
+                // Apply clipping to the renderer
+                renderer.set_clip_path(Some(path.clone()));
             }
             CanvasCommand::CreateLinearGradient { .. }
             | CanvasCommand::CreateRadialGradient { .. }
@@ -1633,6 +1641,7 @@ pub fn process_all_commands<'gc>(
                     shadow_offset_x: ctx.shadow_offset_x,
                     shadow_offset_y: ctx.shadow_offset_y,
                     composite_operation: ctx.composite_operation,
+                    clip_path: None,
                 };
 
                 // Render the image
