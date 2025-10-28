@@ -160,6 +160,8 @@ pub struct RenderState {
     pub shadow_color: FillStyle,
     pub shadow_offset_x: f64,
     pub shadow_offset_y: f64,
+    // Clipping path
+    pub clip_path: Option<Path>,
 }
 
 impl Default for RenderState {
@@ -181,6 +183,7 @@ impl Default for RenderState {
             },
             shadow_offset_x: 0.0,
             shadow_offset_y: 0.0,
+            clip_path: None,
         }
     }
 }
