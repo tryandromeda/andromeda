@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use andromeda_core::{AndromedaError, ErrorReporter, Extension, ExtensionOp};
+use andromeda_core::{AndromedaError, ErrorReporter, Extension, ExtensionOp, HostData, OpsStorage};
 use nova_vm::{
     ecmascript::{
         builtins::{ArgumentsList, Array},
@@ -11,23 +11,19 @@ use nova_vm::{
     },
     engine::context::{Bindable, GcScope},
 };
-use std::{
-    collections::HashMap,
-    env,
-    sync::{Arc, Mutex, atomic::AtomicBool},
-};
+use std::{collections::HashMap, env};
+use tokio::task::JoinHandle;
 
 #[cfg(unix)]
 use signal_hook::consts::*;
 #[cfg(windows)]
 use signal_hook::consts::{SIGBREAK, SIGINT};
 
-// Global signal state tracking
-lazy_static::lazy_static! {
-    static ref SIGNAL_HANDLERS_REGISTERED: Arc<Mutex<HashMap<i32, AtomicBool>>> =
-        Arc::new(Mutex::new(HashMap::new()));
-    static ref SIGNAL_LISTENER_COUNTS: Arc<Mutex<HashMap<i32, usize>>> =
-        Arc::new(Mutex::new(HashMap::new()));
+use crate::RuntimeMacroTask;
+
+#[derive(Default)]
+struct ProcessExtResources {
+    handlers: HashMap<i32, JoinHandle<()>>,
 }
 
 /// Process extension for Andromeda.
@@ -69,7 +65,9 @@ impl ProcessExt {
                     false,
                 ),
             ],
-            storage: None,
+            storage: Some(Box::new(|storage: &mut OpsStorage| {
+                storage.insert(ProcessExtResources::default());
+            })),
             files: vec![],
         }
     }
@@ -250,14 +248,31 @@ impl ProcessExt {
                 }
             }
         };
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let resources: &mut ProcessExtResources = storage.get_mut().unwrap();
 
-        {
-            let mut counts = SIGNAL_LISTENER_COUNTS.lock().unwrap();
-            let count = counts.entry(signal_num).or_insert(0);
-            *count += 1;
+        if let Some(handle) = resources.handlers.remove(&signal_num) {
+            handle.abort();
         }
-
-        Self::setup_signal_handler(signal_num);
+        let handle = tokio::task::spawn_blocking(move || {
+            #[cfg(unix)]
+            {
+                use signal_hook::iterator::Signals;
+                if let Ok(mut signals) = Signals::new([signal_num]) {
+                    for _signal in signals.forever() {
+                        eprintln!("Signal {signal_num} received");
+                        // TODO: Dispatch to JavaScript event loop
+                    }
+                }
+            }
+            #[cfg(windows)]
+            {
+                eprintln!("Signal handler registered for signal {signal_num}");
+            }
+        });
+        resources.handlers.insert(signal_num, handle);
 
         Ok(Value::Undefined)
     }
@@ -296,44 +311,14 @@ impl ProcessExt {
             }
         };
 
-        {
-            let mut counts = SIGNAL_LISTENER_COUNTS.lock().unwrap();
-            if let Some(count) = counts.get_mut(&signal_num) {
-                if *count > 0 {
-                    *count -= 1;
-                }
-                if *count == 0 {
-                    counts.remove(&signal_num);
-                }
-            }
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let resources: &mut ProcessExtResources = storage.get_mut().unwrap();
+        if let Some(handle) = resources.handlers.remove(&signal_num) {
+            handle.abort();
         }
 
         Ok(Value::Undefined)
-    }
-
-    fn setup_signal_handler(signal_num: i32) {
-        {
-            let mut handlers = SIGNAL_HANDLERS_REGISTERED.lock().unwrap();
-            if handlers.contains_key(&signal_num) {
-                return;
-            }
-            handlers.insert(signal_num, AtomicBool::new(true));
-        }
-        std::thread::spawn(move || {
-            #[cfg(unix)]
-            {
-                use signal_hook::iterator::Signals;
-                if let Ok(mut signals) = Signals::new([signal_num]) {
-                    for _signal in signals.forever() {
-                        eprintln!("Signal {signal_num} received");
-                        // TODO: Dispatch to JavaScript event loop
-                    }
-                }
-            }
-            #[cfg(windows)]
-            {
-                eprintln!("Signal handler registered for signal {signal_num}");
-            }
-        });
     }
 }
