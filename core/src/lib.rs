@@ -10,6 +10,7 @@ mod host_data;
 mod module;
 mod resource_table;
 mod runtime;
+mod sync_resource_table;
 mod task;
 
 pub use error::*;
@@ -20,4 +21,5 @@ pub use host_data::*;
 pub use module::*;
 pub use resource_table::*;
 pub use runtime::*;
+pub use sync_resource_table::*;
 pub use task::*;
