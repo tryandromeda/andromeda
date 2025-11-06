@@ -16,18 +16,10 @@ pub use tcp::*;
 pub use udp::*;
 pub use unix::*;
 
-use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex as StdMutex};
+use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::sync::Mutex;
-
-// Global TCP stream storage for accepted connections
-lazy_static::lazy_static! {
-    static ref GLOBAL_TCP_STREAMS: Arc<StdMutex<HashMap<u32, Arc<Mutex<TcpStream>>>>> =
-        Arc::new(StdMutex::new(HashMap::new()));
-    static ref NEXT_STREAM_ID: Arc<StdMutex<u32>> = Arc::new(StdMutex::new(1));
-}
 
 use nova_vm::{
     ecmascript::{
@@ -44,7 +36,9 @@ use nova_vm::{
     },
 };
 
-use andromeda_core::{Extension, ExtensionOp, HostData, MacroTask, ResourceTable, Rid};
+use andromeda_core::{
+    Extension, ExtensionOp, HostData, MacroTask, ResourceTable, Rid, SyncResourceTable,
+};
 
 use crate::RuntimeMacroTask;
 
@@ -92,7 +86,7 @@ pub struct UnixDatagramResource {
 
 /// Extension storage for network resources
 struct NetExtResources {
-    tcp_streams: ResourceTable<TcpStreamResource>,
+    tcp_streams: SyncResourceTable<TcpStreamResource>,
     tcp_listeners: ResourceTable<TcpListenerResource>,
     udp_sockets: ResourceTable<UdpSocketResource>,
     #[cfg(unix)]
@@ -202,7 +196,7 @@ impl NetExt {
             ],
             storage: Some(Box::new(|storage| {
                 storage.insert(NetExtResources {
-                    tcp_streams: ResourceTable::new(),
+                    tcp_streams: SyncResourceTable::new(),
                     tcp_listeners: ResourceTable::new(),
                     udp_sockets: ResourceTable::new(),
                     #[cfg(unix)]
@@ -451,9 +445,11 @@ impl NetExt {
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
+        let resources = Self::get_net_resources(agent).unwrap();
 
         match listener_result {
             Ok(listener_resource) => {
+                let tcp_streams = resources.tcp_streams.clone();
                 let listener = Arc::clone(&listener_resource.listener);
 
                 host_data.spawn_macro_task(async move {
@@ -474,22 +470,15 @@ impl NetExt {
                                 }
                             };
 
-                            // Get next resource ID and store stream in global map
-                            let resource_id = {
-                                let mut next_id = NEXT_STREAM_ID.lock().unwrap();
-                                let id = *next_id;
-                                *next_id += 1;
-                                id
-                            };
-
-                            GLOBAL_TCP_STREAMS
-                                .lock()
-                                .unwrap()
-                                .insert(resource_id, Arc::new(Mutex::new(stream)));
+                            let resource_id = tcp_streams.push(TcpStreamResource {
+                                local_addr,
+                                remote_addr,
+                                stream: Arc::new(Mutex::new(stream))
+                            });
 
                             let result = format!(
                                 "{{\"success\":true,\"localAddr\":\"{}\",\"remoteAddr\":\"{}\",\"resourceId\":{}}}",
-                                local_addr, remote_addr, resource_id
+                                local_addr, remote_addr, resource_id.index()
                             );
                             macro_task_tx
                                 .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
@@ -585,20 +574,16 @@ impl NetExt {
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
+        let resources = Self::get_net_resources_mut(agent).unwrap();
 
-        // Get stream from global map
-        let stream_opt = GLOBAL_TCP_STREAMS
-            .lock()
-            .unwrap()
-            .get(&resource_id)
-            .cloned();
+        let stream = resources.tcp_streams.get(Rid::from_index(resource_id));
 
-        match stream_opt {
+        match stream {
             Some(stream) => {
                 host_data.spawn_macro_task(async move {
                     use tokio::io::AsyncReadExt;
 
-                    let mut stream_guard = stream.lock().await;
+                    let mut stream_guard = stream.stream.lock().await;
                     let mut buffer = vec![0u8; buffer_size];
 
                     match stream_guard.read(&mut buffer).await {
@@ -689,23 +674,19 @@ impl NetExt {
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
+        let resources = Self::get_net_resources_mut(agent).unwrap();
 
         // Get stream from global map
-        let stream_opt = GLOBAL_TCP_STREAMS
-            .lock()
-            .unwrap()
-            .get(&resource_id)
-            .cloned();
+        let stream = resources.tcp_streams.get(Rid::from_index(resource_id));
 
-        match stream_opt {
+        match stream {
             Some(stream) => {
                 host_data.spawn_macro_task(async move {
                     use tokio::io::AsyncWriteExt;
 
-                    let mut stream_guard = stream.lock().await;
                     let bytes = data.as_bytes();
 
-                    match stream_guard.write_all(bytes).await {
+                    match stream.stream.lock().await.write_all(bytes).await {
                         Ok(()) => {
                             let result =
                                 format!("{{\"success\":true,\"bytesWritten\":{}}}", bytes.len());
@@ -765,28 +746,17 @@ impl NetExt {
             }
         };
 
-        let rid = Rid::from_index(resource_id);
+        let result = {
+            let rid = Rid::from_index(resource_id);
 
-        // Remove from global stream map first
-        let removed_from_global = GLOBAL_TCP_STREAMS.lock().unwrap().remove(&resource_id);
+            let resources = Self::get_net_resources_mut(agent).unwrap();
+            let removed_stream = resources.tcp_streams.remove(rid);
+            let removed_listener = resources.tcp_listeners.remove(rid);
 
-        // Try to remove from both TCP streams and listeners
-        let result = match Self::get_net_resources_mut(agent) {
-            Ok(resources) => {
-                let removed_stream = resources.tcp_streams.remove(rid);
-                let removed_listener = resources.tcp_listeners.remove(rid);
-
-                if removed_stream.is_some()
-                    || removed_listener.is_some()
-                    || removed_from_global.is_some()
-                {
-                    format!("{{\"success\":true,\"resourceId\":{}}}", resource_id)
-                } else {
-                    "Error: Resource not found".to_string()
-                }
-            }
-            Err(e) => {
-                format!("Error: Failed to access resources: {}", e)
+            if removed_stream.is_some() || removed_listener.is_some() {
+                format!("{{\"success\":true,\"resourceId\":{}}}", resource_id)
+            } else {
+                "Error: Resource not found".to_string()
             }
         };
 
@@ -1204,21 +1174,18 @@ impl NetExt {
         let rid = Rid::from_index(resource_id);
 
         // Look up TCP stream resource and set nodelay option
-        let result = match Self::get_net_resources(agent) {
-            Ok(resources) => {
-                match resources.tcp_streams.get(rid) {
-                    Some(_stream_resource) => {
-                        // TODO: call stream.set_nodelay()
-                        format!(
-                            "{{\"success\":true,\"resourceId\":{},\"nodelay\":{}}}",
-                            resource_id, nodelay
-                        )
-                    }
-                    None => "Error: TCP stream resource not found".to_string(),
+
+        let result = {
+            let resources = Self::get_net_resources(agent).unwrap();
+            match resources.tcp_streams.get(rid) {
+                Some(_stream_resource) => {
+                    // TODO: call stream.set_nodelay()
+                    format!(
+                        "{{\"success\":true,\"resourceId\":{},\"nodelay\":{}}}",
+                        resource_id, nodelay
+                    )
                 }
-            }
-            Err(e) => {
-                format!("Error: Failed to access resources: {}", e)
+                None => "Error: TCP stream resource not found".to_string(),
             }
         };
 
