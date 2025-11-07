@@ -16,19 +16,18 @@ use andromeda_runtime::{
 #[allow(clippy::result_large_err)]
 #[cfg_attr(feature = "hotpath", hotpath::measure)]
 pub fn run(verbose: bool, no_strict: bool, watch: bool, files: Vec<RuntimeFile>) -> Result<()> {
-    // get the directories of all local files
-    let directories: Vec<std::path::PathBuf> = files
-        .iter()
-        .filter_map(|file| {
-            if let RuntimeFile::Local { path } = file {
-                std::path::Path::new(path).parent().map(|p| p.to_path_buf())
-            } else {
-                None
-            }
-        })
-        .collect();
-
     if watch {
+        // get the directories of all local files
+        let directories: Vec<std::path::PathBuf> = files
+            .iter()
+            .filter_map(|file| {
+                if let RuntimeFile::Local { path } = file {
+                    std::path::Path::new(path).parent().map(|p| p.to_path_buf())
+                } else {
+                    None
+                }
+            })
+            .collect();
         watch_and_run(verbose, no_strict, files, directories)
     } else {
         create_runtime_files(verbose, no_strict, files, None)
