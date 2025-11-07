@@ -517,6 +517,7 @@ pub type EventLoopHandler<UserMacroTask> = fn(
     host_data: &HostData<UserMacroTask>,
 );
 
+#[derive(Clone)]
 pub enum RuntimeFile {
     Embedded {
         path: String,
