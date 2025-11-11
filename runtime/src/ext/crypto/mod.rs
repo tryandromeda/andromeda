@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 mod subtle;
-use andromeda_core::{Extension, ExtensionOp};
+use andromeda_core::{Extension, ExtensionOp, OpsStorage};
 use nova_vm::{
     ecmascript::{
         builtins::ArgumentsList,
@@ -13,8 +13,9 @@ use nova_vm::{
     engine::context::{Bindable, GcScope},
 };
 use rand::RngCore;
+use std::collections::HashMap;
 
-pub use subtle::SubtleCrypto;
+pub use subtle::{CryptoExtResources, SimpleCryptoKey, SubtleCrypto};
 
 /// Crypto extension for Andromeda.
 /// This extension provides access to cryptographic functions following the Web Crypto API.
@@ -155,7 +156,12 @@ impl CryptoExt {
                     false,
                 ),
             ],
-            storage: None,
+            storage: Some(Box::new(|storage: &mut OpsStorage| {
+                storage.insert(CryptoExtResources {
+                    key_storage: HashMap::new(),
+                    key_id_counter: 1,
+                });
+            })),
             files: vec![include_str!("./mod.ts")],
         }
     }
