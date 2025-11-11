@@ -52,7 +52,7 @@ jobs:
       matrix:
         os:
           [
-            "macos-13",
+            "macos-14",
             "macos-latest",
             "ubuntu-24.04",
             "ubuntu-latest",
