@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use lazy_static::lazy_static;
+use andromeda_core::HostData;
 use nova_vm::{
     ecmascript::{
         builtins::ArgumentsList,
@@ -14,14 +14,12 @@ use nova_vm::{
 use rand::SecureRandom;
 use ring::{aead, digest, hmac, rand};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 
-lazy_static! {
-    /// Global storage for CryptoKey objects
-    /// In a real implementation, this would be part of the Nova VM's object system
-    static ref KEY_STORAGE: Arc<Mutex<HashMap<u64, SimpleCryptoKey>>> =
-        Arc::new(Mutex::new(HashMap::new()));
-    static ref KEY_ID_COUNTER: Arc<Mutex<u64>> = Arc::new(Mutex::new(1));
+use crate::RuntimeMacroTask;
+
+pub struct CryptoExtResources {
+    pub key_storage: HashMap<u64, SimpleCryptoKey>,
+    pub key_id_counter: u64,
 }
 
 /// Represents supported cryptographic algorithms
@@ -114,7 +112,7 @@ enum CryptoAlgorithm {
 /// Simple representation of a CryptoKey for internal use
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-struct SimpleCryptoKey {
+pub struct SimpleCryptoKey {
     algorithm: CryptoAlgorithm,
     extractable: bool,
     key_usages: Vec<String>,
@@ -127,21 +125,25 @@ pub struct SubtleCrypto;
 
 impl SubtleCrypto {
     /// Store a CryptoKey and return its ID
-    fn store_crypto_key(key: SimpleCryptoKey) -> u64 {
-        let mut counter = KEY_ID_COUNTER.lock().unwrap();
-        let id = *counter;
-        *counter += 1;
-        drop(counter);
+    fn store_crypto_key(agent: &Agent, key: SimpleCryptoKey) -> u64 {
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let resources: &mut CryptoExtResources = storage.get_mut().unwrap();
 
-        let mut storage = KEY_STORAGE.lock().unwrap();
-        storage.insert(id, key);
+        let id = resources.key_id_counter;
+        resources.key_id_counter += 1;
+        resources.key_storage.insert(id, key);
         id
     }
 
     /// Retrieve a CryptoKey by ID
-    fn get_crypto_key(id: u64) -> Option<SimpleCryptoKey> {
-        let storage = KEY_STORAGE.lock().unwrap();
-        storage.get(&id).cloned()
+    fn get_crypto_key(agent: &Agent, id: u64) -> Option<SimpleCryptoKey> {
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let storage = host_data.storage.borrow();
+        let resources: &CryptoExtResources = storage.get().unwrap();
+        resources.key_storage.get(&id).cloned()
     }
 
     /// Extract key ID from a CryptoKey JavaScript object
@@ -390,7 +392,7 @@ impl SubtleCrypto {
                     key_type: "secret".to_string(),
                 };
 
-                let key_id = Self::store_crypto_key(crypto_key.clone());
+                let key_id = Self::store_crypto_key(agent, crypto_key.clone());
 
                 // Create the key object JSON representation directly
                 let key_object = serde_json::json!({
@@ -443,7 +445,7 @@ impl SubtleCrypto {
                     key_type: "secret".to_string(),
                 };
 
-                let key_id = Self::store_crypto_key(crypto_key.clone());
+                let key_id = Self::store_crypto_key(agent, crypto_key.clone());
 
                 // Create the key object JSON representation directly
                 let key_object = serde_json::json!({
@@ -622,7 +624,7 @@ impl SubtleCrypto {
                     key_type: key_type.to_string(),
                 };
 
-                let key_id = Self::store_crypto_key(crypto_key);
+                let key_id = Self::store_crypto_key(agent, crypto_key);
                 let key_json = serde_json::json!({
                     "keyId": key_id,
                     "type": key_type,
@@ -686,7 +688,7 @@ impl SubtleCrypto {
             }
         };
 
-        let crypto_key = match Self::get_crypto_key(key_id) {
+        let crypto_key = match Self::get_crypto_key(agent, key_id) {
             Some(key) => key,
             None => {
                 return Err(agent
@@ -808,7 +810,7 @@ impl SubtleCrypto {
             }
         };
 
-        let crypto_key = match Self::get_crypto_key(key_id) {
+        let crypto_key = match Self::get_crypto_key(agent, key_id) {
             Some(key) => key,
             None => {
                 let gc = gc.into_nogc();
@@ -975,7 +977,7 @@ impl SubtleCrypto {
             }
         };
 
-        let crypto_key = match Self::get_crypto_key(key_id) {
+        let crypto_key = match Self::get_crypto_key(agent, key_id) {
             Some(key) => key,
             None => {
                 let gc = gc.into_nogc();
@@ -1136,7 +1138,7 @@ impl SubtleCrypto {
                     // Try to parse as JSON to get key ID
                     if let Ok(key_json) = serde_json::from_str::<serde_json::Value>(key_string) {
                         if let Some(key_id) = key_json.get("keyId").and_then(|v| v.as_u64()) {
-                            if let Some(crypto_key) = Self::get_crypto_key(key_id) {
+                            if let Some(crypto_key) = Self::get_crypto_key(agent, key_id) {
                                 crypto_key.key_data
                             } else {
                                 b"test_hmac_key".to_vec()
