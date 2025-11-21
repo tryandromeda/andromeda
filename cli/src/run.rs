@@ -4,14 +4,14 @@
 
 use crate::config::{AndromedaConfig, ConfigManager};
 use crate::error::{Result, read_file_with_context};
-use notify::Watcher;
-use std::time::{Duration};
 use andromeda_core::{
     AndromedaError, ErrorReporter, HostData, ImportMap, Runtime, RuntimeConfig, RuntimeFile,
 };
 use andromeda_runtime::{
     recommended_builtins, recommended_eventloop_handler, recommended_extensions,
 };
+use notify::Watcher;
+use std::time::Duration;
 
 #[allow(clippy::result_large_err)]
 #[cfg_attr(feature = "hotpath", hotpath::measure)]
@@ -45,7 +45,8 @@ fn watch_and_run(
 
     for dir in &directories {
         watcher
-            .watch(dir, notify::RecursiveMode::Recursive).unwrap();
+            .watch(dir, notify::RecursiveMode::Recursive)
+            .unwrap();
     }
 
     create_runtime_files(verbose, no_strict, files.clone(), None)?;
