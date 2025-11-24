@@ -1,6 +1,14 @@
 use std::fmt;
 
+pub mod bundle;
+pub mod check;
+pub mod compile;
+pub mod config;
 pub mod error;
+pub mod format;
+pub mod helper;
+pub mod lint;
+pub mod run;
 
 #[derive(Debug)]
 pub enum CliError {
