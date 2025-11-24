@@ -20,6 +20,7 @@ hotpath-ci = ["hotpath/hotpath-ci"]
 [lib]
 name = "andromeda"
 path = "src/lib.rs"
+crate-type = ["rlib"]
 
 [[bin]]
 name = "andromeda"
@@ -32,6 +33,31 @@ path = "src/bin/wpt.rs"
 [[bin]]
 name = "andromeda-installer"
 path = "src/bin/installer.rs"
+
+# Andromeda Satellites - Minimal executables for specific tasks
+[[bin]]
+name = "andromeda-run"
+path = "src/bin/satellite_run.rs"
+
+[[bin]]
+name = "andromeda-compile"
+path = "src/bin/satellite_compile.rs"
+
+[[bin]]
+name = "andromeda-fmt"
+path = "src/bin/satellite_fmt.rs"
+
+[[bin]]
+name = "andromeda-lint"
+path = "src/bin/satellite_lint.rs"
+
+[[bin]]
+name = "andromeda-check"
+path = "src/bin/satellite_check.rs"
+
+[[bin]]
+name = "andromeda-bundle"
+path = "src/bin/satellite_bundle.rs"
 
 [dependencies]
 clap.workspace = true

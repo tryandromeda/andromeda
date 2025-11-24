@@ -387,6 +387,19 @@ or disabled as needed:
 | **URL**           | URL parsing and manipulation  | `URL`, `URLSearchParams`                                                       |
 | **Web**           | Web standards                 | `TextEncoder`, `TextDecoder`, `navigator`, `queueMicrotask()`                  |
 
+## Andromeda Satellites 🛰️
+
+**Satellites** are minimal, purpose-built executables designed for containerized environments and microservice architectures. Each satellite focuses on a single capability, providing smaller container images, faster startup times, and better resource utilization.
+
+### Available Satellites
+
+- **🚀 andromeda-run** - Execute JavaScript/TypeScript in production containers
+- **🔨 andromeda-compile** - Compile JS/TS to executables
+- **💅 andromeda-fmt** - Format code
+- **🔍 andromeda-lint** - Lint code for quality issues
+- **✅ andromeda-check** - Type-check TypeScript
+- **📦 andromeda-bundle** - Bundle and minify code
+
 ## Crates
 
 | Crate                             | Description                                    |
