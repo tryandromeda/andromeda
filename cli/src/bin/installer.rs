@@ -2,7 +2,7 @@
 // If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use andromeda::{CliError, CliResult};
-use clap::{Args, Parser as ClapParser};
+use clap::{Args, Parser as ClapParser, Subcommand};
 use serde::Deserialize;
 use std::env;
 use std::fs;
@@ -14,11 +14,43 @@ use std::process::Command;
 #[command(name = "andromeda-installer")]
 #[command(about = "Andromeda Installation Tool", long_about = None)]
 struct Cli {
+    #[command(subcommand)]
+    command: Option<InstallerCommand>,
+
     #[command(flatten)]
     install_args: InstallArgs,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Subcommand)]
+enum InstallerCommand {
+    /// Install Andromeda satellites (specialized binaries)
+    ///
+    /// Satellites are lightweight, single-purpose binaries optimized for specific tasks.
+    ///
+    /// Available satellites:
+    ///   - run:     Execute JavaScript/TypeScript files
+    ///   - compile: Compile JS/TS into standalone executables
+    ///   - fmt:     Format JavaScript/TypeScript files
+    ///   - lint:    Lint JavaScript/TypeScript files
+    ///   - check:   Type-check TypeScript files
+    ///   - bundle:  Bundle and minify JS/TS files
+    ///   - all:     Install all satellites
+    ///
+    /// Examples:
+    ///   andromeda-installer satellite run
+    ///   andromeda-installer satellite fmt lint check
+    ///   andromeda-installer satellite all --force
+    Satellite {
+        /// Satellites to install (run, compile, fmt, lint, check, bundle, or 'all')
+        #[arg(required = true)]
+        satellites: Vec<String>,
+
+        #[command(flatten)]
+        install_args: InstallArgs,
+    },
+}
+
+#[derive(Debug, Args, Clone)]
 struct InstallArgs {
     /// Installation directory (default: %USERPROFILE%\.local\bin)
     #[arg(short = 'd', long)]
@@ -59,9 +91,18 @@ struct GitHubAsset {
 const REPO_OWNER: &str = "tryandromeda";
 const REPO_NAME: &str = "andromeda";
 
+const AVAILABLE_SATELLITES: &[&str] = &["run", "compile", "fmt", "lint", "check", "bundle"];
+
 fn main() -> CliResult<()> {
     let cli = Cli::parse();
-    install_andromeda(cli.install_args)
+
+    match cli.command {
+        Some(InstallerCommand::Satellite {
+            satellites,
+            install_args,
+        }) => install_satellites(satellites, install_args),
+        None => install_andromeda(cli.install_args),
+    }
 }
 
 fn install_andromeda(args: InstallArgs) -> CliResult<()> {
@@ -310,9 +351,208 @@ fn print_manual_path_instructions(install_dir: &Path) {
 }
 
 // Utility functions for colored output
+fn install_satellites(satellites: Vec<String>, args: InstallArgs) -> CliResult<()> {
+    print_satellite_header();
+
+    // Determine installation directory
+    let install_dir = args.install_dir.clone().unwrap_or_else(|| {
+        let user_profile = env::var("USERPROFILE")
+            .unwrap_or_else(|_| env::var("HOME").unwrap_or_else(|_| ".".to_string()));
+        PathBuf::from(user_profile).join(".local").join("bin")
+    });
+
+    if args.verbose {
+        print_info(&format!(
+            "Installation directory: {}",
+            install_dir.display()
+        ));
+    }
+
+    // Create installation directory
+    if !install_dir.exists() {
+        print_info("Creating installation directory...");
+        fs::create_dir_all(&install_dir).map_err(CliError::Io)?;
+    }
+
+    // Parse satellite list
+    let satellites_to_install: Vec<String> = if satellites.len() == 1 && satellites[0] == "all" {
+        AVAILABLE_SATELLITES.iter().map(|s| s.to_string()).collect()
+    } else {
+        // Validate satellite names
+        for sat in &satellites {
+            if !AVAILABLE_SATELLITES.contains(&sat.as_str()) {
+                print_error(&format!(
+                    "Unknown satellite: '{}'\n\nAvailable satellites:\n  - {}\n  - all (installs all satellites)",
+                    sat,
+                    AVAILABLE_SATELLITES.join("\n  - ")
+                ));
+                return Err(CliError::Config(format!("Unknown satellite: {}", sat)));
+            }
+        }
+        satellites
+    };
+
+    // Get version to install
+    let version = if let Some(ref v) = args.version {
+        v.clone()
+    } else {
+        print_info("Fetching latest release information...");
+        get_latest_version(args.verbose)?
+    };
+
+    print_info(&format!(
+        "Installing {} satellite(s) from version {}",
+        satellites_to_install.len(),
+        version
+    ));
+
+    // Detect platform
+    let rust_target = detect_rust_target()?;
+    if args.verbose {
+        print_info(&format!("Detected platform target: {}", rust_target));
+    }
+
+    let mut success_count = 0;
+    let mut failed_satellites = Vec::new();
+
+    for satellite in &satellites_to_install {
+        print_info(&format!("Installing andromeda-{} satellite...", satellite));
+
+        match install_single_satellite(satellite, &version, &rust_target, &install_dir, &args) {
+            Ok(_) => {
+                print_success(&format!("✓ andromeda-{} installed successfully", satellite));
+                success_count += 1;
+            }
+            Err(e) => {
+                print_warning(&format!(
+                    "✗ Failed to install andromeda-{}: {}",
+                    satellite, e
+                ));
+                failed_satellites.push(satellite.clone());
+            }
+        }
+    }
+
+    println!();
+    if success_count == satellites_to_install.len() {
+        print_success(&format!(
+            "All {} satellite(s) installed successfully!",
+            success_count
+        ));
+    } else {
+        print_warning(&format!(
+            "{} of {} satellite(s) installed successfully",
+            success_count,
+            satellites_to_install.len()
+        ));
+        if !failed_satellites.is_empty() {
+            print_warning(&format!(
+                "Failed satellites: {}",
+                failed_satellites.join(", ")
+            ));
+        }
+    }
+
+    if !args.skip_path && success_count > 0 {
+        configure_path(&install_dir, args.verbose)?;
+        print_info(
+            "You may need to restart your terminal or run 'refreshenv' for PATH changes to take effect.",
+        );
+    }
+
+    Ok(())
+}
+
+fn install_single_satellite(
+    satellite: &str,
+    version: &str,
+    rust_target: &str,
+    install_dir: &Path,
+    args: &InstallArgs,
+) -> CliResult<()> {
+    let binary_name = format!("andromeda-{}", satellite);
+    let extension = if cfg!(windows) { ".exe" } else { "" };
+    let binary_path = install_dir.join(format!("{}{}", binary_name, extension));
+
+    // Check if already installed
+    if binary_path.exists() && !args.force {
+        return Err(CliError::Config(format!(
+            "already installed (use --force to reinstall)"
+        )));
+    }
+
+    // Build download URL for satellite
+    let asset_name = format!("andromeda-{}-{}{}", satellite, rust_target, extension);
+    let download_url = format!(
+        "https://github.com/{}/{}/releases/download/{}/{}",
+        REPO_OWNER, REPO_NAME, version, asset_name
+    );
+
+    if args.verbose {
+        print_info(&format!("Download URL: {}", download_url));
+    }
+
+    // Download binary
+    let binary_data = download_file(&download_url, args.verbose)?;
+
+    // Install binary
+    fs::write(&binary_path, binary_data).map_err(CliError::Io)?;
+
+    // Make executable on Unix systems
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&binary_path)
+            .map_err(CliError::Io)?
+            .permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&binary_path, perms).map_err(CliError::Io)?;
+    }
+
+    // Verify installation
+    if let Ok(output) = Command::new(&binary_path).arg("--version").output() {
+        if !output.status.success() {
+            return Err(CliError::Config("verification failed".to_string()));
+        }
+    }
+
+    Ok(())
+}
+
+fn detect_rust_target() -> CliResult<String> {
+    let os = env::consts::OS;
+    let arch = env::consts::ARCH;
+
+    let target = match (os, arch) {
+        ("windows", "x86_64") => "x86_64-pc-windows-msvc",
+        ("windows", "aarch64") => "aarch64-pc-windows-msvc",
+        ("linux", "x86_64") => "x86_64-unknown-linux-gnu",
+        ("linux", "aarch64") => "aarch64-unknown-linux-gnu",
+        ("macos", "x86_64") => "x86_64-apple-darwin",
+        ("macos", "aarch64") => "aarch64-apple-darwin",
+        _ => {
+            return Err(CliError::Config(format!(
+                "Unsupported platform: {} {}",
+                os, arch
+            )));
+        }
+    };
+
+    Ok(target.to_string())
+}
+
 fn print_header() {
     println!("🚀 Andromeda Installation Tool");
     println!("════════════════════════════════");
+    println!();
+}
+
+fn print_satellite_header() {
+    println!("🛰️  Andromeda Satellite Installation Tool");
+    println!("══════════════════════════════════════════");
+    println!();
+    println!("Satellites are specialized, lightweight binaries for specific tasks.");
+    println!("Available: run, compile, fmt, lint, check, bundle");
     println!();
 }
 
