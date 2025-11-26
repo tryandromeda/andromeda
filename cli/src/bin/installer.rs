@@ -476,9 +476,9 @@ fn install_single_satellite(
 
     // Check if already installed
     if binary_path.exists() && !args.force {
-        return Err(CliError::Config(format!(
-            "already installed (use --force to reinstall)"
-        )));
+        return Err(CliError::Config(
+            "already installed (use --force to reinstall)".to_string(),
+        ));
     }
 
     // Build download URL for satellite
@@ -510,10 +510,10 @@ fn install_single_satellite(
     }
 
     // Verify installation
-    if let Ok(output) = Command::new(&binary_path).arg("--version").output() {
-        if !output.status.success() {
-            return Err(CliError::Config("verification failed".to_string()));
-        }
+    if let Ok(output) = Command::new(&binary_path).arg("--version").output()
+        && !output.status.success()
+    {
+        return Err(CliError::Config("verification failed".to_string()));
     }
 
     Ok(())
