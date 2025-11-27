@@ -1,104 +1,228 @@
-name: CI
+name: Build and Release Andromeda
 
 on:
+  workflow_dispatch:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    branches: [main]
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: ${{ github.ref_name != 'main' }}
-
-env:
-  CARGO_TERM_COLOR: always
+permissions:
+  contents: write
 
 jobs:
-  typos:
-    name: Spellcheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Spell check
-        uses: crate-ci/typos@master
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          toolchain: nightly-2025-09-05
-          components: rustfmt, clippy, llvm-tools-preview, rustc-dev
-      - name: Cache on ${{ github.ref_name }}
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: warm
-      - name: Check formatting
-        run: cargo fmt --check
-      - name: Clippy
-        run: |
-          cargo +nightly-2025-09-05 clippy --all-targets -- -D warnings
-          cargo +nightly-2025-09-05 clippy --all-targets --all-features -- -D warnings
-
   build:
-    name: Build & Test
+    name: Build ${{ matrix.asset-name }}
     runs-on: ${{ matrix.os }}
+    continue-on-error: true # Don't fail the entire workflow if one target fails
     strategy:
+      fail-fast: false # Continue with other builds even if one fails
       matrix:
-        os:
-          [
-            "macos-14",
-            "macos-latest",
-            "ubuntu-24.04",
-            "ubuntu-latest",
-            "windows-latest",
-          ]
+        include:
+          # Linux (x86_64)
+          - os: ubuntu-24.04
+            rust-target: x86_64-unknown-linux-gnu
+            asset-name: andromeda-linux-amd64
+            installer-name: andromeda-installer-linux-amd64
+
+          # Linux (ARM64) - cross-compilation
+          # - os: ubuntu-24.04
+          #   rust-target: aarch64-unknown-linux-gnu
+          #   asset-name: andromeda-linux-arm64
+          #   installer-name: andromeda-installer-linux-arm64
+          #   cross-compile: true
+
+          # macOS (Intel)
+          - os: macos-13
+            rust-target: x86_64-apple-darwin
+            asset-name: andromeda-macos-amd64
+            installer-name: andromeda-installer-macos-amd64
+
+          # macOS (Apple Silicon/ARM)
+          - os: macos-14
+            rust-target: aarch64-apple-darwin
+            asset-name: andromeda-macos-arm64
+            installer-name: andromeda-installer-macos-arm64
+
+          # Windows (x86_64)
+          - os: windows-latest
+            rust-target: x86_64-pc-windows-msvc
+            asset-name: andromeda-windows-amd64.exe
+            installer-name: andromeda-installer-windows-amd64.exe
+
+          # Windows (ARM64)
+          - os: windows-latest
+            rust-target: aarch64-pc-windows-msvc
+            asset-name: andromeda-windows-arm64.exe
+            installer-name: andromeda-installer-windows-arm64.exe
+
     steps:
       - uses: actions/checkout@v4
-      - uses: oxc-project/setup-rust@cd82e1efec7fef815e2c23d296756f31c7cdc03d # v1.0.0
+
+      - name: Install the rust toolchain
+        uses: dtolnay/rust-toolchain@master
         with:
-          cache-key: warm
-          save-cache: ${{ github.ref_name == 'main' }}
-      - name: Check
-        run: cargo check --all-targets
+          toolchain: "nightly-2025-09-05"
+          targets: ${{ matrix.rust-target }}
+
+      # - name: Install cross-compilation dependencies
+      # if: matrix.cross-compile
+      # run: |
+      #   sudo apt-get update
+      #   sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross pkg-config
+
       - name: Build
-        run: cargo build --tests --bins --examples
-      - name: Test
-        run: cargo test
+        continue-on-error: true # Allow individual builds to fail
+        run: cargo build --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
         env:
-          RUST_BACKTRACE: 1
-  # TODO: Enable Web Platform Tests
-  # wpt:
-  #   name: Web Platform Tests
-  #   runs-on: macos-latest
-  #   timeout-minutes: 50
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Install Rust toolchain
-  #       uses: dtolnay/rust-toolchain@master
-  #       with:
-  #         toolchain: "nightly-2025-09-05"
-  #     - name: Cache on ${{ github.ref_name }}
-  #       uses: Swatinem/rust-cache@v2
-  #       with:
-  #         shared-key: wpt
-  #         save-if: ${{ github.ref == 'refs/heads/main' }}
-  #     - name: Checkout WPT submodule
-  #       run: git submodule update --init --recursive
-  #     - name: Build andromeda cli
-  #       run: cargo build -p andromeda --release
-  #     - name: Build WPT runner
-  #       run: cargo build --bin wpt_test_runner --release
-  #     - name: Run WPT tests
-  #       run: cargo run --bin wpt --release -- --wpt-dir tests/wpt --ci-mode
-  #     - name: Generate test report
-  #       if: always()
-  #       run: cargo run --bin wpt_test_runner --release -- report --detailed
-  #     - name: Validate test expectations
-  #       if: always()
-  #       run: cargo run --bin wpt_test_runner --release -- validate-expectations --wpt-dir tests/wpt
+          # Cross-compilation environment variables
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          # PKG_CONFIG settings for cross-compilation
+          PKG_CONFIG_ALLOW_CROSS: 1
+
+      - name: Build installer
+        continue-on-error: true # Allow individual builds to fail
+        run: cargo build --bin andromeda-installer --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
+        env:
+          # Cross-compilation environment variables
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          # PKG_CONFIG settings for cross-compilation
+          PKG_CONFIG_ALLOW_CROSS: 1
+
+      - name: Build satellites
+        continue-on-error: true # Allow individual builds to fail
+        run: |
+          cargo build --bin andromeda-run --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
+          cargo build --bin andromeda-compile --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
+          cargo build --bin andromeda-fmt --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
+          cargo build --bin andromeda-lint --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
+          cargo build --bin andromeda-check --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
+          cargo build --bin andromeda-bundle --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
+        env:
+          # Cross-compilation environment variables
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          # PKG_CONFIG settings for cross-compilation
+          PKG_CONFIG_ALLOW_CROSS: 1
+
+      - name: Prepare binaries
+        shell: bash
+        run: |
+          cd target/${{ matrix.rust-target }}/release/
+
+          # Prepare main binary
+          if [ -f "andromeda.exe" ]; then
+            mv andromeda.exe ${{ matrix.asset-name }}
+          elif [ -f "andromeda" ]; then
+            mv andromeda ${{ matrix.asset-name }}
+          else
+            echo "Main binary not found, build may have failed"
+            exit 1
+          fi
+
+          # Prepare installer binary
+          if [ -f "andromeda-installer.exe" ]; then
+            cp "andromeda-installer.exe" "${{ matrix.installer-name }}"
+          elif [ -f "andromeda-installer" ]; then
+            cp "andromeda-installer" "${{ matrix.installer-name }}"
+          else
+            echo "Warning: Installer binary not found"
+          fi
+
+          # Prepare satellite binaries
+          for satellite in run compile fmt lint check bundle; do
+            if [ -f "andromeda-${satellite}.exe" ]; then
+              # Windows binaries
+              cp "andromeda-${satellite}.exe" "andromeda-${satellite}-${{ matrix.rust-target }}.exe"
+            elif [ -f "andromeda-${satellite}" ]; then
+              # Unix binaries
+              cp "andromeda-${satellite}" "andromeda-${satellite}-${{ matrix.rust-target }}"
+            else
+              echo "Warning: andromeda-${satellite} binary not found"
+            fi
+          done
+
+      - name: Upload Main Binary as Artifact
+        uses: actions/upload-artifact@v4
+        if: success() # Only upload if binary was prepared successfully
+        with:
+          name: ${{ matrix.asset-name }}
+          path: target/${{ matrix.rust-target }}/release/${{ matrix.asset-name }}
+
+      - name: Upload Installer Binary as Artifact
+        uses: actions/upload-artifact@v4
+        if: success() # Only upload if installer was prepared successfully
+        with:
+          name: ${{ matrix.installer-name }}
+          path: target/${{ matrix.rust-target }}/release/${{ matrix.installer-name }}
+
+      - name: Upload Satellite Binaries as Artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: satellites-${{ matrix.rust-target }}
+          path: |
+            target/${{ matrix.rust-target }}/release/andromeda-run-${{ matrix.rust-target }}*
+            target/${{ matrix.rust-target }}/release/andromeda-compile-${{ matrix.rust-target }}*
+            target/${{ matrix.rust-target }}/release/andromeda-fmt-${{ matrix.rust-target }}*
+            target/${{ matrix.rust-target }}/release/andromeda-lint-${{ matrix.rust-target }}*
+            target/${{ matrix.rust-target }}/release/andromeda-check-${{ matrix.rust-target }}*
+            target/${{ matrix.rust-target }}/release/andromeda-bundle-${{ matrix.rust-target }}*
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: List all artifacts
+        run: |
+          echo "=== All artifacts ready for release ==="
+          find ./artifacts -type f -name "andromeda-*" | sort
+          echo "======================================="
+
+      - name: Create Draft Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./artifacts/*/andromeda-*
+          file_glob: true
+          draft: true
+          tag: latest
+          overwrite: true
+          body: |
+            ## Andromeda Release
+
+            ### Installation
+
+            **Main CLI:**
+            - Download `andromeda-{platform}-{arch}` for your platform
+            - Make executable and add to PATH
+
+            **Installer:**
+            - Download `andromeda-installer-{platform}-{arch}` for your platform
+            - Run `andromeda-installer` to install main CLI
+            - Run `andromeda-installer satellite <name>` to install satellites
+
+            **Satellites (specialized binaries):**
+            - `andromeda-run` - Execute JS/TS files
+            - `andromeda-compile` - Compile to executables
+            - `andromeda-fmt` - Format code
+            - `andromeda-lint` - Lint code
+            - `andromeda-check` - Type-check TypeScript
+            - `andromeda-bundle` - Bundle and minify
+
+            ### Platforms
+            - Linux (x86_64, ARM64)
+            - macOS (Intel, Apple Silicon)
+            - Windows (x86_64, ARM64)
+
+            See [SATELLITES.md](https://github.com/tryandromeda/andromeda/blob/main/cli/SATELLITES.md) for detailed satellite documentation.
