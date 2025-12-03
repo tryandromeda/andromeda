@@ -242,7 +242,19 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
 }
 
 impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
+    fn enqueue_generic_job(&self, job: Job) {
+        // Enqueue generic jobs into the promise job queue
+        // This handles jobs that aren't specifically promise or timeout jobs
+        self.promise_job_queue.borrow_mut().push_back(job);
+    }
+
     fn enqueue_promise_job(&self, job: Job) {
+        self.promise_job_queue.borrow_mut().push_back(job);
+    }
+
+    fn enqueue_timeout_job(&self, job: Job, _milliseconds: u64) {
+        // For now, enqueue timeout jobs immediately without delay
+        // TODO: Implement proper timeout scheduling
         self.promise_job_queue.borrow_mut().push_back(job);
     }
 
@@ -633,6 +645,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
         let host_hooks: &RuntimeHostHooks<UserMacroTask> = &*Box::leak(Box::new(host_hooks));
         let mut agent = GcAgent::new(
             Options {
+                no_block: false,
                 disable_gc: false,
                 print_internals: config.verbose,
             },

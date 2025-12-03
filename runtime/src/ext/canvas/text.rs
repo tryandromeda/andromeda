@@ -73,6 +73,7 @@ impl TextRenderer {
             text,
             &attrs,
             cosmic_text::Shaping::Advanced,
+            None,
         );
 
         buffer.shape_until_scroll(&mut self.font_manager.font_system, false);

@@ -78,6 +78,7 @@ pub fn run_repl_with_config(
 
     let mut agent = GcAgent::new(
         Options {
+            no_block: false,
             disable_gc: effective_disable_gc,
             print_internals: effective_print_internals,
         },
