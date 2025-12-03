@@ -57,6 +57,7 @@ impl TextMetrics {
             text,
             &attrs,
             cosmic_text::Shaping::Advanced,
+            None,
         );
 
         buffer.shape_until_scroll(&mut font_manager.font_system, false);

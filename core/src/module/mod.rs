@@ -1601,6 +1601,10 @@ impl ModuleVisitor {
                     source_name: None,
                 });
             }
+            ast::Declaration::TSGlobalDeclaration(_) => {
+                // Handle: declare global { ... }
+                // Global declarations don't create named exports
+            }
         }
     }
 
