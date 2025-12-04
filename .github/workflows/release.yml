@@ -81,6 +81,8 @@ jobs:
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
           # PKG_CONFIG settings for cross-compilation
           PKG_CONFIG_ALLOW_CROSS: 1
+          # Set minimum macOS version to avoid linker errors
+          MACOSX_DEPLOYMENT_TARGET: "12.0"
 
       - name: Build satellites
         id: build-satellites
@@ -98,6 +100,8 @@ jobs:
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
           # PKG_CONFIG settings for cross-compilation
           PKG_CONFIG_ALLOW_CROSS: 1
+          # Set minimum macOS version to avoid linker errors
+          MACOSX_DEPLOYMENT_TARGET: "12.0"
 
       - name: Prepare binary
         if: steps.build-main.outcome == 'success'
