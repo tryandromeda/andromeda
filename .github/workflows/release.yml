@@ -81,8 +81,9 @@ jobs:
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
           # PKG_CONFIG settings for cross-compilation
           PKG_CONFIG_ALLOW_CROSS: 1
-          # Set minimum macOS version to 14.0 to match C dependency builds
+          # Set minimum macOS version to 14.0 via RUSTFLAGS to ensure it reaches the linker
           MACOSX_DEPLOYMENT_TARGET: ${{ runner.os == 'macOS' && '14.0' || '' }}
+          RUSTFLAGS: ${{ runner.os == 'macOS' && '-C link-arg=-mmacosx-version-min=14.0' || '' }}
 
       - name: Build satellites
         id: build-satellites
@@ -100,8 +101,9 @@ jobs:
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
           # PKG_CONFIG settings for cross-compilation
           PKG_CONFIG_ALLOW_CROSS: 1
-          # Set minimum macOS version to 14.0 to match C dependency builds
+          # Set minimum macOS version to 14.0 via RUSTFLAGS to ensure it reaches the linker
           MACOSX_DEPLOYMENT_TARGET: ${{ runner.os == 'macOS' && '14.0' || '' }}
+          RUSTFLAGS: ${{ runner.os == 'macOS' && '-C link-arg=-mmacosx-version-min=14.0' || '' }}
 
       - name: Prepare binary
         if: steps.build-main.outcome == 'success'
