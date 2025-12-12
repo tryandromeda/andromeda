@@ -31,13 +31,13 @@ jobs:
           #   cross-compile: true
 
           # macOS (Intel)
-          - os: macos-15
+          - os: macos-15-intel
             rust-target: x86_64-apple-darwin
             asset-name: andromeda-macos-amd64
             installer-name: andromeda-installer-macos-amd64
 
           # macOS (Apple Silicon/ARM)
-          - os: macos-14
+          - os: macos-latest
             rust-target: aarch64-apple-darwin
             asset-name: andromeda-macos-arm64
             installer-name: andromeda-installer-macos-arm64
