@@ -105,6 +105,126 @@ pub fn lint_error_to_diagnostic(lint_error: &LintError, source_code: &str) -> Di
             )),
             Some("andromeda".to_string()),
         ),
+        LintError::NoUnreachable { .. } => (
+            "Unreachable code detected".to_string(),
+            DiagnosticSeverity::WARNING,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-unreachable".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoDuplicateCase { .. } => (
+            "Duplicate case label in switch".to_string(),
+            DiagnosticSeverity::ERROR,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-duplicate-case".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoConstantCondition { .. } => (
+            "Constant condition in expression".to_string(),
+            DiagnosticSeverity::WARNING,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-constant-condition".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoDupeKeys { key, .. } => (
+            format!("Duplicate key '{key}' in object"),
+            DiagnosticSeverity::ERROR,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-dupe-keys".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoCompareNegZero { .. } => (
+            "Do not compare against -0".to_string(),
+            DiagnosticSeverity::WARNING,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-compare-neg-zero".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoCondAssign { .. } => (
+            "Assignment in conditional expression".to_string(),
+            DiagnosticSeverity::ERROR,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-cond-assign".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoConstAssign { variable_name, .. } => (
+            format!("Assignment to const variable '{variable_name}'"),
+            DiagnosticSeverity::ERROR,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-const-assign".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::UseIsNan { .. } => (
+            "Use isNaN() for NaN comparisons".to_string(),
+            DiagnosticSeverity::ERROR,
+            Some(NumberOrString::String(
+                "andromeda::lint::use-isnan".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoFallthrough { .. } => (
+            "Case falls through without break".to_string(),
+            DiagnosticSeverity::WARNING,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-fallthrough".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoFuncAssign { function_name, .. } => (
+            format!("Reassignment to function '{function_name}'"),
+            DiagnosticSeverity::ERROR,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-func-assign".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoUnsafeNegation { .. } => (
+            "Unsafe negation of left operand".to_string(),
+            DiagnosticSeverity::ERROR,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-unsafe-negation".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoSparseArrays { .. } => (
+            "Sparse array detected".to_string(),
+            DiagnosticSeverity::WARNING,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-sparse-arrays".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoExAssign { .. } => (
+            "Reassignment to exception parameter".to_string(),
+            DiagnosticSeverity::ERROR,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-ex-assign".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoAsyncPromiseExecutor { .. } => (
+            "Async function used as Promise executor".to_string(),
+            DiagnosticSeverity::ERROR,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-async-promise-executor".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
+        LintError::NoUnsafeFinally { .. } => (
+            "Unsafe control flow in finally block".to_string(),
+            DiagnosticSeverity::ERROR,
+            Some(NumberOrString::String(
+                "andromeda::lint::no-unsafe-finally".to_string(),
+            )),
+            Some("andromeda".to_string()),
+        ),
     };
 
     let span = get_lint_error_span(lint_error);
@@ -138,6 +258,21 @@ fn get_lint_error_span(lint_error: &LintError) -> SourceSpan {
         LintError::Eqeqeq { span, .. } => *span,
         LintError::Camelcase { span, .. } => *span,
         LintError::NoBooleanLiteralForArguments { span, .. } => *span,
+        LintError::NoUnreachable { span, .. } => *span,
+        LintError::NoDuplicateCase { span, .. } => *span,
+        LintError::NoConstantCondition { span, .. } => *span,
+        LintError::NoDupeKeys { span, .. } => *span,
+        LintError::NoCompareNegZero { span, .. } => *span,
+        LintError::NoCondAssign { span, .. } => *span,
+        LintError::NoConstAssign { span, .. } => *span,
+        LintError::UseIsNan { span, .. } => *span,
+        LintError::NoFallthrough { span, .. } => *span,
+        LintError::NoFuncAssign { span, .. } => *span,
+        LintError::NoUnsafeNegation { span, .. } => *span,
+        LintError::NoSparseArrays { span, .. } => *span,
+        LintError::NoExAssign { span, .. } => *span,
+        LintError::NoAsyncPromiseExecutor { span, .. } => *span,
+        LintError::NoUnsafeFinally { span, .. } => *span,
     }
 }
 

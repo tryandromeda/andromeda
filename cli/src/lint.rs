@@ -1,6 +1,61 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 // If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! # Andromeda Linter
+//!
+//! A comprehensive JavaScript/TypeScript linter with 27+ rules inspired by ESLint, Deno, and oxc_linter.
+//!
+//! ## Implemented Rules
+//!
+//! ### Code Quality Rules
+//! - **no-empty** - Disallow empty statements
+//! - **no-var** - Require let or const instead of var
+//! - **no-unused-vars** - Disallow unused variables
+//! - **prefer-const** - Require const declarations for variables that are never reassigned
+//! - **camelcase** - Enforce camelCase naming convention
+//! - **no-eval** - Disallow use of eval()
+//!
+//! ### Error Prevention Rules
+//! - **no-debugger** - Disallow debugger statements
+//! - **no-console** - Disallow console statements
+//! - **no-unreachable** - Disallow unreachable code after return, throw, break, or continue
+//! - **no-duplicate-case** - Disallow duplicate case labels in switch statements
+//! - **no-constant-condition** - Disallow constant expressions in conditions
+//! - **no-dupe-keys** - Disallow duplicate keys in object literals
+//! - **no-const-assign** - Disallow reassigning const variables
+//! - **no-func-assign** - Disallow reassigning function declarations
+//! - **no-ex-assign** - Disallow reassigning exception parameters in catch clauses
+//!
+//! ### Best Practices Rules
+//! - **eqeqeq** - Require === and !== instead of == and !=
+//! - **no-compare-neg-zero** - Disallow comparing against -0
+//! - **no-cond-assign** - Disallow assignment operators in conditional expressions
+//! - **use-isnan** - Require calls to isNaN() when checking for NaN
+//! - **no-fallthrough** - Disallow fallthrough of case statements
+//! - **no-unsafe-negation** - Disallow negating the left operand of relational operators
+//! - **no-boolean-literal-for-arguments** - Disallow boolean literals as arguments
+//!
+//! ### TypeScript Rules
+//! - **no-explicit-any** - Disallow the any type
+//!
+//! ### Async/Await Rules
+//! - **require-await** - Disallow async functions which have no await expression
+//! - **no-async-promise-executor** - Disallow async functions as Promise executors
+//!
+//! ### Advanced Rules
+//! - **no-sparse-arrays** - Disallow sparse array literals
+//! - **no-unsafe-finally** - Disallow control flow statements in finally blocks
+//!
+//! ## Usage
+//!
+//! Rules can be configured in `.andromeda.toml`:
+//! ```toml
+//! [lint]
+//! rules = ["no-var", "no-debugger", "eqeqeq"]
+//! disabled_rules = ["no-console"]
+//! max_warnings = 10
+//! ```
+
 use crate::config::{AndromedaConfig, ConfigManager, LintConfig};
 use crate::error::{AndromedaError, Result};
 use console::Style;
@@ -196,7 +251,7 @@ pub enum LintError {
     #[diagnostic(
         code(andromeda::lint::no_boolean_literal_for_arguments),
         help(
-            "🔍 Avoid passing boolean literals as arguments.\n� Boolean arguments make code harder to understand.\n📖 Consider using named objects or enums instead."
+            "🔍 Avoid passing boolean literals as arguments.\n💡 Boolean arguments make code harder to understand.\n📖 Consider using named objects or enums instead."
         ),
         url("https://docs.deno.com/lint/rules/no-boolean-literal-for-arguments")
     )]
@@ -206,6 +261,234 @@ pub enum LintError {
         #[source_code]
         source_code: NamedSource<String>,
         value: bool,
+    },
+
+    /// Unreachable code (no-unreachable)
+    #[diagnostic(
+        code(andromeda::lint::no_unreachable),
+        help(
+            "🔍 Remove unreachable code after return, throw, break, or continue.\n💡 Code after these statements will never execute.\n🧹 This usually indicates a logical error or dead code."
+        ),
+        url("https://eslint.org/docs/latest/rules/no-unreachable")
+    )]
+    NoUnreachable {
+        #[label("Unreachable code detected")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+    },
+
+    /// Duplicate case label (no-duplicate-case)
+    #[diagnostic(
+        code(andromeda::lint::no_duplicate_case),
+        help(
+            "🔍 Remove duplicate case labels in switch statements.\n💡 Duplicate cases will never be reached.\n🐛 This is likely a copy-paste error."
+        ),
+        url("https://eslint.org/docs/latest/rules/no-duplicate-case")
+    )]
+    NoDuplicateCase {
+        #[label("Duplicate case label")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+    },
+
+    /// Constant condition (no-constant-condition)
+    #[diagnostic(
+        code(andromeda::lint::no_constant_condition),
+        help(
+            "🔍 Avoid using constant expressions in conditions.\n💡 Constant conditions make branches unreachable.\n📖 Use meaningful boolean expressions instead."
+        ),
+        url("https://eslint.org/docs/latest/rules/no-constant-condition")
+    )]
+    NoConstantCondition {
+        #[label("Constant condition detected")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+    },
+
+    /// Duplicate keys in object literals (no-dupe-keys)
+    #[diagnostic(
+        code(andromeda::lint::no_dupe_keys),
+        help(
+            "🔍 Remove duplicate keys in object literals.\n💡 Later keys overwrite earlier ones silently.\n🐛 This often indicates a typo or logical error."
+        ),
+        url("https://eslint.org/docs/latest/rules/no-dupe-keys")
+    )]
+    NoDupeKeys {
+        #[label("Duplicate key '{key}'")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+        key: String,
+    },
+
+    /// Comparing against -0 (no-compare-neg-zero)
+    #[diagnostic(
+        code(andromeda::lint::no_compare_neg_zero),
+        help(
+            "🔍 Use Object.is(x, -0) to check for negative zero.\n💡 Regular equality doesn't distinguish between 0 and -0.\n📖 This can lead to unexpected behavior in some cases."
+        ),
+        url("https://eslint.org/docs/latest/rules/no-compare-neg-zero")
+    )]
+    NoCompareNegZero {
+        #[label("Comparing against -0")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+    },
+
+    /// Assignment in conditional (no-cond-assign)
+    #[diagnostic(
+        code(andromeda::lint::no_cond_assign),
+        help(
+            "🔍 Avoid assignments in conditional expressions.\n💡 This is often a typo where == was intended instead of =.\n📖 If intentional, wrap the assignment in parentheses."
+        ),
+        url("https://eslint.org/docs/latest/rules/no-cond-assign")
+    )]
+    NoCondAssign {
+        #[label("Assignment in conditional expression")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+    },
+
+    /// Const reassignment (no-const-assign)
+    #[diagnostic(
+        code(andromeda::lint::no_const_assign),
+        help(
+            "🔍 Cannot reassign const variable '{variable_name}'.\n💡 Const variables cannot be reassigned after declaration.\n🐛 Use 'let' if you need to reassign the variable."
+        ),
+        url("https://eslint.org/docs/latest/rules/no-const-assign")
+    )]
+    NoConstAssign {
+        #[label("Reassignment to const variable '{variable_name}'")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+        variable_name: String,
+    },
+
+    /// Use isNaN for NaN checks (use-isnan)
+    #[diagnostic(
+        code(andromeda::lint::use_isnan),
+        help(
+            "🔍 Use Number.isNaN() or isNaN() to check for NaN.\n💡 NaN is never equal to itself, so comparisons will always be false.\n📖 Use isNaN(x) or Number.isNaN(x) instead."
+        ),
+        url("https://eslint.org/docs/latest/rules/use-isnan")
+    )]
+    UseIsNan {
+        #[label("Use isNaN() instead of comparing to NaN")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+    },
+
+    /// Missing break in switch case (no-fallthrough)
+    #[diagnostic(
+        code(andromeda::lint::no_fallthrough),
+        help(
+            "🔍 Add break, return, or throw at the end of this case.\n💡 Fallthrough cases can lead to unexpected behavior.\n📖 Add a comment '// fallthrough' if intentional."
+        ),
+        url("https://eslint.org/docs/latest/rules/no-fallthrough")
+    )]
+    NoFallthrough {
+        #[label("Case falls through without break/return/throw")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+    },
+
+    /// Function reassignment (no-func-assign)
+    #[diagnostic(
+        code(andromeda::lint::no_func_assign),
+        help(
+            "🔍 Avoid reassigning function declarations.\n💡 Reassigning functions can lead to confusing code.\n🐛 This may indicate a logical error."
+        ),
+        url("https://eslint.org/docs/latest/rules/no-func-assign")
+    )]
+    NoFuncAssign {
+        #[label("Reassignment to function '{function_name}'")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+        function_name: String,
+    },
+
+    /// Unsafe negation (no-unsafe-negation)
+    #[diagnostic(
+        code(andromeda::lint::no_unsafe_negation),
+        help(
+            "🔍 Use parentheses to clarify negation intent.\n💡 Negating the left operand of relational operators is often a mistake.\n📖 Did you mean !(a in b) instead of !a in b?"
+        ),
+        url("https://eslint.org/docs/latest/rules/no-unsafe-negation")
+    )]
+    NoUnsafeNegation {
+        #[label("Unsafe negation of left operand")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+    },
+
+    /// Sparse arrays (no-sparse-arrays)
+    #[diagnostic(
+        code(andromeda::lint::no_sparse_arrays),
+        help(
+            "🔍 Remove extra commas in array literals.\n💡 Sparse arrays have undefined 'holes' which can cause bugs.\n📖 Use explicit undefined values if needed."
+        ),
+        url("https://eslint.org/docs/latest/rules/no-sparse-arrays")
+    )]
+    NoSparseArrays {
+        #[label("Sparse array detected")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+    },
+
+    /// Exception parameter reassignment (no-ex-assign)
+    #[diagnostic(
+        code(andromeda::lint::no_ex_assign),
+        help(
+            "🔍 Avoid reassigning exception parameters in catch clauses.\n💡 This can lead to confusing code and lost error information.\n📖 Use a different variable if you need to modify the value."
+        ),
+        url("https://eslint.org/docs/latest/rules/no-ex-assign")
+    )]
+    NoExAssign {
+        #[label("Reassignment to exception parameter")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+    },
+
+    /// Async Promise executor (no-async-promise-executor)
+    #[diagnostic(
+        code(andromeda::lint::no_async_promise_executor),
+        help(
+            "🔍 Don't use async functions as Promise executors.\n💡 Async executors can hide errors and lead to unhandled rejections.\n📖 Use regular functions and return promises explicitly."
+        ),
+        url("https://eslint.org/docs/latest/rules/no-async-promise-executor")
+    )]
+    NoAsyncPromiseExecutor {
+        #[label("Async function used as Promise executor")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
+    },
+
+    /// Unsafe finally (no-unsafe-finally)
+    #[diagnostic(
+        code(andromeda::lint::no_unsafe_finally),
+        help(
+            "🔍 Avoid return, throw, break, or continue in finally blocks.\n💡 Control flow statements in finally can override earlier returns/throws.\n🐛 This can mask errors and lead to unexpected behavior."
+        ),
+        url("https://eslint.org/docs/latest/rules/no-unsafe-finally")
+    )]
+    NoUnsafeFinally {
+        #[label("Unsafe control flow in finally block")]
+        span: SourceSpan,
+        #[source_code]
+        source_code: NamedSource<String>,
     },
 }
 
@@ -240,6 +523,27 @@ impl std::fmt::Display for LintError {
             LintError::NoBooleanLiteralForArguments { value, .. } => {
                 write!(f, "Boolean literal '{value}' passed as argument")
             }
+            LintError::NoUnreachable { .. } => write!(f, "Unreachable code detected"),
+            LintError::NoDuplicateCase { .. } => write!(f, "Duplicate case label in switch"),
+            LintError::NoConstantCondition { .. } => write!(f, "Constant condition in expression"),
+            LintError::NoDupeKeys { key, .. } => write!(f, "Duplicate key '{key}' in object"),
+            LintError::NoCompareNegZero { .. } => write!(f, "Do not compare against -0"),
+            LintError::NoCondAssign { .. } => write!(f, "Assignment in conditional expression"),
+            LintError::NoConstAssign { variable_name, .. } => {
+                write!(f, "Assignment to const variable '{variable_name}'")
+            }
+            LintError::UseIsNan { .. } => write!(f, "Use isNaN() for NaN comparisons"),
+            LintError::NoFallthrough { .. } => write!(f, "Case falls through without break"),
+            LintError::NoFuncAssign { function_name, .. } => {
+                write!(f, "Reassignment to function '{function_name}'")
+            }
+            LintError::NoUnsafeNegation { .. } => write!(f, "Unsafe negation of left operand"),
+            LintError::NoSparseArrays { .. } => write!(f, "Sparse array detected"),
+            LintError::NoExAssign { .. } => write!(f, "Reassignment to exception parameter"),
+            LintError::NoAsyncPromiseExecutor { .. } => {
+                write!(f, "Async function used as Promise executor")
+            }
+            LintError::NoUnsafeFinally { .. } => write!(f, "Unsafe control flow in finally block"),
         }
     }
 }
@@ -275,6 +579,21 @@ fn is_rule_enabled(rule_name: &str, lint_config: &LintConfig) -> bool {
         "require-await",
         "no-eval",
         "no-empty",
+        "no-unreachable",
+        "no-duplicate-case",
+        "no-constant-condition",
+        "no-dupe-keys",
+        "no-compare-neg-zero",
+        "no-cond-assign",
+        "no-const-assign",
+        "use-isnan",
+        "no-fallthrough",
+        "no-func-assign",
+        "no-unsafe-negation",
+        "no-sparse-arrays",
+        "no-ex-assign",
+        "no-async-promise-executor",
+        "no-unsafe-finally",
     ];
 
     default_rules.contains(&rule_name)
@@ -289,6 +608,44 @@ fn check_expression_for_issues(
     lint_config: &LintConfig,
 ) {
     match expr {
+        Expression::ObjectExpression(obj_expr) => {
+            check_dupe_keys(obj_expr, named_source, lint_errors, lint_config);
+        }
+        Expression::ArrayExpression(array_expr) => {
+            check_sparse_arrays(array_expr, named_source, lint_errors, lint_config);
+        }
+        Expression::NewExpression(new_expr) => {
+            // Check for async Promise executor
+            if is_rule_enabled("no-async-promise-executor", lint_config)
+                && let Expression::Identifier(ident) = &new_expr.callee
+                && ident.name == "Promise"
+                && let Some(first_arg) = new_expr.arguments.first()
+            {
+                if let Some(Expression::ArrowFunctionExpression(arrow)) = first_arg.as_expression()
+                    && arrow.r#async
+                {
+                    let span = SourceSpan::new(
+                        (arrow.span.start as usize).into(),
+                        arrow.span.size() as usize,
+                    );
+                    lint_errors.push(LintError::NoAsyncPromiseExecutor {
+                        span,
+                        source_code: named_source.clone(),
+                    });
+                } else if let Some(Expression::FunctionExpression(func)) = first_arg.as_expression()
+                    && func.r#async
+                {
+                    let span = SourceSpan::new(
+                        (func.span.start as usize).into(),
+                        func.span.size() as usize,
+                    );
+                    lint_errors.push(LintError::NoAsyncPromiseExecutor {
+                        span,
+                        source_code: named_source.clone(),
+                    });
+                }
+            }
+        }
         Expression::CallExpression(call) => {
             // Check for console usage (no-console)
             if is_rule_enabled("no-console", lint_config)
@@ -377,6 +734,15 @@ fn check_expression_for_issues(
                     _ => {}
                 }
             }
+
+            // Check for comparing against -0
+            check_compare_neg_zero(bin_expr, named_source, lint_errors, lint_config);
+
+            // Check for NaN comparisons
+            check_nan_comparison(bin_expr, named_source, lint_errors, lint_config);
+
+            // Check for unsafe negation (e.g., !x in y)
+            check_unsafe_negation(bin_expr, named_source, lint_errors, lint_config);
             check_expression_for_issues(
                 &bin_expr.left,
                 _source_code,
@@ -521,6 +887,107 @@ fn check_statement_for_expressions(
     use oxc_ast::ast::Statement;
 
     match stmt {
+        Statement::TryStatement(try_stmt) => {
+            // Check for exception parameter reassignment
+            if let Some(handler) = &try_stmt.handler {
+                if let Some(param) = &handler.param
+                    && let oxc_ast::ast::BindingPatternKind::BindingIdentifier(ident) =
+                        &param.pattern.kind
+                {
+                    let exception_name = ident.name.to_string();
+                    check_ex_assign_in_catch(
+                        &handler.body,
+                        &exception_name,
+                        named_source,
+                        lint_errors,
+                        lint_config,
+                    );
+                }
+
+                for stmt in &handler.body.body {
+                    check_statement_for_expressions(
+                        stmt,
+                        source_code,
+                        named_source,
+                        lint_errors,
+                        lint_config,
+                    );
+                }
+            }
+
+            for stmt in &try_stmt.block.body {
+                check_statement_for_expressions(
+                    stmt,
+                    source_code,
+                    named_source,
+                    lint_errors,
+                    lint_config,
+                );
+            }
+
+            if let Some(finalizer) = &try_stmt.finalizer {
+                check_unsafe_finally(finalizer, named_source, lint_errors, lint_config);
+                for stmt in &finalizer.body {
+                    check_statement_for_expressions(
+                        stmt,
+                        source_code,
+                        named_source,
+                        lint_errors,
+                        lint_config,
+                    );
+                }
+            }
+        }
+        Statement::SwitchStatement(switch_stmt) => {
+            check_duplicate_cases(switch_stmt, named_source, lint_errors, lint_config);
+
+            // Check for fallthrough
+            if is_rule_enabled("no-fallthrough", lint_config) {
+                for (i, case) in switch_stmt.cases.iter().enumerate() {
+                    if i < switch_stmt.cases.len() - 1 && !case.consequent.is_empty() {
+                        let has_break = case
+                            .consequent
+                            .iter()
+                            .any(|s| matches!(s, Statement::BreakStatement(_)));
+                        let has_return = case
+                            .consequent
+                            .iter()
+                            .any(|s| matches!(s, Statement::ReturnStatement(_)));
+                        let has_throw = case
+                            .consequent
+                            .iter()
+                            .any(|s| matches!(s, Statement::ThrowStatement(_)));
+
+                        if !has_break
+                            && !has_return
+                            && !has_throw
+                            && let Some(last_stmt) = case.consequent.last()
+                        {
+                            let span = SourceSpan::new(
+                                (last_stmt.span().start as usize).into(),
+                                last_stmt.span().size() as usize,
+                            );
+                            lint_errors.push(LintError::NoFallthrough {
+                                span,
+                                source_code: named_source.clone(),
+                            });
+                        }
+                    }
+                }
+            }
+
+            for case in &switch_stmt.cases {
+                for stmt in &case.consequent {
+                    check_statement_for_expressions(
+                        stmt,
+                        source_code,
+                        named_source,
+                        lint_errors,
+                        lint_config,
+                    );
+                }
+            }
+        }
         Statement::ExpressionStatement(expr_stmt) => {
             check_expression_for_issues(
                 &expr_stmt.expression,
@@ -529,6 +996,13 @@ fn check_statement_for_expressions(
                 lint_errors,
                 lint_config,
             );
+
+            // Check for assignment in condition (this catches top-level assignments that might be mistakes)
+            if is_rule_enabled("no-cond-assign", lint_config)
+                && let Expression::AssignmentExpression(_) = &expr_stmt.expression
+            {
+                // This is OK at top level
+            }
         }
         Statement::VariableDeclaration(var_decl) => {
             for declarator in &var_decl.declarations {
@@ -544,6 +1018,23 @@ fn check_statement_for_expressions(
             }
         }
         Statement::IfStatement(if_stmt) => {
+            // Check for constant condition
+            check_constant_condition(&if_stmt.test, named_source, lint_errors, lint_config);
+
+            // Check for assignment in condition
+            if is_rule_enabled("no-cond-assign", lint_config)
+                && let Expression::AssignmentExpression(_) = &if_stmt.test
+            {
+                let span = SourceSpan::new(
+                    (if_stmt.test.span().start as usize).into(),
+                    if_stmt.test.span().size() as usize,
+                );
+                lint_errors.push(LintError::NoCondAssign {
+                    span,
+                    source_code: named_source.clone(),
+                });
+            }
+
             check_expression_for_issues(
                 &if_stmt.test,
                 source_code,
@@ -569,6 +1060,8 @@ fn check_statement_for_expressions(
             }
         }
         Statement::BlockStatement(block) => {
+            check_unreachable_code(&block.body, named_source, lint_errors, lint_config);
+
             for stmt in &block.body {
                 check_statement_for_expressions(
                     stmt,
@@ -592,6 +1085,622 @@ fn check_statement_for_expressions(
         }
         // Add more statement types as needed
         _ => {}
+    }
+}
+
+/// Check for unreachable code after return/throw/break/continue
+fn check_unreachable_code(
+    statements: &[Statement],
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+    lint_config: &LintConfig,
+) {
+    if !is_rule_enabled("no-unreachable", lint_config) {
+        return;
+    }
+
+    let mut found_terminal = false;
+    for stmt in statements {
+        if found_terminal {
+            let span = SourceSpan::new(
+                (stmt.span().start as usize).into(),
+                stmt.span().size() as usize,
+            );
+            lint_errors.push(LintError::NoUnreachable {
+                span,
+                source_code: named_source.clone(),
+            });
+            break;
+        }
+
+        match stmt {
+            Statement::ReturnStatement(_)
+            | Statement::ThrowStatement(_)
+            | Statement::BreakStatement(_)
+            | Statement::ContinueStatement(_) => {
+                found_terminal = true;
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Check for duplicate case labels in switch statements
+fn check_duplicate_cases(
+    switch_stmt: &oxc_ast::ast::SwitchStatement,
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+    lint_config: &LintConfig,
+) {
+    if !is_rule_enabled("no-duplicate-case", lint_config) {
+        return;
+    }
+
+    use std::collections::HashSet;
+    let mut seen_cases = HashSet::new();
+
+    for case in &switch_stmt.cases {
+        if let Some(test) = &case.test {
+            let case_str = format!("{:?}", test);
+            if !seen_cases.insert(case_str) {
+                let span = SourceSpan::new(
+                    (test.span().start as usize).into(),
+                    test.span().size() as usize,
+                );
+                lint_errors.push(LintError::NoDuplicateCase {
+                    span,
+                    source_code: named_source.clone(),
+                });
+            }
+        }
+    }
+}
+
+/// Check for constant conditions
+fn check_constant_condition(
+    test_expr: &Expression,
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+    lint_config: &LintConfig,
+) {
+    if !is_rule_enabled("no-constant-condition", lint_config) {
+        return;
+    }
+
+    match test_expr {
+        Expression::BooleanLiteral(_)
+        | Expression::NumericLiteral(_)
+        | Expression::StringLiteral(_) => {
+            let span = SourceSpan::new(
+                (test_expr.span().start as usize).into(),
+                test_expr.span().size() as usize,
+            );
+            lint_errors.push(LintError::NoConstantCondition {
+                span,
+                source_code: named_source.clone(),
+            });
+        }
+        _ => {}
+    }
+}
+
+/// Check for duplicate keys in object literals
+fn check_dupe_keys(
+    obj_expr: &oxc_ast::ast::ObjectExpression,
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+    lint_config: &LintConfig,
+) {
+    if !is_rule_enabled("no-dupe-keys", lint_config) {
+        return;
+    }
+
+    use std::collections::HashMap;
+    let mut seen_keys: HashMap<String, oxc_span::Span> = HashMap::new();
+
+    for prop in &obj_expr.properties {
+        if let oxc_ast::ast::ObjectPropertyKind::ObjectProperty(obj_prop) = prop
+            && let oxc_ast::ast::PropertyKey::StaticIdentifier(ident) = &obj_prop.key
+        {
+            let key_name = ident.name.to_string();
+            if seen_keys.insert(key_name.clone(), ident.span).is_some() {
+                let span = SourceSpan::new(
+                    (ident.span.start as usize).into(),
+                    ident.span.size() as usize,
+                );
+                lint_errors.push(LintError::NoDupeKeys {
+                    span,
+                    source_code: named_source.clone(),
+                    key: key_name,
+                });
+            }
+        }
+    }
+}
+
+/// Check for comparisons against -0
+fn check_compare_neg_zero(
+    bin_expr: &oxc_ast::ast::BinaryExpression,
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+    lint_config: &LintConfig,
+) {
+    if !is_rule_enabled("no-compare-neg-zero", lint_config) {
+        return;
+    }
+
+    let is_neg_zero = |expr: &Expression| -> bool {
+        if let Expression::UnaryExpression(unary) = expr
+            && unary.operator == oxc_ast::ast::UnaryOperator::UnaryNegation
+            && let Expression::NumericLiteral(num) = &unary.argument
+        {
+            return num.value == 0.0;
+        }
+        false
+    };
+
+    if is_neg_zero(&bin_expr.left) || is_neg_zero(&bin_expr.right) {
+        let span = SourceSpan::new(
+            (bin_expr.span.start as usize).into(),
+            bin_expr.span.size() as usize,
+        );
+        lint_errors.push(LintError::NoCompareNegZero {
+            span,
+            source_code: named_source.clone(),
+        });
+    }
+}
+
+/// Check for NaN comparisons
+fn check_nan_comparison(
+    bin_expr: &oxc_ast::ast::BinaryExpression,
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+    lint_config: &LintConfig,
+) {
+    if !is_rule_enabled("use-isnan", lint_config) {
+        return;
+    }
+
+    let is_nan = |expr: &Expression| -> bool {
+        if let Expression::Identifier(ident) = expr {
+            ident.name == "NaN"
+        } else {
+            false
+        }
+    };
+
+    if is_nan(&bin_expr.left) || is_nan(&bin_expr.right) {
+        let span = SourceSpan::new(
+            (bin_expr.span.start as usize).into(),
+            bin_expr.span.size() as usize,
+        );
+        lint_errors.push(LintError::UseIsNan {
+            span,
+            source_code: named_source.clone(),
+        });
+    }
+}
+
+/// Check for sparse arrays
+fn check_sparse_arrays(
+    array_expr: &oxc_ast::ast::ArrayExpression,
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+    lint_config: &LintConfig,
+) {
+    if !is_rule_enabled("no-sparse-arrays", lint_config) {
+        return;
+    }
+
+    for element in &array_expr.elements {
+        if element.is_elision() {
+            let span = SourceSpan::new(
+                (array_expr.span.start as usize).into(),
+                array_expr.span.size() as usize,
+            );
+            lint_errors.push(LintError::NoSparseArrays {
+                span,
+                source_code: named_source.clone(),
+            });
+            break;
+        }
+    }
+}
+
+/// Check for unsafe control flow in finally blocks
+fn check_unsafe_finally(
+    finally_block: &oxc_ast::ast::BlockStatement,
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+    lint_config: &LintConfig,
+) {
+    if !is_rule_enabled("no-unsafe-finally", lint_config) {
+        return;
+    }
+
+    fn check_statements_recursive(
+        stmts: &[Statement],
+        named_source: &NamedSource<String>,
+        lint_errors: &mut Vec<LintError>,
+    ) {
+        for stmt in stmts {
+            match stmt {
+                Statement::ReturnStatement(_)
+                | Statement::ThrowStatement(_)
+                | Statement::BreakStatement(_)
+                | Statement::ContinueStatement(_) => {
+                    let span = SourceSpan::new(
+                        (stmt.span().start as usize).into(),
+                        stmt.span().size() as usize,
+                    );
+                    lint_errors.push(LintError::NoUnsafeFinally {
+                        span,
+                        source_code: named_source.clone(),
+                    });
+                }
+                Statement::BlockStatement(block) => {
+                    check_statements_recursive(&block.body, named_source, lint_errors);
+                }
+                Statement::IfStatement(if_stmt) => {
+                    check_statements_recursive(
+                        std::slice::from_ref(&if_stmt.consequent),
+                        named_source,
+                        lint_errors,
+                    );
+                    if let Some(alt) = &if_stmt.alternate {
+                        check_statements_recursive(
+                            std::slice::from_ref(alt),
+                            named_source,
+                            lint_errors,
+                        );
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    check_statements_recursive(&finally_block.body, named_source, lint_errors);
+}
+
+/// Check for exception parameter reassignment in catch clause
+fn check_ex_assign_in_catch(
+    catch_body: &oxc_ast::ast::BlockStatement,
+    exception_name: &str,
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+    lint_config: &LintConfig,
+) {
+    if !is_rule_enabled("no-ex-assign", lint_config) {
+        return;
+    }
+
+    fn check_expr_for_ex_assign(
+        expr: &Expression,
+        exception_name: &str,
+        named_source: &NamedSource<String>,
+        lint_errors: &mut Vec<LintError>,
+    ) {
+        use oxc_ast::ast::{AssignmentTarget, Expression};
+
+        match expr {
+            Expression::AssignmentExpression(assign) => {
+                if let AssignmentTarget::AssignmentTargetIdentifier(id) = &assign.left
+                    && id.name == exception_name
+                {
+                    let span =
+                        SourceSpan::new((id.span.start as usize).into(), id.span.size() as usize);
+                    lint_errors.push(LintError::NoExAssign {
+                        span,
+                        source_code: named_source.clone(),
+                    });
+                }
+            }
+            Expression::UpdateExpression(update) => {
+                if let oxc_ast::ast::SimpleAssignmentTarget::AssignmentTargetIdentifier(id) =
+                    &update.argument
+                    && id.name == exception_name
+                {
+                    let span =
+                        SourceSpan::new((id.span.start as usize).into(), id.span.size() as usize);
+                    lint_errors.push(LintError::NoExAssign {
+                        span,
+                        source_code: named_source.clone(),
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn check_stmt_recursive(
+        stmt: &Statement,
+        exception_name: &str,
+        named_source: &NamedSource<String>,
+        lint_errors: &mut Vec<LintError>,
+    ) {
+        match stmt {
+            Statement::ExpressionStatement(expr_stmt) => {
+                check_expr_for_ex_assign(
+                    &expr_stmt.expression,
+                    exception_name,
+                    named_source,
+                    lint_errors,
+                );
+            }
+            Statement::BlockStatement(block) => {
+                for s in &block.body {
+                    check_stmt_recursive(s, exception_name, named_source, lint_errors);
+                }
+            }
+            Statement::IfStatement(if_stmt) => {
+                check_stmt_recursive(
+                    &if_stmt.consequent,
+                    exception_name,
+                    named_source,
+                    lint_errors,
+                );
+                if let Some(alt) = &if_stmt.alternate {
+                    check_stmt_recursive(alt, exception_name, named_source, lint_errors);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    for stmt in &catch_body.body {
+        check_stmt_recursive(stmt, exception_name, named_source, lint_errors);
+    }
+}
+
+/// Check for unsafe negation in relational expressions
+fn check_unsafe_negation(
+    bin_expr: &oxc_ast::ast::BinaryExpression,
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+    lint_config: &LintConfig,
+) {
+    if !is_rule_enabled("no-unsafe-negation", lint_config) {
+        return;
+    }
+
+    // Check if this is a relational operator (in, instanceof)
+    let is_relational = matches!(
+        bin_expr.operator,
+        oxc_ast::ast::BinaryOperator::In | oxc_ast::ast::BinaryOperator::Instanceof
+    );
+
+    if is_relational {
+        // Check if left operand is negation
+        if let Expression::UnaryExpression(unary) = &bin_expr.left
+            && unary.operator == oxc_ast::ast::UnaryOperator::LogicalNot
+        {
+            let span = SourceSpan::new(
+                (bin_expr.span.start as usize).into(),
+                bin_expr.span.size() as usize,
+            );
+            lint_errors.push(LintError::NoUnsafeNegation {
+                span,
+                source_code: named_source.clone(),
+            });
+        }
+    }
+}
+
+/// Check for const and function reassignments
+fn check_const_and_func_reassignments(
+    statements: &[Statement],
+    const_variables: &HashSet<String>,
+    function_declarations: &HashSet<String>,
+    named_source: &NamedSource<String>,
+    lint_errors: &mut Vec<LintError>,
+    lint_config: &LintConfig,
+) {
+    fn check_expression_for_const_reassign(
+        expr: &Expression,
+        const_variables: &HashSet<String>,
+        function_declarations: &HashSet<String>,
+        named_source: &NamedSource<String>,
+        lint_errors: &mut Vec<LintError>,
+        lint_config: &LintConfig,
+    ) {
+        use oxc_ast::ast::{AssignmentTarget, Expression};
+
+        match expr {
+            Expression::AssignmentExpression(assign) => {
+                if let AssignmentTarget::AssignmentTargetIdentifier(id) = &assign.left {
+                    let var_name = id.name.to_string();
+
+                    // Check for const reassignment
+                    if const_variables.contains(&var_name)
+                        && is_rule_enabled("no-const-assign", lint_config)
+                    {
+                        let span = SourceSpan::new(
+                            (id.span.start as usize).into(),
+                            id.span.size() as usize,
+                        );
+                        lint_errors.push(LintError::NoConstAssign {
+                            span,
+                            source_code: named_source.clone(),
+                            variable_name: var_name.clone(),
+                        });
+                    }
+
+                    // Check for function reassignment
+                    if function_declarations.contains(&var_name)
+                        && is_rule_enabled("no-func-assign", lint_config)
+                    {
+                        let span = SourceSpan::new(
+                            (id.span.start as usize).into(),
+                            id.span.size() as usize,
+                        );
+                        lint_errors.push(LintError::NoFuncAssign {
+                            span,
+                            source_code: named_source.clone(),
+                            function_name: var_name,
+                        });
+                    }
+                }
+
+                check_expression_for_const_reassign(
+                    &assign.right,
+                    const_variables,
+                    function_declarations,
+                    named_source,
+                    lint_errors,
+                    lint_config,
+                );
+            }
+            Expression::UpdateExpression(update) => {
+                if let oxc_ast::ast::SimpleAssignmentTarget::AssignmentTargetIdentifier(id) =
+                    &update.argument
+                {
+                    let var_name = id.name.to_string();
+
+                    if const_variables.contains(&var_name)
+                        && is_rule_enabled("no-const-assign", lint_config)
+                    {
+                        let span = SourceSpan::new(
+                            (id.span.start as usize).into(),
+                            id.span.size() as usize,
+                        );
+                        lint_errors.push(LintError::NoConstAssign {
+                            span,
+                            source_code: named_source.clone(),
+                            variable_name: var_name,
+                        });
+                    }
+                }
+            }
+            Expression::CallExpression(call) => {
+                check_expression_for_const_reassign(
+                    &call.callee,
+                    const_variables,
+                    function_declarations,
+                    named_source,
+                    lint_errors,
+                    lint_config,
+                );
+                for arg in &call.arguments {
+                    if let Some(expr) = arg.as_expression() {
+                        check_expression_for_const_reassign(
+                            expr,
+                            const_variables,
+                            function_declarations,
+                            named_source,
+                            lint_errors,
+                            lint_config,
+                        );
+                    }
+                }
+            }
+            Expression::BinaryExpression(bin) => {
+                check_expression_for_const_reassign(
+                    &bin.left,
+                    const_variables,
+                    function_declarations,
+                    named_source,
+                    lint_errors,
+                    lint_config,
+                );
+                check_expression_for_const_reassign(
+                    &bin.right,
+                    const_variables,
+                    function_declarations,
+                    named_source,
+                    lint_errors,
+                    lint_config,
+                );
+            }
+            _ => {}
+        }
+    }
+
+    fn check_statement_recursive(
+        stmt: &Statement,
+        const_variables: &HashSet<String>,
+        function_declarations: &HashSet<String>,
+        named_source: &NamedSource<String>,
+        lint_errors: &mut Vec<LintError>,
+        lint_config: &LintConfig,
+    ) {
+        match stmt {
+            Statement::ExpressionStatement(expr_stmt) => {
+                check_expression_for_const_reassign(
+                    &expr_stmt.expression,
+                    const_variables,
+                    function_declarations,
+                    named_source,
+                    lint_errors,
+                    lint_config,
+                );
+            }
+            Statement::BlockStatement(block) => {
+                for stmt in &block.body {
+                    check_statement_recursive(
+                        stmt,
+                        const_variables,
+                        function_declarations,
+                        named_source,
+                        lint_errors,
+                        lint_config,
+                    );
+                }
+            }
+            Statement::IfStatement(if_stmt) => {
+                check_statement_recursive(
+                    &if_stmt.consequent,
+                    const_variables,
+                    function_declarations,
+                    named_source,
+                    lint_errors,
+                    lint_config,
+                );
+                if let Some(alt) = &if_stmt.alternate {
+                    check_statement_recursive(
+                        alt,
+                        const_variables,
+                        function_declarations,
+                        named_source,
+                        lint_errors,
+                        lint_config,
+                    );
+                }
+            }
+            Statement::ForStatement(for_stmt) => {
+                check_statement_recursive(
+                    &for_stmt.body,
+                    const_variables,
+                    function_declarations,
+                    named_source,
+                    lint_errors,
+                    lint_config,
+                );
+            }
+            Statement::WhileStatement(while_stmt) => {
+                check_statement_recursive(
+                    &while_stmt.body,
+                    const_variables,
+                    function_declarations,
+                    named_source,
+                    lint_errors,
+                    lint_config,
+                );
+            }
+            _ => {}
+        }
+    }
+
+    for stmt in statements {
+        check_statement_recursive(
+            stmt,
+            const_variables,
+            function_declarations,
+            named_source,
+            lint_errors,
+            lint_config,
+        );
     }
 }
 
@@ -904,6 +2013,9 @@ pub fn lint_file_content_with_config(
     let source_name = path.display().to_string();
     let named_source = NamedSource::new(source_name.clone(), content.to_string());
 
+    // Check for unreachable code at program level
+    check_unreachable_code(&program.body, &named_source, &mut lint_errors, lint_config);
+
     for stmt in &program.body {
         check_statement_for_expressions(
             stmt,
@@ -1031,10 +2143,25 @@ pub fn lint_file_content_with_config(
 
     let semantic = SemanticBuilder::new().build(program);
     let scoping = semantic.semantic.scoping();
+
+    // Collect const and function declarations
+    let mut const_variables = HashSet::new();
+    let mut function_declarations = HashSet::new();
+
     for symbol_id in scoping.symbol_ids() {
         let flags = scoping.symbol_flags(symbol_id);
         let name = scoping.symbol_name(symbol_id);
         let symbol_span = scoping.symbol_span(symbol_id);
+
+        // Track const variables
+        if flags.contains(SymbolFlags::ConstVariable) {
+            const_variables.insert(name.to_string());
+        }
+
+        // Track function declarations
+        if flags.contains(SymbolFlags::Function) {
+            function_declarations.insert(name.to_string());
+        }
 
         if flags.intersects(
             SymbolFlags::BlockScopedVariable
@@ -1056,6 +2183,16 @@ pub fn lint_file_content_with_config(
             });
         }
     }
+
+    // Check for const reassignments and function reassignments
+    check_const_and_func_reassignments(
+        &program.body,
+        &const_variables,
+        &function_declarations,
+        &named_source,
+        &mut lint_errors,
+        lint_config,
+    );
 
     Ok(lint_errors)
 }
