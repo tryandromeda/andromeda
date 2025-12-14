@@ -1,20 +1,89 @@
-name: Build and Release Andromeda
+name: CI
 
 on:
-  workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.ref_name != 'main' }}
+
+env:
+  CARGO_TERM_COLOR: always
 
 permissions:
   contents: write
 
 jobs:
+  typos:
+    name: Spellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Spell check
+        uses: crate-ci/typos@master
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly-2025-09-05
+          components: rustfmt, clippy, llvm-tools-preview, rustc-dev
+      - name: Cache on ${{ github.ref_name }}
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: warm
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Clippy
+        run: |
+          cargo +nightly-2025-09-05 clippy --all-targets -- -D warnings
+          cargo +nightly-2025-09-05 clippy --all-targets --all-features -- -D warnings
+
+  test:
+    name: Build & Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          [
+            "macos-14",
+            "macos-latest",
+            "ubuntu-24.04",
+            "ubuntu-latest",
+            "windows-latest",
+          ]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oxc-project/setup-rust@cd82e1efec7fef815e2c23d296756f31c7cdc03d # v1.0.0
+        with:
+          cache-key: warm
+          save-cache: ${{ github.ref_name == 'main' }}
+      - name: Check
+        run: cargo check --all-targets
+      - name: Build
+        run: cargo build --tests --bins --examples
+      - name: Test
+        run: cargo test
+        env:
+          RUST_BACKTRACE: 1
+
   build:
     name: Build ${{ matrix.asset-name }}
     runs-on: ${{ matrix.os }}
-    continue-on-error: true # Don't fail the entire workflow if one target fails
+    continue-on-error: true
+    if: github.ref == 'refs/heads/main'
     strategy:
-      fail-fast: false # Continue with other builds even if one fails
+      fail-fast: false
       matrix:
         include:
           # Linux (x86_64)
@@ -24,20 +93,20 @@ jobs:
             installer-name: andromeda-installer-linux-amd64
 
           # Linux (ARM64) - cross-compilation
-          # - os: ubuntu-24.04
-          #   rust-target: aarch64-unknown-linux-gnu
-          #   asset-name: andromeda-linux-arm64
-          #   installer-name: andromeda-installer-linux-arm64
-          #   cross-compile: true
+          - os: ubuntu-24.04
+            rust-target: aarch64-unknown-linux-gnu
+            asset-name: andromeda-linux-arm64
+            installer-name: andromeda-installer-linux-arm64
+            cross-compile: true
 
           # macOS (Intel)
-          - os: macos-13
+          - os: macos-15-intel
             rust-target: x86_64-apple-darwin
             asset-name: andromeda-macos-amd64
             installer-name: andromeda-installer-macos-amd64
 
           # macOS (Apple Silicon/ARM)
-          - os: macos-14
+          - os: macos-latest
             rust-target: aarch64-apple-darwin
             asset-name: andromeda-macos-arm64
             installer-name: andromeda-installer-macos-arm64
@@ -63,34 +132,30 @@ jobs:
           toolchain: "nightly-2025-09-05"
           targets: ${{ matrix.rust-target }}
 
-      # - name: Install cross-compilation dependencies
-      # if: matrix.cross-compile
-      # run: |
-      #   sudo apt-get update
-      #   sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross pkg-config
+      - name: Install cross-compilation dependencies
+        if: matrix.cross-compile
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross pkg-config
 
       - name: Build
-        continue-on-error: true # Allow individual builds to fail
+        continue-on-error: true
         run: cargo build --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
         env:
-          # Cross-compilation environment variables
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
-          # PKG_CONFIG settings for cross-compilation
           PKG_CONFIG_ALLOW_CROSS: 1
 
       - name: Build installer
-        continue-on-error: true # Allow individual builds to fail
+        continue-on-error: true
         run: cargo build --bin andromeda-installer --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
         env:
-          # Cross-compilation environment variables
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
-          # PKG_CONFIG settings for cross-compilation
           PKG_CONFIG_ALLOW_CROSS: 1
 
       - name: Build satellites
-        continue-on-error: true # Allow individual builds to fail
+        continue-on-error: true
         run: |
           cargo build --bin andromeda-run --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
           cargo build --bin andromeda-compile --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
@@ -99,10 +164,8 @@ jobs:
           cargo build --bin andromeda-check --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
           cargo build --bin andromeda-bundle --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
         env:
-          # Cross-compilation environment variables
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
-          # PKG_CONFIG settings for cross-compilation
           PKG_CONFIG_ALLOW_CROSS: 1
 
       - name: Prepare binaries
@@ -144,14 +207,14 @@ jobs:
 
       - name: Upload Main Binary as Artifact
         uses: actions/upload-artifact@v4
-        if: success() # Only upload if binary was prepared successfully
+        if: success()
         with:
           name: ${{ matrix.asset-name }}
           path: target/${{ matrix.rust-target }}/release/${{ matrix.asset-name }}
 
       - name: Upload Installer Binary as Artifact
         uses: actions/upload-artifact@v4
-        if: success() # Only upload if installer was prepared successfully
+        if: success()
         with:
           name: ${{ matrix.installer-name }}
           path: target/${{ matrix.rust-target }}/release/${{ matrix.installer-name }}
@@ -224,5 +287,3 @@ jobs:
             - Linux (x86_64, ARM64)
             - macOS (Intel, Apple Silicon)
             - Windows (x86_64, ARM64)
-
-            See [SATELLITES.md](https://github.com/tryandromeda/andromeda/blob/main/cli/SATELLITES.md) for detailed satellite documentation.
