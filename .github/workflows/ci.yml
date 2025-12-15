@@ -100,7 +100,7 @@ jobs:
             cross-compile: true
 
           # macOS (Intel)
-          - os: macos-15-large
+          - os: macos-15-intel
             rust-target: x86_64-apple-darwin
             asset-name: andromeda-macos-amd64
             installer-name: andromeda-installer-macos-amd64
