@@ -7,7 +7,7 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.0"
+version = "0.1.1"
 
 [workspace.dependencies]
 andromeda-core = { path = "core" }
