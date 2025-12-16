@@ -62,6 +62,9 @@ enum Command {
         #[arg(short, long)]
         no_strict: bool,
 
+        #[arg(short, long)]
+        watch: bool,
+
         /// The files to run
         #[arg(required = true)]
         paths: Vec<String>,
@@ -229,25 +232,26 @@ fn run_main() -> Result<()> {
     // Check if this is currently a single-file executable
     if let Ok(Some(js)) = find_section(ANDROMEDA_JS_CODE_SECTION) {
         // Try to load embedded config, fall back to defaults if not found
-        let (verbose, no_strict) = match find_section(ANDROMEDA_CONFIG_SECTION) {
+        let (verbose, no_strict, watch) = match find_section(ANDROMEDA_CONFIG_SECTION) {
             Ok(Some(config_bytes)) => {
                 match serde_json::from_slice::<EmbeddedConfig>(config_bytes) {
-                    Ok(config) => (config.verbose, config.no_strict),
+                    Ok(config) => (config.verbose, config.no_strict, false),
                     Err(_) => {
                         // If config is corrupted or in old format, use defaults
-                        (false, false)
+                        (false, false, false)
                     }
                 }
             }
             _ => {
                 // No config section found (old binary format), use defaults
-                (false, false)
+                (false, false, false)
             }
         };
 
         return run(
             verbose,
             no_strict,
+            watch,
             vec![RuntimeFile::Embedded {
                 path: String::from("internal"),
                 content: js,
@@ -277,6 +281,7 @@ fn run_main() -> Result<()> {
             command: Command::Run {
                 verbose: false,
                 no_strict: false,
+                watch: false,
                 paths: vec![raw_args[0].clone()],
             },
         }
@@ -302,13 +307,14 @@ fn run_main() -> Result<()> {
             Command::Run {
                 verbose,
                 no_strict,
+                watch,
                 paths,
             } => {
                 let runtime_files: Vec<RuntimeFile> = paths
                     .into_iter()
                     .map(|path| RuntimeFile::Local { path })
                     .collect();
-                run(verbose, no_strict, runtime_files)
+                run(verbose, no_strict, watch, runtime_files)
             }
             Command::Compile {
                 path,

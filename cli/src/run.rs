@@ -10,11 +10,65 @@ use andromeda_core::{
 use andromeda_runtime::{
     recommended_builtins, recommended_eventloop_handler, recommended_extensions,
 };
+use notify::Watcher;
+use std::time::Duration;
 
 #[allow(clippy::result_large_err)]
 #[cfg_attr(feature = "hotpath", hotpath::measure)]
-pub fn run(verbose: bool, no_strict: bool, files: Vec<RuntimeFile>) -> Result<()> {
-    create_runtime_files(verbose, no_strict, files, None)
+pub fn run(verbose: bool, no_strict: bool, watch: bool, files: Vec<RuntimeFile>) -> Result<()> {
+    if watch {
+        // get the directories of all local files
+        let directories: Vec<std::path::PathBuf> = files
+            .iter()
+            .filter_map(|file| {
+                if let RuntimeFile::Local { path } = file {
+                    std::path::Path::new(path).parent().map(|p| p.to_path_buf())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        watch_and_run(verbose, no_strict, files, directories)
+    } else {
+        create_runtime_files(verbose, no_strict, files, None)
+    }
+}
+
+fn watch_and_run(
+    verbose: bool,
+    no_strict: bool,
+    files: Vec<RuntimeFile>,
+    directories: Vec<std::path::PathBuf>,
+) -> Result<()> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let mut watcher = notify::recommended_watcher(tx).unwrap();
+
+    for dir in &directories {
+        watcher
+            .watch(dir, notify::RecursiveMode::Recursive)
+            .unwrap();
+    }
+
+    create_runtime_files(verbose, no_strict, files.clone(), None)?;
+
+    let debounce = Duration::from_millis(300);
+    loop {
+        // Wait for the first event (blocking)
+        match rx.recv() {
+            Ok(_event) => {
+                // Now, collect any additional events that arrive within the debounce window
+                while rx.recv_timeout(debounce).is_ok() {
+                    // Just drain events within debounce window
+                }
+                // After debounce window, trigger the action
+                create_runtime_files(verbose, no_strict, files.clone(), None)?;
+            }
+            Err(_e) => {
+                break;
+            }
+        }
+    }
+    Ok(())
 }
 
 #[allow(clippy::result_large_err)]
