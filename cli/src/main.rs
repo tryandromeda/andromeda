@@ -54,7 +54,7 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Runs a file or files
+    /// Runs a single file
     Run {
         #[arg(short, long)]
         verbose: bool,
@@ -62,9 +62,13 @@ enum Command {
         #[arg(short, long)]
         no_strict: bool,
 
-        /// The files to run
+        /// The file to run
         #[arg(required = true)]
-        paths: Vec<String>,
+        path: String,
+
+        /// Additional arguments (ignored by CLI, passed to Andromeda runtime)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
     },
 
     /// Compiles a js file into a single-file executable
@@ -271,13 +275,15 @@ fn run_main() -> Result<()> {
                 disable_gc: false,
             },
         }
-    } else if raw_args.len() == 1 && raw_args[0].ends_with(".ts") {
-        // If a single .ts file is provided, alias to `run file.ts`
+    } else if !raw_args.is_empty() && raw_args[0].ends_with(".ts") {
+        let path = raw_args[0].clone();
+        let args = raw_args[1..].to_vec();
         Cli {
             command: Command::Run {
                 verbose: false,
                 no_strict: false,
-                paths: vec![raw_args[0].clone()],
+                path,
+                args,
             },
         }
     } else {
@@ -302,13 +308,11 @@ fn run_main() -> Result<()> {
             Command::Run {
                 verbose,
                 no_strict,
-                paths,
+                path,
+                args: _,
             } => {
-                let runtime_files: Vec<RuntimeFile> = paths
-                    .into_iter()
-                    .map(|path| RuntimeFile::Local { path })
-                    .collect();
-                run(verbose, no_strict, runtime_files)
+                let runtime_file = RuntimeFile::Local { path };
+                run(verbose, no_strict, vec![runtime_file])
             }
             Command::Compile {
                 path,
