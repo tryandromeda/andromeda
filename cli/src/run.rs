@@ -11,6 +11,10 @@ use andromeda_runtime::{
     recommended_builtins, recommended_eventloop_handler, recommended_extensions,
 };
 
+/// Run a single Andromeda file
+///
+/// Note: While this function accepts a Vec<RuntimeFile> for internal flexibility,
+/// the CLI interface only passes a single file.
 #[allow(clippy::result_large_err)]
 #[cfg_attr(feature = "hotpath", hotpath::measure)]
 pub fn run(verbose: bool, no_strict: bool, files: Vec<RuntimeFile>) -> Result<()> {
