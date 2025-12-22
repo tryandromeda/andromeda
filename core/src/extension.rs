@@ -51,7 +51,7 @@ pub struct Extension {
     pub files: Vec<&'static str>,
 }
 
-#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
+#[hotpath::measure_all]
 impl Extension {
     pub(crate) fn load<UserMacroTask: 'static>(
         &mut self,

@@ -13,12 +13,8 @@ crypto = ["dep:ring", "dep:rand"]
 storage = ["dep:rusqlite"]
 virtualfs = ["storage"]
 serve = []
-hotpath = ["dep:hotpath", "hotpath/hotpath", "andromeda-core/hotpath"]
-hotpath-alloc-bytes-total = ["hotpath/hotpath-alloc-bytes-total"]
-hotpath-alloc-count-total = ["hotpath/hotpath-alloc-count-total"]
-hotpath-alloc-self = ["hotpath/hotpath-alloc-self"]
-hotpath-off = ["hotpath/hotpath-off"]
-hotpath-ci = ["hotpath/hotpath-ci"]
+hotpath = ["hotpath/hotpath", "andromeda-core/hotpath"]
+hotpath-alloc = ["hotpath/hotpath-alloc"]
 typescript = ["nova_vm/typescript"]
 annex-b = ["nova_vm/annex-b"]
 proposals = ["nova_vm/proposals"]
@@ -71,4 +67,4 @@ tokio-rustls.workspace = true
 webpki-roots.workspace = true
 rustls-pemfile.workspace = true
 rustls-pki-types.workspace = true
-hotpath = { workspace = true, optional = true }
+hotpath = { workspace = true }

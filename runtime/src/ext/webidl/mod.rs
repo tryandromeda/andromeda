@@ -8,7 +8,7 @@ use andromeda_core::Extension;
 pub struct WebIDLExt;
 
 impl WebIDLExt {
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
+    #[hotpath::measure]
     pub fn new_extension() -> Extension {
         Extension {
             name: "webidl",

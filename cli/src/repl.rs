@@ -55,7 +55,7 @@ fn handle_runtime_error_with_message(error_message: String) {
 }
 
 #[allow(clippy::result_large_err)]
-#[cfg_attr(feature = "hotpath", hotpath::measure)]
+#[hotpath::measure]
 pub fn run_repl_with_config(
     expose_internals: bool,
     print_internals: bool,

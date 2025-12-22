@@ -55,7 +55,7 @@ fn resolve_path(path: &str) -> std::io::Result<std::path::PathBuf> {
     }
 }
 
-#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
+#[hotpath::measure_all]
 impl FsExt {
     pub fn new_extension() -> Extension {
         Extension {

@@ -16,13 +16,13 @@ use andromeda_runtime::{
 /// Note: While this function accepts a Vec<RuntimeFile> for internal flexibility,
 /// the CLI interface only passes a single file.
 #[allow(clippy::result_large_err)]
-#[cfg_attr(feature = "hotpath", hotpath::measure)]
+#[hotpath::measure]
 pub fn run(verbose: bool, no_strict: bool, files: Vec<RuntimeFile>) -> Result<()> {
     create_runtime_files(verbose, no_strict, files, None)
 }
 
 #[allow(clippy::result_large_err)]
-#[cfg_attr(feature = "hotpath", hotpath::measure)]
+#[hotpath::measure]
 pub fn create_runtime_files(
     verbose: bool,
     no_strict: bool,

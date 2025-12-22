@@ -22,7 +22,7 @@ pub use subtle::{CryptoExtResources, SimpleCryptoKey, SubtleCrypto};
 #[derive(Default)]
 pub struct CryptoExt;
 
-#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
+#[hotpath::measure_all]
 impl CryptoExt {
     pub fn new_extension() -> Extension {
         Extension {

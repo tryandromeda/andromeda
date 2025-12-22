@@ -388,7 +388,7 @@ impl Default for HttpModuleLoader {
     }
 }
 
-#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
+#[hotpath::measure_all]
 impl ModuleLoader for HttpModuleLoader {
     fn load_module(&self, specifier: &str) -> ModuleResult<String> {
         // Check cache first
@@ -1099,7 +1099,7 @@ impl ModuleSystemStats {
     }
 }
 
-#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
+#[hotpath::measure_all]
 impl ModuleSystem {
     /// Create a new module system with the given loader
     pub fn new(loader: Box<dyn ModuleLoader>) -> Self {

@@ -18,7 +18,7 @@ pub struct EmbeddedConfig {
 }
 
 #[allow(clippy::result_large_err)]
-#[cfg_attr(feature = "hotpath", hotpath::measure)]
+#[hotpath::measure]
 pub fn compile(
     result_name: &Path,
     input_file: &Path,

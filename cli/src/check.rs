@@ -588,7 +588,7 @@ fn extract_type_mismatch_info(error_message: &str) -> (Option<String>, Option<St
 
 /// Type check multiple files
 #[allow(clippy::result_large_err)]
-#[cfg_attr(feature = "hotpath", hotpath::measure)]
+#[hotpath::measure]
 pub fn check_files_with_config(
     paths: &[PathBuf],
     config_override: Option<AndromedaConfig>,

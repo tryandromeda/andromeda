@@ -26,7 +26,7 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
 
       - name: Install hotpath CLI
-        run: cargo install hotpath
+        run: cargo install hotpath --bin hotpath-ci --features=ci
 
       - name: Post PR comment - timing mode
         env:
@@ -36,7 +36,7 @@ jobs:
           HEAD_METRICS=$(cat /tmp/metrics/head_timing.json)
           BASE_METRICS=$(cat /tmp/metrics/base_timing.json)
           PR_NUMBER=$(cat /tmp/metrics/pr_number.txt)
-          hotpath profile-pr \
+          hotpath-ci profile-pr \
             --head-metrics "$HEAD_METRICS" \
             --base-metrics "$BASE_METRICS" \
             --github-token "$GH_TOKEN" \

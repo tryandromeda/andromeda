@@ -137,7 +137,7 @@ pub enum FormatResult {
 
 /// Formats a JavaScript, TypeScript, or JSON file using dprint.
 #[allow(clippy::result_large_err)]
-#[cfg_attr(feature = "hotpath", hotpath::measure)]
+#[hotpath::measure]
 pub fn format_file(path: &PathBuf) -> Result<FormatResult> {
     format_file_with_config(path, None)
 }

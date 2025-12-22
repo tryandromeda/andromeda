@@ -444,7 +444,7 @@ pub struct WebLocksResources {
 pub struct WebLocksExt;
 
 impl WebLocksExt {
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
+    #[hotpath::measure]
     pub fn new_extension() -> Extension {
         Extension {
             name: "weblocks",

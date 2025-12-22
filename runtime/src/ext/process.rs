@@ -31,7 +31,7 @@ struct ProcessExtResources {
 #[derive(Default)]
 pub struct ProcessExt;
 
-#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
+#[hotpath::measure_all]
 impl ProcessExt {
     pub fn new_extension() -> Extension {
         Extension {

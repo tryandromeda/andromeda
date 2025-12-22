@@ -203,7 +203,7 @@ where
 #[derive(Default)]
 pub struct VirtualFsExt;
 
-#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
+#[hotpath::measure_all]
 impl VirtualFsExt {
     pub fn new_extension() -> Extension {
         Extension {
