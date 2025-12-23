@@ -1973,7 +1973,7 @@ fn report_prefer_const_violations(
 
 /// Lint a single JS/TS file with configuration
 #[allow(clippy::result_large_err)]
-#[cfg_attr(feature = "hotpath", hotpath::measure)]
+#[hotpath::measure]
 pub fn lint_file_with_config(
     path: &PathBuf,
     config_override: Option<AndromedaConfig>,

@@ -33,7 +33,7 @@ use timeout::{Timeout, TimeoutId, TimeoutsStorage};
 pub struct TimeExt;
 
 impl TimeExt {
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
+    #[hotpath::measure]
     pub fn new_extension() -> Extension {
         Extension {
             name: "time",

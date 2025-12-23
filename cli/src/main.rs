@@ -210,7 +210,7 @@ enum ConfigFileFormat {
     Yaml,
 }
 
-#[cfg_attr(feature = "hotpath", hotpath::main(percentiles = [50, 95, 99], limit = 10))]
+#[hotpath::main(percentiles = [50, 95, 99], limit = 10)]
 fn main() {
     // Initialize beautiful error reporting from CLI
     init_error_reporting();
@@ -228,7 +228,7 @@ fn main() {
 }
 
 #[allow(clippy::result_large_err)]
-#[cfg_attr(feature = "hotpath", hotpath::measure)]
+#[hotpath::measure]
 fn run_main() -> Result<()> {
     // Check if this is currently a single-file executable
     if let Ok(Some(js)) = find_section(ANDROMEDA_JS_CODE_SECTION) {

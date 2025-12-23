@@ -23,7 +23,7 @@ static TIME_ORIGIN: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
 pub struct WebExt;
 
 impl WebExt {
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
+    #[hotpath::measure]
     pub fn new_extension() -> Extension {
         Extension {
             name: "web",

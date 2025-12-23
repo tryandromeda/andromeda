@@ -178,7 +178,7 @@ fn generate_request_key(request: &CachedRequest) -> String {
 pub struct CacheStorageExt;
 
 impl CacheStorageExt {
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
+    #[hotpath::measure]
     pub fn new_extension() -> Extension {
         Extension {
             name: "cacheStorage",

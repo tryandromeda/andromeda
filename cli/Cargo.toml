@@ -10,12 +10,8 @@ readme = "../README.md"
 
 [features]
 default = []
-hotpath = ["dep:hotpath", "hotpath/hotpath","andromeda-core/hotpath", "andromeda-runtime/hotpath"]
-hotpath-alloc-bytes-total = ["hotpath/hotpath-alloc-bytes-total"]
-hotpath-alloc-count-total= ["hotpath/hotpath-alloc-count-total"]
-hotpath-alloc-self= ["hotpath/hotpath-alloc-self"]
-hotpath-off = ["hotpath/hotpath-off"]
-hotpath-ci = ["hotpath/hotpath-ci"]
+hotpath = ["hotpath/hotpath","andromeda-core/hotpath", "andromeda-runtime/hotpath"]
+hotpath-alloc = ["hotpath/hotpath-alloc"]
 
 [lib]
 name = "andromeda"
@@ -107,7 +103,7 @@ serde_json.workspace = true
 serde_yaml.workspace = true
 toml.workspace = true
 chrono.workspace = true
-hotpath = { workspace = true, optional = true }
+hotpath = { workspace = true }
 
 [dev-dependencies]
 tokio-test.workspace = true

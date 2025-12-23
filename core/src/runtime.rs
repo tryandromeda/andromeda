@@ -616,7 +616,7 @@ pub struct Runtime<UserMacroTask: 'static> {
     pub host_hooks: &'static RuntimeHostHooks<UserMacroTask>,
 }
 
-#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
+#[hotpath::measure_all]
 impl<UserMacroTask> Runtime<UserMacroTask> {
     /// Create a new [Runtime] given a [RuntimeConfig]. Use [Runtime::run] to run it.
     pub fn new(

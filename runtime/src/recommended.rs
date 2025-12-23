@@ -22,7 +22,7 @@ use crate::FsExt;
 #[cfg(feature = "virtualfs")]
 use crate::VirtualFsExt;
 
-#[cfg_attr(feature = "hotpath", hotpath::measure)]
+#[hotpath::measure]
 pub fn recommended_extensions() -> Vec<Extension> {
     vec![
         WebIDLExt::new_extension(),
@@ -63,7 +63,7 @@ pub fn recommended_builtins() -> Vec<&'static str> {
     vec![include_str!("../../namespace/mod.ts")]
 }
 
-#[cfg_attr(feature = "hotpath", hotpath::measure)]
+#[hotpath::measure]
 pub fn recommended_eventloop_handler(
     macro_task: RuntimeMacroTask,
     agent: &mut GcAgent,

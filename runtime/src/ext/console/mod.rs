@@ -27,7 +27,7 @@ pub struct ConsoleStorage {
 #[derive(Default)]
 pub struct ConsoleExt;
 
-#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
+#[hotpath::measure_all]
 impl ConsoleExt {
     pub fn new_extension() -> Extension {
         Extension {

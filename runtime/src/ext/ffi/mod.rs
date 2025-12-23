@@ -39,7 +39,7 @@ static CALLBACK_ID_COUNTER: AtomicU32 = AtomicU32::new(1);
 pub struct FfiExt;
 
 impl FfiExt {
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
+    #[hotpath::measure]
     pub fn new_extension() -> Extension {
         Extension {
             name: "ffi",

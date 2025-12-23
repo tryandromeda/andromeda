@@ -8,12 +8,8 @@ readme = "../README.md"
 
 [features]
 default = []
-hotpath = ["dep:hotpath", "hotpath/hotpath"]
-hotpath-alloc-bytes-total = ["hotpath/hotpath-alloc-bytes-total"]
-hotpath-alloc-count-total= ["hotpath/hotpath-alloc-count-total"]
-hotpath-alloc-self= ["hotpath/hotpath-alloc-self"]
-hotpath-off = ["hotpath/hotpath-off"]
-hotpath-ci = ["hotpath/hotpath-ci"]
+hotpath = ["hotpath/hotpath"]
+hotpath-alloc = ["hotpath/hotpath-alloc"]
 
 [dependencies]
 anyhow.workspace = true
@@ -32,4 +28,4 @@ url.workspace = true
 ureq.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-hotpath = { workspace = true, optional = true }
+hotpath = { workspace = true }

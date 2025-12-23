@@ -100,7 +100,7 @@ struct NetExtResources {
 #[derive(Default)]
 pub struct NetExt;
 
-#[cfg_attr(feature = "hotpath", hotpath::measure_all)]
+#[hotpath::measure_all]
 impl NetExt {
     pub fn new_extension() -> Extension {
         Extension {
@@ -623,7 +623,7 @@ impl NetExt {
     }
 
     /// TCP write operation (synchronous)
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
+    #[hotpath::measure]
     pub fn internal_tcp_write<'gc>(
         agent: &mut Agent,
         _this: Value,
