@@ -871,7 +871,13 @@ class CanvasRenderingContext2D {
    */
   strokeText(text: string, x: number, y: number, maxWidth?: number): void {
     if (maxWidth !== undefined) {
-      __andromeda__.internal_canvas_stroke_text(this.#rid, text, x, y, maxWidth);
+      __andromeda__.internal_canvas_stroke_text(
+        this.#rid,
+        text,
+        x,
+        y,
+        maxWidth,
+      );
     } else {
       __andromeda__.internal_canvas_stroke_text(this.#rid, text, x, y);
     }

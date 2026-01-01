@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["cli", "core", "runtime", "tests"]
+members = ["crates/*", "tests"]
 
 [workspace.package]
 authors = ["the Andromeda team"]
@@ -10,8 +10,8 @@ repository = "https://github.com/tryandromeda/andromeda"
 version = "0.1.1"
 
 [workspace.dependencies]
-andromeda-core = { path = "core" }
-andromeda-runtime = { path = "runtime", features = [
+andromeda-core = { path = "crates/core" }
+andromeda-runtime = { path = "crates/runtime", features = [
     "canvas",
     "crypto",
     "storage",
@@ -23,13 +23,13 @@ async-trait = "0.1.89"
 base64-simd = "0.8.0"
 chrono = { version = "0.4.42", features = ["serde"] }
 clap = { version = "4.5.53", features = ["derive"] }
-clap_complete = "4.5.61"
-console = "0.16.1"
-toml = "0.9.8"
-cosmic-text = "0.15.0"
+clap_complete = "4.5.64"
+console = "0.16.2"
+toml = "0.9.10"
+cosmic-text = "0.16.0"
 dprint-core = "0.67.4"
 dprint-plugin-typescript = "0.95.13"
-dprint-plugin-json = "0.21.0"
+dprint-plugin-json = "0.21.1"
 env_logger = "0.11.8"
 futures = "0.3.31"
 glob = "0.3.3"
