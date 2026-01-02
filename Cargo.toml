@@ -15,7 +15,7 @@ andromeda-runtime = { path = "crates/runtime", features = [
     "canvas",
     "crypto",
     "storage",
-    "serve"
+    "serve",
 ] }
 anyhow = "1.0.100"
 anymap = "0.12.1"
@@ -38,10 +38,10 @@ indexmap = "2.12.1"
 image = "0.25.9"
 lazy_static = "1.5.0"
 libloading = "0.9.0"
-libffi = "5.0.0"
-libsui = "0.12.1"
-log = "0.4.28"
-lru =  "0.16.2"
+libffi = "5.1.0"
+libsui = "0.12.5"
+log = "0.4.29"
+lru = "0.16.2"
 lsp-types = "0.97.0"
 nova_vm = { git = "https://github.com/trynova/nova", rev = "87e9118e4e25f062e1c1879281fe1770dccfe914" }
 nu-ansi-term = "0.50.3"
@@ -62,32 +62,32 @@ reedline = "0.44.0"
 regex = "1.12.2"
 rustls = "0.23.35"
 rustls-pemfile = "2.2.0"
-rustls-pki-types = "1.13.1"
+rustls-pki-types = "1.13.2"
 ring = "0.17.14"
-rusqlite = { version = "0.37.0", features = [
+rusqlite = { version = "0.38.0", features = [
     "bundled",
     "functions",
-    "load_extension"
+    "load_extension",
 ] }
 saffron = "0.1.0"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.145"
+serde_json = "1.0.148"
 serde_yaml = "0.9.34-deprecated"
 socket2 = "0.6.1"
 
 swash = "0.2.6"
 trust-dns-resolver = "0.23.2"
-signal-hook = "0.3.18"
+signal-hook = "0.4.1"
 thiserror = "2.0.17"
-tempfile = "3.23.0"
+tempfile = "3.24.0"
 tokio = { version = "1.48.0", features = ["rt", "sync", "time", "fs"] }
 tokio-rustls = "0.26.4"
 tokio-test = "0.4.4"
 tower-lsp = "0.20.0"
-ureq = { version = "3.1.2", features = ["json"] }
+ureq = { version = "3.1.4", features = ["json"] }
 url = { version = "2.5.7", features = ["serde", "expose_internals"] }
-uuid = { version = "1.18.1", features = ["v4"] }
-webpki-roots = "1.0.3"
+uuid = { version = "1.19.0", features = ["v4"] }
+webpki-roots = "1.0.4"
 wgpu = { version = "27.0.1", features = ["wgsl", "webgpu"] }
 
 [profile.release]
