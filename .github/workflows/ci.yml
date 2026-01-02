@@ -142,8 +142,8 @@ jobs:
         id: build-main
         continue-on-error: true
         run: |
-          cargo build --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
-          cargo build --bin andromeda-installer --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
+          cargo build --release --target ${{ matrix.rust-target }} --manifest-path ./crates/cli/Cargo.toml
+          cargo build --bin andromeda-installer --release --target ${{ matrix.rust-target }} --manifest-path ./crates/cli/Cargo.toml
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
@@ -155,12 +155,12 @@ jobs:
         id: build-satellites
         continue-on-error: true
         run: |
-          cargo build --bin andromeda-run --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
-          cargo build --bin andromeda-compile --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
-          cargo build --bin andromeda-fmt --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
-          cargo build --bin andromeda-lint --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
-          cargo build --bin andromeda-check --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
-          cargo build --bin andromeda-bundle --release --target ${{ matrix.rust-target }} --manifest-path ./cli/Cargo.toml
+          cargo build --bin andromeda-run --release --target ${{ matrix.rust-target }} --manifest-path ./crates/cli/Cargo.toml
+          cargo build --bin andromeda-compile --release --target ${{ matrix.rust-target }} --manifest-path ./crates/cli/Cargo.toml
+          cargo build --bin andromeda-fmt --release --target ${{ matrix.rust-target }} --manifest-path ./crates/cli/Cargo.toml
+          cargo build --bin andromeda-lint --release --target ${{ matrix.rust-target }} --manifest-path ./crates/cli/Cargo.toml
+          cargo build --bin andromeda-check --release --target ${{ matrix.rust-target }} --manifest-path ./crates/cli/Cargo.toml
+          cargo build --bin andromeda-bundle --release --target ${{ matrix.rust-target }} --manifest-path ./crates/cli/Cargo.toml
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
