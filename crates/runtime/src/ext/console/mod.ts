@@ -727,9 +727,9 @@ const andromedaConsole = {
    * ```
    */
   profile(label?: string) {
-    label = label !== undefined
-      ? webidl.converters.DOMString(label, "console.profile", "Argument 1")
-      : "";
+    label = label !== undefined ?
+      webidl.converters.DOMString(label, "console.profile", "Argument 1") :
+      "";
 
     const profileLabel = label || "Profile";
     const message = `Profile '${profileLabel}' started`;
@@ -748,13 +748,13 @@ const andromedaConsole = {
    * ```
    */
   profileEnd(label?: string) {
-    label = label !== undefined
-      ? webidl.converters.DOMString(
+    label = label !== undefined ?
+      webidl.converters.DOMString(
         label,
         "console.profileEnd",
         "Argument 1",
-      )
-      : "";
+      ) :
+      "";
 
     const profileLabel = label || "Profile";
     const message = `Profile '${profileLabel}' finished`;
@@ -775,13 +775,13 @@ const andromedaConsole = {
    * ```
    */
   timeStamp(label?: string) {
-    label = label !== undefined
-      ? webidl.converters.DOMString(
+    label = label !== undefined ?
+      webidl.converters.DOMString(
         label,
         "console.timeStamp",
         "Argument 1",
-      )
-      : "";
+      ) :
+      "";
 
     const timestamp = Date.now();
     const timestampLabel = label || "timestamp";
