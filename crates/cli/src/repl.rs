@@ -125,16 +125,17 @@ pub fn run_repl_with_config(
     let help_style = Style::new().yellow();
 
     println!(
-        "\n{}",
-        welcome_style.apply_to("🚀 Welcome to Andromeda REPL")
+        "\n{} {}",
+        welcome_style.apply_to("Andromeda"),
+        env!("CARGO_PKG_VERSION")
     );
     println!(
         "{}",
-        version_style.apply_to("   JavaScript/TypeScript Runtime powered by Nova")
+        version_style.apply_to("JavaScript/TypeScript Runtime powered by Nova")
     );
     println!(
         "{}",
-        help_style.apply_to("   Type 'help' for commands, 'exit' or Ctrl+C to quit")
+        help_style.apply_to("Type 'help' for commands, 'exit' or Ctrl+C to quit")
     );
     println!();
 
@@ -154,7 +155,6 @@ pub fn run_repl_with_config(
         let input = match sig {
             Ok(Signal::Success(buffer)) => buffer,
             Ok(Signal::CtrlD) | Ok(Signal::CtrlC) => {
-                println!("\n{}", Style::new().dim().apply_to("👋 Goodbye!"));
                 std::process::exit(0);
             }
             Err(err) => {
@@ -167,7 +167,6 @@ pub fn run_repl_with_config(
 
         match input_trimmed {
             "exit" | "quit" => {
-                println!("{}", Style::new().dim().apply_to("👋 Goodbye!"));
                 std::process::exit(0);
             }
             "help" => {
@@ -241,7 +240,7 @@ pub fn run_repl_with_config(
                         }
                         println!(
                             "{}",
-                            time_style.apply_to(format!("  ⏱️  {}ms", elapsed.as_millis()))
+                            time_style.apply_to(format!("  {}ms", elapsed.as_millis()))
                         );
                     }
                     Err(_) => {
@@ -484,7 +483,6 @@ fn show_startup_tip() {
         "const obj = { x: 1, y: 2 }",
     ];
 
-    let tip_style = Style::new().blue();
     let code_style = Style::new().yellow();
     let multiline_style = Style::new().dim();
     let random_tip = tips[std::time::SystemTime::now()
@@ -493,13 +491,8 @@ fn show_startup_tip() {
         .as_secs() as usize
         % tips.len()];
 
-    println!(
-        "{} Try: {}",
-        tip_style.apply_to("💡"),
-        code_style.apply_to(random_tip)
-    );
+    println!("Try: {}", code_style.apply_to(random_tip));
 
-    // Occasionally show multiline tip
     if std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -509,7 +502,7 @@ fn show_startup_tip() {
         println!(
             "{}",
             multiline_style.apply_to(
-                "   💭 Multiline: Start typing function/object syntax, it detects automatically!"
+                "   Multiline: Start typing function/object syntax, it detects automatically!"
             )
         );
     }
@@ -522,7 +515,7 @@ fn print_help() {
     let command_style = Style::new().yellow();
     let desc_style = Style::new().dim();
 
-    println!("{}", help_style.apply_to("📚 Available Commands:"));
+    println!("{}", help_style.apply_to("Available Commands:"));
     println!(
         "  {}  {}",
         command_style.apply_to("help"),
@@ -549,7 +542,7 @@ fn print_help() {
         desc_style.apply_to("Run garbage collection")
     );
     println!();
-    println!("{}", help_style.apply_to("🔧 Multiline Support:"));
+    println!("{}", help_style.apply_to("Multiline Support:"));
     println!(
         "  • {} {}",
         command_style.apply_to("Auto-detection:"),
@@ -569,7 +562,7 @@ fn print_help() {
     println!(
         "{}",
         desc_style
-            .apply_to("💡 Tip: Use arrow keys to navigate history, syntax highlighting included!")
+            .apply_to("Tip: Use arrow keys to navigate history, syntax highlighting included!")
     );
     println!();
 }
@@ -580,14 +573,11 @@ fn print_history(history: &[String]) {
     let command_style = Style::new().bright();
 
     if history.is_empty() {
-        println!(
-            "{}",
-            Style::new().dim().apply_to("📝 No command history yet")
-        );
+        println!("{}", Style::new().dim().apply_to("No command history yet"));
         return;
     }
 
-    println!("{}", history_style.apply_to("📝 Command History:"));
+    println!("{}", history_style.apply_to("Command History:"));
     for (i, cmd) in history.iter().enumerate().rev().take(20) {
         println!(
             "  {} {}",
