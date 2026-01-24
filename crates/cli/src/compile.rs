@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::error::{AndromedaError, Result, read_file_with_context};
+use crate::error::{CliError, CliResult, read_file_with_context};
 use libsui::{Elf, Macho, PortableExecutable};
 use serde::{Deserialize, Serialize};
 use std::{env::current_exe, fs::File, path::Path};
@@ -24,10 +24,10 @@ pub fn compile(
     input_file: &Path,
     verbose: bool,
     no_strict: bool,
-) -> Result<()> {
+) -> CliResult<()> {
     // Validate input file exists and is readable
     if !input_file.exists() {
-        return Err(AndromedaError::file_not_found(
+        return Err(CliError::file_not_found(
             input_file.to_path_buf(),
             std::io::Error::new(std::io::ErrorKind::NotFound, "Input file not found"),
         ));
@@ -38,7 +38,7 @@ pub fn compile(
 
     // Validate JS content is not empty
     if js_content.trim().is_empty() {
-        return Err(AndromedaError::invalid_argument(
+        return Err(CliError::invalid_argument(
             "input_file".to_string(),
             "non-empty JavaScript/TypeScript file".to_string(),
             "empty file".to_string(),
@@ -47,22 +47,22 @@ pub fn compile(
 
     // Get current executable
     let exe_path = current_exe().map_err(|e| {
-        AndromedaError::config_error(
+        CliError::config_error(
             "Failed to get current executable path".to_string(),
             None,
             Some(Box::new(e)),
         )
     })?;
 
-    let exe = std::fs::read(&exe_path)
-        .map_err(|e| AndromedaError::file_read_error(exe_path.clone(), e))?;
+    let exe =
+        std::fs::read(&exe_path).map_err(|e| CliError::file_read_error(exe_path.clone(), e))?;
 
     let js = js_content.into_bytes();
 
     // Create embedded config
     let config = EmbeddedConfig { verbose, no_strict };
     let config_json = serde_json::to_vec(&config).map_err(|e| {
-        AndromedaError::config_error(
+        CliError::config_error(
             "Failed to serialize embedded config".to_string(),
             None,
             Some(Box::new(e)),
@@ -74,7 +74,7 @@ pub fn compile(
         && !parent.exists()
     {
         std::fs::create_dir_all(parent).map_err(|e| {
-            AndromedaError::permission_denied(
+            CliError::permission_denied(
                 format!("creating output directory {}", parent.display()),
                 Some(parent.to_path_buf()),
                 e,
@@ -83,7 +83,7 @@ pub fn compile(
     }
 
     let mut out = File::create(result_name).map_err(|e| {
-        AndromedaError::permission_denied(
+        CliError::permission_denied(
             format!("creating output file {}", result_name.display()),
             Some(result_name.to_path_buf()),
             e,
@@ -97,7 +97,7 @@ pub fn compile(
             // First pass: write JS code section
             Macho::from(exe)
                 .map_err(|e| {
-                    AndromedaError::compile_error(
+                    CliError::compile_error(
                         "Failed to parse macOS executable".to_string(),
                         input_file.to_path_buf(),
                         result_name.to_path_buf(),
@@ -106,7 +106,7 @@ pub fn compile(
                 })?
                 .write_section(ANDROMEDA_JS_CODE_SECTION, js)
                 .map_err(|e| {
-                    AndromedaError::compile_error(
+                    CliError::compile_error(
                         "Failed to write JavaScript section to macOS executable".to_string(),
                         input_file.to_path_buf(),
                         result_name.to_path_buf(),
@@ -115,7 +115,7 @@ pub fn compile(
                 })?
                 .build_and_sign(&mut out)
                 .map_err(|e| {
-                    AndromedaError::compile_error(
+                    CliError::compile_error(
                         "Failed to build and sign macOS executable (first pass)".to_string(),
                         input_file.to_path_buf(),
                         result_name.to_path_buf(),
@@ -125,9 +125,9 @@ pub fn compile(
 
             // Second pass: re-read and add config section
             let exe_with_js = std::fs::read(result_name)
-                .map_err(|e| AndromedaError::file_read_error(result_name.to_path_buf(), e))?;
+                .map_err(|e| CliError::file_read_error(result_name.to_path_buf(), e))?;
             let mut out = File::create(result_name).map_err(|e| {
-                AndromedaError::permission_denied(
+                CliError::permission_denied(
                     format!("creating output file {}", result_name.display()),
                     Some(result_name.to_path_buf()),
                     e,
@@ -135,7 +135,7 @@ pub fn compile(
             })?;
             Macho::from(exe_with_js)
                 .map_err(|e| {
-                    AndromedaError::compile_error(
+                    CliError::compile_error(
                         "Failed to parse macOS executable (second pass)".to_string(),
                         input_file.to_path_buf(),
                         result_name.to_path_buf(),
@@ -144,7 +144,7 @@ pub fn compile(
                 })?
                 .write_section(ANDROMEDA_CONFIG_SECTION, config_json)
                 .map_err(|e| {
-                    AndromedaError::compile_error(
+                    CliError::compile_error(
                         "Failed to write config section to macOS executable".to_string(),
                         input_file.to_path_buf(),
                         result_name.to_path_buf(),
@@ -153,7 +153,7 @@ pub fn compile(
                 })?
                 .build_and_sign(&mut out)
                 .map_err(|e| {
-                    AndromedaError::compile_error(
+                    CliError::compile_error(
                         "Failed to build and sign macOS executable (second pass)".to_string(),
                         input_file.to_path_buf(),
                         result_name.to_path_buf(),
@@ -165,7 +165,7 @@ pub fn compile(
             let elf = Elf::new(&exe);
             elf.append(ANDROMEDA_JS_CODE_SECTION, &js, &mut out)
                 .map_err(|e| {
-                    AndromedaError::compile_error(
+                    CliError::compile_error(
                         "Failed to append JavaScript section to Linux executable".to_string(),
                         input_file.to_path_buf(),
                         result_name.to_path_buf(),
@@ -175,9 +175,9 @@ pub fn compile(
             // Note: libsui's Elf doesn't support multiple appends in sequence
             // We need to re-read the file and append the config section
             let exe_with_js = std::fs::read(result_name)
-                .map_err(|e| AndromedaError::file_read_error(result_name.to_path_buf(), e))?;
+                .map_err(|e| CliError::file_read_error(result_name.to_path_buf(), e))?;
             let mut out = File::create(result_name).map_err(|e| {
-                AndromedaError::permission_denied(
+                CliError::permission_denied(
                     format!("creating output file {}", result_name.display()),
                     Some(result_name.to_path_buf()),
                     e,
@@ -186,7 +186,7 @@ pub fn compile(
             Elf::new(&exe_with_js)
                 .append(ANDROMEDA_CONFIG_SECTION, &config_json, &mut out)
                 .map_err(|e| {
-                    AndromedaError::compile_error(
+                    CliError::compile_error(
                         "Failed to append config section to Linux executable".to_string(),
                         input_file.to_path_buf(),
                         result_name.to_path_buf(),
@@ -197,7 +197,7 @@ pub fn compile(
         "windows" => {
             PortableExecutable::from(&exe)
                 .map_err(|e| {
-                    AndromedaError::compile_error(
+                    CliError::compile_error(
                         "Failed to parse Windows executable".to_string(),
                         input_file.to_path_buf(),
                         result_name.to_path_buf(),
@@ -206,7 +206,7 @@ pub fn compile(
                 })?
                 .write_resource(ANDROMEDA_JS_CODE_SECTION, js)
                 .map_err(|e| {
-                    AndromedaError::compile_error(
+                    CliError::compile_error(
                         "Failed to write JavaScript resource to Windows executable".to_string(),
                         input_file.to_path_buf(),
                         result_name.to_path_buf(),
@@ -215,7 +215,7 @@ pub fn compile(
                 })?
                 .write_resource(ANDROMEDA_CONFIG_SECTION, config_json)
                 .map_err(|e| {
-                    AndromedaError::compile_error(
+                    CliError::compile_error(
                         "Failed to write config resource to Windows executable".to_string(),
                         input_file.to_path_buf(),
                         result_name.to_path_buf(),
@@ -224,7 +224,7 @@ pub fn compile(
                 })?
                 .build(&mut out)
                 .map_err(|e| {
-                    AndromedaError::compile_error(
+                    CliError::compile_error(
                         "Failed to build Windows executable".to_string(),
                         input_file.to_path_buf(),
                         result_name.to_path_buf(),
@@ -233,7 +233,7 @@ pub fn compile(
                 })?;
         }
         _ => {
-            return Err(AndromedaError::unsupported_platform(os.to_string()));
+            return Err(CliError::unsupported_platform(os.to_string()));
         }
     }
 
@@ -245,7 +245,7 @@ pub fn compile(
 
         if matches!(os, "macos" | "linux") {
             let metadata = metadata(result_name).map_err(|e| {
-                AndromedaError::permission_denied(
+                CliError::permission_denied(
                     format!("reading permissions for {}", result_name.display()),
                     Some(result_name.to_path_buf()),
                     e,
@@ -254,7 +254,7 @@ pub fn compile(
             let mut perms = metadata.permissions();
             perms.set_mode(0o755); // rwxr-xr-x permissions
             set_permissions(result_name, perms).map_err(|e| {
-                AndromedaError::permission_denied(
+                CliError::permission_denied(
                     format!(
                         "setting executable permissions for {}",
                         result_name.display()

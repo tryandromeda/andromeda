@@ -8,22 +8,14 @@ pub mod diagnostic_converter;
 pub mod options;
 pub mod server;
 
-use crate::error::Result;
+use crate::error::{CliError, CliResult};
 use server::run_server;
 
 /// Start the LSP server
 #[allow(clippy::result_large_err)]
-pub fn run_lsp_server() -> Result<()> {
+pub fn run_lsp_server() -> CliResult<()> {
     env_logger::init();
     log::info!("Starting Andromeda Language Server");
 
-    run_server().map_err(|e| {
-        crate::error::AndromedaError::runtime_error(
-            format!("LSP server failed: {e}"),
-            None,
-            None,
-            None,
-            None,
-        )
-    })
+    run_server().map_err(|e| CliError::runtime_error_simple(format!("LSP server failed: {e}")))
 }

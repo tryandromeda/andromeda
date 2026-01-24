@@ -1,6 +1,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 // If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+#![allow(clippy::result_large_err)]
+
 use andromeda::{CliError, CliResult};
 use clap::{Args, Parser as ClapParser, Subcommand};
 use serde::Deserialize;
@@ -125,7 +127,8 @@ fn install_andromeda(args: InstallArgs) -> CliResult<()> {
     // Create installation directory
     if !install_dir.exists() {
         print_info("Creating installation directory...");
-        fs::create_dir_all(&install_dir).map_err(CliError::Io)?;
+        fs::create_dir_all(&install_dir)
+            .map_err(|e| CliError::runtime_error_simple(format!("IO error: {}", e)))?;
     }
 
     // Check if already installed
@@ -173,7 +176,8 @@ fn install_andromeda(args: InstallArgs) -> CliResult<()> {
 
     // Install binary
     print_info("Installing binary...");
-    fs::write(&binary_path, binary_data).map_err(CliError::Io)?;
+    fs::write(&binary_path, binary_data)
+        .map_err(|e| CliError::runtime_error_simple(format!("IO error: {}", e)))?;
 
     print_success(&format!(
         "Andromeda installed to: {}",
@@ -227,12 +231,13 @@ fn get_latest_version(verbose: bool) -> CliResult<String> {
             &format!("andromeda-installer/{}", env!("CARGO_PKG_VERSION")),
         )
         .call()
-        .map_err(|e| CliError::TestExecution(format!("Failed to fetch release info: {e}")))?;
+        .map_err(|e| {
+            CliError::runtime_error_simple(format!("Failed to fetch release info: {e}"))
+        })?;
 
-    let release: GitHubRelease = response
-        .body_mut()
-        .read_json()
-        .map_err(|e| CliError::TestExecution(format!("Failed to parse release info: {e}")))?;
+    let release: GitHubRelease = response.body_mut().read_json().map_err(|e| {
+        CliError::runtime_error_simple(format!("Failed to parse release info: {e}"))
+    })?;
 
     Ok(release.tag_name)
 }
@@ -249,7 +254,7 @@ fn detect_platform() -> CliResult<String> {
         ("macos", "x86_64") => "andromeda-macos-amd64",
         ("macos", "aarch64") => "andromeda-macos-arm64",
         _ => {
-            return Err(CliError::Config(format!(
+            return Err(CliError::runtime_error_simple(format!(
                 "Unsupported platform: {os} {arch}"
             )));
         }
@@ -269,14 +274,14 @@ fn download_file(url: &str, verbose: bool) -> CliResult<Vec<u8>> {
             &format!("andromeda-installer/{}", env!("CARGO_PKG_VERSION")),
         )
         .call()
-        .map_err(|e| CliError::TestExecution(format!("Failed to download file: {e}")))?;
+        .map_err(|e| CliError::runtime_error_simple(format!("Failed to download file: {e}")))?;
 
     let mut bytes = Vec::new();
     response
         .body_mut()
         .as_reader()
         .read_to_end(&mut bytes)
-        .map_err(CliError::Io)?;
+        .map_err(|e| CliError::runtime_error_simple(format!("IO error: {}", e)))?;
 
     if verbose {
         print_info(&format!("Downloaded {} bytes", bytes.len()));
@@ -371,7 +376,8 @@ fn install_satellites(satellites: Vec<String>, args: InstallArgs) -> CliResult<(
     // Create installation directory
     if !install_dir.exists() {
         print_info("Creating installation directory...");
-        fs::create_dir_all(&install_dir).map_err(CliError::Io)?;
+        fs::create_dir_all(&install_dir)
+            .map_err(|e| CliError::runtime_error_simple(format!("IO error: {}", e)))?;
     }
 
     // Parse satellite list
@@ -386,7 +392,10 @@ fn install_satellites(satellites: Vec<String>, args: InstallArgs) -> CliResult<(
                     sat,
                     AVAILABLE_SATELLITES.join("\n  - ")
                 ));
-                return Err(CliError::Config(format!("Unknown satellite: {}", sat)));
+                return Err(CliError::runtime_error_simple(format!(
+                    "Unknown satellite: {}",
+                    sat
+                )));
             }
         }
         satellites
@@ -476,8 +485,8 @@ fn install_single_satellite(
 
     // Check if already installed
     if binary_path.exists() && !args.force {
-        return Err(CliError::Config(
-            "already installed (use --force to reinstall)".to_string(),
+        return Err(CliError::runtime_error_simple(
+            "already installed (use --force to reinstall)",
         ));
     }
 
@@ -496,24 +505,26 @@ fn install_single_satellite(
     let binary_data = download_file(&download_url, args.verbose)?;
 
     // Install binary
-    fs::write(&binary_path, binary_data).map_err(CliError::Io)?;
+    fs::write(&binary_path, binary_data)
+        .map_err(|e| CliError::runtime_error_simple(format!("IO error: {}", e)))?;
 
     // Make executable on Unix systems
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         let mut perms = fs::metadata(&binary_path)
-            .map_err(CliError::Io)?
+            .map_err(|e| CliError::runtime_error_simple(format!("IO error: {}", e)))?
             .permissions();
         perms.set_mode(0o755);
-        fs::set_permissions(&binary_path, perms).map_err(CliError::Io)?;
+        fs::set_permissions(&binary_path, perms)
+            .map_err(|e| CliError::runtime_error_simple(format!("IO error: {}", e)))?;
     }
 
     // Verify installation
     if let Ok(output) = Command::new(&binary_path).arg("--version").output()
         && !output.status.success()
     {
-        return Err(CliError::Config("verification failed".to_string()));
+        return Err(CliError::runtime_error_simple("verification failed"));
     }
 
     Ok(())
@@ -531,7 +542,7 @@ fn detect_rust_target() -> CliResult<String> {
         ("macos", "x86_64") => "x86_64-apple-darwin",
         ("macos", "aarch64") => "aarch64-apple-darwin",
         _ => {
-            return Err(CliError::Config(format!(
+            return Err(CliError::runtime_error_simple(format!(
                 "Unsupported platform: {} {}",
                 os, arch
             )));

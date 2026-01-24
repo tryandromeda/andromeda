@@ -10,7 +10,7 @@ use std::{
     },
 };
 
-use crate::{AndromedaError, AndromedaResult, Rid};
+use crate::{Rid, RuntimeError, RuntimeResult};
 
 // Allow retrieving resources; requires T: Clone
 impl<T: Clone> SyncResourceTable<T> {
@@ -20,14 +20,14 @@ impl<T: Clone> SyncResourceTable<T> {
     }
 
     /// Get a clone of the resource by Rid with proper error handling.
-    pub fn get_or_error(&self, rid: Rid, operation: &str) -> AndromedaResult<T> {
+    pub fn get_or_error(&self, rid: Rid, operation: &str) -> RuntimeResult<T> {
         self.table
             .lock()
             .unwrap()
             .get(&rid)
             .cloned()
             .ok_or_else(|| {
-                Box::new(AndromedaError::resource_error(
+                Box::new(RuntimeError::resource_error(
                     rid.index(),
                     operation,
                     "Resource not found",

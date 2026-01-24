@@ -1,6 +1,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 // If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+#![allow(clippy::result_large_err)]
+
 /// Andromeda Satellite - Bundle
 ///
 /// A minimal executable focused solely on bundling and minifying JavaScript/TypeScript files.
@@ -29,7 +31,7 @@ fn main() -> CliResult<()> {
     let cli = Cli::parse();
 
     andromeda::bundle::bundle(cli.input.to_str().unwrap(), cli.output.to_str().unwrap())
-        .map_err(|e| CliError::TestExecution(format!("Bundle failed: {e}")))?;
+        .map_err(|e| CliError::runtime_error_simple(format!("Bundle failed: {e}")))?;
 
     println!("✅ Successfully bundled and minified to {:?}", cli.output);
 

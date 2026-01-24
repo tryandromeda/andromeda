@@ -8,7 +8,7 @@ use std::{
     hash::Hash,
 };
 
-use crate::{AndromedaError, AndromedaResult};
+use crate::{RuntimeError, RuntimeResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub struct Rid(u32);
@@ -31,9 +31,9 @@ impl<T: Clone> ResourceTable<T> {
     }
 
     /// Get a clone of the resource by Rid with proper error handling.
-    pub fn get_or_error(&self, rid: Rid, operation: &str) -> AndromedaResult<T> {
+    pub fn get_or_error(&self, rid: Rid, operation: &str) -> RuntimeResult<T> {
         self.table.borrow().get(&rid).cloned().ok_or_else(|| {
-            Box::new(AndromedaError::resource_error(
+            Box::new(RuntimeError::resource_error(
                 rid.index(),
                 operation,
                 "Resource not found",

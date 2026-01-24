@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use andromeda_core::{AndromedaError, ErrorReporter, Extension, ExtensionOp, HostData, OpsStorage};
+use andromeda_core::{ErrorReporter, Extension, ExtensionOp, HostData, OpsStorage, RuntimeError};
 use nova_vm::{
     ecmascript::{
         builtins::{ArgumentsList, Array},
@@ -112,7 +112,7 @@ impl ProcessExt {
             }
             Err(env::VarError::NotPresent) => Ok(Value::Undefined),
             Err(env::VarError::NotUnicode(_)) => {
-                let error = AndromedaError::encoding_error(
+                let error = RuntimeError::encoding_error(
                     "UTF-8",
                     format!("Environment variable '{key_str}' contains invalid Unicode"),
                 );
@@ -195,7 +195,7 @@ impl ProcessExt {
             .expect("String is not valid UTF-8");
         let callback = args.get(1);
         if !callback.is_function() {
-            let error = AndromedaError::runtime_error("Callback must be a function");
+            let error = RuntimeError::runtime_error("Callback must be a function");
             let error_msg = ErrorReporter::format_error(&error);
             return Ok(
                 Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -225,7 +225,7 @@ impl ProcessExt {
                     let error_msg = format!(
                         "Signal '{signal_name_str}' is not supported on Windows. Only SIGINT and SIGBREAK are supported."
                     );
-                    let error = AndromedaError::runtime_error(error_msg);
+                    let error = RuntimeError::runtime_error(error_msg);
                     let error_formatted = ErrorReporter::format_error(&error);
                     return Ok(Value::from_string(
                         agent,
@@ -237,7 +237,7 @@ impl ProcessExt {
                 #[cfg(unix)]
                 {
                     let error_msg = format!("Unsupported signal: {signal_name_str}");
-                    let error = AndromedaError::runtime_error(error_msg);
+                    let error = RuntimeError::runtime_error(error_msg);
                     let error_formatted = ErrorReporter::format_error(&error);
                     return Ok(Value::from_string(
                         agent,

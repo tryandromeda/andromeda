@@ -1,6 +1,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 // If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+#![allow(clippy::result_large_err)]
+
 /// Andromeda Satellite - Format
 ///
 /// A minimal executable focused solely on formatting JavaScript/TypeScript files.
@@ -29,7 +31,7 @@ fn main() -> CliResult<()> {
 
     let files_to_format =
         andromeda::helper::find_formattable_files_for_format(&cli.paths, &config.format)
-            .map_err(|e| CliError::TestExecution(format!("{e}")))?;
+            .map_err(|e| CliError::runtime_error_simple(format!("{e}")))?;
 
     if files_to_format.is_empty() {
         let warning = Style::new().yellow().bold().apply_to("⚠️");
@@ -49,7 +51,7 @@ fn main() -> CliResult<()> {
 
     for path in &files_to_format {
         match andromeda::format::format_file(path)
-            .map_err(|e| CliError::TestExecution(format!("{e}")))?
+            .map_err(|e| CliError::runtime_error_simple(format!("{e}")))?
         {
             andromeda::format::FormatResult::Changed => formatted_count += 1,
             andromeda::format::FormatResult::AlreadyFormatted => already_formatted_count += 1,

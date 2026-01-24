@@ -14,7 +14,7 @@ use nova_vm::{
     engine::context::{Bindable, GcScope},
 };
 
-use crate::{AndromedaError, HostData, OpsStorage, exit_with_parse_errors, print_enhanced_error};
+use crate::{HostData, OpsStorage, RuntimeError, exit_with_parse_errors, print_enhanced_error};
 
 pub type ExtensionStorageInit = Box<dyn FnOnce(&mut OpsStorage)>;
 
@@ -86,7 +86,7 @@ impl Extension {
                     .as_str(agent)
                     .unwrap_or("<non-string error>")
                     .to_string();
-                let err = AndromedaError::runtime_error(message);
+                let err = RuntimeError::runtime_error(message);
                 print_enhanced_error(&err);
             }
         }

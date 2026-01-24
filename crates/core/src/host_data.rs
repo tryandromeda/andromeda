@@ -16,7 +16,7 @@ use std::{
 use anymap::AnyMap;
 use tokio::task::JoinHandle;
 
-use crate::{AndromedaError, AndromedaResult, MacroTask, TaskId};
+use crate::{MacroTask, RuntimeError, RuntimeResult, TaskId};
 
 pub type OpsStorage = AnyMap;
 
@@ -89,11 +89,11 @@ impl<UserMacroTask> HostData<UserMacroTask> {
     }
 
     /// Abort a MacroTask execution given it's [TaskId] with proper error handling.
-    pub fn abort_macro_task_safe(&self, task_id: TaskId) -> AndromedaResult<()> {
+    pub fn abort_macro_task_safe(&self, task_id: TaskId) -> RuntimeResult<()> {
         let tasks = self.tasks.borrow();
         let task = tasks
             .get(&task_id)
-            .ok_or_else(|| AndromedaError::task_error(task_id.index(), "Task not found"))?;
+            .ok_or_else(|| RuntimeError::task_error(task_id.index(), "Task not found"))?;
         task.abort();
 
         // Manually decrease the macro tasks counter as the task was aborted.
@@ -102,11 +102,11 @@ impl<UserMacroTask> HostData<UserMacroTask> {
     }
 
     /// Clear a MacroTask given it's [TaskId] with proper error handling.
-    pub fn clear_macro_task_safe(&self, task_id: TaskId) -> AndromedaResult<()> {
+    pub fn clear_macro_task_safe(&self, task_id: TaskId) -> RuntimeResult<()> {
         self.tasks
             .borrow_mut()
             .remove(&task_id)
-            .ok_or_else(|| AndromedaError::task_error(task_id.index(), "Task not found"))?;
+            .ok_or_else(|| RuntimeError::task_error(task_id.index(), "Task not found"))?;
         Ok(())
     }
 }

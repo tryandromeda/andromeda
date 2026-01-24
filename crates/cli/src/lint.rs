@@ -57,7 +57,7 @@
 //! ```
 
 use crate::config::{AndromedaConfig, ConfigManager, LintConfig};
-use crate::error::{AndromedaError, Result};
+use crate::error::{CliError, CliResult};
 use console::Style;
 use miette as oxc_miette;
 use owo_colors::OwoColorize;
@@ -1977,9 +1977,9 @@ fn report_prefer_const_violations(
 pub fn lint_file_with_config(
     path: &PathBuf,
     config_override: Option<AndromedaConfig>,
-) -> Result<()> {
+) -> CliResult<()> {
     let content =
-        fs::read_to_string(path).map_err(|e| AndromedaError::file_read_error(path.clone(), e))?;
+        fs::read_to_string(path).map_err(|e| CliError::file_read_error(path.clone(), e))?;
 
     // Load configuration
     let config = config_override.unwrap_or_else(|| ConfigManager::load_or_default(None));
@@ -1999,7 +1999,7 @@ pub fn lint_file_content_with_config(
     path: &PathBuf,
     content: &str,
     config_override: Option<AndromedaConfig>,
-) -> Result<Vec<LintError>> {
+) -> CliResult<Vec<LintError>> {
     let allocator = Allocator::default();
     let source_type = SourceType::from_path(path).unwrap_or_default();
     let ret = Parser::new(&allocator, content, source_type).parse();

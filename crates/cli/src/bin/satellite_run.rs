@@ -1,6 +1,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 // If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+#![allow(clippy::result_large_err)]
+
 /// Andromeda Satellite - Run
 ///
 /// A minimal executable focused solely on running JavaScript/TypeScript files.
@@ -44,7 +46,7 @@ fn main() -> CliResult<()> {
         .collect();
 
     andromeda::run::run(cli.verbose, cli.no_strict, runtime_files)
-        .map_err(|e| CliError::TestExecution(format!("{e}")))?;
+        .map_err(|e| CliError::runtime_error_simple(format!("{e}")))?;
 
     Ok(())
 }

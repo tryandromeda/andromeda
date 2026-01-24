@@ -10,7 +10,7 @@ use std::fmt;
 
 /// Comprehensive error type for Andromeda runtime operations
 #[derive(Diagnostic, Debug, Clone)]
-pub enum AndromedaError {
+pub enum RuntimeError {
     /// File system operation errors
     #[diagnostic(
         code(andromeda::fs::io_error),
@@ -232,14 +232,14 @@ pub enum AndromedaError {
     },
 }
 
-impl AndromedaError {
-    /// Box this error for use with AndromedaResult
+impl RuntimeError {
+    /// Box this error for use with RuntimeResult
     pub fn boxed(self) -> Box<Self> {
         Box::new(self)
     }
 
     /// Create a boxed error directly
-    pub fn into_result<T>(self) -> AndromedaResult<T> {
+    pub fn into_result<T>(self) -> RuntimeResult<T> {
         Err(Box::new(self))
     }
 
@@ -299,6 +299,7 @@ impl AndromedaError {
     }
 
     /// Create a new runtime error
+    #[allow(clippy::self_named_constructors)]
     pub fn runtime_error(message: impl Into<String>) -> Self {
         Self::RuntimeError {
             message: message.into(),
@@ -364,6 +365,7 @@ impl AndromedaError {
             execution_history: Vec::new(),
         }
     }
+
     /// Create a new network error
     pub fn network_error(
         source: Box<dyn std::error::Error + Send + Sync>,
@@ -406,28 +408,28 @@ impl AndromedaError {
     }
 }
 
-impl fmt::Display for AndromedaError {
+impl fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AndromedaError::FsError {
+            RuntimeError::FsError {
                 operation, path, ..
             } => {
                 write!(f, "File system error during {operation}: {path}")
             }
-            AndromedaError::ParseError { source_path, .. } => {
+            RuntimeError::ParseError { source_path, .. } => {
                 write!(f, "Parse error in {source_path}")
             }
-            AndromedaError::RuntimeError { message, .. } => {
+            RuntimeError::RuntimeError { message, .. } => {
                 write!(f, "Runtime error: {message}")
             }
-            AndromedaError::ExtensionError {
+            RuntimeError::ExtensionError {
                 extension_name,
                 message,
                 ..
             } => {
                 write!(f, "Extension '{extension_name}' error: {message}")
             }
-            AndromedaError::ResourceError {
+            RuntimeError::ResourceError {
                 rid,
                 operation,
                 message,
@@ -435,23 +437,23 @@ impl fmt::Display for AndromedaError {
             } => {
                 write!(f, "Resource {rid} error during {operation}: {message}")
             }
-            AndromedaError::TaskError {
+            RuntimeError::TaskError {
                 task_id, message, ..
             } => {
                 write!(f, "Task {task_id} error: {message}")
             }
-            AndromedaError::NetworkError { url, operation, .. } => {
+            RuntimeError::NetworkError { url, operation, .. } => {
                 write!(f, "Network error during {operation} for {url}")
             }
-            AndromedaError::EncodingError {
+            RuntimeError::EncodingError {
                 format, message, ..
             } => {
                 write!(f, "Encoding error ({format}): {message}")
             }
-            AndromedaError::ConfigError { field, message, .. } => {
+            RuntimeError::ConfigError { field, message, .. } => {
                 write!(f, "Configuration error in field '{field}': {message}")
             }
-            AndromedaError::TypeError {
+            RuntimeError::TypeError {
                 message,
                 expected_type,
                 actual_type,
@@ -462,7 +464,7 @@ impl fmt::Display for AndromedaError {
                     "Type error: {message} (expected {expected_type}, got {actual_type})"
                 )
             }
-            AndromedaError::MemoryError {
+            RuntimeError::MemoryError {
                 message, operation, ..
             } => {
                 write!(f, "Memory error during {operation}: {message}")
@@ -471,34 +473,36 @@ impl fmt::Display for AndromedaError {
     }
 }
 
-impl std::error::Error for AndromedaError {}
+impl std::error::Error for RuntimeError {}
 
 /// Result type alias for Andromeda operations with boxed errors to reduce stack size
-pub type AndromedaResult<T> = Result<T, Box<AndromedaError>>;
+pub type RuntimeResult<T> = Result<T, Box<RuntimeError>>;
+
+// Keep the old names as aliases for backwards compatibility during migration
+#[doc(hidden)]
+#[deprecated(since = "0.2.0", note = "Use RuntimeError instead")]
+pub type AndromedaError = RuntimeError;
+
+#[doc(hidden)]
+#[deprecated(since = "0.2.0", note = "Use RuntimeResult instead")]
+pub type AndromedaResult<T> = RuntimeResult<T>;
 
 /// Enhanced error reporting utilities with full miette integration
+///
+/// This struct provides methods for printing and formatting RuntimeErrors
+/// with rich visual output using miette.
 pub struct ErrorReporter;
 
 impl ErrorReporter {
-    /// Initialize miette with enhanced reporting capabilities
+    /// Initialize miette with enhanced reporting capabilities.
+    ///
+    /// This delegates to the shared error reporting module.
     pub fn init() {
-        let _ = oxc_miette::set_hook(Box::new(|_| {
-            Box::new(
-                oxc_miette::MietteHandlerOpts::new()
-                    .terminal_links(true)
-                    .unicode(true)
-                    .color(true)
-                    .context_lines(5)
-                    .tab_width(4)
-                    .force_graphical(true)
-                    .width(120)
-                    .build(),
-            )
-        }));
+        crate::error_reporting::init_error_reporting_default();
     }
 
     /// Print a formatted error with full miette reporting
-    pub fn print_error(error: &AndromedaError) {
+    pub fn print_error(error: &RuntimeError) {
         eprintln!();
         eprintln!(
             "{} {}",
@@ -510,7 +514,7 @@ impl ErrorReporter {
     }
 
     /// Print multiple errors with enhanced formatting
-    pub fn print_errors(errors: &[AndromedaError]) {
+    pub fn print_errors(errors: &[RuntimeError]) {
         eprintln!();
         eprintln!(
             "{} {} ({} error{})",
@@ -537,12 +541,12 @@ impl ErrorReporter {
     }
 
     /// Create a formatted error report as string with full context
-    pub fn format_error(error: &AndromedaError) -> String {
+    pub fn format_error(error: &RuntimeError) -> String {
         format!("{:?}", oxc_miette::Report::new(error.clone()))
     }
 
     /// Create a comprehensive error report with suggestions and related information
-    pub fn create_detailed_report(error: &AndromedaError) -> String {
+    pub fn create_detailed_report(error: &RuntimeError) -> String {
         let mut report = String::new();
 
         // Header with emoji and color
@@ -554,14 +558,14 @@ impl ErrorReporter {
 
         // Additional context based on error type
         match error {
-            AndromedaError::ParseError { errors, .. } => {
+            RuntimeError::ParseError { errors, .. } => {
                 report.push_str(&format!("\n{} Parse Details:\n", "📝".bright_yellow()));
                 report.push_str(&format!("Total errors found: {}\n", errors.len()));
                 for (i, err) in errors.iter().enumerate() {
                     report.push_str(&format!("  {}. {}\n", i + 1, err));
                 }
             }
-            AndromedaError::RuntimeError {
+            RuntimeError::RuntimeError {
                 stack_trace: Some(stack),
                 variable_context,
                 ..
@@ -582,7 +586,7 @@ impl ErrorReporter {
                     }
                 }
             }
-            AndromedaError::NetworkError {
+            RuntimeError::NetworkError {
                 status_code: Some(code),
                 request_headers,
                 ..
@@ -596,7 +600,7 @@ impl ErrorReporter {
                     }
                 }
             }
-            AndromedaError::MemoryError {
+            RuntimeError::MemoryError {
                 memory_stats: Some(stats),
                 heap_info: Some(heap),
                 ..
@@ -613,60 +617,60 @@ impl ErrorReporter {
     }
 }
 
-/// Trait for converting various error types to AndromedaError
-pub trait IntoAndromedaError<T> {
-    fn into_andromeda_error(self) -> AndromedaResult<T>;
+/// Trait for converting various error types to RuntimeError
+pub trait IntoRuntimeError<T> {
+    fn into_runtime_error(self) -> RuntimeResult<T>;
 }
 
-impl<T> IntoAndromedaError<T> for Result<T, std::io::Error> {
-    fn into_andromeda_error(self) -> AndromedaResult<T> {
-        self.map_err(|e| Box::new(AndromedaError::fs_error(e, "unknown", "unknown")))
+impl<T> IntoRuntimeError<T> for Result<T, std::io::Error> {
+    fn into_runtime_error(self) -> RuntimeResult<T> {
+        self.map_err(|e| Box::new(RuntimeError::fs_error(e, "unknown", "unknown")))
     }
 }
 
 /// Enhanced macros for quick error creation with location support
 #[macro_export]
-macro_rules! andromeda_error {
+macro_rules! runtime_error {
     // File system errors
     (fs: $op:expr, $path:expr, $source:expr) => {
-        $crate::AndromedaError::fs_error($source, $op, $path)
+        $crate::RuntimeError::fs_error($source, $op, $path)
     };
     (fs: $op:expr, $path:expr, $source:expr, at $code:expr, $src_path:expr, $span:expr) => {
-        $crate::AndromedaError::fs_error_with_location($source, $op, $path, $code, $src_path, $span)
+        $crate::RuntimeError::fs_error_with_location($source, $op, $path, $code, $src_path, $span)
     };
 
     // Runtime errors
     (runtime: $msg:expr) => {
-        $crate::AndromedaError::runtime_error($msg)
+        $crate::RuntimeError::runtime_error($msg)
     };
     (runtime: $msg:expr, at $code:expr, $src_path:expr, $span:expr) => {
-        $crate::AndromedaError::runtime_error_with_location($msg, $code, $src_path, $span)
+        $crate::RuntimeError::runtime_error_with_location($msg, $code, $src_path, $span)
     };
     (runtime: $msg:expr, with context $code:expr, $src_path:expr, $span:expr, stack $stack:expr, vars $vars:expr) => {
-        $crate::AndromedaError::runtime_error_with_context(
+        $crate::RuntimeError::runtime_error_with_context(
             $msg, $code, $src_path, $span, $stack, $vars,
         )
     };
 
     // Extension errors
     (extension: $name:expr, $msg:expr) => {
-        $crate::AndromedaError::extension_error($name, $msg)
+        $crate::RuntimeError::extension_error($name, $msg)
     };
     (extension: $name:expr, $msg:expr, at $code:expr, $src_path:expr, $span:expr, missing $deps:expr) => {
-        $crate::AndromedaError::extension_error_with_context(
+        $crate::RuntimeError::extension_error_with_context(
             $name, $msg, $code, $src_path, $span, $deps,
         )
     };
 
     // Resource errors
     (resource: $rid:expr, $op:expr, $msg:expr) => {
-        $crate::AndromedaError::resource_error($rid, $op, $msg)
+        $crate::RuntimeError::resource_error($rid, $op, $msg)
     };
     (resource: $rid:expr, $op:expr, $msg:expr, state $state:expr) => {
-        $crate::AndromedaError::resource_error_with_context($rid, $op, $msg, $state, None)
+        $crate::RuntimeError::resource_error_with_context($rid, $op, $msg, $state, None)
     };
     (resource: $rid:expr, $op:expr, $msg:expr, state $state:expr, at $code:expr, $src_path:expr, $span:expr) => {
-        $crate::AndromedaError::resource_error_with_context(
+        $crate::RuntimeError::resource_error_with_context(
             $rid,
             $op,
             $msg,
@@ -677,13 +681,13 @@ macro_rules! andromeda_error {
 
     // Task errors
     (task: $id:expr, $msg:expr) => {
-        $crate::AndromedaError::task_error($id, $msg)
+        $crate::RuntimeError::task_error($id, $msg)
     };
     (task: $id:expr, $msg:expr, history $history:expr) => {
-        $crate::AndromedaError::task_error_with_history($id, $msg, $history, None)
+        $crate::RuntimeError::task_error_with_history($id, $msg, $history, None)
     };
     (task: $id:expr, $msg:expr, history $history:expr, at $code:expr, $src_path:expr, $span:expr) => {
-        $crate::AndromedaError::task_error_with_history(
+        $crate::RuntimeError::task_error_with_history(
             $id,
             $msg,
             $history,
@@ -693,15 +697,15 @@ macro_rules! andromeda_error {
 
     // Network errors
     (network: $source:expr, $url:expr, $op:expr) => {
-        $crate::AndromedaError::network_error($source, $url, $op)
+        $crate::RuntimeError::network_error($source, $url, $op)
     };
     (network: $source:expr, $url:expr, $op:expr, status $status:expr, headers $headers:expr) => {
-        $crate::AndromedaError::network_error_with_context(
+        $crate::RuntimeError::network_error_with_context(
             $source, $url, $op, $status, $headers, None,
         )
     };
     (network: $source:expr, $url:expr, $op:expr, status $status:expr, headers $headers:expr, at $code:expr, $src_path:expr, $span:expr) => {
-        $crate::AndromedaError::network_error_with_context(
+        $crate::RuntimeError::network_error_with_context(
             $source,
             $url,
             $op,
@@ -713,13 +717,13 @@ macro_rules! andromeda_error {
 
     // Encoding errors
     (encoding: $format:expr, $msg:expr) => {
-        $crate::AndromedaError::encoding_error($format, $msg)
+        $crate::RuntimeError::encoding_error($format, $msg)
     };
     (encoding: $format:expr, $msg:expr, expected $expected:expr, actual $actual:expr) => {
-        $crate::AndromedaError::encoding_error_with_context($format, $msg, $expected, $actual, None)
+        $crate::RuntimeError::encoding_error_with_context($format, $msg, $expected, $actual, None)
     };
     (encoding: $format:expr, $msg:expr, expected $expected:expr, actual $actual:expr, at $code:expr, $src_path:expr, $span:expr) => {
-        $crate::AndromedaError::encoding_error_with_context(
+        $crate::RuntimeError::encoding_error_with_context(
             $format,
             $msg,
             $expected,
@@ -730,13 +734,13 @@ macro_rules! andromeda_error {
 
     // Configuration errors
     (config: $field:expr, $msg:expr) => {
-        $crate::AndromedaError::config_error($field, $msg)
+        $crate::RuntimeError::config_error($field, $msg)
     };
     (config: $field:expr, $msg:expr, schema $schema:expr, fixes $fixes:expr) => {
-        $crate::AndromedaError::config_error_with_suggestions($field, $msg, None, $schema, $fixes)
+        $crate::RuntimeError::config_error_with_suggestions($field, $msg, None, $schema, $fixes)
     };
     (config: $field:expr, $msg:expr, schema $schema:expr, fixes $fixes:expr, at $config:expr, $cfg_path:expr, $span:expr) => {
-        $crate::AndromedaError::config_error_with_suggestions(
+        $crate::RuntimeError::config_error_with_suggestions(
             $field,
             $msg,
             Some(($config, $cfg_path, $span)),
@@ -747,10 +751,10 @@ macro_rules! andromeda_error {
 
     // Type errors
     (type_error: $msg:expr, expected $expected:expr, actual $actual:expr) => {
-        $crate::AndromedaError::type_error($msg, $expected, $actual)
+        $crate::RuntimeError::type_error($msg, $expected, $actual)
     };
     (type_error: $msg:expr, expected $expected:expr, actual $actual:expr, suggestions $suggestions:expr) => {
-        $crate::AndromedaError::type_error_with_suggestions(
+        $crate::RuntimeError::type_error_with_suggestions(
             $msg,
             $expected,
             $actual,
@@ -760,7 +764,7 @@ macro_rules! andromeda_error {
         )
     };
     (type_error: $msg:expr, expected $expected:expr, actual $actual:expr, suggestions $suggestions:expr, at $code:expr, $src_path:expr, $span:expr) => {
-        $crate::AndromedaError::type_error_with_suggestions(
+        $crate::RuntimeError::type_error_with_suggestions(
             $msg,
             $expected,
             $actual,
@@ -772,19 +776,29 @@ macro_rules! andromeda_error {
 
     // Memory errors
     (memory: $msg:expr, $op:expr) => {
-        $crate::AndromedaError::memory_error($msg, $op)
+        $crate::RuntimeError::memory_error($msg, $op)
     };
     (memory: $msg:expr, $op:expr, stats $stats:expr, heap $heap:expr) => {
-        $crate::AndromedaError::memory_error_with_stats($msg, $op, $stats, $heap, None)
+        $crate::RuntimeError::memory_error_with_stats($msg, $op, $stats, $heap, None)
     };
     (memory: $msg:expr, $op:expr, stats $stats:expr, heap $heap:expr, at $code:expr, $src_path:expr, $span:expr) => {
-        $crate::AndromedaError::memory_error_with_stats(
+        $crate::RuntimeError::memory_error_with_stats(
             $msg,
             $op,
             $stats,
             $heap,
             Some(($code, $src_path, $span)),
         )
+    };
+}
+
+// Keep old macro name for backwards compatibility
+#[macro_export]
+#[doc(hidden)]
+#[deprecated(since = "0.2.0", note = "Use runtime_error! instead")]
+macro_rules! andromeda_error {
+    ($($tt:tt)*) => {
+        $crate::runtime_error!($($tt)*)
     };
 }
 

@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use andromeda::{CliError, CliResult};
 use clap::{Args, Parser as ClapParser};
 use std::num::NonZeroUsize;
@@ -76,7 +78,9 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
     // In CI mode, automatically use expectations
     let use_expectations = args.use_expectations || args.ci_mode;
 
-    let current_dir = std::env::current_dir().map_err(CliError::Io)?;
+    let current_dir = std::env::current_dir().map_err(|e| {
+        CliError::runtime_error_simple(format!("Failed to get current directory: {e}"))
+    })?;
     let in_tests_dir = current_dir.ends_with("tests");
 
     let wpt_dir = if args.wpt_dir.is_absolute() {
@@ -248,12 +252,12 @@ fn run_wpt_tests(args: RunArgs) -> CliResult<()> {
         }
     }
 
-    let status = cmd
-        .status()
-        .map_err(|e| CliError::TestExecution(format!("Failed to run WPT test runner: {e}")))?;
+    let status = cmd.status().map_err(|e| {
+        CliError::runtime_error_simple(format!("Failed to run WPT test runner: {e}"))
+    })?;
 
     if !status.success() {
-        return Err(CliError::TestExecution(format!(
+        return Err(CliError::runtime_error_simple(format!(
             "WPT test runner failed with exit code: {}",
             status.code().unwrap_or(1)
         )));

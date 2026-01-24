@@ -3,14 +3,14 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::config::{AndromedaConfig, ConfigManager, TaskDefinition};
-use crate::error::AndromedaError;
+use crate::error::CliError;
 use console::Style;
 use std::collections::HashSet;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
 /// Boxed result type to avoid large error variants
-type Result<T> = std::result::Result<T, Box<AndromedaError>>;
+type TaskResult<T> = std::result::Result<T, Box<CliError>>;
 
 /// Task runner for executing defined tasks
 pub struct TaskRunner {
@@ -25,7 +25,7 @@ impl TaskRunner {
     }
 
     /// List all available tasks
-    pub fn list_tasks(&self) -> Result<()> {
+    pub fn list_tasks(&self) -> TaskResult<()> {
         if self.config.tasks.is_empty() {
             println!("No tasks defined.");
             return Ok(());
@@ -62,14 +62,11 @@ impl TaskRunner {
     }
 
     /// Run a specific task
-    pub fn run_task(&self, task_name: &str) -> Result<()> {
+    pub fn run_task(&self, task_name: &str) -> TaskResult<()> {
         if !self.config.tasks.contains_key(task_name) {
-            return Err(Box::new(AndromedaError::runtime_error(
+            return Err(Box::new(CliError::task_error(
                 format!("Task '{task_name}' not found"),
-                None,
-                None,
-                None,
-                None,
+                Some(task_name.to_string()),
             )));
         }
 
@@ -91,7 +88,7 @@ impl TaskRunner {
     }
 
     /// Resolve task dependencies and return execution order
-    fn resolve_task_dependencies(&self, task_name: &str) -> Result<Vec<String>> {
+    fn resolve_task_dependencies(&self, task_name: &str) -> TaskResult<Vec<String>> {
         let mut visited = HashSet::new();
         let mut temp_visited = HashSet::new();
         let mut execution_order = Vec::new();
@@ -113,14 +110,11 @@ impl TaskRunner {
         visited: &mut HashSet<String>,
         temp_visited: &mut HashSet<String>,
         execution_order: &mut Vec<String>,
-    ) -> Result<()> {
+    ) -> TaskResult<()> {
         if temp_visited.contains(task_name) {
-            return Err(Box::new(AndromedaError::runtime_error(
+            return Err(Box::new(CliError::task_error(
                 format!("Circular dependency detected involving task '{task_name}'"),
-                None,
-                None,
-                None,
-                None,
+                Some(task_name.to_string()),
             )));
         }
 
@@ -129,12 +123,9 @@ impl TaskRunner {
         }
 
         let task = self.config.tasks.get(task_name).ok_or_else(|| {
-            Box::new(AndromedaError::runtime_error(
+            Box::new(CliError::task_error(
                 format!("Task '{task_name}' not found"),
-                None,
-                None,
-                None,
-                None,
+                Some(task_name.to_string()),
             ))
         })?;
 
@@ -153,7 +144,7 @@ impl TaskRunner {
     }
 
     /// Execute a single task
-    fn execute_task(&self, task_name: &str, task: &TaskDefinition) -> Result<()> {
+    fn execute_task(&self, task_name: &str, task: &TaskDefinition) -> TaskResult<()> {
         let command_str = task.command();
 
         // Set up working directory
@@ -163,7 +154,7 @@ impl TaskRunner {
             self.config_dir.join(cwd)
         } else {
             std::env::current_dir().map_err(|e| {
-                Box::new(AndromedaError::config_error(
+                Box::new(CliError::config_error(
                     "Failed to get current working directory".to_string(),
                     None,
                     Some(e),
@@ -200,23 +191,17 @@ impl TaskRunner {
 
         // Execute the command
         let status = cmd.status().map_err(|e| {
-            Box::new(AndromedaError::runtime_error(
+            Box::new(CliError::task_error(
                 format!("Failed to execute task '{task_name}': {e}"),
-                None,
-                None,
-                None,
-                None,
+                Some(task_name.to_string()),
             ))
         })?;
 
         if !status.success() {
             let exit_code = status.code().unwrap_or(-1);
-            return Err(Box::new(AndromedaError::runtime_error(
+            return Err(Box::new(CliError::task_error(
                 format!("Task '{task_name}' failed with exit code {exit_code}"),
-                None,
-                None,
-                None,
-                None,
+                Some(task_name.to_string()),
             )));
         }
 
@@ -226,7 +211,7 @@ impl TaskRunner {
 }
 
 /// Run a task using the configuration found in the current directory
-pub fn run_task(task_name: Option<String>) -> Result<()> {
+pub fn run_task(task_name: Option<String>) -> TaskResult<()> {
     // Load configuration
     let config = ConfigManager::load_or_default(None);
 
@@ -235,7 +220,7 @@ pub fn run_task(task_name: Option<String>) -> Result<()> {
         config_path.parent().unwrap_or(Path::new(".")).to_path_buf()
     } else {
         std::env::current_dir().map_err(|e| {
-            Box::new(AndromedaError::config_error(
+            Box::new(CliError::config_error(
                 "Failed to get current directory".to_string(),
                 None,
                 Some(e),

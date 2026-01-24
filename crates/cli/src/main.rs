@@ -20,7 +20,7 @@ mod run;
 mod styles;
 use run::run;
 mod error;
-use error::{Result, init_error_reporting, print_error};
+use error::{CliResult, init_error_reporting, print_error};
 mod format;
 use format::{FormatResult, format_file};
 mod helper;
@@ -229,7 +229,7 @@ fn main() {
 
 #[allow(clippy::result_large_err)]
 #[hotpath::measure]
-fn run_main() -> Result<()> {
+fn run_main() -> CliResult<()> {
     // Check if this is currently a single-file executable
     if let Ok(Some(js)) = find_section(ANDROMEDA_JS_CODE_SECTION) {
         // Try to load embedded config, fall back to defaults if not found
@@ -295,7 +295,7 @@ fn run_main() -> Result<()> {
         .enable_io()
         .build()
         .map_err(|e| {
-            error::AndromedaError::config_error(
+            error::CliError::config_error(
                 "Failed to initialize async runtime".to_string(),
                 None,
                 Some(Box::new(e)),
@@ -303,7 +303,7 @@ fn run_main() -> Result<()> {
         })?;
 
     // Run Nova in a secondary blocking thread so tokio tasks can still run
-    let nova_thread = rt.spawn_blocking(move || -> Result<()> {
+    let nova_thread = rt.spawn_blocking(move || -> CliResult<()> {
         match args.command {
             Command::Run {
                 verbose,
@@ -321,7 +321,7 @@ fn run_main() -> Result<()> {
                 no_strict,
             } => {
                 compile(out.as_path(), path.as_path(), verbose, no_strict).map_err(|e| {
-                    error::AndromedaError::compile_error(
+                    error::CliError::compile_error(
                         format!("Compilation failed: {e}"),
                         path.clone(),
                         out.clone(),
@@ -351,9 +351,7 @@ fn run_main() -> Result<()> {
                 // Load configuration
                 let config = ConfigManager::load_or_default(None);
                 run_repl_with_config(expose_internals, print_internals, disable_gc, Some(config))
-                    .map_err(|e| {
-                        error::AndromedaError::repl_error(format!("REPL failed: {e}"), Some(e))
-                    })
+                    .map_err(|e| error::CliError::repl_error(format!("REPL failed: {e}"), Some(e)))
             }
             Command::Fmt { paths } => {
                 // Load configuration
@@ -422,7 +420,7 @@ fn run_main() -> Result<()> {
                 version,
                 dry_run,
             } => upgrade::run_upgrade(force, version, dry_run).map_err(|e| {
-                error::AndromedaError::runtime_error(
+                error::CliError::runtime_error(
                     format!("Upgrade failed: {e}"),
                     None,
                     None,
@@ -432,7 +430,7 @@ fn run_main() -> Result<()> {
             }),
             Command::Bundle { input, output } => {
                 bundle(input.to_str().unwrap(), output.to_str().unwrap()).map_err(|e| {
-                    error::AndromedaError::runtime_error(
+                    error::CliError::runtime_error(
                         format!("Bundle failed: {e}"),
                         None,
                         None,
@@ -461,7 +459,7 @@ fn run_main() -> Result<()> {
                     }
                 }
                 if had_issues {
-                    Err(error::AndromedaError::runtime_error(
+                    Err(error::CliError::runtime_error(
                         "Linting completed with errors".to_string(),
                         None,
                         None,
@@ -480,7 +478,7 @@ fn run_main() -> Result<()> {
             }
             Command::Lsp => {
                 run_lsp_server().map_err(|e| {
-                    error::AndromedaError::runtime_error(
+                    error::CliError::runtime_error(
                         format!("LSP server failed: {e}"),
                         None,
                         None,
@@ -496,7 +494,7 @@ fn run_main() -> Result<()> {
     });
     match rt.block_on(nova_thread) {
         Ok(result) => result,
-        Err(e) => Err(error::AndromedaError::config_error(
+        Err(e) => Err(error::CliError::config_error(
             "Runtime execution failed".to_string(),
             None,
             Some(Box::new(e)),
@@ -563,7 +561,7 @@ impl From<ConfigFileFormat> for ConfigFormat {
 }
 
 #[allow(clippy::result_large_err)]
-fn handle_config_command(action: ConfigAction) -> Result<()> {
+fn handle_config_command(action: ConfigAction) -> CliResult<()> {
     match action {
         ConfigAction::Init {
             format,
@@ -577,7 +575,7 @@ fn handle_config_command(action: ConfigAction) -> Result<()> {
 
             // Check if file exists and force is not set
             if config_path.exists() && !force {
-                return Err(error::AndromedaError::config_error(
+                return Err(error::CliError::config_error(
                     format!(
                         "Config file already exists: {}. Use --force to overwrite.",
                         config_path.display()
@@ -588,7 +586,7 @@ fn handle_config_command(action: ConfigAction) -> Result<()> {
             }
 
             ConfigManager::create_default_config(&config_path, config_format).map_err(|e| {
-                error::AndromedaError::config_error(
+                error::CliError::config_error(
                     format!("Failed to create config file: {e}"),
                     Some(config_path.clone()),
                     None::<std::io::Error>,
@@ -601,7 +599,7 @@ fn handle_config_command(action: ConfigAction) -> Result<()> {
         ConfigAction::Show { file } => {
             let config = if let Some(path) = file {
                 ConfigManager::load_config(&path).map_err(|e| {
-                    error::AndromedaError::config_error(
+                    error::CliError::config_error(
                         format!("Failed to load config: {e}"),
                         Some(path),
                         None::<std::io::Error>,
@@ -618,7 +616,7 @@ fn handle_config_command(action: ConfigAction) -> Result<()> {
         ConfigAction::Validate { file } => {
             let config = if let Some(path) = file {
                 ConfigManager::load_config(&path).map_err(|e| {
-                    error::AndromedaError::config_error(
+                    error::CliError::config_error(
                         format!("Failed to load config: {e}"),
                         Some(path),
                         None::<std::io::Error>,
@@ -626,7 +624,7 @@ fn handle_config_command(action: ConfigAction) -> Result<()> {
                 })?
             } else if let Some((config_path, _)) = ConfigManager::find_config_file(None) {
                 ConfigManager::load_config(&config_path).map_err(|e| {
-                    error::AndromedaError::config_error(
+                    error::CliError::config_error(
                         format!("Failed to load config: {e}"),
                         Some(config_path),
                         None::<std::io::Error>,
@@ -638,7 +636,7 @@ fn handle_config_command(action: ConfigAction) -> Result<()> {
             };
 
             ConfigManager::validate_config(&config).map_err(|e| {
-                error::AndromedaError::config_error(
+                error::CliError::config_error(
                     format!("Config validation failed: {e}"),
                     None,
                     None::<std::io::Error>,

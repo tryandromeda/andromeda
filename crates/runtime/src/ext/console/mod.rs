@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::io::{Write, stderr, stdout};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use andromeda_core::{AndromedaError, ErrorReporter, Extension, ExtensionOp, HostData, OpsStorage};
+use andromeda_core::{ErrorReporter, Extension, ExtensionOp, HostData, OpsStorage, RuntimeError};
 use nova_vm::{
     ecmascript::{
         builtins::ArgumentsList,
@@ -74,11 +74,11 @@ impl ConsoleExt {
                 .expect("String is not valid UTF-8")
                 .as_bytes(),
         ) {
-            let error = AndromedaError::runtime_error(format!("Failed to write to stdout: {e}"));
+            let error = RuntimeError::runtime_error(format!("Failed to write to stdout: {e}"));
             ErrorReporter::print_error(&error);
         }
         if let Err(e) = stdout().flush() {
-            let error = AndromedaError::runtime_error(format!("Failed to flush stdout: {e}"));
+            let error = RuntimeError::runtime_error(format!("Failed to flush stdout: {e}"));
             ErrorReporter::print_error(&error);
         }
         Ok(Value::Undefined)
@@ -99,11 +99,11 @@ impl ConsoleExt {
                 .expect("String is not valid UTF-8")
                 .as_bytes(),
         ) {
-            let error = AndromedaError::runtime_error(format!("Failed to write to stderr: {e}"));
+            let error = RuntimeError::runtime_error(format!("Failed to write to stderr: {e}"));
             ErrorReporter::print_error(&error);
         }
         if let Err(e) = stderr().flush() {
-            let error = AndromedaError::runtime_error(format!("Failed to flush stderr: {e}"));
+            let error = RuntimeError::runtime_error(format!("Failed to flush stderr: {e}"));
             ErrorReporter::print_error(&error);
         }
         Ok(Value::Undefined)
@@ -386,7 +386,7 @@ impl ConsoleExt {
             match storage.get::<ConsoleStorage>() {
                 Some(console_storage) => console_storage.group_indent_level,
                 None => {
-                    let error = AndromedaError::runtime_error(
+                    let error = RuntimeError::runtime_error(
                         "Console storage missing when querying group indent; defaulting to 0"
                             .to_string(),
                     );
@@ -465,7 +465,7 @@ impl ConsoleExt {
         // ANSI escape sequence to clear screen
         print!("\x1B[2J\x1B[H");
         if let Err(e) = stdout().flush() {
-            let error = AndromedaError::runtime_error(format!("Failed to flush stdout: {e}"));
+            let error = RuntimeError::runtime_error(format!("Failed to flush stdout: {e}"));
             ErrorReporter::print_error(&error);
         }
         Ok(Value::Undefined)
@@ -494,8 +494,7 @@ impl ConsoleExt {
                 Ok(Value::from_string(agent, input.trim_end().to_string(), gc.nogc()).unbind())
             }
             Err(e) => {
-                let error =
-                    AndromedaError::runtime_error(format!("Failed to read from stdin: {e}"));
+                let error = RuntimeError::runtime_error(format!("Failed to read from stdin: {e}"));
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -516,7 +515,7 @@ impl ConsoleExt {
             }
             Err(e) => {
                 let error =
-                    AndromedaError::runtime_error(format!("Failed to read line from stdin: {e}"));
+                    RuntimeError::runtime_error(format!("Failed to read line from stdin: {e}"));
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
