@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::config::{AndromedaConfig, ConfigManager};
-use crate::error::{AndromedaError, Result, print_error};
+use crate::error::{CliError, CliResult, print_error};
 use crate::repl::highlighter::JsHighlighter;
 use crate::repl::prompt::ReplPrompt;
 use crate::repl::validator::JsValidator;
@@ -43,14 +43,14 @@ mod validator;
 
 /// Handle parse errors in REPL with beautiful formatting
 fn handle_parse_errors(errors: Vec<OxcDiagnostic>, source_path: &str, source: &str) {
-    let error = AndromedaError::parse_error(errors, source_path.to_string(), source.to_string());
+    let error = CliError::parse_error(errors, source_path.to_string(), source.to_string());
     print_error(error);
 }
 
 /// Handle runtime errors in REPL with beautiful formatting
 fn handle_runtime_error_with_message(error_message: String) {
     let error =
-        AndromedaError::runtime_error(error_message, Some("<repl>".to_string()), None, None, None);
+        CliError::runtime_error(error_message, Some("<repl>".to_string()), None, None, None);
     print_error(error);
 }
 
@@ -61,7 +61,7 @@ pub fn run_repl_with_config(
     print_internals: bool,
     disable_gc: bool,
     config_override: Option<AndromedaConfig>,
-) -> Result<()> {
+) -> CliResult<()> {
     // Load configuration
     let config = config_override.unwrap_or_else(|| ConfigManager::load_or_default(None));
 

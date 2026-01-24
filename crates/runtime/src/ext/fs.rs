@@ -26,8 +26,8 @@ use nova_vm::{
 };
 
 use andromeda_core::{
-    AndromedaError, ErrorReporter, Extension, ExtensionOp, HostData, MacroTask, OpsStorage,
-    ResourceTable,
+    ErrorReporter, Extension, ExtensionOp, HostData, MacroTask, OpsStorage, ResourceTable,
+    RuntimeError,
 };
 
 use crate::RuntimeMacroTask;
@@ -187,7 +187,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "read_text_file", path);
+                let error = RuntimeError::fs_error(e, "read_text_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -198,7 +198,7 @@ impl FsExt {
         match std::fs::read_to_string(&resolved_path) {
             Ok(content) => Ok(Value::from_string(agent, content, gc.nogc()).unbind()),
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "read_text_file", path);
+                let error = RuntimeError::fs_error(e, "read_text_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -224,7 +224,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "write_text_file", path);
+                let error = RuntimeError::fs_error(e, "write_text_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -238,7 +238,7 @@ impl FsExt {
         ) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
             Err(e) => {
-                let error = AndromedaError::fs_error(
+                let error = RuntimeError::fs_error(
                     e,
                     "write_text_file",
                     binding.as_str(agent).expect("String is not valid UTF-8"),
@@ -261,7 +261,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "create_file", path);
+                let error = RuntimeError::fs_error(e, "create_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -272,7 +272,7 @@ impl FsExt {
         let file = match File::create(&resolved_path) {
             Ok(file) => file,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "create_file", path);
+                let error = RuntimeError::fs_error(e, "create_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -307,7 +307,7 @@ impl FsExt {
         let resolved_from = match resolve_path(from_path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "copy_file", from_path);
+                let error = RuntimeError::fs_error(e, "copy_file", from_path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -318,7 +318,7 @@ impl FsExt {
         let resolved_to = match resolve_path(to_path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "copy_file", to_path);
+                let error = RuntimeError::fs_error(e, "copy_file", to_path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -329,7 +329,7 @@ impl FsExt {
         match std::fs::copy(&resolved_from, &resolved_to) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
             Err(e) => {
-                let error = AndromedaError::fs_error(
+                let error = RuntimeError::fs_error(
                     e,
                     "copy_file",
                     format!(
@@ -356,7 +356,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "create_directory", path);
+                let error = RuntimeError::fs_error(e, "create_directory", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -367,7 +367,7 @@ impl FsExt {
         match std::fs::create_dir(&resolved_path) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "create_directory", path);
+                let error = RuntimeError::fs_error(e, "create_directory", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -386,7 +386,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "create_dir_all", path);
+                let error = RuntimeError::fs_error(e, "create_dir_all", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -397,7 +397,7 @@ impl FsExt {
         match std::fs::create_dir_all(&resolved_path) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "create_dir_all", path);
+                let error = RuntimeError::fs_error(e, "create_dir_all", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -417,7 +417,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "read_file", path);
+                let error = RuntimeError::fs_error(e, "read_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -437,7 +437,7 @@ impl FsExt {
                 Ok(Value::from_string(agent, hex_content, gc.nogc()).unbind())
             }
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "read_file", path);
+                let error = RuntimeError::fs_error(e, "read_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -470,7 +470,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "write_file", path);
+                let error = RuntimeError::fs_error(e, "write_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -485,7 +485,7 @@ impl FsExt {
         match std::fs::write(&resolved_path, content) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "write_file", path);
+                let error = RuntimeError::fs_error(e, "write_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -505,7 +505,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "stat", path);
+                let error = RuntimeError::fs_error(e, "stat", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -519,7 +519,7 @@ impl FsExt {
                 Ok(Value::from_string(agent, stat_info, gc.nogc()).unbind())
             }
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "stat", path);
+                let error = RuntimeError::fs_error(e, "stat", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -539,7 +539,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "lstat", path);
+                let error = RuntimeError::fs_error(e, "lstat", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -553,7 +553,7 @@ impl FsExt {
                 Ok(Value::from_string(agent, stat_info, gc.nogc()).unbind())
             }
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "lstat", path);
+                let error = RuntimeError::fs_error(e, "lstat", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -573,7 +573,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "read_dir", path);
+                let error = RuntimeError::fs_error(e, "read_dir", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -613,7 +613,7 @@ impl FsExt {
                 Ok(Value::from_string(agent, result, gc.nogc()).unbind())
             }
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "read_dir", path);
+                let error = RuntimeError::fs_error(e, "read_dir", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -633,7 +633,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "remove", path);
+                let error = RuntimeError::fs_error(e, "remove", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -650,7 +650,7 @@ impl FsExt {
         match result {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "remove", path);
+                let error = RuntimeError::fs_error(e, "remove", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -670,7 +670,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "remove_all", path);
+                let error = RuntimeError::fs_error(e, "remove_all", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -687,7 +687,7 @@ impl FsExt {
         match result {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "remove_all", path);
+                let error = RuntimeError::fs_error(e, "remove_all", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -710,7 +710,7 @@ impl FsExt {
         let resolved_from = match resolve_path(from_path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "rename", from_path);
+                let error = RuntimeError::fs_error(e, "rename", from_path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -721,7 +721,7 @@ impl FsExt {
         let resolved_to = match resolve_path(to_path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "rename", to_path);
+                let error = RuntimeError::fs_error(e, "rename", to_path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -732,7 +732,7 @@ impl FsExt {
         match std::fs::rename(&resolved_from, &resolved_to) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
             Err(e) => {
-                let error = AndromedaError::fs_error(
+                let error = RuntimeError::fs_error(
                     e,
                     "rename",
                     format!(
@@ -806,7 +806,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "truncate", path);
+                let error = RuntimeError::fs_error(e, "truncate", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -819,7 +819,7 @@ impl FsExt {
             Ok(f) => match f.set_len(len) {
                 Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
                 Err(e) => {
-                    let error = AndromedaError::fs_error(e, "truncate", path);
+                    let error = RuntimeError::fs_error(e, "truncate", path);
                     let error_msg = ErrorReporter::format_error(&error);
                     Ok(
                         Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc())
@@ -828,7 +828,7 @@ impl FsExt {
                 }
             },
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "truncate", path);
+                let error = RuntimeError::fs_error(e, "truncate", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -876,7 +876,7 @@ impl FsExt {
             let resolved_path = match resolve_path(path) {
                 Ok(p) => p,
                 Err(e) => {
-                    let error = AndromedaError::fs_error(e, "chmod", path);
+                    let error = RuntimeError::fs_error(e, "chmod", path);
                     let error_msg = ErrorReporter::format_error(&error);
                     return Ok(
                         Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc())
@@ -889,7 +889,7 @@ impl FsExt {
             match std::fs::set_permissions(&resolved_path, permissions) {
                 Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
                 Err(e) => {
-                    let error = AndromedaError::fs_error(e, "chmod", path);
+                    let error = RuntimeError::fs_error(e, "chmod", path);
                     let error_msg = ErrorReporter::format_error(&error);
                     Ok(
                         Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc())
@@ -928,7 +928,7 @@ impl FsExt {
         let resolved_target = match resolve_path(target_path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "symlink", target_path);
+                let error = RuntimeError::fs_error(e, "symlink", target_path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -939,7 +939,7 @@ impl FsExt {
         let resolved_link = match resolve_path(link_path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "symlink", link_path);
+                let error = RuntimeError::fs_error(e, "symlink", link_path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -952,7 +952,7 @@ impl FsExt {
             match std::os::unix::fs::symlink(&resolved_target, &resolved_link) {
                 Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
                 Err(e) => {
-                    let error = AndromedaError::fs_error(
+                    let error = RuntimeError::fs_error(
                         e,
                         "symlink",
                         format!(
@@ -982,7 +982,7 @@ impl FsExt {
             match result {
                 Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
                 Err(e) => {
-                    let error = AndromedaError::fs_error(
+                    let error = RuntimeError::fs_error(
                         e,
                         "symlink",
                         format!(
@@ -1014,7 +1014,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "read_link", path);
+                let error = RuntimeError::fs_error(e, "read_link", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -1028,7 +1028,7 @@ impl FsExt {
                 Ok(Value::from_string(agent, target_str, gc.nogc()).unbind())
             }
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "read_link", path);
+                let error = RuntimeError::fs_error(e, "read_link", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -1048,7 +1048,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "real_path", path);
+                let error = RuntimeError::fs_error(e, "real_path", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -1062,7 +1062,7 @@ impl FsExt {
                 Ok(Value::from_string(agent, path_str, gc.nogc()).unbind())
             }
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "real_path", path);
+                let error = RuntimeError::fs_error(e, "real_path", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -1082,7 +1082,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "open_file", path);
+                let error = RuntimeError::fs_error(e, "open_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -1093,7 +1093,7 @@ impl FsExt {
         let file = match File::open(&resolved_path) {
             Ok(file) => file,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "open_file", path);
+                let error = RuntimeError::fs_error(e, "open_file", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -1164,7 +1164,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "read_text_file_async", path);
+                let error = RuntimeError::fs_error(e, "read_text_file_async", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 let promise_capability = PromiseCapability::new(agent, gc.nogc());
                 let root_value =
@@ -1201,7 +1201,7 @@ impl FsExt {
                         .unwrap();
                 }
                 Err(e) => {
-                    let error = AndromedaError::fs_error(e, "read_text_file_async", &path_string);
+                    let error = RuntimeError::fs_error(e, "read_text_file_async", &path_string);
                     let error_msg = ErrorReporter::format_error(&error);
                     macro_task_tx
                         .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
@@ -1243,7 +1243,7 @@ impl FsExt {
         let resolved_path = match resolve_path(path) {
             Ok(p) => p,
             Err(e) => {
-                let error = AndromedaError::fs_error(e, "write_text_file_async", path);
+                let error = RuntimeError::fs_error(e, "write_text_file_async", path);
                 let error_msg = ErrorReporter::format_error(&error);
                 let promise_capability = PromiseCapability::new(agent, gc.nogc());
                 let root_value =
@@ -1281,7 +1281,7 @@ impl FsExt {
                         .unwrap();
                 }
                 Err(e) => {
-                    let error = AndromedaError::fs_error(e, "write_text_file_async", &path_string);
+                    let error = RuntimeError::fs_error(e, "write_text_file_async", &path_string);
                     let error_msg = ErrorReporter::format_error(&error);
                     macro_task_tx
                         .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
@@ -1326,7 +1326,7 @@ impl FsExt {
                         .unwrap();
                 }
                 Err(e) => {
-                    let error = AndromedaError::fs_error(e, "read_file_async", &path_string);
+                    let error = RuntimeError::fs_error(e, "read_file_async", &path_string);
                     let error_msg = ErrorReporter::format_error(&error);
                     macro_task_tx
                         .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
@@ -1387,7 +1387,7 @@ impl FsExt {
                         .unwrap();
                 }
                 Err(e) => {
-                    let error = AndromedaError::fs_error(e, "write_file_async", &path_string);
+                    let error = RuntimeError::fs_error(e, "write_file_async", &path_string);
                     let error_msg = ErrorReporter::format_error(&error);
                     macro_task_tx
                         .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
@@ -1442,7 +1442,7 @@ impl FsExt {
                         .unwrap();
                 }
                 Err(e) => {
-                    let error = AndromedaError::fs_error(
+                    let error = RuntimeError::fs_error(
                         e,
                         "copy_file_async",
                         format!("{from_string} -> {to_string}"),
@@ -1498,7 +1498,7 @@ impl FsExt {
                         .unwrap();
                 }
                 Err(e) => {
-                    let error = AndromedaError::fs_error(e, "remove_async", &path_string);
+                    let error = RuntimeError::fs_error(e, "remove_async", &path_string);
                     let error_msg = ErrorReporter::format_error(&error);
                     macro_task_tx
                         .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
@@ -1544,7 +1544,7 @@ impl FsExt {
                         .unwrap();
                 }
                 Err(e) => {
-                    let error = AndromedaError::fs_error(e, "create_file_async", &path_string);
+                    let error = RuntimeError::fs_error(e, "create_file_async", &path_string);
                     let error_msg = ErrorReporter::format_error(&error);
                     macro_task_tx
                         .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
@@ -1587,7 +1587,7 @@ impl FsExt {
                         .unwrap();
                 }
                 Err(e) => {
-                    let error = AndromedaError::fs_error(e, "mk_dir_async", &path_string);
+                    let error = RuntimeError::fs_error(e, "mk_dir_async", &path_string);
                     let error_msg = ErrorReporter::format_error(&error);
                     macro_task_tx
                         .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
@@ -1630,7 +1630,7 @@ impl FsExt {
                         .unwrap();
                 }
                 Err(e) => {
-                    let error = AndromedaError::fs_error(e, "mk_dir_all_async", &path_string);
+                    let error = RuntimeError::fs_error(e, "mk_dir_all_async", &path_string);
                     let error_msg = ErrorReporter::format_error(&error);
                     macro_task_tx
                         .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
@@ -1711,7 +1711,7 @@ impl FsExt {
                         .unwrap();
                 }
                 Err(e) => {
-                    let error = AndromedaError::fs_error(e, "rename_async", &from_string);
+                    let error = RuntimeError::fs_error(e, "rename_async", &from_string);
                     let error_msg = ErrorReporter::format_error(&error);
                     macro_task_tx
                         .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
@@ -1764,7 +1764,7 @@ impl FsExt {
                         .unwrap();
                 }
                 Err(e) => {
-                    let error = AndromedaError::fs_error(e, "remove_all_async", &path_string);
+                    let error = RuntimeError::fs_error(e, "remove_all_async", &path_string);
                     let error_msg = ErrorReporter::format_error(&error);
                     macro_task_tx
                         .send(MacroTask::User(RuntimeMacroTask::RejectPromise(

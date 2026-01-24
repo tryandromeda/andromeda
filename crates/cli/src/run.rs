@@ -3,9 +3,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::config::{AndromedaConfig, ConfigManager};
-use crate::error::{Result, read_file_with_context};
+use crate::error::{CliResult, read_file_with_context};
 use andromeda_core::{
-    AndromedaError, ErrorReporter, HostData, ImportMap, Runtime, RuntimeConfig, RuntimeFile,
+    ErrorReporter, HostData, ImportMap, Runtime, RuntimeConfig, RuntimeError, RuntimeFile,
 };
 use andromeda_runtime::{
     recommended_builtins, recommended_eventloop_handler, recommended_extensions,
@@ -17,7 +17,7 @@ use andromeda_runtime::{
 /// the CLI interface only passes a single file.
 #[allow(clippy::result_large_err)]
 #[hotpath::measure]
-pub fn run(verbose: bool, no_strict: bool, files: Vec<RuntimeFile>) -> Result<()> {
+pub fn run(verbose: bool, no_strict: bool, files: Vec<RuntimeFile>) -> CliResult<()> {
     create_runtime_files(verbose, no_strict, files, None)
 }
 
@@ -28,7 +28,7 @@ pub fn create_runtime_files(
     no_strict: bool,
     files: Vec<RuntimeFile>,
     config_override: Option<AndromedaConfig>,
-) -> Result<()> {
+) -> CliResult<()> {
     // Load configuration
     let config = config_override.unwrap_or_else(|| {
         // Try to load config from the directory of the first file, or current directory
@@ -48,7 +48,7 @@ pub fn create_runtime_files(
 
     // Validate that we have files to run
     if files.is_empty() {
-        return Err(crate::error::AndromedaError::invalid_argument(
+        return Err(crate::error::CliError::invalid_argument(
             "files".to_string(),
             "at least one file path".to_string(),
             "empty list".to_string(),
@@ -73,7 +73,7 @@ pub fn create_runtime_files(
         if let RuntimeFile::Local { path } = file {
             let file_path = std::path::Path::new(path);
             if !file_path.exists() {
-                return Err(crate::error::AndromedaError::file_not_found(
+                return Err(crate::error::CliError::file_not_found(
                     file_path.to_path_buf(),
                     std::io::Error::new(std::io::ErrorKind::NotFound, "File not found"),
                 ));
@@ -160,14 +160,14 @@ pub fn create_runtime_files(
                     miette::SourceSpan::new(0.into(), 1)
                 };
 
-                AndromedaError::runtime_error_with_location(
+                RuntimeError::runtime_error_with_location(
                     error_message.clone(),
-                    &content,
-                    &path,
+                    content,
+                    path,
                     source_span,
                 )
             } else {
-                AndromedaError::runtime_error(error_message.clone())
+                RuntimeError::runtime_error(error_message.clone())
             };
 
             // Print the enhanced error using our error reporting system
@@ -184,7 +184,7 @@ pub fn create_runtime_files(
 fn apply_file_filters(
     files: Vec<RuntimeFile>,
     config: &AndromedaConfig,
-) -> Result<Vec<RuntimeFile>> {
+) -> CliResult<Vec<RuntimeFile>> {
     if config.runtime.include.is_empty() && config.runtime.exclude.is_empty() {
         return Ok(files);
     }
@@ -235,7 +235,7 @@ fn apply_file_filters(
 fn build_import_map(
     config: &AndromedaConfig,
     start_dir: Option<&std::path::Path>,
-) -> Result<Option<ImportMap>> {
+) -> CliResult<Option<ImportMap>> {
     if config.imports.is_empty() && config.scopes.is_empty() && config.import_map_files.is_empty() {
         return Ok(None);
     }
@@ -257,7 +257,7 @@ fn build_import_map(
         };
 
         if !config_path.exists() {
-            return Err(crate::error::AndromedaError::file_not_found(
+            return Err(crate::error::CliError::file_not_found(
                 config_path.clone(),
                 std::io::Error::new(
                     std::io::ErrorKind::NotFound,
@@ -267,7 +267,7 @@ fn build_import_map(
         }
 
         let file_import_map = ImportMap::from_file(&config_path).map_err(|e| {
-            crate::error::AndromedaError::config_error(
+            crate::error::CliError::config_error(
                 format!(
                     "Failed to load import map from {}: {}",
                     config_path.display(),

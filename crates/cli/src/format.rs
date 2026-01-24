@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::config::{ConfigManager, FormatConfig};
-use crate::error::{AndromedaError, Result};
+use crate::error::{CliError, CliResult};
 use console::Style;
 use dprint_core::configuration::{ConfigKeyValue, GlobalConfiguration, NewLineKind};
 use dprint_plugin_json::{configuration as json_config, format_text as json_format};
@@ -104,12 +104,12 @@ fn create_json_dprint_config() -> IndexMap<String, ConfigKeyValue> {
 
 /// Determines the file type based on the file extension
 #[allow(clippy::result_large_err)]
-fn get_file_info(path: &std::path::Path) -> Result<FileType> {
+fn get_file_info(path: &std::path::Path) -> CliResult<FileType> {
     let extension = path
         .extension()
         .and_then(|ext| ext.to_str())
         .ok_or_else(|| {
-            AndromedaError::format_error(
+            CliError::format_error(
                 format!("Could not determine file type for: {}", path.display()),
                 None::<std::io::Error>,
             )
@@ -119,7 +119,7 @@ fn get_file_info(path: &std::path::Path) -> Result<FileType> {
         "ts" | "tsx" | "mts" | "cts" => Ok(FileType::TypeScript),
         "js" | "jsx" | "mjs" | "cjs" => Ok(FileType::JavaScript),
         "json" | "jsonc" => Ok(FileType::Json),
-        _ => Err(AndromedaError::format_error(
+        _ => Err(CliError::format_error(
             format!("Unsupported file type: .{extension}"),
             None::<std::io::Error>,
         )),
@@ -138,7 +138,7 @@ pub enum FormatResult {
 /// Formats a JavaScript, TypeScript, or JSON file using dprint.
 #[allow(clippy::result_large_err)]
 #[hotpath::measure]
-pub fn format_file(path: &PathBuf) -> Result<FormatResult> {
+pub fn format_file(path: &PathBuf) -> CliResult<FormatResult> {
     format_file_with_config(path, None)
 }
 
@@ -147,9 +147,9 @@ pub fn format_file(path: &PathBuf) -> Result<FormatResult> {
 pub fn format_file_with_config(
     path: &PathBuf,
     config_override: Option<FormatConfig>,
-) -> Result<FormatResult> {
+) -> CliResult<FormatResult> {
     let original_content =
-        fs::read_to_string(path).map_err(|e| AndromedaError::file_read_error(path.clone(), e))?;
+        fs::read_to_string(path).map_err(|e| CliError::file_read_error(path.clone(), e))?;
 
     let file_type = get_file_info(path)?;
 
@@ -175,8 +175,7 @@ pub fn format_file_with_config(
 
     match formatted_content {
         Some(content) if content != original_content => {
-            fs::write(path, &content)
-                .map_err(|e| AndromedaError::file_read_error(path.clone(), e))?;
+            fs::write(path, &content).map_err(|e| CliError::file_read_error(path.clone(), e))?;
             let formatted_icon = Style::new().green().apply_to("📄");
             let file_path = Style::new().cyan().apply_to(path.display());
             println!("   {formatted_icon} {file_path}");
@@ -197,7 +196,7 @@ fn format_ts_js_file(
     original_content: &str,
     global_config: &GlobalConfiguration,
     format_config: &FormatConfig,
-) -> Result<Option<String>> {
+) -> CliResult<Option<String>> {
     let config = create_ts_dprint_config(format_config);
     let resolved_config = ts_config::resolve_config(config, global_config);
 
@@ -208,7 +207,7 @@ fn format_ts_js_file(
             .map(|d| format!("{d}"))
             .collect::<Vec<_>>()
             .join(", ");
-        return Err(AndromedaError::format_error(
+        return Err(CliError::format_error(
             format!("Failed to resolve dprint TS configuration: {error_msg}"),
             None::<std::io::Error>,
         ));
@@ -224,7 +223,7 @@ fn format_ts_js_file(
     };
 
     ts_format(format_options).map_err(|e| {
-        AndromedaError::format_error(
+        CliError::format_error(
             format!("Failed to format TS/JS file {}: {}", path.display(), e),
             None::<std::io::Error>,
         )
@@ -237,7 +236,7 @@ fn format_json_file(
     path: &PathBuf,
     original_content: &str,
     global_config: &GlobalConfiguration,
-) -> Result<Option<String>> {
+) -> CliResult<Option<String>> {
     let config = create_json_dprint_config();
     let resolved_config = json_config::resolve_config(config, global_config);
 
@@ -248,7 +247,7 @@ fn format_json_file(
             .map(|d| format!("{d}"))
             .collect::<Vec<_>>()
             .join(", ");
-        return Err(AndromedaError::format_error(
+        return Err(CliError::format_error(
             format!("Failed to resolve dprint JSON configuration: {error_msg}"),
             None::<std::io::Error>,
         ));
@@ -257,7 +256,7 @@ fn format_json_file(
     let config = resolved_config.config;
 
     json_format(path.as_ref(), original_content, &config).map_err(|e| {
-        AndromedaError::format_error(
+        CliError::format_error(
             format!("Failed to format JSON file {}: {}", path.display(), e),
             None::<std::io::Error>,
         )

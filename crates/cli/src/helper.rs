@@ -3,14 +3,14 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::config::{FormatConfig, LintConfig};
-use crate::error::{AndromedaError, Result};
+use crate::error::{CliError, CliResult};
 use glob::Pattern;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Recursively finds all JavaScript, TypeScript, and JSON files in the given directories
 #[allow(clippy::result_large_err)]
-pub fn find_formattable_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
+pub fn find_formattable_files(paths: &[PathBuf]) -> CliResult<Vec<PathBuf>> {
     let mut files = Vec::new();
 
     // If no paths provided, use current directory
@@ -30,7 +30,7 @@ pub fn find_formattable_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
             // If it's a directory, recursively find all supported files
             find_files_in_directory(&path, &mut files)?;
         } else {
-            return Err(AndromedaError::format_error(
+            return Err(CliError::format_error(
                 format!("Path does not exist: {}", path.display()),
                 None::<std::io::Error>,
             ));
@@ -44,9 +44,9 @@ pub fn find_formattable_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
 
 /// Recursively searches a directory for formattable files
 #[allow(clippy::result_large_err)]
-fn find_files_in_directory(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()> {
+fn find_files_in_directory(dir: &PathBuf, files: &mut Vec<PathBuf>) -> CliResult<()> {
     let entries = fs::read_dir(dir).map_err(|e| {
-        AndromedaError::format_error(
+        CliError::format_error(
             format!("Failed to read directory {}: {}", dir.display(), e),
             Some(e),
         )
@@ -54,7 +54,7 @@ fn find_files_in_directory(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()
 
     for entry in entries {
         let entry = entry.map_err(|e| {
-            AndromedaError::format_error(
+            CliError::format_error(
                 format!("Failed to read directory entry in {}: {}", dir.display(), e),
                 Some(e),
             )
@@ -119,7 +119,7 @@ pub fn apply_include_exclude_filters(
     files: Vec<PathBuf>,
     include_patterns: &[String],
     exclude_patterns: &[String],
-) -> Result<Vec<PathBuf>> {
+) -> CliResult<Vec<PathBuf>> {
     let mut filtered_files = Vec::new();
 
     for file in files {
@@ -137,7 +137,7 @@ fn should_include_file(
     file_path: &Path,
     include_patterns: &[String],
     exclude_patterns: &[String],
-) -> Result<bool> {
+) -> CliResult<bool> {
     let path_str = file_path.to_string_lossy();
 
     let is_included = if include_patterns.is_empty() {
@@ -162,7 +162,7 @@ fn should_include_file(
         // Handle negated patterns (un-exclude) starting with "!"
         if let Some(negated_pattern) = pattern_str.strip_prefix('!') {
             let pattern = Pattern::new(negated_pattern).map_err(|e| {
-                AndromedaError::format_error(
+                CliError::format_error(
                     format!("Invalid glob pattern '{negated_pattern}': {e}"),
                     None::<std::io::Error>,
                 )
@@ -176,7 +176,7 @@ fn should_include_file(
             }
         } else {
             let pattern = Pattern::new(pattern_str).map_err(|e| {
-                AndromedaError::format_error(
+                CliError::format_error(
                     format!("Invalid glob pattern '{pattern_str}': {e}"),
                     None::<std::io::Error>,
                 )
@@ -198,7 +198,7 @@ pub fn find_formattable_files_with_filters(
     paths: &[PathBuf],
     include_patterns: &[String],
     exclude_patterns: &[String],
-) -> Result<Vec<PathBuf>> {
+) -> CliResult<Vec<PathBuf>> {
     let all_files = find_formattable_files(paths)?;
 
     apply_include_exclude_filters(all_files, include_patterns, exclude_patterns)
@@ -209,7 +209,7 @@ pub fn find_formattable_files_with_filters(
 pub fn find_formattable_files_for_format(
     paths: &[PathBuf],
     format_config: &FormatConfig,
-) -> Result<Vec<PathBuf>> {
+) -> CliResult<Vec<PathBuf>> {
     find_formattable_files_with_filters(paths, &format_config.include, &format_config.exclude)
 }
 
@@ -218,6 +218,6 @@ pub fn find_formattable_files_for_format(
 pub fn find_formattable_files_for_lint(
     paths: &[PathBuf],
     lint_config: &LintConfig,
-) -> Result<Vec<PathBuf>> {
+) -> CliResult<Vec<PathBuf>> {
     find_formattable_files_with_filters(paths, &lint_config.include, &lint_config.exclude)
 }

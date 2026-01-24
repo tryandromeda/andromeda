@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::error::{AndromedaError, Result};
+use crate::error::{CliError, CliResult};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -269,9 +269,9 @@ impl ConfigManager {
 
     /// Load configuration from a file
     #[allow(clippy::result_large_err)]
-    pub fn load_config(path: &Path) -> Result<AndromedaConfig> {
+    pub fn load_config(path: &Path) -> CliResult<AndromedaConfig> {
         let content = std::fs::read_to_string(path).map_err(|e| {
-            AndromedaError::config_error(
+            CliError::config_error(
                 format!("Failed to read config file: {}", path.display()),
                 Some(path.to_path_buf()),
                 Some(e),
@@ -283,7 +283,7 @@ impl ConfigManager {
             .and_then(|ext| ext.to_str())
             .and_then(ConfigFormat::from_extension)
             .ok_or_else(|| {
-                AndromedaError::config_error(
+                CliError::config_error(
                     format!("Unsupported config file format: {}", path.display()),
                     Some(path.to_path_buf()),
                     None::<std::io::Error>,
@@ -314,24 +314,28 @@ impl ConfigManager {
 
     /// Parse configuration from string content
     #[allow(clippy::result_large_err)]
-    fn parse_config(content: &str, format: ConfigFormat, path: &Path) -> Result<AndromedaConfig> {
+    fn parse_config(
+        content: &str,
+        format: ConfigFormat,
+        path: &Path,
+    ) -> CliResult<AndromedaConfig> {
         let config = match format {
             ConfigFormat::Json => serde_json::from_str(content).map_err(|e| {
-                AndromedaError::config_error(
+                CliError::config_error(
                     format!("Invalid JSON in config file: {e}"),
                     Some(path.to_path_buf()),
                     Some(e),
                 )
             }),
             ConfigFormat::Toml => toml::from_str(content).map_err(|e| {
-                AndromedaError::config_error(
+                CliError::config_error(
                     format!("Invalid TOML in config file: {e}"),
                     Some(path.to_path_buf()),
                     Some(e),
                 )
             }),
             ConfigFormat::Yaml => serde_yaml::from_str(content).map_err(|e| {
-                AndromedaError::config_error(
+                CliError::config_error(
                     format!("Invalid YAML in config file: {e}"),
                     Some(path.to_path_buf()),
                     Some(e),
@@ -344,24 +348,28 @@ impl ConfigManager {
 
     /// Save configuration to a file
     #[allow(clippy::result_large_err)]
-    pub fn save_config(config: &AndromedaConfig, path: &Path, format: ConfigFormat) -> Result<()> {
+    pub fn save_config(
+        config: &AndromedaConfig,
+        path: &Path,
+        format: ConfigFormat,
+    ) -> CliResult<()> {
         let content = match format {
             ConfigFormat::Json => serde_json::to_string_pretty(config).map_err(|e| {
-                AndromedaError::config_error(
+                CliError::config_error(
                     format!("Failed to serialize config as JSON: {e}"),
                     Some(path.to_path_buf()),
                     Some(e),
                 )
             }),
             ConfigFormat::Toml => toml::to_string_pretty(config).map_err(|e| {
-                AndromedaError::config_error(
+                CliError::config_error(
                     format!("Failed to serialize config as TOML: {e}"),
                     Some(path.to_path_buf()),
                     Some(e),
                 )
             }),
             ConfigFormat::Yaml => serde_yaml::to_string(config).map_err(|e| {
-                AndromedaError::config_error(
+                CliError::config_error(
                     format!("Failed to serialize config as YAML: {e}"),
                     Some(path.to_path_buf()),
                     Some(e),
@@ -372,7 +380,7 @@ impl ConfigManager {
         // Create parent directory if it doesn't exist
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| {
-                AndromedaError::config_error(
+                CliError::config_error(
                     format!("Failed to create config directory: {}", parent.display()),
                     Some(path.to_path_buf()),
                     Some(e),
@@ -381,7 +389,7 @@ impl ConfigManager {
         }
 
         std::fs::write(path, content).map_err(|e| {
-            AndromedaError::config_error(
+            CliError::config_error(
                 format!("Failed to write config file: {}", path.display()),
                 Some(path.to_path_buf()),
                 Some(e),
@@ -393,7 +401,7 @@ impl ConfigManager {
 
     /// Create a new config file with default values
     #[allow(clippy::result_large_err)]
-    pub fn create_default_config(path: &Path, format: ConfigFormat) -> Result<()> {
+    pub fn create_default_config(path: &Path, format: ConfigFormat) -> CliResult<()> {
         let config = AndromedaConfig::default();
         Self::save_config(&config, path, format)?;
         println!("✅ Created default config file: {}", path.display());
@@ -402,12 +410,12 @@ impl ConfigManager {
 
     /// Validate configuration
     #[allow(clippy::result_large_err)]
-    pub fn validate_config(config: &AndromedaConfig) -> Result<()> {
+    pub fn validate_config(config: &AndromedaConfig) -> CliResult<()> {
         // Validate runtime configuration
         if let Some(timeout) = config.runtime.timeout
             && timeout == 0
         {
-            return Err(AndromedaError::config_error(
+            return Err(CliError::config_error(
                 "Runtime timeout cannot be zero".to_string(),
                 None,
                 None::<std::io::Error>,
@@ -416,7 +424,7 @@ impl ConfigManager {
 
         // Validate format configuration
         if config.format.line_width < 20 || config.format.line_width > 500 {
-            return Err(AndromedaError::config_error(
+            return Err(CliError::config_error(
                 "Format line width must be between 20 and 500".to_string(),
                 None,
                 None::<std::io::Error>,
@@ -424,7 +432,7 @@ impl ConfigManager {
         }
 
         if config.format.tab_width == 0 || config.format.tab_width > 16 {
-            return Err(AndromedaError::config_error(
+            return Err(CliError::config_error(
                 "Tab width must be between 1 and 16".to_string(),
                 None,
                 None::<std::io::Error>,
@@ -435,7 +443,7 @@ impl ConfigManager {
         if let Some(max_warnings) = config.lint.max_warnings
             && max_warnings == 0
         {
-            return Err(AndromedaError::config_error(
+            return Err(CliError::config_error(
                 "Maximum warnings cannot be zero".to_string(),
                 None,
                 None::<std::io::Error>,
@@ -446,7 +454,7 @@ impl ConfigManager {
         for config_file in &config.import_map_files {
             let path = Path::new(config_file);
             if !path.exists() {
-                return Err(AndromedaError::config_error(
+                return Err(CliError::config_error(
                     format!("Import map config file not found: {config_file}"),
                     Some(path.to_path_buf()),
                     None::<std::io::Error>,

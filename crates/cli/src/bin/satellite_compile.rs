@@ -1,6 +1,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 // If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+#![allow(clippy::result_large_err)]
+
 /// Andromeda Satellite - Compile
 ///
 /// A minimal executable focused solely on compiling JavaScript/TypeScript files into executables.
@@ -42,7 +44,7 @@ fn main() -> CliResult<()> {
         cli.verbose,
         cli.no_strict,
     )
-    .map_err(|e| CliError::TestExecution(format!("Compilation failed: {e}")))?;
+    .map_err(|e| CliError::runtime_error_simple(format!("Compilation failed: {e}")))?;
 
     let mut config_info = Vec::new();
     if cli.verbose {

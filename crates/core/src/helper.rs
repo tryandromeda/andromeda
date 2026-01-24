@@ -4,7 +4,7 @@
 
 use oxc_diagnostics::OxcDiagnostic;
 
-use crate::{AndromedaError, ErrorReporter};
+use crate::{ErrorReporter, RuntimeError};
 
 /// Initialize enhanced error reporting system
 pub fn init_error_system() {
@@ -15,19 +15,19 @@ pub fn init_error_system() {
 pub fn exit_with_parse_errors(errors: Vec<OxcDiagnostic>, source_path: &str, source: &str) -> ! {
     assert!(!errors.is_empty());
 
-    let parse_error = AndromedaError::parse_error(errors, source_path, source);
+    let parse_error = RuntimeError::parse_error(errors, source_path, source);
     ErrorReporter::print_error(&parse_error);
     std::process::exit(1);
 }
 
 /// Exit the program with a formatted Andromeda error
-pub fn exit_with_error(error: AndromedaError) -> ! {
+pub fn exit_with_error(error: RuntimeError) -> ! {
     ErrorReporter::print_error(&error);
     std::process::exit(1);
 }
 
 /// Exit the program with multiple errors
-pub fn exit_with_errors(errors: Vec<AndromedaError>) -> ! {
+pub fn exit_with_errors(errors: Vec<RuntimeError>) -> ! {
     ErrorReporter::print_errors(&errors);
     std::process::exit(1);
 }
@@ -38,21 +38,21 @@ pub fn create_parse_error_report(
     source_path: &str,
     source: &str,
 ) -> String {
-    let parse_error = AndromedaError::parse_error(errors, source_path, source);
+    let parse_error = RuntimeError::parse_error(errors, source_path, source);
     ErrorReporter::create_detailed_report(&parse_error)
 }
 
 /// Create a comprehensive error report with full miette integration
-pub fn create_comprehensive_error_report(error: &AndromedaError) -> String {
+pub fn create_comprehensive_error_report(error: &RuntimeError) -> String {
     ErrorReporter::create_detailed_report(error)
 }
 
 /// Print an error with enhanced formatting and context
-pub fn print_enhanced_error(error: &AndromedaError) {
+pub fn print_enhanced_error(error: &RuntimeError) {
     ErrorReporter::print_error(error);
 }
 
 /// Format an error as a string with full miette reporting
-pub fn format_enhanced_error(error: &AndromedaError) -> String {
+pub fn format_enhanced_error(error: &RuntimeError) -> String {
     ErrorReporter::format_error(error)
 }

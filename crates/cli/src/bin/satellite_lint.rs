@@ -1,6 +1,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 // If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+#![allow(clippy::result_large_err)]
+
 /// Andromeda Satellite - Lint
 ///
 /// A minimal executable focused solely on linting JavaScript/TypeScript files.
@@ -28,7 +30,7 @@ fn main() -> CliResult<()> {
 
     let files_to_lint =
         andromeda::helper::find_formattable_files_for_lint(&cli.paths, &config.lint)
-            .map_err(|e| CliError::TestExecution(format!("{e}")))?;
+            .map_err(|e| CliError::runtime_error_simple(format!("{e}")))?;
 
     if files_to_lint.is_empty() {
         println!("No lintable files found.");
@@ -46,7 +48,7 @@ fn main() -> CliResult<()> {
     }
 
     if had_issues {
-        return Err(CliError::TestExecution(
+        return Err(CliError::runtime_error_simple(
             "Linting completed with errors".to_string(),
         ));
     }

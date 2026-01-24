@@ -41,7 +41,7 @@ use nova_vm::{
 };
 
 use crate::{
-    AndromedaError, AndromedaResult, Extension, HostData, MacroTask, exit_with_parse_errors,
+    Extension, HostData, MacroTask, RuntimeError, RuntimeResult, exit_with_parse_errors,
     module::ImportMap,
 };
 
@@ -540,13 +540,13 @@ pub enum RuntimeFile {
 }
 
 impl RuntimeFile {
-    fn read(&self) -> AndromedaResult<String> {
+    fn read(&self) -> RuntimeResult<String> {
         match self {
             RuntimeFile::Embedded { path: _, content } => {
                 Ok(String::from_utf8_lossy(content).into_owned())
             }
             RuntimeFile::Local { path } => std::fs::read_to_string(path)
-                .map_err(|e| Box::new(AndromedaError::fs_error(e, "read", path))),
+                .map_err(|e| Box::new(RuntimeError::fs_error(e, "read", path))),
         }
     }
 
@@ -557,13 +557,13 @@ impl RuntimeFile {
         }
     }
 
-    fn validate(&self) -> AndromedaResult<()> {
+    fn validate(&self) -> RuntimeResult<()> {
         match self {
             RuntimeFile::Embedded { .. } => Ok(()),
             RuntimeFile::Local { path } => {
                 let path_obj = std::path::Path::new(path);
                 if !path_obj.exists() {
-                    return Err(Box::new(AndromedaError::fs_error(
+                    return Err(Box::new(RuntimeError::fs_error(
                         std::io::Error::new(
                             std::io::ErrorKind::NotFound,
                             format!("File not found: {path}"),
@@ -573,7 +573,7 @@ impl RuntimeFile {
                     )));
                 }
                 if !path_obj.is_file() {
-                    return Err(Box::new(AndromedaError::fs_error(
+                    return Err(Box::new(RuntimeError::fs_error(
                         std::io::Error::new(
                             std::io::ErrorKind::InvalidInput,
                             format!("Path is not a file: {path}"),
@@ -583,7 +583,7 @@ impl RuntimeFile {
                     )));
                 }
                 std::fs::File::open(path)
-                    .map_err(|e| AndromedaError::fs_error(e, "validate", path))?;
+                    .map_err(|e| RuntimeError::fs_error(e, "validate", path))?;
                 Ok(())
             }
         }

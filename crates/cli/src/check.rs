@@ -2,7 +2,7 @@
 // If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::config::AndromedaConfig;
-use crate::error::{AndromedaError, Result};
+use crate::error::{CliError, CliResult};
 use crate::helper::find_formattable_files;
 use console::Style;
 use miette as oxc_miette;
@@ -268,9 +268,9 @@ impl std::error::Error for TypeCheckError {}
 pub fn check_file_with_config(
     path: &PathBuf,
     config_override: Option<AndromedaConfig>,
-) -> Result<Vec<TypeCheckError>> {
+) -> CliResult<Vec<TypeCheckError>> {
     let content =
-        fs::read_to_string(path).map_err(|e| AndromedaError::file_read_error(path.clone(), e))?;
+        fs::read_to_string(path).map_err(|e| CliError::file_read_error(path.clone(), e))?;
 
     check_file_content_with_config(path, &content, config_override)
 }
@@ -281,7 +281,7 @@ pub fn check_file_content_with_config(
     path: &PathBuf,
     content: &str,
     _config_override: Option<AndromedaConfig>,
-) -> Result<Vec<TypeCheckError>> {
+) -> CliResult<Vec<TypeCheckError>> {
     let allocator = Allocator::default();
     let source_type = SourceType::from_path(path).unwrap_or_default();
 
@@ -592,7 +592,7 @@ fn extract_type_mismatch_info(error_message: &str) -> (Option<String>, Option<St
 pub fn check_files_with_config(
     paths: &[PathBuf],
     config_override: Option<AndromedaConfig>,
-) -> Result<()> {
+) -> CliResult<()> {
     let files_to_check: Vec<PathBuf> = if paths.is_empty() {
         // If no paths provided, check all TypeScript files in current directory
         find_formattable_files(&[PathBuf::from(".")])
@@ -666,12 +666,8 @@ pub fn check_files_with_config(
         let error_count = Style::new().red().bold().apply_to(total_errors);
         let file_count = Style::new().red().bold().apply_to(files_with_errors);
         println!("{warning} {complete_msg}: Found {error_count} error(s) in {file_count} file(s)");
-        return Err(AndromedaError::runtime_error(
-            "Type checking completed with errors".to_string(),
-            None,
-            None,
-            None,
-            None,
+        return Err(CliError::runtime_error_simple(
+            "Type checking completed with errors",
         ));
     }
 
