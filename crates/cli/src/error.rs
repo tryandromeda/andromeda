@@ -453,11 +453,11 @@ pub type CliResult<T> = std::result::Result<T, CliError>;
 /// # Example
 ///
 /// ```
-/// use andromeda::error::IntoCliResult;
+/// use andromeda::error::{CliResult, IntoCliResult};
 /// use andromeda_core::RuntimeResult;
 ///
 /// fn run_something() -> RuntimeResult<()> {
-///     // ...
+///     Ok(())
 /// }
 ///
 /// fn cli_command() -> CliResult<()> {

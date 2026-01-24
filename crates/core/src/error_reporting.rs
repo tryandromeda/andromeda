@@ -82,6 +82,8 @@ pub fn init_error_reporting(config: ErrorReportingConfig) {
 ///
 /// This is a convenience function equivalent to:
 /// ```
+/// use andromeda_core::{init_error_reporting, ErrorReportingConfig};
+///
 /// init_error_reporting(ErrorReportingConfig::default());
 /// ```
 pub fn init_error_reporting_default() {
@@ -95,7 +97,7 @@ pub fn init_error_reporting_default() {
 /// # Example
 ///
 /// ```
-/// use andromeda_core::print_error;
+/// use andromeda_core::{print_error, RuntimeError};
 ///
 /// let error = RuntimeError::runtime_error("Something went wrong");
 /// print_error(error);
@@ -133,11 +135,11 @@ where
 /// # Example
 ///
 /// ```
-/// use andromeda_core::format_error;
+/// use andromeda_core::{format_error, RuntimeError};
 ///
 /// let error = RuntimeError::runtime_error("Something went wrong");
 /// let formatted = format_error(error);
-/// log::error!("{}", formatted);
+/// println!("{}", formatted);
 /// ```
 pub fn format_error<E>(error: E) -> String
 where
@@ -162,7 +164,7 @@ where
 /// # Example
 ///
 /// ```
-/// use andromeda_core::print_errors;
+/// use andromeda_core::{print_errors, RuntimeError};
 ///
 /// let errors = vec![
 ///     RuntimeError::runtime_error("First error"),
