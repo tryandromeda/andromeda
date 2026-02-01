@@ -26,6 +26,7 @@ clap = { version = "4.5.54", features = ["derive"] }
 clap_complete = "4.5.65"
 console = "0.16.2"
 toml = "0.9.11"
+copilot-client = "0.1.0"
 cosmic-text = "0.16.0"
 dprint-core = "0.67.4"
 dprint-plugin-typescript = "0.95.13"

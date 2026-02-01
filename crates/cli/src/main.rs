@@ -312,7 +312,7 @@ fn run_main() -> CliResult<()> {
                 args: _,
             } => {
                 let runtime_file = RuntimeFile::Local { path };
-                run(verbose, no_strict, vec![runtime_file])
+                run::run(verbose, no_strict, vec![runtime_file])
             }
             Command::Compile {
                 path,
