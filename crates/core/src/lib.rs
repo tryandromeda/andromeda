@@ -14,6 +14,8 @@ mod runtime;
 mod sync_resource_table;
 mod task;
 
+#[cfg(feature = "llm")]
+pub mod llm_suggestions;
 pub use error::*;
 pub use error_reporting::*;
 pub use event_loop::*;
