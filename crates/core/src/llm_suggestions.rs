@@ -358,19 +358,15 @@ Guidelines:
                 "GitHub token error: {}. Set GITHUB_TOKEN environment variable or configure GitHub CLI.",
                 msg
             )),
-            CopilotError::InvalidModel(model) => {
-                RuntimeError::llm_provider_error_with_name(
-                    format!("Invalid model: {}", model),
-                    "GitHub Copilot",
-                )
-            }
+            CopilotError::InvalidModel(model) => RuntimeError::llm_provider_error_with_name(
+                format!("Invalid model: {}", model),
+                "GitHub Copilot",
+            ),
             CopilotError::HttpError(msg) => RuntimeError::llm_network_error(msg),
-            CopilotError::Other(msg) => {
-                RuntimeError::llm_provider_error_with_name(
-                    format!("Copilot error: {}", msg),
-                    "GitHub Copilot",
-                )
-            }
+            CopilotError::Other(msg) => RuntimeError::llm_provider_error_with_name(
+                format!("Copilot error: {}", msg),
+                "GitHub Copilot",
+            ),
         }
     }
 

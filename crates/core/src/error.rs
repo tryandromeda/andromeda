@@ -705,10 +705,7 @@ impl RuntimeError {
         location: Option<(impl Into<String>, impl Into<String>, SourceSpan)>,
     ) -> Self {
         let (source_code, error_location) = if let Some((code, path, span)) = location {
-            (
-                Some(NamedSource::new(path.into(), code.into())),
-                Some(span),
-            )
+            (Some(NamedSource::new(path.into(), code.into())), Some(span))
         } else {
             (None, None)
         };
@@ -744,10 +741,7 @@ impl RuntimeError {
         location: Option<(impl Into<String>, impl Into<String>, SourceSpan)>,
     ) -> Self {
         let (source_code, error_location) = if let Some((code, path, span)) = location {
-            (
-                Some(NamedSource::new(path.into(), code.into())),
-                Some(span),
-            )
+            (Some(NamedSource::new(path.into(), code.into())), Some(span))
         } else {
             (None, None)
         };
@@ -807,10 +801,7 @@ impl RuntimeError {
         location: Option<(impl Into<String>, impl Into<String>, SourceSpan)>,
     ) -> Self {
         let (source_code, error_location) = if let Some((code, path, span)) = location {
-            (
-                Some(NamedSource::new(path.into(), code.into())),
-                Some(span),
-            )
+            (Some(NamedSource::new(path.into(), code.into())), Some(span))
         } else {
             (None, None)
         };
@@ -849,10 +840,7 @@ impl RuntimeError {
         location: Option<(impl Into<String>, impl Into<String>, SourceSpan)>,
     ) -> Self {
         let (source_code, error_location) = if let Some((code, path, span)) = location {
-            (
-                Some(NamedSource::new(path.into(), code.into())),
-                Some(span),
-            )
+            (Some(NamedSource::new(path.into(), code.into())), Some(span))
         } else {
             (None, None)
         };
@@ -890,10 +878,7 @@ impl RuntimeError {
         suggested_fixes: Vec<String>,
     ) -> Self {
         let (config_source, error_location) = if let Some((code, path, span)) = location {
-            (
-                Some(NamedSource::new(path.into(), code.into())),
-                Some(span),
-            )
+            (Some(NamedSource::new(path.into(), code.into())), Some(span))
         } else {
             (None, None)
         };
@@ -937,10 +922,7 @@ impl RuntimeError {
         type_suggestions: Vec<String>,
     ) -> Self {
         let (source_code, error_location) = if let Some((code, path, span)) = location {
-            (
-                Some(NamedSource::new(path.into(), code.into())),
-                Some(span),
-            )
+            (Some(NamedSource::new(path.into(), code.into())), Some(span))
         } else {
             (None, None)
         };
@@ -979,10 +961,7 @@ impl RuntimeError {
         location: Option<(impl Into<String>, impl Into<String>, SourceSpan)>,
     ) -> Self {
         let (source_code, error_location) = if let Some((code, path, span)) = location {
-            (
-                Some(NamedSource::new(path.into(), code.into())),
-                Some(span),
-            )
+            (Some(NamedSource::new(path.into(), code.into())), Some(span))
         } else {
             (None, None)
         };
@@ -1372,9 +1351,8 @@ impl std::error::Error for RuntimeError {}
 /// Result type alias for Andromeda operations with boxed errors to reduce stack size
 pub type RuntimeResult<T> = Result<T, Box<RuntimeError>>;
 
-/// Result type for module operations (convenience alias)
-pub type ModuleResult<T> = Result<T, RuntimeError>;
-
+/// Result type for module operations (uses boxed error to reduce stack size)
+pub type ModuleResult<T> = Result<T, Box<RuntimeError>>;
 
 /// Error reporting utilities with full miette integration
 ///
@@ -1560,7 +1538,9 @@ macro_rules! runtime_error {
         $crate::RuntimeError::runtime_error_with_location($msg, $code, $src_path, $span)
     };
     (runtime: $msg:expr, with context $code:expr, $src_path:expr, $span:expr, stack $stack:expr, vars $vars:expr) => {
-        $crate::RuntimeError::runtime_error_with_context($msg, $code, $src_path, $span, $stack, $vars)
+        $crate::RuntimeError::runtime_error_with_context(
+            $msg, $code, $src_path, $span, $stack, $vars,
+        )
     };
 
     // Extension errors
@@ -1568,7 +1548,9 @@ macro_rules! runtime_error {
         $crate::RuntimeError::extension_error($name, $msg)
     };
     (extension: $name:expr, $msg:expr, at $code:expr, $src_path:expr, $span:expr, missing $deps:expr) => {
-        $crate::RuntimeError::extension_error_with_context($name, $msg, $code, $src_path, $span, $deps)
+        $crate::RuntimeError::extension_error_with_context(
+            $name, $msg, $code, $src_path, $span, $deps,
+        )
     };
 
     // Resource errors
@@ -1576,10 +1558,22 @@ macro_rules! runtime_error {
         $crate::RuntimeError::resource_error($rid, $op, $msg)
     };
     (resource: $rid:expr, $op:expr, $msg:expr, state $state:expr) => {
-        $crate::RuntimeError::resource_error_with_context($rid, $op, $msg, $state, None::<(&str, &str, miette::SourceSpan)>)
+        $crate::RuntimeError::resource_error_with_context(
+            $rid,
+            $op,
+            $msg,
+            $state,
+            None::<(&str, &str, miette::SourceSpan)>,
+        )
     };
     (resource: $rid:expr, $op:expr, $msg:expr, state $state:expr, at $code:expr, $src_path:expr, $span:expr) => {
-        $crate::RuntimeError::resource_error_with_context($rid, $op, $msg, $state, Some(($code, $src_path, $span)))
+        $crate::RuntimeError::resource_error_with_context(
+            $rid,
+            $op,
+            $msg,
+            $state,
+            Some(($code, $src_path, $span)),
+        )
     };
 
     // Task errors
@@ -1587,10 +1581,20 @@ macro_rules! runtime_error {
         $crate::RuntimeError::task_error($id, $msg)
     };
     (task: $id:expr, $msg:expr, history $history:expr) => {
-        $crate::RuntimeError::task_error_with_history($id, $msg, $history, None::<(&str, &str, miette::SourceSpan)>)
+        $crate::RuntimeError::task_error_with_history(
+            $id,
+            $msg,
+            $history,
+            None::<(&str, &str, miette::SourceSpan)>,
+        )
     };
     (task: $id:expr, $msg:expr, history $history:expr, at $code:expr, $src_path:expr, $span:expr) => {
-        $crate::RuntimeError::task_error_with_history($id, $msg, $history, Some(($code, $src_path, $span)))
+        $crate::RuntimeError::task_error_with_history(
+            $id,
+            $msg,
+            $history,
+            Some(($code, $src_path, $span)),
+        )
     };
 
     // Network errors
@@ -1598,10 +1602,24 @@ macro_rules! runtime_error {
         $crate::RuntimeError::network_error($source, $url, $op)
     };
     (network: $source:expr, $url:expr, $op:expr, status $status:expr, headers $headers:expr) => {
-        $crate::RuntimeError::network_error_with_context($source, $url, $op, $status, $headers, None::<(&str, &str, miette::SourceSpan)>)
+        $crate::RuntimeError::network_error_with_context(
+            $source,
+            $url,
+            $op,
+            $status,
+            $headers,
+            None::<(&str, &str, miette::SourceSpan)>,
+        )
     };
     (network: $source:expr, $url:expr, $op:expr, status $status:expr, headers $headers:expr, at $code:expr, $src_path:expr, $span:expr) => {
-        $crate::RuntimeError::network_error_with_context($source, $url, $op, $status, $headers, Some(($code, $src_path, $span)))
+        $crate::RuntimeError::network_error_with_context(
+            $source,
+            $url,
+            $op,
+            $status,
+            $headers,
+            Some(($code, $src_path, $span)),
+        )
     };
 
     // Encoding errors
@@ -1609,10 +1627,22 @@ macro_rules! runtime_error {
         $crate::RuntimeError::encoding_error($format, $msg)
     };
     (encoding: $format:expr, $msg:expr, expected $expected:expr, actual $actual:expr) => {
-        $crate::RuntimeError::encoding_error_with_context($format, $msg, $expected, $actual, None::<(&str, &str, miette::SourceSpan)>)
+        $crate::RuntimeError::encoding_error_with_context(
+            $format,
+            $msg,
+            $expected,
+            $actual,
+            None::<(&str, &str, miette::SourceSpan)>,
+        )
     };
     (encoding: $format:expr, $msg:expr, expected $expected:expr, actual $actual:expr, at $code:expr, $src_path:expr, $span:expr) => {
-        $crate::RuntimeError::encoding_error_with_context($format, $msg, $expected, $actual, Some(($code, $src_path, $span)))
+        $crate::RuntimeError::encoding_error_with_context(
+            $format,
+            $msg,
+            $expected,
+            $actual,
+            Some(($code, $src_path, $span)),
+        )
     };
 
     // Configuration errors
@@ -1620,10 +1650,22 @@ macro_rules! runtime_error {
         $crate::RuntimeError::config_error($field, $msg)
     };
     (config: $field:expr, $msg:expr, schema $schema:expr, fixes $fixes:expr) => {
-        $crate::RuntimeError::config_error_with_suggestions($field, $msg, None::<(&str, &str, miette::SourceSpan)>, $schema, $fixes)
+        $crate::RuntimeError::config_error_with_suggestions(
+            $field,
+            $msg,
+            None::<(&str, &str, miette::SourceSpan)>,
+            $schema,
+            $fixes,
+        )
     };
     (config: $field:expr, $msg:expr, schema $schema:expr, fixes $fixes:expr, at $config:expr, $cfg_path:expr, $span:expr) => {
-        $crate::RuntimeError::config_error_with_suggestions($field, $msg, Some(($config, $cfg_path, $span)), $schema, $fixes)
+        $crate::RuntimeError::config_error_with_suggestions(
+            $field,
+            $msg,
+            Some(($config, $cfg_path, $span)),
+            $schema,
+            $fixes,
+        )
     };
 
     // Type errors
@@ -1631,10 +1673,24 @@ macro_rules! runtime_error {
         $crate::RuntimeError::type_error($msg, $expected, $actual)
     };
     (type_error: $msg:expr, expected $expected:expr, actual $actual:expr, suggestions $suggestions:expr) => {
-        $crate::RuntimeError::type_error_with_suggestions($msg, $expected, $actual, None::<(&str, &str, miette::SourceSpan)>, vec![], $suggestions)
+        $crate::RuntimeError::type_error_with_suggestions(
+            $msg,
+            $expected,
+            $actual,
+            None::<(&str, &str, miette::SourceSpan)>,
+            vec![],
+            $suggestions,
+        )
     };
     (type_error: $msg:expr, expected $expected:expr, actual $actual:expr, suggestions $suggestions:expr, at $code:expr, $src_path:expr, $span:expr) => {
-        $crate::RuntimeError::type_error_with_suggestions($msg, $expected, $actual, Some(($code, $src_path, $span)), vec![], $suggestions)
+        $crate::RuntimeError::type_error_with_suggestions(
+            $msg,
+            $expected,
+            $actual,
+            Some(($code, $src_path, $span)),
+            vec![],
+            $suggestions,
+        )
     };
 
     // Memory errors
@@ -1642,10 +1698,22 @@ macro_rules! runtime_error {
         $crate::RuntimeError::memory_error($msg, $op)
     };
     (memory: $msg:expr, $op:expr, stats $stats:expr, heap $heap:expr) => {
-        $crate::RuntimeError::memory_error_with_stats($msg, $op, $stats, $heap, None::<(&str, &str, miette::SourceSpan)>)
+        $crate::RuntimeError::memory_error_with_stats(
+            $msg,
+            $op,
+            $stats,
+            $heap,
+            None::<(&str, &str, miette::SourceSpan)>,
+        )
     };
     (memory: $msg:expr, $op:expr, stats $stats:expr, heap $heap:expr, at $code:expr, $src_path:expr, $span:expr) => {
-        $crate::RuntimeError::memory_error_with_stats($msg, $op, $stats, $heap, Some(($code, $src_path, $span)))
+        $crate::RuntimeError::memory_error_with_stats(
+            $msg,
+            $op,
+            $stats,
+            $heap,
+            Some(($code, $src_path, $span)),
+        )
     };
 
     // Module errors
@@ -1665,7 +1733,11 @@ macro_rules! runtime_error {
         $crate::RuntimeError::module_resolution_error_with_context($msg, $spec, None)
     };
     (module_resolution: $msg:expr, specifier $spec:expr, referrer $ref:expr) => {
-        $crate::RuntimeError::module_resolution_error_with_context($msg, $spec, Some($ref.to_string()))
+        $crate::RuntimeError::module_resolution_error_with_context(
+            $msg,
+            $spec,
+            Some($ref.to_string()),
+        )
     };
     (module_runtime: $path:expr, $msg:expr) => {
         $crate::RuntimeError::module_runtime_error($path, $msg)
