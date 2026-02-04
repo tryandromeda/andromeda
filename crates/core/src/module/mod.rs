@@ -15,42 +15,9 @@ use oxc_parser::{Parser, ParserReturn};
 use oxc_span::SourceType;
 use serde::{Deserialize, Serialize};
 
-/// Error type for module-related operations
-#[derive(Debug, thiserror::Error)]
-pub enum ModuleError {
-    #[error("Module not found: {specifier}")]
-    NotFound { specifier: String },
-
-    #[error("Parse error in module {path}: {message}")]
-    ParseError { path: String, message: String },
-
-    #[error("Resolution error: {message}")]
-    ResolutionError { message: String },
-
-    #[error("Runtime error in module {path}: {message}")]
-    RuntimeError { path: String, message: String },
-
-    #[error("Circular import detected: {cycle}")]
-    CircularImport { cycle: String },
-
-    #[error("Import not found: '{import}' in module '{module}'")]
-    ImportNotFound { import: String, module: String },
-
-    #[error("Ambiguous export: '{export}' in module '{module}'")]
-    AmbiguousExport { export: String, module: String },
-
-    #[error("Module already loaded: {specifier}")]
-    AlreadyLoaded { specifier: String },
-
-    #[error("Invalid module specifier: {specifier}")]
-    InvalidSpecifier { specifier: String },
-
-    #[error("IO error: {message}")]
-    Io { message: String },
-}
-
-/// Result type for module operations
-pub type ModuleResult<T> = Result<T, ModuleError>;
+// Re-export ModuleResult from error.rs for convenience
+pub use crate::error::ModuleResult;
+use crate::RuntimeError;
 
 /// Module loading state
 #[derive(Debug, Clone, PartialEq)]
@@ -291,9 +258,7 @@ impl ModuleLoader for FileSystemModuleLoader {
         let path = self.base_path.join(specifier);
         let resolved_path =
             self.resolve_with_extensions(&path)
-                .ok_or_else(|| ModuleError::NotFound {
-                    specifier: specifier.to_string(),
-                })?;
+                .ok_or_else(|| RuntimeError::module_not_found(specifier))?;
 
         // Check cache first
         if let Ok(cache) = self.cache.lock()
@@ -306,8 +271,11 @@ impl ModuleLoader for FileSystemModuleLoader {
         }
 
         // Load file and update cache
-        let content = std::fs::read_to_string(&resolved_path).map_err(|e| ModuleError::Io {
-            message: format!("Failed to read {}: {}", resolved_path.display(), e),
+        let content = std::fs::read_to_string(&resolved_path).map_err(|e| {
+            RuntimeError::module_io_error_with_path(
+                format!("Failed to read {}: {}", resolved_path.display(), e),
+                resolved_path.display().to_string(),
+            )
         })?;
 
         // Update cache with new content and modification time
@@ -341,10 +309,12 @@ impl ModuleLoader for FileSystemModuleLoader {
         // Normalize the path
         let normalized = path.canonicalize().or_else(|_| {
             // If canonicalize fails, try with extensions
-            self.resolve_with_extensions(&path)
-                .ok_or_else(|| ModuleError::ResolutionError {
-                    message: format!("Cannot resolve path: {}", path.display()),
-                })
+            self.resolve_with_extensions(&path).ok_or_else(|| {
+                RuntimeError::module_resolution_error(format!(
+                    "Cannot resolve path: {}",
+                    path.display()
+                ))
+            })
         })?;
 
         Ok(normalized.to_string_lossy().to_string())
@@ -400,22 +370,19 @@ impl ModuleLoader for HttpModuleLoader {
         }
 
         // Fetch from network
-        let mut response =
-            self.client
-                .get(specifier)
-                .call()
-                .map_err(|e| ModuleError::NotFound {
-                    specifier: format!("{specifier}: {e}"),
-                })?;
+        let mut response = self.client.get(specifier).call().map_err(|e| {
+            RuntimeError::module_not_found_with_suggestions(
+                format!("{specifier}: {e}"),
+                vec![
+                    "Check network connectivity".to_string(),
+                    "Verify the URL is correct".to_string(),
+                ],
+            )
+        })?;
 
-        let content =
-            response
-                .body_mut()
-                .read_to_string()
-                .map_err(|e| ModuleError::RuntimeError {
-                    path: specifier.to_string(),
-                    message: e.to_string(),
-                })?;
+        let content = response.body_mut().read_to_string().map_err(|e| {
+            RuntimeError::module_runtime_error(specifier.to_string(), e.to_string())
+        })?;
 
         // Cache the result
         {
@@ -432,27 +399,34 @@ impl ModuleLoader for HttpModuleLoader {
         } else if let Some(base) = base {
             // Resolve relative to base URL
             if base.starts_with("http://") || base.starts_with("https://") {
-                let base_url = url::Url::parse(base).map_err(|e| ModuleError::ResolutionError {
-                    message: format!("Invalid base URL {base}: {e}"),
+                let base_url = url::Url::parse(base).map_err(|e| {
+                    RuntimeError::module_resolution_error_with_context(
+                        format!("Invalid base URL {base}: {e}"),
+                        specifier,
+                        Some(base.to_string()),
+                    )
                 })?;
-                let resolved =
-                    base_url
-                        .join(specifier)
-                        .map_err(|e| ModuleError::ResolutionError {
-                            message: format!(
-                                "Failed to resolve {specifier} relative to {base}: {e}"
-                            ),
-                        })?;
+                let resolved = base_url.join(specifier).map_err(|e| {
+                    RuntimeError::module_resolution_error_with_context(
+                        format!("Failed to resolve {specifier} relative to {base}: {e}"),
+                        specifier,
+                        Some(base.to_string()),
+                    )
+                })?;
                 Ok(resolved.to_string())
             } else {
-                Err(ModuleError::ResolutionError {
-                    message: format!("HTTP loader requires HTTP base URL, got: {base}"),
-                })
+                Err(RuntimeError::module_resolution_error_with_context(
+                    format!("HTTP loader requires HTTP base URL, got: {base}"),
+                    specifier,
+                    Some(base.to_string()),
+                ))
             }
         } else {
-            Err(ModuleError::ResolutionError {
-                message: format!("HTTP loader requires full URL or base URL: {specifier}"),
-            })
+            Err(RuntimeError::module_resolution_error_with_context(
+                format!("HTTP loader requires full URL or base URL: {specifier}"),
+                specifier,
+                None,
+            ))
         }
     }
 
@@ -514,9 +488,7 @@ impl ModuleLoader for CompositeModuleLoader {
                 return Ok(content);
             }
         }
-        Err(ModuleError::NotFound {
-            specifier: specifier.to_string(),
-        })
+        Err(RuntimeError::module_not_found(specifier))
     }
 
     fn resolve_specifier(&self, specifier: &str, base: Option<&str>) -> ModuleResult<String> {
@@ -525,9 +497,9 @@ impl ModuleLoader for CompositeModuleLoader {
                 return Ok(resolved);
             }
         }
-        Err(ModuleError::ResolutionError {
-            message: format!("Failed to resolve: {specifier}"),
-        })
+        Err(RuntimeError::module_resolution_error(format!(
+            "Failed to resolve: {specifier}"
+        )))
     }
 
     fn module_exists(&self, specifier: &str) -> bool {
@@ -565,19 +537,23 @@ pub struct ImportMap {
 impl ImportMap {
     /// Load import map from JSON file
     pub fn from_file<P: AsRef<Path>>(path: P) -> ModuleResult<Self> {
-        let content = std::fs::read_to_string(path.as_ref()).map_err(|e| ModuleError::Io {
-            message: format!(
-                "Failed to read import map file {}: {}",
-                path.as_ref().display(),
-                e
-            ),
+        let content = std::fs::read_to_string(path.as_ref()).map_err(|e| {
+            RuntimeError::module_io_error_with_path(
+                format!(
+                    "Failed to read import map file {}: {}",
+                    path.as_ref().display(),
+                    e
+                ),
+                path.as_ref().to_string_lossy().to_string(),
+            )
         })?;
 
-        let import_map: ImportMap =
-            serde_json::from_str(&content).map_err(|e| ModuleError::ParseError {
-                path: path.as_ref().to_string_lossy().to_string(),
-                message: format!("Invalid import map JSON: {e}"),
-            })?;
+        let import_map: ImportMap = serde_json::from_str(&content).map_err(|e| {
+            RuntimeError::module_parse_error(
+                path.as_ref().to_string_lossy().to_string(),
+                format!("Invalid import map JSON: {e}"),
+            )
+        })?;
 
         Ok(import_map)
     }
@@ -774,13 +750,17 @@ impl DependencyGraph {
             if scc.len() > 1 {
                 // Found a strongly connected component with more than one node
                 let cycle_path = scc.join(" -> ");
-                return Err(ModuleError::CircularImport { cycle: cycle_path });
+                return Err(RuntimeError::circular_import_with_modules(
+                    cycle_path,
+                    scc.clone(),
+                ));
             }
             // Check for self-loops in single-node components
             if scc.len() == 1 && self.has_self_loop(&scc[0]) {
-                return Err(ModuleError::CircularImport {
-                    cycle: format!("{} -> {}", scc[0], scc[0]),
-                });
+                return Err(RuntimeError::circular_import_with_modules(
+                    format!("{} -> {}", scc[0], scc[0]),
+                    scc.clone(),
+                ));
             }
         }
 
@@ -792,9 +772,10 @@ impl DependencyGraph {
         if self.resolving.contains(module) {
             // Found a cycle
             let cycle_path = self.find_cycle_path(module);
-            return Err(ModuleError::CircularImport {
-                cycle: cycle_path.join(" -> "),
-            });
+            return Err(RuntimeError::circular_import_with_modules(
+                cycle_path.join(" -> "),
+                cycle_path,
+            ));
         }
 
         self.resolving.insert(module.to_string());
@@ -887,9 +868,9 @@ impl DependencyGraph {
 
         // Check for cycles
         if result.len() != in_degree.len() {
-            Err(ModuleError::CircularImport {
-                cycle: "Circular dependency detected in module graph".to_string(),
-            })
+            Err(RuntimeError::circular_import(
+                "Circular dependency detected in module graph",
+            ))
         } else {
             Ok(result)
         }
@@ -1146,15 +1127,13 @@ impl ModuleSystem {
             match &module.state {
                 ModuleState::Evaluated => return Ok(module.id.clone()),
                 ModuleState::Failed(error) => {
-                    return Err(ModuleError::RuntimeError {
-                        path: resolved,
-                        message: error.clone(),
-                    });
+                    return Err(RuntimeError::module_runtime_error(
+                        resolved,
+                        error.clone(),
+                    ));
                 }
                 _ => {
-                    return Err(ModuleError::AlreadyLoaded {
-                        specifier: resolved,
-                    });
+                    return Err(RuntimeError::module_already_loaded(resolved));
                 }
             }
         }
@@ -1170,9 +1149,9 @@ impl ModuleSystem {
     ) -> ModuleResult<String> {
         // Check for circular dependency
         if loading_stack.contains(specifier) {
-            return Err(ModuleError::CircularImport {
-                cycle: format!("Circular import detected: {specifier}"),
-            });
+            return Err(RuntimeError::circular_import(format!(
+                "Circular import detected: {specifier}"
+            )));
         }
 
         loading_stack.insert(specifier.to_string());
@@ -1232,10 +1211,10 @@ impl ModuleSystem {
                 self.parse_js_ts_module(module)?;
             }
             _ => {
-                return Err(ModuleError::ParseError {
-                    path: module.specifier.clone(),
-                    message: format!("Unsupported module type: {:?}", module.module_type),
-                });
+                return Err(RuntimeError::module_parse_error(
+                    module.specifier.clone(),
+                    format!("Unsupported module type: {:?}", module.module_type),
+                ));
             }
         }
 
@@ -1258,10 +1237,10 @@ impl ModuleSystem {
         // Check for parse errors
         if !errors.is_empty() {
             let error_messages: Vec<String> = errors.iter().map(|e| format!("{e:?}")).collect();
-            return Err(ModuleError::ParseError {
-                path: module.specifier.clone(),
-                message: format!("Parse errors: {}", error_messages.join(", ")),
-            });
+            return Err(RuntimeError::module_parse_error(
+                module.specifier.clone(),
+                format!("Parse errors: {}", error_messages.join(", ")),
+            ));
         }
 
         // Create an AST visitor to extract imports and exports
@@ -1645,5 +1624,115 @@ impl ModuleVisitor {
                 self.extract_binding_names(&assignment.left.kind);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_module_type_from_extension() {
+        assert_eq!(ModuleType::from_extension("js"), ModuleType::JavaScript);
+        assert_eq!(ModuleType::from_extension("ts"), ModuleType::TypeScript);
+        assert_eq!(ModuleType::from_extension("json"), ModuleType::Json);
+        assert_eq!(ModuleType::from_extension("wasm"), ModuleType::Wasm);
+        assert_eq!(
+            ModuleType::from_extension("unknown"),
+            ModuleType::Other("unknown".to_string())
+        );
+    }
+
+    #[test]
+    fn test_module_type_needs_transpilation() {
+        assert!(!ModuleType::JavaScript.needs_transpilation());
+        assert!(ModuleType::TypeScript.needs_transpilation());
+        assert!(ModuleType::Json.needs_transpilation());
+        assert!(!ModuleType::Wasm.needs_transpilation());
+    }
+
+    #[test]
+    fn test_dependency_graph_add() {
+        let mut graph = DependencyGraph::new();
+        graph.add_dependency("a", "b");
+        graph.add_dependency("b", "c");
+
+        assert!(graph.graph.contains_key("a"));
+        assert!(graph.graph.get("a").unwrap().contains("b"));
+    }
+
+    #[test]
+    fn test_dependency_graph_circular_detection() {
+        let mut graph = DependencyGraph::new();
+        graph.add_dependency("a", "b");
+        graph.add_dependency("b", "c");
+        graph.add_dependency("c", "a");
+
+        let result = graph.check_circular("a");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_dependency_graph_no_circular() {
+        let mut graph = DependencyGraph::new();
+        graph.add_dependency("a", "b");
+        graph.add_dependency("b", "c");
+        graph.add_dependency("a", "c");
+
+        let result = graph.check_circular("a");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_import_map_resolve_exact() {
+        let mut import_map = ImportMap::default();
+        import_map
+            .imports
+            .insert("lodash".to_string(), "https://cdn.example.com/lodash.js".to_string());
+
+        let resolved = import_map.resolve_specifier("lodash", None);
+        assert_eq!(resolved, Some("https://cdn.example.com/lodash.js".to_string()));
+    }
+
+    #[test]
+    fn test_import_map_resolve_prefix() {
+        let mut import_map = ImportMap::default();
+        import_map
+            .imports
+            .insert("lodash/".to_string(), "https://cdn.example.com/lodash/".to_string());
+
+        let resolved = import_map.resolve_specifier("lodash/fp", None);
+        assert_eq!(resolved, Some("https://cdn.example.com/lodash/fp".to_string()));
+    }
+
+    #[test]
+    fn test_import_map_no_resolve_relative() {
+        let import_map = ImportMap::default();
+
+        // Relative specifiers should not be resolved
+        assert!(import_map.resolve_specifier("./local", None).is_none());
+        assert!(import_map.resolve_specifier("../parent", None).is_none());
+        assert!(import_map.resolve_specifier("/absolute", None).is_none());
+    }
+
+    #[test]
+    fn test_module_record_hash() {
+        let mut record = ModuleRecord::new(
+            "test".to_string(),
+            "./test.js".to_string(),
+            "console.log('hello');".to_string(),
+            ModuleType::JavaScript,
+        );
+
+        assert!(record.source_hash.is_some());
+
+        let hash1 = record.source_hash.clone().unwrap();
+
+        record.source = "console.log('world');".to_string();
+        record.calculate_source_hash();
+
+        let hash2 = record.source_hash.clone().unwrap();
+
+        assert_ne!(hash1, hash2);
     }
 }
