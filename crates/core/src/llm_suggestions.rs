@@ -4,8 +4,14 @@
 
 use std::sync::OnceLock;
 
+use crate::RuntimeError;
+
 /// Global LLM provider instance
 static LLM_PROVIDER: OnceLock<Box<dyn LlmSuggestionProvider>> = OnceLock::new();
+
+/// Result type for LLM operations
+/// Using Box<RuntimeError> to avoid clippy::result_large_err since RuntimeError variants are large
+pub type LlmResult<T> = Result<T, Box<RuntimeError>>;
 
 /// Configuration for LLM suggestions
 #[derive(Debug, Clone)]
@@ -62,36 +68,42 @@ impl ErrorContext {
     }
 
     /// Add source code context
+    #[must_use]
     pub fn with_source_code(mut self, source_code: impl Into<String>) -> Self {
         self.source_code = Some(source_code.into());
         self
     }
 
     /// Add file path
+    #[must_use]
     pub fn with_file_path(mut self, file_path: impl Into<String>) -> Self {
         self.file_path = Some(file_path.into());
         self
     }
 
     /// Add line number
+    #[must_use]
     pub fn with_line_number(mut self, line: u32) -> Self {
         self.line_number = Some(line);
         self
     }
 
     /// Add column number
+    #[must_use]
     pub fn with_column_number(mut self, column: u32) -> Self {
         self.column_number = Some(column);
         self
     }
 
     /// Add error type
+    #[must_use]
     pub fn with_error_type(mut self, error_type: impl Into<String>) -> Self {
         self.error_type = Some(error_type.into());
         self
     }
 
     /// Add stack trace
+    #[must_use]
     pub fn with_stack_trace(mut self, stack_trace: impl Into<String>) -> Self {
         self.stack_trace = Some(stack_trace.into());
         self
@@ -109,38 +121,6 @@ pub struct LlmSuggestion {
     pub model_id: Option<String>,
 }
 
-/// Errors that can occur when fetching LLM suggestions
-#[derive(Debug)]
-pub enum LlmSuggestionError {
-    /// The LLM provider is not initialized
-    NotInitialized,
-    /// The provider failed to generate a suggestion
-    ProviderError(String),
-    /// The request timed out
-    Timeout,
-    /// The feature is disabled
-    Disabled,
-    /// Authentication error
-    AuthenticationError(String),
-    /// Network error
-    NetworkError(String),
-}
-
-impl std::fmt::Display for LlmSuggestionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::NotInitialized => write!(f, "LLM provider not initialized"),
-            Self::ProviderError(msg) => write!(f, "LLM provider error: {}", msg),
-            Self::Timeout => write!(f, "LLM suggestion request timed out"),
-            Self::Disabled => write!(f, "LLM suggestions are disabled"),
-            Self::AuthenticationError(msg) => write!(f, "LLM authentication error: {}", msg),
-            Self::NetworkError(msg) => write!(f, "LLM network error: {}", msg),
-        }
-    }
-}
-
-impl std::error::Error for LlmSuggestionError {}
-
 /// Implement this trait to add support for different LLM backends.
 pub trait LlmSuggestionProvider: Send + Sync {
     /// Get the name of this provider
@@ -150,7 +130,7 @@ pub trait LlmSuggestionProvider: Send + Sync {
     fn is_available(&self) -> bool;
 
     /// Get a suggestion for the given error context
-    fn get_suggestion(&self, context: &ErrorContext) -> Result<LlmSuggestion, LlmSuggestionError>;
+    fn get_suggestion(&self, context: &ErrorContext) -> LlmResult<LlmSuggestion>;
 }
 
 /// Initialize the global LLM provider
@@ -171,12 +151,10 @@ pub fn get_error_suggestion(context: &ErrorContext) -> Option<LlmSuggestion> {
 }
 
 /// Get a suggestion with explicit error handling
-pub fn try_get_error_suggestion(
-    context: &ErrorContext,
-) -> Result<LlmSuggestion, LlmSuggestionError> {
+pub fn try_get_error_suggestion(context: &ErrorContext) -> LlmResult<LlmSuggestion> {
     match LLM_PROVIDER.get() {
         Some(provider) => provider.get_suggestion(context),
-        None => Err(LlmSuggestionError::NotInitialized),
+        None => Err(Box::new(RuntimeError::llm_not_initialized())),
     }
 }
 
@@ -195,7 +173,7 @@ pub mod copilot {
 
     impl CopilotSuggestionProvider {
         /// Create a new Copilot suggestion provider
-        pub fn new(config: LlmSuggestionConfig) -> Result<Self, LlmSuggestionError> {
+        pub fn new(config: LlmSuggestionConfig) -> LlmResult<Self> {
             let model_id = config
                 .model_id
                 .clone()
@@ -209,9 +187,12 @@ pub mod copilot {
         }
 
         /// Initialize the Copilot client asynchronously
-        fn ensure_client_initialized(&self) -> Result<(), LlmSuggestionError> {
+        fn ensure_client_initialized(&self) -> LlmResult<()> {
             let mut client_guard = self.client.lock().map_err(|e| {
-                LlmSuggestionError::ProviderError(format!("Failed to acquire lock: {}", e))
+                Box::new(RuntimeError::llm_provider_error_with_name(
+                    format!("Failed to acquire lock: {}", e),
+                    "GitHub Copilot",
+                ))
             })?;
 
             if client_guard.is_some() {
@@ -223,9 +204,9 @@ pub mod copilot {
                 .enable_all()
                 .build()
                 .map_err(|e| {
-                    LlmSuggestionError::ProviderError(format!(
-                        "Failed to create tokio runtime: {}",
-                        e
+                    Box::new(RuntimeError::llm_provider_error_with_name(
+                        format!("Failed to create tokio runtime: {}", e),
+                        "GitHub Copilot",
                     ))
                 })?;
 
@@ -238,7 +219,7 @@ pub mod copilot {
                     *client_guard = Some(c);
                     Ok(())
                 }
-                Err(e) => Err(copilot_error_to_llm_error(e)),
+                Err(e) => Err(Box::new(copilot_error_to_runtime_error(e))),
             }
         }
 
@@ -309,23 +290,23 @@ Guidelines:
             self.config.enabled && self.ensure_client_initialized().is_ok()
         }
 
-        fn get_suggestion(
-            &self,
-            context: &ErrorContext,
-        ) -> Result<LlmSuggestion, LlmSuggestionError> {
+        fn get_suggestion(&self, context: &ErrorContext) -> LlmResult<LlmSuggestion> {
             if !self.config.enabled {
-                return Err(LlmSuggestionError::Disabled);
+                return Err(Box::new(RuntimeError::llm_disabled()));
             }
 
             self.ensure_client_initialized()?;
 
             let client_guard = self.client.lock().map_err(|e| {
-                LlmSuggestionError::ProviderError(format!("Failed to acquire lock: {}", e))
+                Box::new(RuntimeError::llm_provider_error_with_name(
+                    format!("Failed to acquire lock: {}", e),
+                    "GitHub Copilot",
+                ))
             })?;
 
             let client = client_guard
                 .as_ref()
-                .ok_or(LlmSuggestionError::NotInitialized)?;
+                .ok_or_else(|| Box::new(RuntimeError::llm_not_initialized()))?;
 
             let messages = self.build_prompt(context);
             let model_id = self.model_id.clone();
@@ -335,9 +316,9 @@ Guidelines:
                 .enable_all()
                 .build()
                 .map_err(|e| {
-                    LlmSuggestionError::ProviderError(format!(
-                        "Failed to create tokio runtime: {}",
-                        e
+                    Box::new(RuntimeError::llm_provider_error_with_name(
+                        format!("Failed to create tokio runtime: {}", e),
+                        "GitHub Copilot",
                     ))
                 })?;
 
@@ -365,31 +346,33 @@ Guidelines:
                         model_id: Some(self.model_id.clone()),
                     })
                 }
-                Ok(Err(e)) => Err(copilot_error_to_llm_error(e)),
-                Err(_) => Err(LlmSuggestionError::Timeout),
+                Ok(Err(e)) => Err(Box::new(copilot_error_to_runtime_error(e))),
+                Err(_) => Err(Box::new(RuntimeError::llm_timeout(self.config.timeout_ms))),
             }
         }
     }
 
-    /// Convert Copilot errors to LLM suggestion errors
-    fn copilot_error_to_llm_error(error: CopilotError) -> LlmSuggestionError {
+    /// Convert Copilot errors to RuntimeError
+    fn copilot_error_to_runtime_error(error: CopilotError) -> RuntimeError {
         match error {
-            CopilotError::TokenError(msg) => LlmSuggestionError::AuthenticationError(format!(
+            CopilotError::TokenError(msg) => RuntimeError::llm_authentication_error(format!(
                 "GitHub token error: {}. Set GITHUB_TOKEN environment variable or configure GitHub CLI.",
                 msg
             )),
-            CopilotError::InvalidModel(model) => {
-                LlmSuggestionError::ProviderError(format!("Invalid model: {}", model))
-            }
-            CopilotError::HttpError(msg) => LlmSuggestionError::NetworkError(msg),
-            CopilotError::Other(msg) => {
-                LlmSuggestionError::ProviderError(format!("Copilot error: {}", msg))
-            }
+            CopilotError::InvalidModel(model) => RuntimeError::llm_provider_error_with_name(
+                format!("Invalid model: {}", model),
+                "GitHub Copilot",
+            ),
+            CopilotError::HttpError(msg) => RuntimeError::llm_network_error(msg),
+            CopilotError::Other(msg) => RuntimeError::llm_provider_error_with_name(
+                format!("Copilot error: {}", msg),
+                "GitHub Copilot",
+            ),
         }
     }
 
     /// Initialize the global LLM provider with GitHub Copilot
-    pub fn init_copilot_provider(config: LlmSuggestionConfig) -> Result<(), LlmSuggestionError> {
+    pub fn init_copilot_provider(config: LlmSuggestionConfig) -> LlmResult<()> {
         let provider = CopilotSuggestionProvider::new(config)?;
         init_llm_provider(Box::new(provider));
         Ok(())
