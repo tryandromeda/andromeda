@@ -3,3 +3,5 @@ extend-exclude = ["tests/**"]
 
 [default.extend-identifiers]
 cpy = "cpy"
+cpy_f64 = "cpy_f64"
+abs_cpy = "abs_cpy"
