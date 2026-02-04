@@ -10,7 +10,8 @@ use crate::RuntimeError;
 static LLM_PROVIDER: OnceLock<Box<dyn LlmSuggestionProvider>> = OnceLock::new();
 
 /// Result type for LLM operations
-pub type LlmResult<T> = Result<T, RuntimeError>;
+/// Using Box<RuntimeError> to avoid clippy::result_large_err since RuntimeError variants are large
+pub type LlmResult<T> = Result<T, Box<RuntimeError>>;
 
 /// Configuration for LLM suggestions
 #[derive(Debug, Clone)]
@@ -153,7 +154,7 @@ pub fn get_error_suggestion(context: &ErrorContext) -> Option<LlmSuggestion> {
 pub fn try_get_error_suggestion(context: &ErrorContext) -> LlmResult<LlmSuggestion> {
     match LLM_PROVIDER.get() {
         Some(provider) => provider.get_suggestion(context),
-        None => Err(RuntimeError::llm_not_initialized()),
+        None => Err(Box::new(RuntimeError::llm_not_initialized())),
     }
 }
 
@@ -188,10 +189,10 @@ pub mod copilot {
         /// Initialize the Copilot client asynchronously
         fn ensure_client_initialized(&self) -> LlmResult<()> {
             let mut client_guard = self.client.lock().map_err(|e| {
-                RuntimeError::llm_provider_error_with_name(
+                Box::new(RuntimeError::llm_provider_error_with_name(
                     format!("Failed to acquire lock: {}", e),
                     "GitHub Copilot",
-                )
+                ))
             })?;
 
             if client_guard.is_some() {
@@ -203,10 +204,10 @@ pub mod copilot {
                 .enable_all()
                 .build()
                 .map_err(|e| {
-                    RuntimeError::llm_provider_error_with_name(
+                    Box::new(RuntimeError::llm_provider_error_with_name(
                         format!("Failed to create tokio runtime: {}", e),
                         "GitHub Copilot",
-                    )
+                    ))
                 })?;
 
             let client = rt.block_on(async {
@@ -218,7 +219,7 @@ pub mod copilot {
                     *client_guard = Some(c);
                     Ok(())
                 }
-                Err(e) => Err(copilot_error_to_runtime_error(e)),
+                Err(e) => Err(Box::new(copilot_error_to_runtime_error(e))),
             }
         }
 
@@ -291,21 +292,21 @@ Guidelines:
 
         fn get_suggestion(&self, context: &ErrorContext) -> LlmResult<LlmSuggestion> {
             if !self.config.enabled {
-                return Err(RuntimeError::llm_disabled());
+                return Err(Box::new(RuntimeError::llm_disabled()));
             }
 
             self.ensure_client_initialized()?;
 
             let client_guard = self.client.lock().map_err(|e| {
-                RuntimeError::llm_provider_error_with_name(
+                Box::new(RuntimeError::llm_provider_error_with_name(
                     format!("Failed to acquire lock: {}", e),
                     "GitHub Copilot",
-                )
+                ))
             })?;
 
             let client = client_guard
                 .as_ref()
-                .ok_or_else(RuntimeError::llm_not_initialized)?;
+                .ok_or_else(|| Box::new(RuntimeError::llm_not_initialized()))?;
 
             let messages = self.build_prompt(context);
             let model_id = self.model_id.clone();
@@ -315,10 +316,10 @@ Guidelines:
                 .enable_all()
                 .build()
                 .map_err(|e| {
-                    RuntimeError::llm_provider_error_with_name(
+                    Box::new(RuntimeError::llm_provider_error_with_name(
                         format!("Failed to create tokio runtime: {}", e),
                         "GitHub Copilot",
-                    )
+                    ))
                 })?;
 
             let timeout_duration = std::time::Duration::from_millis(self.config.timeout_ms);
@@ -345,8 +346,8 @@ Guidelines:
                         model_id: Some(self.model_id.clone()),
                     })
                 }
-                Ok(Err(e)) => Err(copilot_error_to_runtime_error(e)),
-                Err(_) => Err(RuntimeError::llm_timeout(self.config.timeout_ms)),
+                Ok(Err(e)) => Err(Box::new(copilot_error_to_runtime_error(e))),
+                Err(_) => Err(Box::new(RuntimeError::llm_timeout(self.config.timeout_ms))),
             }
         }
     }
