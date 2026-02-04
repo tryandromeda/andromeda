@@ -1,2 +1,5 @@
 [files]
 extend-exclude = ["tests/**"]
+
+[default.extend-identifiers]
+cpy = "cpy"
