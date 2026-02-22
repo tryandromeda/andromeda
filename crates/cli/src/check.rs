@@ -674,6 +674,9 @@ pub fn check_files_with_config(
     Ok(())
 }
 
+/// Maximum number of type errors to display per file before truncating.
+const MAX_DISPLAY_ERRORS: usize = 20;
+
 /// Display type check results to the console with rich diagnostics
 fn display_type_check_results(path: &Path, type_errors: &[TypeCheckError]) {
     if !type_errors.is_empty() {
@@ -688,7 +691,9 @@ fn display_type_check_results(path: &Path, type_errors: &[TypeCheckError]) {
 
         println!("{error_icon} {file}: {error_count} type {error_text}");
 
-        for (i, error) in type_errors.iter().enumerate() {
+        let errors_to_show = type_errors.len().min(MAX_DISPLAY_ERRORS);
+
+        for (i, error) in type_errors.iter().take(errors_to_show).enumerate() {
             if type_errors.len() > 1 {
                 println!();
                 println!(
@@ -706,19 +711,14 @@ fn display_type_check_results(path: &Path, type_errors: &[TypeCheckError]) {
             }
         }
 
-        if type_errors.len() < type_errors.len() {
+        let remaining = type_errors.len() - errors_to_show;
+        if remaining > 0 {
             println!();
             println!(
                 "     {} {} more issue{} not shown",
                 "⚠️".bright_yellow(),
-                (type_errors.len() - type_errors.len())
-                    .to_string()
-                    .bright_yellow(),
-                if type_errors.len() - type_errors.len() == 1 {
-                    ""
-                } else {
-                    "s"
-                }
+                remaining.to_string().bright_yellow(),
+                if remaining == 1 { "" } else { "s" }
             );
         }
 

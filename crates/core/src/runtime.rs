@@ -6,10 +6,12 @@ use std::{
     any::Any,
     borrow::BorrowMut,
     cell::RefCell,
-    collections::VecDeque,
+    cmp::Ordering as CmpOrdering,
+    collections::{BinaryHeap, VecDeque},
     path::{Path, PathBuf},
     str,
     sync::{atomic::Ordering, mpsc::Receiver},
+    time::{Duration, Instant},
 };
 
 use nova_vm::{
@@ -45,8 +47,36 @@ use crate::{
     module::ImportMap,
 };
 
+/// A job scheduled to run after a delay. Used by `enqueue_timeout_job`.
+pub(crate) struct TimedJob {
+    deadline: Instant,
+    job: Job,
+}
+
+impl PartialEq for TimedJob {
+    fn eq(&self, other: &Self) -> bool {
+        self.deadline == other.deadline
+    }
+}
+
+impl Eq for TimedJob {}
+
+impl PartialOrd for TimedJob {
+    fn partial_cmp(&self, other: &Self) -> Option<CmpOrdering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TimedJob {
+    fn cmp(&self, other: &Self) -> CmpOrdering {
+        // Reverse ordering so BinaryHeap (max-heap) acts as a min-heap by deadline
+        other.deadline.cmp(&self.deadline)
+    }
+}
+
 pub struct RuntimeHostHooks<UserMacroTask> {
     pub(crate) promise_job_queue: RefCell<VecDeque<Job>>,
+    pub(crate) timeout_job_queue: RefCell<BinaryHeap<TimedJob>>,
     pub(crate) host_data: HostData<UserMacroTask>,
     pub(crate) base_path: PathBuf,
     pub(crate) import_map: Option<ImportMap>,
@@ -62,6 +92,7 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
     pub fn new(host_data: HostData<UserMacroTask>) -> Self {
         Self {
             promise_job_queue: RefCell::default(),
+            timeout_job_queue: RefCell::new(BinaryHeap::new()),
             host_data,
             base_path: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             import_map: None,
@@ -71,6 +102,7 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
     pub fn with_base_path(host_data: HostData<UserMacroTask>, base_path: PathBuf) -> Self {
         Self {
             promise_job_queue: RefCell::default(),
+            timeout_job_queue: RefCell::new(BinaryHeap::new()),
             host_data,
             base_path,
             import_map: None,
@@ -84,6 +116,7 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
     ) -> Self {
         Self {
             promise_job_queue: RefCell::default(),
+            timeout_job_queue: RefCell::new(BinaryHeap::new()),
             host_data,
             base_path,
             import_map: Some(import_map),
@@ -92,6 +125,43 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
 
     pub fn pop_promise_job(&self) -> Option<Job> {
         self.promise_job_queue.borrow_mut().pop_front()
+    }
+
+    /// Move all timeout jobs whose deadline has passed into the promise job queue.
+    /// Returns the number of jobs that were promoted.
+    pub fn drain_ready_timeout_jobs(&self) -> usize {
+        let now = Instant::now();
+        let mut timeout_queue = self.timeout_job_queue.borrow_mut();
+        let mut promise_queue = self.promise_job_queue.borrow_mut();
+        let mut count = 0;
+        while let Some(timed) = timeout_queue.peek() {
+            if timed.deadline <= now {
+                let timed = timeout_queue.pop().unwrap();
+                promise_queue.push_back(timed.job);
+                count += 1;
+            } else {
+                break;
+            }
+        }
+        count
+    }
+
+    /// Returns true if there are timeout jobs still waiting to fire.
+    pub fn has_pending_timeout_jobs(&self) -> bool {
+        !self.timeout_job_queue.borrow().is_empty()
+    }
+
+    /// Returns the duration until the next timeout job is ready, or None if the queue is empty.
+    pub fn time_until_next_timeout(&self) -> Option<Duration> {
+        let queue = self.timeout_job_queue.borrow();
+        queue.peek().map(|timed| {
+            let now = Instant::now();
+            if timed.deadline <= now {
+                Duration::ZERO
+            } else {
+                timed.deadline - now
+            }
+        })
     }
 
     pub fn any_pending_macro_tasks(&self) -> bool {
@@ -252,10 +322,16 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
         self.promise_job_queue.borrow_mut().push_back(job);
     }
 
-    fn enqueue_timeout_job(&self, job: Job, _milliseconds: u64) {
-        // For now, enqueue timeout jobs immediately without delay
-        // TODO: Implement proper timeout scheduling
-        self.promise_job_queue.borrow_mut().push_back(job);
+    fn enqueue_timeout_job(&self, job: Job, milliseconds: u64) {
+        if milliseconds == 0 {
+            // Zero-delay timeouts go directly to the promise queue (like queueMicrotask)
+            self.promise_job_queue.borrow_mut().push_back(job);
+        } else {
+            let deadline = Instant::now() + Duration::from_millis(milliseconds);
+            self.timeout_job_queue
+                .borrow_mut()
+                .push(TimedJob { deadline, job });
+        }
     }
 
     fn get_host_data(&self) -> &dyn Any {
@@ -790,10 +866,15 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
         }
 
         loop {
+            // Drain any timeout jobs whose deadlines have passed
+            self.host_hooks.drain_ready_timeout_jobs();
+
             while let Some(job) = self.host_hooks.pop_promise_job() {
                 result = self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {
                     job.run(agent, gc.reborrow()).unbind().map(|_| Value::Null)
                 });
+                // Running a job may have caused timeout deadlines to pass
+                self.host_hooks.drain_ready_timeout_jobs();
             }
 
             // Try to handle a macro task without blocking
@@ -801,14 +882,34 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             // was already decremented but the message is still in the channel
             let has_macro_task = self.try_handle_macro_task();
 
+            let has_pending_timeouts = self.host_hooks.has_pending_timeout_jobs();
+            let has_pending_macros = self.host_hooks.any_pending_macro_tasks();
+
             // Only exit if there are no pending tasks AND no message was processed
-            if !has_macro_task && !self.host_hooks.any_pending_macro_tasks() {
+            // AND no timeout jobs are waiting
+            if !has_macro_task && !has_pending_macros && !has_pending_timeouts {
                 break;
             }
 
-            // If we saw pending tasks but got no message, block waiting for one
-            if !has_macro_task && self.host_hooks.any_pending_macro_tasks() {
-                self.handle_macro_task();
+            // If we saw pending macro tasks but got no message, block waiting for one
+            // (but respect timeout deadlines so we don't sleep past them)
+            if !has_macro_task && has_pending_macros {
+                if let Some(wait_duration) = self.host_hooks.time_until_next_timeout() {
+                    // Wait for either a macro task or the next timeout, whichever comes first
+                    if let Ok(task) = self.config.macro_task_rx.recv_timeout(wait_duration) {
+                        self.dispatch_macro_task(task);
+                    }
+                    // If recv_timeout timed out, the next loop iteration will drain ready timeouts
+                } else {
+                    self.handle_macro_task();
+                }
+            } else if !has_macro_task && has_pending_timeouts {
+                // No macro tasks pending, but timeout jobs are waiting — sleep until the nearest deadline
+                if let Some(wait_duration) = self.host_hooks.time_until_next_timeout() {
+                    if !wait_duration.is_zero() {
+                        std::thread::sleep(wait_duration);
+                    }
+                }
             }
         }
 
@@ -819,22 +920,24 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
         }
     }
 
-    // Listen for pending macro tasks and resolve one by one
-    pub fn handle_macro_task(&mut self) {
-        match self.config.macro_task_rx.recv() {
-            Ok(MacroTask::ResolvePromise(root_value)) => {
+    /// Dispatch a single macro task that was already received from the channel.
+    pub fn dispatch_macro_task(&mut self, task: MacroTask<UserMacroTask>) {
+        match task {
+            MacroTask::ResolvePromise(root_value) => {
                 self.agent.run_in_realm(&self.realm_root, |agent, gc| {
                     let value = root_value.take(agent);
                     if let Value::Promise(promise) = value {
                         let promise_capability = PromiseCapability::from_promise(promise, false);
                         promise_capability.resolve(agent, Value::Undefined, gc);
                     } else {
-                        panic!("Attempted to resolve a non-promise value");
+                        eprintln!(
+                            "Warning: attempted to resolve a non-promise value in macro task, ignoring"
+                        );
                     }
                 });
             }
             // Let the user runtime handle its macro tasks
-            Ok(MacroTask::User(e)) => {
+            MacroTask::User(e) => {
                 (self.config.eventloop_handler)(
                     e,
                     &mut self.agent,
@@ -842,33 +945,21 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                     &self.host_hooks.host_data,
                 );
             }
-            _ => {}
         }
     }
 
-    // Try to handle a macro task without blocking, returns true if a task was handled
+    /// Block waiting for the next macro task, then dispatch it.
+    pub fn handle_macro_task(&mut self) {
+        if let Ok(task) = self.config.macro_task_rx.recv() {
+            self.dispatch_macro_task(task);
+        }
+    }
+
+    /// Try to handle a macro task without blocking. Returns true if a task was handled.
     pub fn try_handle_macro_task(&mut self) -> bool {
         match self.config.macro_task_rx.try_recv() {
-            Ok(MacroTask::ResolvePromise(root_value)) => {
-                self.agent.run_in_realm(&self.realm_root, |agent, gc| {
-                    let value = root_value.take(agent);
-                    if let Value::Promise(promise) = value {
-                        let promise_capability = PromiseCapability::from_promise(promise, false);
-                        promise_capability.resolve(agent, Value::Undefined, gc);
-                    } else {
-                        panic!("Attempted to resolve a non-promise value");
-                    }
-                });
-                true
-            }
-            // Let the user runtime handle its macro tasks
-            Ok(MacroTask::User(e)) => {
-                (self.config.eventloop_handler)(
-                    e,
-                    &mut self.agent,
-                    &self.realm_root,
-                    &self.host_hooks.host_data,
-                );
+            Ok(task) => {
+                self.dispatch_macro_task(task);
                 true
             }
             _ => false,

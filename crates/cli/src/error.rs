@@ -209,8 +209,15 @@ impl CliError {
         let (source_code, error_span) = if let (Some(path), Some(content), Some(line), Some(col)) =
             (&file_path, source_content, line, column)
         {
-            let source = NamedSource::new(path.clone(), content);
-            let span_start = (line.saturating_sub(1) as usize) * 50 + (col as usize);
+            let source = NamedSource::new(path.clone(), content.clone());
+            // Calculate the actual byte offset by scanning newlines in the source
+            let span_start = content
+                .lines()
+                .take(line.saturating_sub(1) as usize)
+                .map(|l| l.len() + 1) // +1 for the newline character
+                .sum::<usize>()
+                + col.saturating_sub(1) as usize;
+            let span_start = span_start.min(content.len().saturating_sub(1));
             let span = SourceSpan::new(span_start.into(), 1);
             (Some(source), Some(span))
         } else {
