@@ -905,10 +905,10 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                 }
             } else if !has_macro_task && has_pending_timeouts {
                 // No macro tasks pending, but timeout jobs are waiting — sleep until the nearest deadline
-                if let Some(wait_duration) = self.host_hooks.time_until_next_timeout() {
-                    if !wait_duration.is_zero() {
-                        std::thread::sleep(wait_duration);
-                    }
+                if let Some(wait_duration) = self.host_hooks.time_until_next_timeout()
+                    && !wait_duration.is_zero()
+                {
+                    std::thread::sleep(wait_duration);
                 }
             }
         }
