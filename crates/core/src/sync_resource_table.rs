@@ -80,13 +80,8 @@ impl<T> SyncResourceTable<T> {
     }
 
     pub fn push(&self, value: T) -> Rid {
-        let rid = self.next_rid.load(Ordering::Relaxed);
-        let new_rid = rid + 1;
-        let rid = Rid::from_index(rid);
-
+        let rid = Rid::from_index(self.next_rid.fetch_add(1, Ordering::Relaxed));
         self.table.lock().unwrap().insert(rid, value);
-        self.next_rid.store(new_rid, Ordering::Relaxed);
-
         rid
     }
 
