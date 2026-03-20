@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::ext::{LockMode, cron::CronId, interval::IntervalId, timeout::TimeoutId};
-use nova_vm::{ecmascript::types::Value, engine::Global};
+use nova_vm::{ecmascript::Value, engine::Global};
 use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;
 

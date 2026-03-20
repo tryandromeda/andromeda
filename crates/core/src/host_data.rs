@@ -47,13 +47,13 @@ impl<UserMacroTask> HostData<UserMacroTask> {
         }
     }
 
-    /// Get an owned senderto the macro tasks event loop.
+    /// Get an owned sender to the macro tasks event loop.
     pub fn macro_task_tx(&self) -> Sender<MacroTask<UserMacroTask>> {
         self.macro_task_tx.clone()
     }
 
     /// Spawn an async task in the Tokio Runtime that self-registers and unregisters automatically.
-    /// It's given [TaskId] is returned.
+    /// Its given [TaskId] is returned.
     pub fn spawn_macro_task<F>(&self, future: F) -> TaskId
     where
         F: Future + Send + 'static,
@@ -73,22 +73,27 @@ impl<UserMacroTask> HostData<UserMacroTask> {
         task_id
     }
 
-    /// Abort a MacroTask execution given it's [TaskId].
+    /// Abort a MacroTask execution given its [TaskId].
     pub fn abort_macro_task(&self, task_id: TaskId) {
         let tasks = self.tasks.borrow();
-        let task = tasks.get(&task_id).unwrap();
+        let Some(task) = tasks.get(&task_id) else {
+            eprintln!("abort_macro_task: task {} not found", task_id.index());
+            return;
+        };
         task.abort();
 
         // Manually decrease the macro tasks counter as the task was aborted.
         self.macro_task_count.fetch_sub(1, Ordering::Release);
     }
 
-    /// Clear a MacroTask given it's [TaskId].
+    /// Clear a MacroTask given its [TaskId].
     pub fn clear_macro_task(&self, task_id: TaskId) {
-        self.tasks.borrow_mut().remove(&task_id).unwrap();
+        if self.tasks.borrow_mut().remove(&task_id).is_none() {
+            eprintln!("clear_macro_task: task {} not found", task_id.index());
+        }
     }
 
-    /// Abort a MacroTask execution given it's [TaskId] with proper error handling.
+    /// Abort a MacroTask execution given its [TaskId] with proper error handling.
     pub fn abort_macro_task_safe(&self, task_id: TaskId) -> RuntimeResult<()> {
         let tasks = self.tasks.borrow();
         let task = tasks
@@ -101,7 +106,7 @@ impl<UserMacroTask> HostData<UserMacroTask> {
         Ok(())
     }
 
-    /// Clear a MacroTask given it's [TaskId] with proper error handling.
+    /// Clear a MacroTask given its [TaskId] with proper error handling.
     pub fn clear_macro_task_safe(&self, task_id: TaskId) -> RuntimeResult<()> {
         self.tasks
             .borrow_mut()

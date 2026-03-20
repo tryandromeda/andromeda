@@ -8,14 +8,13 @@ use std::sync::{Arc, Mutex};
 
 use andromeda_core::{Extension, ExtensionOp, HostData};
 use nova_vm::{
-    ecmascript::{
-        builtins::{ArgumentsList, Array},
-        execution::{Agent, JsResult},
-        types::Value,
-    },
-    engine::context::{Bindable, GcScope},
+    ecmascript::{Agent, ArgumentsList, Array, JsResult, Value},
+    engine::{Bindable, GcScope},
 };
-use rusqlite::{Connection, OpenFlags, types::ToSql, types::ValueRef};
+use rusqlite::{
+    Connection, OpenFlags,
+    types::{ToSql, ValueRef},
+};
 
 static DATABASE_ID_COUNTER: AtomicU32 = AtomicU32::new(1);
 static STATEMENT_ID_COUNTER: AtomicU32 = AtomicU32::new(1);
@@ -293,7 +292,7 @@ impl SqliteExt {
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Filename must be a string",
                         gc.nogc(),
                     )
@@ -308,7 +307,7 @@ impl SqliteExt {
             Err(_e) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Failed to open database",
                         gc.nogc(),
                     )
@@ -356,7 +355,7 @@ impl SqliteExt {
                 } else {
                     return Err(agent
                         .throw_exception_with_static_message(
-                            nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                            nova_vm::ecmascript::ExceptionType::TypeError,
                             "Invalid database ID",
                             gc.nogc(),
                         )
@@ -366,7 +365,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Database ID must be a number",
                         gc.nogc(),
                     )
@@ -383,7 +382,7 @@ impl SqliteExt {
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "SQL must be a string",
                         gc.nogc(),
                     )
@@ -395,7 +394,7 @@ impl SqliteExt {
             Ok(_) => Ok(Value::Undefined.unbind()),
             Err(_) => Err(agent
                 .throw_exception_with_static_message(
-                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    nova_vm::ecmascript::ExceptionType::Error,
                     "Failed to execute SQL",
                     gc.nogc(),
                 )
@@ -414,7 +413,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Database ID must be a number",
                         gc.nogc(),
                     )
@@ -431,7 +430,7 @@ impl SqliteExt {
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "SQL must be a string",
                         gc.nogc(),
                     )
@@ -471,7 +470,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Database ID must be a number",
                         gc.nogc(),
                     )
@@ -502,7 +501,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Database ID must be a number",
                         gc.nogc(),
                     )
@@ -515,7 +514,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Statement ID must be a number",
                         gc.nogc(),
                     )
@@ -620,7 +619,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Database ID must be a number",
                         gc.nogc(),
                     )
@@ -633,7 +632,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Statement ID must be a number",
                         gc.nogc(),
                     )
@@ -715,7 +714,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Database ID must be a number",
                         gc.nogc(),
                     )
@@ -728,7 +727,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Statement ID must be a number",
                         gc.nogc(),
                     )
@@ -797,7 +796,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Statement ID must be a number",
                         gc.nogc(),
                     )
@@ -832,7 +831,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Database ID must be a number",
                         gc.nogc(),
                     )
@@ -845,7 +844,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Statement ID must be a number",
                         gc.nogc(),
                     )
@@ -946,7 +945,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Statement ID must be a number",
                         gc.nogc(),
                     )
@@ -985,7 +984,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Statement ID must be a number",
                         gc.nogc(),
                     )
@@ -1024,7 +1023,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Statement ID must be a number",
                         gc.nogc(),
                     )
@@ -1055,7 +1054,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Database ID must be a number",
                         gc.nogc(),
                     )
@@ -1078,7 +1077,7 @@ impl SqliteExt {
             Ok(_) => Ok(Value::Undefined.unbind()),
             Err(_) => Err(agent
                 .throw_exception_with_static_message(
-                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    nova_vm::ecmascript::ExceptionType::Error,
                     "Failed to enable/disable extension loading",
                     gc.nogc(),
                 )
@@ -1097,7 +1096,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Database ID must be a number",
                         gc.nogc(),
                     )
@@ -1114,7 +1113,7 @@ impl SqliteExt {
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Extension path must be a string",
                         gc.nogc(),
                     )
@@ -1135,7 +1134,7 @@ impl SqliteExt {
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Entry point must be a string or undefined",
                         gc.nogc(),
                     )
@@ -1149,7 +1148,7 @@ impl SqliteExt {
             Ok(_) => Ok(Value::Undefined.unbind()),
             Err(_) => Err(agent
                 .throw_exception_with_static_message(
-                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    nova_vm::ecmascript::ExceptionType::Error,
                     "Failed to load extension",
                     gc.nogc(),
                 )
@@ -1168,7 +1167,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Database ID must be a number",
                         gc.nogc(),
                     )
@@ -1185,7 +1184,7 @@ impl SqliteExt {
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Function name must be a string",
                         gc.nogc(),
                     )
@@ -1210,7 +1209,7 @@ impl SqliteExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Database ID must be a number",
                         gc.nogc(),
                     )
@@ -1227,7 +1226,7 @@ impl SqliteExt {
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Filename must be a string",
                         gc.nogc(),
                     )
@@ -1255,7 +1254,7 @@ impl SqliteExt {
             Err(_e) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Failed to open database",
                         gc.nogc(),
                     )

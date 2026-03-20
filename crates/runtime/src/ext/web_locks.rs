@@ -14,15 +14,8 @@ use std::{
 
 use andromeda_core::{Extension, ExtensionOp, HostData, MacroTask, OpsStorage, TaskId};
 use nova_vm::{
-    ecmascript::{
-        builtins::ArgumentsList,
-        execution::{Agent, JsResult},
-        types::{IntoValue, Value},
-    },
-    engine::{
-        Global,
-        context::{Bindable, GcScope},
-    },
+    ecmascript::{Agent, ArgumentsList, JsResult, Value},
+    engine::{Bindable, GcScope, Global},
 };
 
 use crate::RuntimeMacroTask;
@@ -155,7 +148,7 @@ impl WebLocksManager {
         agent: &mut Agent,
         params: AcquireTaskParams<'gc>,
     ) -> Result<(), String> {
-        let promise_global = Global::new(agent, params.promise.into_value().unbind());
+        let promise_global = Global::new(agent, params.promise.unbind());
         let task = MacroTask::User(RuntimeMacroTask::AcquireLock {
             promise: promise_global,
             lock_id: params.lock_id,
@@ -492,9 +485,7 @@ impl WebLocksExt {
 
         // Validate name (no leading '-')
         if name.starts_with('-') {
-            return Ok(Value::from_str(agent, "error:Invalid lock name", gc.nogc())
-                .into_value()
-                .unbind());
+            return Ok(Value::from_str(agent, "error:Invalid lock name", gc.nogc()).unbind());
         }
 
         let mode_str = mode_binding
@@ -534,22 +525,14 @@ impl WebLocksExt {
         match result {
             Ok(lock_id) => {
                 let lock_id_str = lock_id.to_string();
-                Ok(Value::from_str(agent, &lock_id_str, gc.nogc())
-                    .into_value()
-                    .unbind())
+                Ok(Value::from_str(agent, &lock_id_str, gc.nogc()).unbind())
             }
             Err(error) => {
                 // Return "not_available" for ifAvailable failures
                 if error.contains("ifAvailable") {
-                    Ok(Value::from_str(agent, "not_available", gc.nogc())
-                        .into_value()
-                        .unbind())
+                    Ok(Value::from_str(agent, "not_available", gc.nogc()).unbind())
                 } else {
-                    Ok(
-                        Value::from_str(agent, &format!("error:{}", error), gc.nogc())
-                            .into_value()
-                            .unbind(),
-                    )
+                    Ok(Value::from_str(agent, &format!("error:{}", error), gc.nogc()).unbind())
                 }
             }
         }
@@ -587,14 +570,10 @@ impl WebLocksExt {
         let result = manager.release_lock_with_tx(name, lock_id, macro_task_tx);
 
         match result {
-            Ok(()) => Ok(Value::from_str(agent, "released", gc.nogc())
-                .into_value()
-                .unbind()),
-            Err(error) => Ok(
-                Value::from_str(agent, &format!("error:{}", error), gc.nogc())
-                    .into_value()
-                    .unbind(),
-            ),
+            Ok(()) => Ok(Value::from_str(agent, "released", gc.nogc()).unbind()),
+            Err(error) => {
+                Ok(Value::from_str(agent, &format!("error:{}", error), gc.nogc()).unbind())
+            }
         }
     }
 
@@ -616,9 +595,7 @@ impl WebLocksExt {
             resources.manager.query_locks()
         };
 
-        Ok(Value::from_str(agent, &result_json, gc.nogc())
-            .into_value()
-            .unbind())
+        Ok(Value::from_str(agent, &result_json, gc.nogc()).unbind())
     }
 
     // Abort a lock request: internal_locks_abort(name, lockId)
@@ -654,14 +631,10 @@ impl WebLocksExt {
         let result = manager.abort_request_with_tx(name, lock_id, macro_task_tx);
 
         match result {
-            Ok(()) => Ok(Value::from_str(agent, "aborted", gc.nogc())
-                .into_value()
-                .unbind()),
-            Err(error) => Ok(
-                Value::from_str(agent, &format!("error:{}", error), gc.nogc())
-                    .into_value()
-                    .unbind(),
-            ),
+            Ok(()) => Ok(Value::from_str(agent, "aborted", gc.nogc()).unbind()),
+            Err(error) => {
+                Ok(Value::from_str(agent, &format!("error:{}", error), gc.nogc()).unbind())
+            }
         }
     }
 }

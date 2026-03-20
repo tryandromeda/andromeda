@@ -4,12 +4,8 @@
 
 use andromeda_core::{Extension, ExtensionOp};
 use nova_vm::{
-    ecmascript::{
-        builtins::ArgumentsList,
-        execution::{Agent, JsResult},
-        types::Value,
-    },
-    engine::context::{Bindable, GcScope},
+    ecmascript::{Agent, ArgumentsList, JsResult, Value},
+    engine::{Bindable, GcScope},
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};

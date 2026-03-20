@@ -4,12 +4,8 @@
 
 use andromeda_core::{Extension, ExtensionOp, HostData};
 use nova_vm::{
-    ecmascript::{
-        builtins::{ArgumentsList, Array},
-        execution::{Agent, JsResult},
-        types::Value,
-    },
-    engine::context::{Bindable, GcScope},
+    ecmascript::{Agent, ArgumentsList, Array, JsResult, Value},
+    engine::{Bindable, GcScope},
 };
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
@@ -233,7 +229,7 @@ impl CacheStorageExt {
             }
             Err(_) => Err(agent
                 .throw_exception_with_static_message(
-                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    nova_vm::ecmascript::ExceptionType::Error,
                     "Failed to open cache",
                     gc.nogc(),
                 )

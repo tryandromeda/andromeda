@@ -7,14 +7,8 @@ use std::sync::Arc;
 use andromeda_core::Rid;
 use andromeda_core::{Extension, ExtensionOp, HostData, MacroTask, OpsStorage, ResourceTable};
 use nova_vm::{
-    ecmascript::{
-        builtins::ArgumentsList,
-        execution::{Agent, JsResult, agent::ExceptionType},
-        types::IntoValue,
-        types::Value,
-    },
-    engine::context::Bindable,
-    engine::{Global, context::GcScope},
+    ecmascript::{Agent, ArgumentsList, ExceptionType, JsResult, Value},
+    engine::{Bindable, GcScope, Global},
 };
 
 use rustls;
@@ -85,8 +79,8 @@ impl TlsExt {
             .expect("String is not valid UTF-8")
             .to_string();
 
-        let promise_capability = nova_vm::ecmascript::builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let promise_capability = nova_vm::ecmascript::PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
 
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
@@ -237,8 +231,8 @@ impl TlsExt {
         };
         let rid = Rid::from_index(rid_val);
 
-        let promise_capability = nova_vm::ecmascript::builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let promise_capability = nova_vm::ecmascript::PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
 
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
@@ -321,8 +315,8 @@ impl TlsExt {
         };
         let rid = Rid::from_index(rid_val);
 
-        let promise_capability = nova_vm::ecmascript::builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let promise_capability = nova_vm::ecmascript::PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
 
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
@@ -399,8 +393,8 @@ impl TlsExt {
         };
         let rid = Rid::from_index(rid_val);
 
-        let promise_capability = nova_vm::ecmascript::builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let promise_capability = nova_vm::ecmascript::PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
 
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();

@@ -4,12 +4,8 @@
 
 use andromeda_core::{Extension, ExtensionOp, HostData};
 use nova_vm::{
-    ecmascript::{
-        builtins::{ArgumentsList, Array},
-        execution::{Agent, JsResult},
-        types::Value,
-    },
-    engine::context::{Bindable, GcScope},
+    ecmascript::{Agent, ArgumentsList, Array, JsResult, Value},
+    engine::{Bindable, GcScope},
 };
 use rusqlite::{Connection, OptionalExtension, params};
 
@@ -151,7 +147,7 @@ impl LocalStorageExt {
             Ok(_) => Ok(Value::Boolean(persistent)),
             Err(_) => Err(agent
                 .throw_exception_with_static_message(
-                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    nova_vm::ecmascript::ExceptionType::Error,
                     "LocalStorage is not supported in this context",
                     gc.nogc(),
                 )
@@ -276,7 +272,7 @@ impl LocalStorageExt {
         if size_check(key.len() + value.len()).is_err() {
             return Err(agent
                 .throw_exception_with_static_message(
-                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    nova_vm::ecmascript::ExceptionType::Error,
                     "Exceeded maximum storage size",
                     gc.nogc(),
                 )
@@ -303,14 +299,14 @@ impl LocalStorageExt {
             Ok(_) => Ok(Value::Undefined),
             Err(WebStorageError::StorageExceeded) => Err(agent
                 .throw_exception_with_static_message(
-                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    nova_vm::ecmascript::ExceptionType::Error,
                     "Exceeded maximum storage size",
                     gc.nogc(),
                 )
                 .unbind()),
             Err(_) => Err(agent
                 .throw_exception_with_static_message(
-                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    nova_vm::ecmascript::ExceptionType::Error,
                     "Failed to store item",
                     gc.nogc(),
                 )

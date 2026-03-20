@@ -9,12 +9,8 @@ use std::{
 
 use nova_vm::{
     SmallInteger,
-    ecmascript::{
-        builtins::ArgumentsList,
-        execution::{Agent, JsResult},
-        types::Value,
-    },
-    engine::context::{Bindable, GcScope},
+    ecmascript::{Agent, ArgumentsList, JsResult, Value},
+    engine::{Bindable, GcScope},
 };
 
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, ResourceTable};
@@ -458,7 +454,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )
@@ -504,7 +500,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )
@@ -517,7 +513,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Content must be a string",
                         gc.nogc(),
                     )
@@ -585,7 +581,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )
@@ -679,7 +675,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )
@@ -741,7 +737,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )
@@ -796,7 +792,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )
@@ -848,7 +844,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Source path must be a string",
                         gc.nogc(),
                     )
@@ -861,7 +857,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Destination path must be a string",
                         gc.nogc(),
                     )
@@ -939,7 +935,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )
@@ -989,7 +985,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )
@@ -1033,7 +1029,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )
@@ -1046,7 +1042,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Data must be a string (base64 encoded)",
                         gc.nogc(),
                     )
@@ -1122,7 +1118,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )
@@ -1183,7 +1179,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )
@@ -1239,7 +1235,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )
@@ -1305,7 +1301,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Old path must be a string",
                         gc.nogc(),
                     )
@@ -1318,7 +1314,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "New path must be a string",
                         gc.nogc(),
                     )
@@ -1430,7 +1426,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )
@@ -1445,7 +1441,7 @@ impl VirtualFsExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Size must be a number",
                         gc.nogc(),
                     )
@@ -1456,7 +1452,7 @@ impl VirtualFsExt {
         if size < 0 {
             return Err(agent
                 .throw_exception_with_static_message(
-                    nova_vm::ecmascript::execution::agent::ExceptionType::RangeError,
+                    nova_vm::ecmascript::ExceptionType::RangeError,
                     "Size must be non-negative",
                     gc.nogc(),
                 )
@@ -1530,7 +1526,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )
@@ -1544,7 +1540,7 @@ impl VirtualFsExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Mode must be a number",
                         gc.nogc(),
                     )
@@ -1585,7 +1581,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Target must be a string",
                         gc.nogc(),
                     )
@@ -1598,7 +1594,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Link path must be a string",
                         gc.nogc(),
                     )
@@ -1654,7 +1650,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )
@@ -1701,7 +1697,7 @@ impl VirtualFsExt {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Path must be a string",
                         gc.nogc(),
                     )

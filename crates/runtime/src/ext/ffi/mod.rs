@@ -24,12 +24,8 @@ use crate::ext::ffi::ir::{
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage};
 use libffi::middle;
 use nova_vm::{
-    ecmascript::{
-        builtins::ArgumentsList,
-        execution::{Agent, JsResult},
-        types::{BigInt, Value},
-    },
-    engine::context::{Bindable, GcScope},
+    ecmascript::{Agent, ArgumentsList, BigInt, JsResult, Value},
+    engine::{Bindable, GcScope},
 };
 
 static LIBRARY_ID_COUNTER: AtomicU32 = AtomicU32::new(1);
@@ -260,7 +256,7 @@ impl FfiExt {
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Filename must be a string",
                         gc.nogc(),
                     )
@@ -275,7 +271,7 @@ impl FfiExt {
             Err(_e) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Failed to load dynamic library",
                         gc.nogc(),
                     )
@@ -328,7 +324,7 @@ impl FfiExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Library ID must be a number",
                         gc.nogc(),
                     )
@@ -345,7 +341,7 @@ impl FfiExt {
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Symbol name must be a string",
                         gc.nogc(),
                     )
@@ -361,7 +357,7 @@ impl FfiExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Failed to parse function definition",
                         gc.nogc(),
                     )
@@ -395,7 +391,7 @@ impl FfiExt {
             Ok(pointer) => Ok(Value::from_f64(agent, pointer as f64, gc.nogc()).unbind()),
             Err(_) => Err(agent
                 .throw_exception_with_static_message(
-                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    nova_vm::ecmascript::ExceptionType::Error,
                     "Failed to get symbol",
                     gc.nogc(),
                 )
@@ -414,7 +410,7 @@ impl FfiExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Library ID must be a number",
                         gc.nogc(),
                     )
@@ -431,7 +427,7 @@ impl FfiExt {
             _ => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Symbol name must be a string",
                         gc.nogc(),
                     )
@@ -454,7 +450,7 @@ impl FfiExt {
                     drop(storage); // Release borrow before using agent
                     return Err(agent
                         .throw_exception_with_static_message(
-                            nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                            nova_vm::ecmascript::ExceptionType::Error,
                             "No libraries available",
                             gc.nogc(),
                         )
@@ -468,7 +464,7 @@ impl FfiExt {
                     drop(storage); // Release borrow before using agent
                     return Err(agent
                         .throw_exception_with_static_message(
-                            nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                            nova_vm::ecmascript::ExceptionType::Error,
                             "Library not found",
                             gc.nogc(),
                         )
@@ -483,7 +479,7 @@ impl FfiExt {
                     drop(storage); // Release borrow before using agent
                     return Err(agent
                         .throw_exception_with_static_message(
-                            nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                            nova_vm::ecmascript::ExceptionType::Error,
                             "Symbol not found",
                             gc.nogc(),
                         )
@@ -566,7 +562,7 @@ impl FfiExt {
             Ok(result) => Ok(Value::from_f64(agent, result, gc.nogc()).unbind()),
             Err(_) => Err(agent
                 .throw_exception_with_static_message(
-                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    nova_vm::ecmascript::ExceptionType::Error,
                     "Failed to call symbol",
                     gc.nogc(),
                 )
@@ -585,7 +581,7 @@ impl FfiExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Library ID must be a number",
                         gc.nogc(),
                     )
@@ -671,7 +667,7 @@ impl FfiExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Callback ID must be a number",
                         gc.nogc(),
                     )
@@ -702,7 +698,7 @@ impl FfiExt {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::TypeError,
+                        nova_vm::ecmascript::ExceptionType::TypeError,
                         "Pointer value must be a number",
                         gc.nogc(),
                     )

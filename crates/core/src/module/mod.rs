@@ -1520,7 +1520,7 @@ impl ModuleVisitor {
             ast::Declaration::VariableDeclaration(var_decl) => {
                 // Handle: export const x = 1, y = 2;
                 for declarator in &var_decl.declarations {
-                    self.extract_binding_names(&declarator.id.kind);
+                    self.extract_binding_names(&declarator.id);
                 }
             }
             ast::Declaration::FunctionDeclaration(func) => {
@@ -1600,9 +1600,9 @@ impl ModuleVisitor {
     }
 
     /// Extract names from binding patterns (handles destructuring)
-    fn extract_binding_names(&mut self, binding: &ast::BindingPatternKind) {
+    fn extract_binding_names(&mut self, binding: &ast::BindingPattern) {
         match binding {
-            ast::BindingPatternKind::BindingIdentifier(id) => {
+            ast::BindingPattern::BindingIdentifier(id) => {
                 // Simple binding: const x = 1
                 self.exports.push(ModuleExport {
                     name: Some(id.name.as_str().to_owned()),
@@ -1611,29 +1611,29 @@ impl ModuleVisitor {
                     source_name: None,
                 });
             }
-            ast::BindingPatternKind::ObjectPattern(obj_pattern) => {
+            ast::BindingPattern::ObjectPattern(obj_pattern) => {
                 // Object destructuring: const { x, y } = obj
                 for property in &obj_pattern.properties {
-                    self.extract_binding_names(&property.value.kind);
+                    self.extract_binding_names(&property.value);
                 }
                 // Handle rest: const { ...rest } = obj
                 if let Some(rest) = &obj_pattern.rest {
-                    self.extract_binding_names(&rest.argument.kind);
+                    self.extract_binding_names(&rest.argument);
                 }
             }
-            ast::BindingPatternKind::ArrayPattern(arr_pattern) => {
+            ast::BindingPattern::ArrayPattern(arr_pattern) => {
                 // Array destructuring: const [x, y] = arr
                 for element in arr_pattern.elements.iter().flatten() {
-                    self.extract_binding_names(&element.kind);
+                    self.extract_binding_names(element);
                 }
                 // Handle rest: const [...rest] = arr
                 if let Some(rest) = &arr_pattern.rest {
-                    self.extract_binding_names(&rest.argument.kind);
+                    self.extract_binding_names(&rest.argument);
                 }
             }
-            ast::BindingPatternKind::AssignmentPattern(assignment) => {
+            ast::BindingPattern::AssignmentPattern(assignment) => {
                 // Default values: const { x = 5 } = obj
-                self.extract_binding_names(&assignment.left.kind);
+                self.extract_binding_names(&assignment.left);
             }
         }
     }

@@ -9,14 +9,10 @@ use super::renderer::{Point, Rect};
 use crate::RuntimeMacroTask;
 use crate::ext::canvas::renderer::{CompositeOperation, LineCap, LineJoin, RenderState};
 use andromeda_core::HostData;
-use nova_vm::ecmascript::types::Number;
+use nova_vm::ecmascript::Number;
 use nova_vm::{
-    ecmascript::{
-        builtins::ArgumentsList,
-        execution::{Agent, JsResult},
-        types::Value,
-    },
-    engine::context::{Bindable, GcScope},
+    ecmascript::{Agent, ArgumentsList, JsResult, Value},
+    engine::{Bindable, GcScope},
 };
 
 /// A command to be executed on the canvas

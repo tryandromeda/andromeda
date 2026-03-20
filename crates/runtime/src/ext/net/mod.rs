@@ -22,18 +22,8 @@ use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::sync::Mutex;
 
 use nova_vm::{
-    ecmascript::{
-        builtins::{
-            ArgumentsList,
-            promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
-        },
-        execution::{Agent, JsResult},
-        types::{IntoValue, Value},
-    },
-    engine::{
-        Global,
-        context::{Bindable, GcScope},
-    },
+    ecmascript::{Agent, ArgumentsList, JsResult, PromiseCapability, Value},
+    engine::{Bindable, GcScope, Global},
 };
 
 use andromeda_core::{
@@ -280,7 +270,7 @@ impl NetExt {
         };
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
@@ -440,7 +430,7 @@ impl NetExt {
         };
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
 
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
@@ -569,7 +559,7 @@ impl NetExt {
         };
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
 
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
@@ -669,7 +659,7 @@ impl NetExt {
         };
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
 
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
@@ -876,7 +866,7 @@ impl NetExt {
         };
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
 
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
@@ -956,7 +946,7 @@ impl NetExt {
         };
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
 
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
@@ -1080,7 +1070,7 @@ impl NetExt {
             .to_string();
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();

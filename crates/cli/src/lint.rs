@@ -891,8 +891,7 @@ fn check_statement_for_expressions(
             // Check for exception parameter reassignment
             if let Some(handler) = &try_stmt.handler {
                 if let Some(param) = &handler.param
-                    && let oxc_ast::ast::BindingPatternKind::BindingIdentifier(ident) =
-                        &param.pattern.kind
+                    && let oxc_ast::ast::BindingPattern::BindingIdentifier(ident) = &param.pattern
                 {
                     let exception_name = ident.name.to_string();
                     check_ex_assign_in_catch(

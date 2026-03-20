@@ -4,12 +4,8 @@
 
 use andromeda_core::{Extension, HostData};
 use nova_vm::{
-    ecmascript::{
-        builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
-        execution::agent::{GcAgent, RealmRoot},
-        types::{IntoValue, String as NovaString, Value},
-    },
-    engine::{Global, context::Bindable},
+    ecmascript::{GcAgent, PromiseCapability, RealmRoot, String as NovaString, Value},
+    engine::{Bindable, Global},
 };
 
 use crate::{
@@ -93,7 +89,7 @@ pub fn recommended_eventloop_handler(
                     let promise_capability = PromiseCapability::from_promise(promise, false);
                     promise_capability.resolve(agent, resolve_value, gc.reborrow());
                 } else {
-                    panic!("Attempted to resolve a non-promise value");
+                    eprintln!("ResolvePromiseWithValue: expected a Promise, got {promise_value:?}");
                 }
             });
         }
@@ -103,9 +99,9 @@ pub fn recommended_eventloop_handler(
                 if let Value::Promise(promise) = value {
                     let promise_capability = PromiseCapability::from_promise(promise, false);
                     let error_val = NovaString::from_str(agent, &error_message, gc.nogc());
-                    promise_capability.reject(agent, error_val.into_value(), gc.nogc());
+                    promise_capability.reject(agent, Value::from(error_val), gc.nogc());
                 } else {
-                    panic!("Attempted to reject a non-promise value");
+                    eprintln!("RejectPromise: expected a Promise, got {value:?}");
                 }
             });
         }
@@ -114,7 +110,7 @@ pub fn recommended_eventloop_handler(
             let string_global = agent
                 .run_in_realm(realm_root, |agent, gc| {
                     let string_val = Value::from_string(agent, string_value, gc.nogc());
-                    Some(Global::new(agent, string_val.into_value().unbind()))
+                    Some(Global::new(agent, string_val.unbind()))
                 })
                 .unwrap();
 
@@ -126,7 +122,9 @@ pub fn recommended_eventloop_handler(
                     let promise_capability = PromiseCapability::from_promise(promise, false);
                     promise_capability.resolve(agent, string_value, gc);
                 } else {
-                    panic!("Attempted to resolve a non-promise value");
+                    eprintln!(
+                        "ResolvePromiseWithString: expected a Promise, got {promise_value:?}"
+                    );
                 }
             });
         }
@@ -139,7 +137,7 @@ pub fn recommended_eventloop_handler(
                         write!(&mut hex_content, "{b:02x}").unwrap();
                     }
                     let string_val = Value::from_string(agent, hex_content, gc.nogc());
-                    Some(Global::new(agent, string_val.into_value().unbind()))
+                    Some(Global::new(agent, string_val.unbind()))
                 })
                 .unwrap();
 
@@ -150,7 +148,7 @@ pub fn recommended_eventloop_handler(
                     let promise_capability = PromiseCapability::from_promise(promise, false);
                     promise_capability.resolve(agent, string_value, gc);
                 } else {
-                    panic!("Attempted to resolve a non-promise value");
+                    eprintln!("ResolvePromiseWithBytes: expected a Promise, got {promise_value:?}");
                 }
             });
         }
@@ -173,7 +171,7 @@ pub fn recommended_eventloop_handler(
                 .run_in_realm(realm_root, |agent, gc| {
                     let rid_str = rid.index().to_string();
                     let string_val = Value::from_string(agent, rid_str, gc.nogc());
-                    Some(Global::new(agent, string_val.into_value().unbind()))
+                    Some(Global::new(agent, string_val.unbind()))
                 })
                 .unwrap();
 
@@ -184,7 +182,7 @@ pub fn recommended_eventloop_handler(
                     let promise_capability = PromiseCapability::from_promise(promise, false);
                     promise_capability.resolve(agent, string_value, gc);
                 } else {
-                    panic!("Attempted to resolve a non-promise value");
+                    eprintln!("RegisterTlsStream: expected a Promise, got {promise_value:?}");
                 }
             });
         }
@@ -203,7 +201,7 @@ pub fn recommended_eventloop_handler(
             let string_global = agent
                 .run_in_realm(realm_root, |agent, gc| {
                     let string_val = Value::from_string(agent, lock_info, gc.nogc());
-                    Some(Global::new(agent, string_val.into_value().unbind()))
+                    Some(Global::new(agent, string_val.unbind()))
                 })
                 .unwrap();
 
@@ -215,7 +213,7 @@ pub fn recommended_eventloop_handler(
                     let promise_capability = PromiseCapability::from_promise(promise_obj, false);
                     promise_capability.resolve(agent, string_value, gc);
                 } else {
-                    panic!("Attempted to resolve a non-promise value in AcquireLock");
+                    eprintln!("AcquireLock: expected a Promise, got {promise_value:?}");
                 }
             });
         }

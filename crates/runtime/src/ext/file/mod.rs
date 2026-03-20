@@ -4,12 +4,8 @@
 
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage};
 use nova_vm::{
-    ecmascript::{
-        builtins::ArgumentsList,
-        execution::{Agent, JsResult, agent::ExceptionType},
-        types::Value,
-    },
-    engine::context::{Bindable, GcScope},
+    ecmascript::{Agent, ArgumentsList, ExceptionType, JsResult, Value},
+    engine::{Bindable, GcScope},
 };
 use std::collections::HashMap;
 use uuid::Uuid;

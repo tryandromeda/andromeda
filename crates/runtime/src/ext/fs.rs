@@ -10,19 +10,8 @@ use std::{
 };
 
 use nova_vm::{
-    SmallInteger,
-    ecmascript::{
-        builtins::{
-            ArgumentsList,
-            promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
-        },
-        execution::{Agent, JsResult},
-        types::{IntoValue, Value},
-    },
-    engine::{
-        Global,
-        context::{Bindable, GcScope},
-    },
+    ecmascript::{Agent, ArgumentsList, JsResult, PromiseCapability, SmallInteger, Value},
+    engine::{Bindable, GcScope, Global},
 };
 
 use andromeda_core::{
@@ -1168,7 +1157,7 @@ impl FsExt {
                 let error_msg = ErrorReporter::format_error(&error);
                 let promise_capability = PromiseCapability::new(agent, gc.nogc());
                 let root_value =
-                    Global::new(agent, promise_capability.promise().into_value().unbind());
+                    Global::new(agent, Value::from(promise_capability.promise()).unbind());
                 let host_data = agent.get_host_data();
                 let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
                 let macro_task_tx = host_data.macro_task_tx();
@@ -1185,7 +1174,7 @@ impl FsExt {
         let path_string = resolved_path.to_string_lossy().to_string();
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
@@ -1247,7 +1236,7 @@ impl FsExt {
                 let error_msg = ErrorReporter::format_error(&error);
                 let promise_capability = PromiseCapability::new(agent, gc.nogc());
                 let root_value =
-                    Global::new(agent, promise_capability.promise().into_value().unbind());
+                    Global::new(agent, Value::from(promise_capability.promise()).unbind());
                 let host_data = agent.get_host_data();
                 let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
                 let macro_task_tx = host_data.macro_task_tx();
@@ -1264,7 +1253,7 @@ impl FsExt {
         let path_string = resolved_path.to_string_lossy().to_string();
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
@@ -1310,7 +1299,7 @@ impl FsExt {
             .to_string();
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
@@ -1367,7 +1356,7 @@ impl FsExt {
             .to_string();
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
@@ -1425,7 +1414,7 @@ impl FsExt {
             .to_string();
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
@@ -1475,7 +1464,7 @@ impl FsExt {
             .to_string();
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
@@ -1527,7 +1516,7 @@ impl FsExt {
             .to_string();
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
@@ -1573,7 +1562,7 @@ impl FsExt {
             .to_string();
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
@@ -1616,7 +1605,7 @@ impl FsExt {
             .to_string();
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
@@ -1659,7 +1648,7 @@ impl FsExt {
             .to_string();
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
@@ -1697,7 +1686,7 @@ impl FsExt {
             .to_string();
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
@@ -1740,7 +1729,7 @@ impl FsExt {
             .to_string();
 
         let promise_capability = PromiseCapability::new(agent, gc.nogc());
-        let root_value = Global::new(agent, promise_capability.promise().into_value().unbind());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
         let macro_task_tx = host_data.macro_task_tx();
