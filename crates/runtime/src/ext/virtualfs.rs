@@ -8,8 +8,7 @@ use std::{
 };
 
 use nova_vm::{
-    SmallInteger,
-    ecmascript::{Agent, ArgumentsList, JsResult, Value},
+    ecmascript::{Agent, ArgumentsList, JsResult, SmallInteger, Value},
     engine::{Bindable, GcScope},
 };
 
