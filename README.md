@@ -4,7 +4,7 @@
 
 [![Discord Server](https://img.shields.io/discord/1264947585882259599.svg?logo=discord&style=flat-square)](https://discord.gg/tgjAnX2Ny3)
 
-**A modern, fast, and secure JavaScript & TypeScript runtime** built from the
+**A modern, fast(eventually), and secure JavaScript & TypeScript runtime** built from the
 ground up in [Rust 🦀](https://www.rust-lang.org/) and powered by
 [Nova Engine](https://trynova.dev/) and [Oxc](https://oxc.rs).
 
