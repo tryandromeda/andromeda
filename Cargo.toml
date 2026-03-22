@@ -91,6 +91,9 @@ uuid = { version = "1.19.0", features = ["v4"] }
 webpki-roots = "1.0.6"
 wgpu = { version = "27.0.1", features = ["wgsl", "webgpu"] }
 
+[profile.dev]
+split-debuginfo = "packed"
+
 [profile.release]
 lto = true
 
