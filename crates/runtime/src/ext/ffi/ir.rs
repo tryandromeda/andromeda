@@ -3,11 +3,8 @@ use crate::ext::ffi::{
     error::FfiError,
 };
 use nova_vm::{
-    ecmascript::{
-        execution::Agent,
-        types::{BigInt, Value},
-    },
-    engine::context::{Bindable, GcScope},
+    ecmascript::{Agent, BigInt, Value},
+    engine::{Bindable, GcScope},
 };
 use std::os::raw::c_void;
 use std::ptr;

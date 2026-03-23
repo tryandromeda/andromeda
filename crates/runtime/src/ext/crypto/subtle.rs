@@ -4,12 +4,8 @@
 
 use andromeda_core::HostData;
 use nova_vm::{
-    ecmascript::{
-        builtins::ArgumentsList,
-        execution::{Agent, JsResult},
-        types::Value,
-    },
-    engine::context::{Bindable, GcScope},
+    ecmascript::{Agent, ArgumentsList, JsResult, Value},
+    engine::{Bindable, GcScope},
 };
 use rand::SecureRandom;
 use ring::{aead, digest, hmac, rand};
@@ -259,7 +255,7 @@ impl SubtleCrypto {
                 let gc = gc.into_nogc();
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Invalid algorithm",
                         gc,
                     )
@@ -274,7 +270,7 @@ impl SubtleCrypto {
                 let gc = gc.into_nogc();
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Failed to extract data",
                         gc,
                     )
@@ -291,7 +287,7 @@ impl SubtleCrypto {
                 let gc = gc.into_nogc();
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Unsupported digest algorithm",
                         gc,
                     )
@@ -303,7 +299,7 @@ impl SubtleCrypto {
         let base64_string = base64_simd::STANDARD.encode_to_string(&result_bytes);
 
         Ok(
-            nova_vm::ecmascript::types::String::from_string(agent, base64_string, gc.nogc())
+            nova_vm::ecmascript::String::from_string(agent, base64_string, gc.nogc())
                 .unbind()
                 .into(),
         )
@@ -355,7 +351,7 @@ impl SubtleCrypto {
                     let gc = gc.into_nogc();
                     return Err(agent
                         .throw_exception_with_static_message(
-                            nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                            nova_vm::ecmascript::ExceptionType::Error,
                             "Failed to generate random key",
                             gc,
                         )
@@ -403,7 +399,7 @@ impl SubtleCrypto {
                     "keyId": key_id
                 });
 
-                Ok(nova_vm::ecmascript::types::String::from_string(
+                Ok(nova_vm::ecmascript::String::from_string(
                     agent,
                     key_object.to_string(),
                     gc.nogc(),
@@ -425,7 +421,7 @@ impl SubtleCrypto {
                     let gc = gc.into_nogc();
                     return Err(agent
                         .throw_exception_with_static_message(
-                            nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                            nova_vm::ecmascript::ExceptionType::Error,
                             "Failed to generate random key",
                             gc,
                         )
@@ -456,7 +452,7 @@ impl SubtleCrypto {
                     "keyId": key_id
                 });
 
-                Ok(nova_vm::ecmascript::types::String::from_string(
+                Ok(nova_vm::ecmascript::String::from_string(
                     agent,
                     key_object.to_string(),
                     gc.nogc(),
@@ -473,13 +469,9 @@ impl SubtleCrypto {
                 );
 
                 Ok(
-                    nova_vm::ecmascript::types::String::from_string(
-                        agent,
-                        key_pair_info,
-                        gc.nogc(),
-                    )
-                    .unbind()
-                    .into(),
+                    nova_vm::ecmascript::String::from_string(agent, key_pair_info, gc.nogc())
+                        .unbind()
+                        .into(),
                 )
             }
             "ECDSA" | "ECDH" => {
@@ -496,13 +488,9 @@ impl SubtleCrypto {
                 );
 
                 Ok(
-                    nova_vm::ecmascript::types::String::from_string(
-                        agent,
-                        key_pair_info,
-                        gc.nogc(),
-                    )
-                    .unbind()
-                    .into(),
+                    nova_vm::ecmascript::String::from_string(agent, key_pair_info, gc.nogc())
+                        .unbind()
+                        .into(),
                 )
             }
             "Ed25519" | "Ed448" | "X25519" | "X448" => {
@@ -512,13 +500,9 @@ impl SubtleCrypto {
                 );
 
                 Ok(
-                    nova_vm::ecmascript::types::String::from_string(
-                        agent,
-                        key_pair_info,
-                        gc.nogc(),
-                    )
-                    .unbind()
-                    .into(),
+                    nova_vm::ecmascript::String::from_string(agent, key_pair_info, gc.nogc())
+                        .unbind()
+                        .into(),
                 )
             }
             "HKDF" | "PBKDF2" => {
@@ -526,7 +510,7 @@ impl SubtleCrypto {
                 let gc = gc.into_nogc();
                 Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Key derivation algorithms cannot generate keys",
                         gc,
                     )
@@ -536,7 +520,7 @@ impl SubtleCrypto {
                 let gc = gc.into_nogc();
                 Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Unsupported key generation algorithm",
                         gc,
                     )
@@ -562,7 +546,7 @@ impl SubtleCrypto {
         } else {
             return Err(agent
                 .throw_exception_with_static_message(
-                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    nova_vm::ecmascript::ExceptionType::Error,
                     "Invalid key format",
                     gc.nogc(),
                 )
@@ -581,7 +565,7 @@ impl SubtleCrypto {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Unsupported algorithm",
                         gc.nogc(),
                     )
@@ -599,7 +583,7 @@ impl SubtleCrypto {
                         Err(_) => {
                             return Err(agent
                                 .throw_exception_with_static_message(
-                                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                                    nova_vm::ecmascript::ExceptionType::Error,
                                     "Invalid key data",
                                     gc.nogc(),
                                 )
@@ -632,19 +616,21 @@ impl SubtleCrypto {
                     "extractable": extractable
                 });
 
-                Ok(nova_vm::ecmascript::types::String::from_string(
-                    agent,
-                    key_json.to_string(),
-                    gc.nogc(),
+                Ok(
+                    nova_vm::ecmascript::String::from_string(
+                        agent,
+                        key_json.to_string(),
+                        gc.nogc(),
+                    )
+                    .unbind()
+                    .into(),
                 )
-                .unbind()
-                .into())
             }
             _ => {
                 // TODO: Implement other formats (spki, pkcs8, jwk)
                 Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Unsupported key format",
                         gc.nogc(),
                     )
@@ -667,7 +653,7 @@ impl SubtleCrypto {
         } else {
             return Err(agent
                 .throw_exception_with_static_message(
-                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    nova_vm::ecmascript::ExceptionType::Error,
                     "Invalid key format",
                     gc.nogc(),
                 )
@@ -680,7 +666,7 @@ impl SubtleCrypto {
             Err(_) => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Invalid key object",
                         gc.nogc(),
                     )
@@ -693,7 +679,7 @@ impl SubtleCrypto {
             None => {
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Key not found",
                         gc.nogc(),
                     )
@@ -705,7 +691,7 @@ impl SubtleCrypto {
         if !crypto_key.extractable {
             return Err(agent
                 .throw_exception_with_static_message(
-                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    nova_vm::ecmascript::ExceptionType::Error,
                     "Key is not extractable",
                     gc.nogc(),
                 )
@@ -716,13 +702,11 @@ impl SubtleCrypto {
             "raw" => {
                 // Return raw key data as base64 string
                 let key_data_base64 = base64_simd::STANDARD.encode_to_string(&crypto_key.key_data);
-                Ok(nova_vm::ecmascript::types::String::from_string(
-                    agent,
-                    key_data_base64,
-                    gc.nogc(),
+                Ok(
+                    nova_vm::ecmascript::String::from_string(agent, key_data_base64, gc.nogc())
+                        .unbind()
+                        .into(),
                 )
-                .unbind()
-                .into())
             }
             "jwk" => {
                 // Return JWK format
@@ -745,7 +729,7 @@ impl SubtleCrypto {
                     _ => {
                         return Err(agent
                             .throw_exception_with_static_message(
-                                nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                                nova_vm::ecmascript::ExceptionType::Error,
                                 "JWK export not supported for this algorithm",
                                 gc.nogc(),
                             )
@@ -753,17 +737,15 @@ impl SubtleCrypto {
                     }
                 };
 
-                Ok(nova_vm::ecmascript::types::String::from_string(
-                    agent,
-                    jwk.to_string(),
-                    gc.nogc(),
+                Ok(
+                    nova_vm::ecmascript::String::from_string(agent, jwk.to_string(), gc.nogc())
+                        .unbind()
+                        .into(),
                 )
-                .unbind()
-                .into())
             }
             _ => Err(agent
                 .throw_exception_with_static_message(
-                    nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                    nova_vm::ecmascript::ExceptionType::Error,
                     "Unsupported export format",
                     gc.nogc(),
                 )
@@ -787,7 +769,7 @@ impl SubtleCrypto {
                 let gc = gc.into_nogc();
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Invalid algorithm parameter",
                         gc,
                     )
@@ -802,7 +784,7 @@ impl SubtleCrypto {
                 let gc = gc.into_nogc();
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Invalid key parameter",
                         gc,
                     )
@@ -816,7 +798,7 @@ impl SubtleCrypto {
                 let gc = gc.into_nogc();
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Key not found",
                         gc,
                     )
@@ -831,7 +813,7 @@ impl SubtleCrypto {
                 let gc = gc.into_nogc();
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Invalid data parameter",
                         gc,
                     )
@@ -859,20 +841,16 @@ impl SubtleCrypto {
                 let base64_result = base64_simd::STANDARD.encode_to_string(&ciphertext);
 
                 Ok(
-                    nova_vm::ecmascript::types::String::from_string(
-                        agent,
-                        base64_result,
-                        gc.nogc(),
-                    )
-                    .unbind()
-                    .into(),
+                    nova_vm::ecmascript::String::from_string(agent, base64_result, gc.nogc())
+                        .unbind()
+                        .into(),
                 )
             }
             Err(_) => {
                 let gc = gc.into_nogc();
                 Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Encryption failed",
                         gc,
                     )
@@ -954,7 +932,7 @@ impl SubtleCrypto {
                 let gc = gc.into_nogc();
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Invalid algorithm parameter",
                         gc,
                     )
@@ -969,7 +947,7 @@ impl SubtleCrypto {
                 let gc = gc.into_nogc();
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Invalid key parameter",
                         gc,
                     )
@@ -983,7 +961,7 @@ impl SubtleCrypto {
                 let gc = gc.into_nogc();
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Key not found",
                         gc,
                     )
@@ -998,7 +976,7 @@ impl SubtleCrypto {
                 let gc = gc.into_nogc();
                 return Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Invalid data parameter",
                         gc,
                     )
@@ -1026,20 +1004,16 @@ impl SubtleCrypto {
                 let base64_result = base64_simd::STANDARD.encode_to_string(&plaintext);
 
                 Ok(
-                    nova_vm::ecmascript::types::String::from_string(
-                        agent,
-                        base64_result,
-                        gc.nogc(),
-                    )
-                    .unbind()
-                    .into(),
+                    nova_vm::ecmascript::String::from_string(agent, base64_result, gc.nogc())
+                        .unbind()
+                        .into(),
                 )
             }
             Err(_) => {
                 let gc = gc.into_nogc();
                 Err(agent
                     .throw_exception_with_static_message(
-                        nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                        nova_vm::ecmascript::ExceptionType::Error,
                         "Decryption failed",
                         gc,
                     )
@@ -1105,7 +1079,7 @@ impl SubtleCrypto {
         let algorithm = match Self::parse_algorithm(agent, algorithm_value, gc.reborrow()) {
             Ok(alg) => alg,
             Err(_) => {
-                return Ok(nova_vm::ecmascript::types::String::from_string(
+                return Ok(nova_vm::ecmascript::String::from_string(
                     agent,
                     "error_unsupported_algorithm".to_string(),
                     gc.nogc(),
@@ -1119,7 +1093,7 @@ impl SubtleCrypto {
         let data = match Self::extract_bytes_from_value(agent, data_value, gc.reborrow()) {
             Ok(bytes) => bytes,
             Err(_) => {
-                return Ok(nova_vm::ecmascript::types::String::from_string(
+                return Ok(nova_vm::ecmascript::String::from_string(
                     agent,
                     "error_invalid_data".to_string(),
                     gc.nogc(),
@@ -1171,7 +1145,7 @@ impl SubtleCrypto {
                         hmac::sign(&key, &data)
                     }
                     _ => {
-                        return Ok(nova_vm::ecmascript::types::String::from_string(
+                        return Ok(nova_vm::ecmascript::String::from_string(
                             agent,
                             "error_unsupported_hash".to_string(),
                             gc.nogc(),
@@ -1184,17 +1158,15 @@ impl SubtleCrypto {
                 let signature_bytes = signature_result.as_ref().to_vec();
                 let signature_base64 = base64_simd::STANDARD.encode_to_string(&signature_bytes);
 
-                Ok(nova_vm::ecmascript::types::String::from_string(
-                    agent,
-                    signature_base64,
-                    gc.nogc(),
+                Ok(
+                    nova_vm::ecmascript::String::from_string(agent, signature_base64, gc.nogc())
+                        .unbind()
+                        .into(),
                 )
-                .unbind()
-                .into())
             }
             _ => {
                 // TODO: Implement RSA signatures and ECDSA
-                Ok(nova_vm::ecmascript::types::String::from_string(
+                Ok(nova_vm::ecmascript::String::from_string(
                     agent,
                     "error_algorithm_not_implemented".to_string(),
                     gc.nogc(),
@@ -1277,7 +1249,7 @@ impl SubtleCrypto {
         let gc = gc.into_nogc();
         Err(agent
             .throw_exception_with_static_message(
-                nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                nova_vm::ecmascript::ExceptionType::Error,
                 "deriveKey not yet implemented",
                 gc,
             )
@@ -1293,7 +1265,7 @@ impl SubtleCrypto {
         let gc = gc.into_nogc();
         Err(agent
             .throw_exception_with_static_message(
-                nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                nova_vm::ecmascript::ExceptionType::Error,
                 "deriveBits not yet implemented",
                 gc,
             )
@@ -1309,7 +1281,7 @@ impl SubtleCrypto {
         let gc = gc.into_nogc();
         Err(agent
             .throw_exception_with_static_message(
-                nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                nova_vm::ecmascript::ExceptionType::Error,
                 "wrapKey not yet implemented",
                 gc,
             )
@@ -1325,7 +1297,7 @@ impl SubtleCrypto {
         let gc = gc.into_nogc();
         Err(agent
             .throw_exception_with_static_message(
-                nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                nova_vm::ecmascript::ExceptionType::Error,
                 "unwrapKey not yet implemented",
                 gc,
             )

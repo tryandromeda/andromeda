@@ -3,15 +3,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use andromeda_core::{Extension, ExtensionOp};
-use nova_vm::engine::context::Bindable;
-
 use nova_vm::{
-    ecmascript::{
-        builtins::ArgumentsList,
-        execution::{Agent, JsResult},
-        types::Value,
-    },
-    engine::context::GcScope,
+    ecmascript::{Agent, ArgumentsList, JsResult, Value},
+    engine::{Bindable, GcScope},
 };
 use url::Url;
 

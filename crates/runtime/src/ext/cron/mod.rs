@@ -5,15 +5,8 @@
 use crate::RuntimeMacroTask;
 use andromeda_core::{Extension, ExtensionOp, HostData, MacroTask, OpsStorage};
 use nova_vm::{
-    ecmascript::{
-        builtins::ArgumentsList,
-        execution::{Agent, JsResult},
-        types::Value,
-    },
-    engine::{
-        Global,
-        context::{Bindable, GcScope},
-    },
+    ecmascript::{Agent, ArgumentsList, JsResult, Value},
+    engine::{Bindable, GcScope, Global},
 };
 use std::collections::HashMap;
 use std::time::Duration;
@@ -66,9 +59,9 @@ impl CronId {
 
     pub fn run(
         &self,
-        agent: &mut nova_vm::ecmascript::execution::agent::GcAgent,
+        agent: &mut nova_vm::ecmascript::GcAgent,
         host_data: &HostData<RuntimeMacroTask>,
-        realm_root: &nova_vm::ecmascript::execution::agent::RealmRoot,
+        realm_root: &nova_vm::ecmascript::RealmRoot,
     ) {
         let storage = host_data.storage.borrow();
         if let Some(crons_storage) = storage.get::<CronsStorage>()
@@ -98,15 +91,14 @@ pub struct CronJob {
 impl CronJob {
     pub fn run(
         &self,
-        agent: &mut nova_vm::ecmascript::execution::agent::GcAgent,
+        agent: &mut nova_vm::ecmascript::GcAgent,
         _host_data: &HostData<RuntimeMacroTask>,
-        realm_root: &nova_vm::ecmascript::execution::agent::RealmRoot,
+        realm_root: &nova_vm::ecmascript::RealmRoot,
     ) {
         let global_callback = &self.callback;
         agent.run_in_realm(realm_root, |agent, mut gc| {
             let callback = global_callback.get(agent, gc.nogc());
-            let callback_function: nova_vm::ecmascript::types::Function =
-                callback.try_into().unwrap();
+            let callback_function: nova_vm::ecmascript::Function = callback.try_into().unwrap();
             callback_function
                 .call(agent, Value::Undefined, &mut [], gc.reborrow())
                 .unwrap();

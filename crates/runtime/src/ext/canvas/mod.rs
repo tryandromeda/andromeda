@@ -30,13 +30,8 @@ use crate::ext::canvas::context2d::{
     internal_canvas_stroke,
 };
 use nova_vm::{
-    SmallInteger,
-    ecmascript::{
-        builtins::ArgumentsList,
-        execution::{Agent, JsResult},
-        types::Value,
-    },
-    engine::context::{Bindable, GcScope},
+    ecmascript::{Agent, ArgumentsList, JsResult, SmallInteger, Value},
+    engine::{Bindable, GcScope},
 };
 
 // Helper functions for text rendering

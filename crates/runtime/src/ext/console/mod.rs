@@ -8,12 +8,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use andromeda_core::{ErrorReporter, Extension, ExtensionOp, HostData, OpsStorage, RuntimeError};
 use nova_vm::{
-    ecmascript::{
-        builtins::ArgumentsList,
-        execution::{Agent, JsResult},
-        types::Value,
-    },
-    engine::context::{Bindable, GcScope},
+    ecmascript::{Agent, ArgumentsList, JsResult, Value},
+    engine::{Bindable, GcScope},
 };
 
 /// Storage for console state (timers, counters, group indentation)

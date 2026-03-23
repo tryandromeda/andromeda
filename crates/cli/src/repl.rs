@@ -11,27 +11,14 @@ use crate::styles::format_js_value;
 use andromeda_core::{HostData, RuntimeHostHooks};
 use andromeda_runtime::{RuntimeMacroTask, recommended_builtins, recommended_extensions};
 use console::Style;
-use nova_vm::ecmascript::types::IntoObject;
 use nova_vm::{
     ecmascript::{
-        builtins::{ArgumentsList, Behaviour, BuiltinFunctionArgs, create_builtin_function},
-        execution::{
-            Agent, JsResult,
-            agent::{GcAgent, Options},
-        },
-        scripts_and_modules::{
-            module::module_semantics::source_text_module_records::parse_module,
-            script::{parse_script, script_evaluation},
-        },
-        types::{
-            self, InternalMethods, IntoValue, Object, OrdinaryObject, PropertyDescriptor,
-            PropertyKey, Value,
-        },
+        Agent, AgentOptions, ArgumentsList, Behaviour, BuiltinFunctionArgs, GcAgent,
+        InternalMethods, JsResult, Object, OrdinaryObject, PropertyDescriptor, PropertyKey,
+        String as NovaString, Value, create_builtin_function, parse_module, parse_script,
+        script_evaluation,
     },
-    engine::{
-        context::{Bindable, GcScope},
-        rootable::Scopable,
-    },
+    engine::{Bindable, GcScope, Scopable},
 };
 use oxc_diagnostics::OxcDiagnostic;
 use reedline::{Reedline, Signal};
@@ -77,7 +64,7 @@ pub fn run_repl_with_config(
     let host_hooks: &RuntimeHostHooks<RuntimeMacroTask> = &*Box::leak(Box::new(host_hooks));
 
     let mut agent = GcAgent::new(
-        Options {
+        AgentOptions {
             no_block: false,
             disable_gc: effective_disable_gc,
             print_internals: effective_print_internals,
@@ -105,7 +92,7 @@ pub fn run_repl_with_config(
     agent.run_in_realm(&realm, |agent, mut gc| {
         for builtin in recommended_builtins() {
             let realm_obj = agent.current_realm(gc.nogc());
-            let source_text = types::String::from_str(agent, builtin, gc.nogc());
+            let source_text = NovaString::from_str(agent, builtin, gc.nogc());
             let script = match parse_script(agent, source_text, realm_obj, true, None, gc.nogc()) {
                 Ok(script) => script,
                 Err(errors) => {
@@ -207,7 +194,7 @@ pub fn run_repl_with_config(
         let start_time = std::time::Instant::now();
         agent.run_in_realm(&realm, |agent, mut gc| {
             let realm_obj = agent.current_realm(gc.nogc());
-            let source_text = types::String::from_string(agent, input.clone(), gc.nogc());
+            let source_text = NovaString::from_string(agent, input.clone(), gc.nogc());
             let script = match parse_script(agent, source_text, realm_obj, true, None, gc.nogc()) {
                 Ok(script) => script,
                 Err(errors) => {
@@ -278,7 +265,7 @@ fn initialize_global_object(agent: &mut Agent, global_object: Object, mut gc: Gc
             agent,
             property_key.unbind(),
             PropertyDescriptor {
-                value: Some(andromeda_obj.get(agent).into_value()),
+                value: Some(andromeda_obj.get(agent).into()),
                 writable: Some(true),
                 enumerable: Some(false),
                 configurable: Some(true),
@@ -292,7 +279,7 @@ fn initialize_global_object(agent: &mut Agent, global_object: Object, mut gc: Gc
     for extension in &mut extensions {
         for (idx, file) in extension.files.iter().enumerate() {
             let specifier = format!("<ext:{}:{}>", extension.name, idx);
-            let source_text = types::String::from_str(agent, file, gc.nogc());
+            let source_text = NovaString::from_str(agent, file, gc.nogc());
             let module = match parse_module(
                 agent,
                 source_text,
@@ -307,7 +294,7 @@ fn initialize_global_object(agent: &mut Agent, global_object: Object, mut gc: Gc
                 }
             };
             if agent
-                .run_parsed_module(module.unbind(), None, gc.reborrow())
+                .run_module(module.unbind(), None, gc.reborrow())
                 .unbind()
                 .is_err()
             {
@@ -330,21 +317,19 @@ fn initialize_global_object(agent: &mut Agent, global_object: Object, mut gc: Gc
                         agent,
                         property_key.unbind(),
                         PropertyDescriptor {
-                            value: Some(function.into_value().unbind()),
+                            value: Some(Value::from(function).unbind()),
                             ..Default::default()
                         },
                         gc.reborrow(),
                     )
                     .unwrap();
             } else {
-                andromeda_obj
-                    .get(agent)
-                    .into_object()
+                Object::from(andromeda_obj.get(agent))
                     .internal_define_own_property(
                         agent,
                         property_key.unbind(),
                         PropertyDescriptor {
-                            value: Some(function.into_value().unbind()),
+                            value: Some(Value::from(function).unbind()),
                             ..Default::default()
                         },
                         gc.reborrow(),
@@ -373,7 +358,7 @@ fn initialize_global_object_with_internals(agent: &mut Agent, global: Object, mu
         let args = args.bind(gc.nogc());
         let Value::ArrayBuffer(array_buffer) = args.get(0) else {
             return Err(agent.throw_exception_with_static_message(
-                nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                nova_vm::ecmascript::ExceptionType::Error,
                 "Cannot detach non ArrayBuffer argument",
                 gc.into_nogc(),
             ));
@@ -401,7 +386,7 @@ fn initialize_global_object_with_internals(agent: &mut Agent, global: Object, mu
                 gc,
             )
             .unbind();
-        Ok(realm.global_object(agent).into_value().unbind())
+        Ok(Value::from(realm.global_object(agent)).unbind())
     }
     initialize_global_object(agent, global, gc.reborrow());
     ().unbind();
@@ -413,7 +398,7 @@ fn initialize_global_object_with_internals(agent: &mut Agent, global: Object, mu
             agent,
             property_key.unbind(),
             PropertyDescriptor {
-                value: Some(nova_obj.get(agent).into_value()),
+                value: Some(nova_obj.get(agent).into()),
                 writable: Some(true),
                 enumerable: Some(false),
                 configurable: Some(true),
@@ -436,7 +421,7 @@ fn initialize_global_object_with_internals(agent: &mut Agent, global: Object, mu
             agent,
             property_key.unbind(),
             PropertyDescriptor {
-                value: Some(function.into_value().unbind()),
+                value: Some(Value::from(function).unbind()),
                 writable: Some(true),
                 enumerable: Some(false),
                 configurable: Some(true),
@@ -459,7 +444,7 @@ fn initialize_global_object_with_internals(agent: &mut Agent, global: Object, mu
             agent,
             property_key.unbind(),
             PropertyDescriptor {
-                value: Some(function.into_value().unbind()),
+                value: Some(Value::from(function).unbind()),
                 writable: Some(true),
                 enumerable: Some(false),
                 configurable: Some(true),

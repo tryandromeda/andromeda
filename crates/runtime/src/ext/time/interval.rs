@@ -13,10 +13,7 @@ use std::{
 
 use andromeda_core::{HostData, TaskId};
 use nova_vm::{
-    ecmascript::{
-        execution::agent::{GcAgent, RealmRoot},
-        types::{Function, Value},
-    },
+    ecmascript::{Function, GcAgent, RealmRoot, Value},
     engine::Global,
 };
 

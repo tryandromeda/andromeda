@@ -4,12 +4,8 @@
 
 use andromeda_core::{ErrorReporter, Extension, ExtensionOp, HostData, OpsStorage, RuntimeError};
 use nova_vm::{
-    ecmascript::{
-        builtins::{ArgumentsList, Array},
-        execution::{Agent, JsResult},
-        types::{IntoValue, Value},
-    },
-    engine::context::{Bindable, GcScope},
+    ecmascript::{Agent, ArgumentsList, Array, JsResult, Value},
+    engine::{Bindable, GcScope},
 };
 use std::{collections::HashMap, env};
 use tokio::task::JoinHandle;
@@ -83,8 +79,7 @@ impl ProcessExt {
         let args = args
             .iter()
             .map(|s| {
-                nova_vm::ecmascript::types::String::from_string(agent, s.to_string(), gc.nogc())
-                    .into_value()
+                nova_vm::ecmascript::String::from_string(agent, s.to_string(), gc.nogc()).into()
             })
             .collect::<Vec<_>>();
 
@@ -103,13 +98,11 @@ impl ProcessExt {
         let key_str = key.as_str(agent).expect("String is not valid UTF-8");
 
         match env::var(key_str) {
-            Ok(value) => {
-                Ok(
-                    nova_vm::ecmascript::types::String::from_string(agent, value, gc.nogc())
-                        .unbind()
-                        .into(),
-                )
-            }
+            Ok(value) => Ok(
+                nova_vm::ecmascript::String::from_string(agent, value, gc.nogc())
+                    .unbind()
+                    .into(),
+            ),
             Err(env::VarError::NotPresent) => Ok(Value::Undefined),
             Err(env::VarError::NotUnicode(_)) => {
                 let error = RuntimeError::encoding_error(
@@ -117,7 +110,7 @@ impl ProcessExt {
                     format!("Environment variable '{key_str}' contains invalid Unicode"),
                 );
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(nova_vm::ecmascript::types::String::from_string(
+                Ok(nova_vm::ecmascript::String::from_string(
                     agent,
                     format!("Error: {error_msg}"),
                     gc.nogc(),
@@ -173,9 +166,7 @@ impl ProcessExt {
     ) -> JsResult<'gc, Value<'gc>> {
         let keys = env::vars()
             .map(|(k, _)| k)
-            .map(|s| {
-                nova_vm::ecmascript::types::String::from_string(agent, s, gc.nogc()).into_value()
-            })
+            .map(|s| nova_vm::ecmascript::String::from_string(agent, s, gc.nogc()).into())
             .collect::<Vec<_>>();
 
         Ok(Array::from_slice(agent, keys.as_slice(), gc.nogc())

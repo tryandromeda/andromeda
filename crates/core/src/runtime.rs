@@ -16,30 +16,13 @@ use std::{
 
 use nova_vm::{
     ecmascript::{
-        builtins::promise_objects::promise_abstract_operations::promise_capability_records::PromiseCapability,
-        execution::{
-            Agent, JsResult,
-            agent::{ExceptionType, GcAgent, HostHooks, Job, Options, RealmRoot},
-        },
-        scripts_and_modules::{
-            module::module_semantics::{
-                ModuleRequest, Referrer,
-                abstract_module_records::AbstractModule,
-                cyclic_module_records::GraphLoadingStateRecord,
-                finish_loading_imported_module,
-                source_text_module_records::{SourceTextModule, parse_module},
-            },
-            script::{HostDefined, parse_script, script_evaluation},
-        },
-        types::{
-            self, InternalMethods, IntoObject, IntoValue, Object, OrdinaryObject,
-            PropertyDescriptor, PropertyKey, String as NovaString, Value,
-        },
+        AbstractModule, Agent, AgentOptions, ExceptionType, GcAgent, GraphLoadingStateRecord,
+        HostDefined, HostHooks, InternalMethods, Job, JsResult, ModuleRequest, Object,
+        OrdinaryObject, PromiseCapability, PropertyDescriptor, PropertyKey, RealmRoot, Referrer,
+        SourceTextModule, String as NovaString, Value, finish_loading_imported_module,
+        parse_module, parse_script, script_evaluation,
     },
-    engine::{
-        context::{Bindable, GcScope, NoGcScope},
-        rootable::Scopable,
-    },
+    engine::{Bindable, GcScope, NoGcScope, Scopable},
 };
 
 use crate::{
@@ -590,7 +573,7 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
     fn finalize_import_meta<'gc>(
         &self,
         _agent: &mut Agent,
-        _import_meta: types::OrdinaryObject<'gc>,
+        _import_meta: OrdinaryObject<'gc>,
         _module_record: SourceTextModule<'gc>,
         _gc: NoGcScope<'gc, '_>,
     ) {
@@ -720,7 +703,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
 
         let host_hooks: &RuntimeHostHooks<UserMacroTask> = &*Box::leak(Box::new(host_hooks));
         let mut agent = GcAgent::new(
-            Options {
+            AgentOptions {
                 no_block: false,
                 disable_gc: false,
                 print_internals: config.verbose,
@@ -746,7 +729,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                             agent,
                             property_key.unbind(),
                             PropertyDescriptor {
-                                value: Some(andromeda_obj.get(agent).into_value()),
+                                value: Some(andromeda_obj.get(agent).into()),
                                 writable: Some(true),
                                 enumerable: Some(false),
                                 configurable: Some(true),
@@ -760,7 +743,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                         extension.load::<UserMacroTask>(
                             agent,
                             global_object,
-                            andromeda_obj.get(agent).into_object(),
+                            andromeda_obj.get(agent).into(),
                             gc.borrow_mut(),
                         );
                     }
@@ -782,7 +765,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
         self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {
             for builtin in &self.config.builtins {
                 let realm = agent.current_realm(gc.nogc());
-                let source_text = types::String::from_str(agent, builtin, gc.nogc());
+                let source_text = NovaString::from_str(agent, builtin, gc.nogc());
                 let script = match parse_script(
                     agent,
                     source_text,
@@ -838,7 +821,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                 continue;
             }
             result = self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {
-                let source_text = types::String::from_string(agent, file_content, gc.nogc());
+                let source_text = NovaString::from_string(agent, file_content, gc.nogc());
                 let realm = agent.current_realm(gc.nogc());
 
                 let module = match parse_module(
@@ -859,7 +842,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                 };
 
                 agent
-                    .run_parsed_module(module.unbind(), None, gc.reborrow())
+                    .run_module(module.unbind(), None, gc.reborrow())
                     .unbind()
                     .map(|_| Value::Null)
             });

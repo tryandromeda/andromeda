@@ -4,14 +4,10 @@
 
 use nova_vm::{
     ecmascript::{
-        builtins::{Behaviour, BuiltinFunctionArgs, RegularFn, create_builtin_function},
-        execution::Agent,
-        scripts_and_modules::{
-            module::module_semantics::source_text_module_records::parse_module, script::HostDefined,
-        },
-        types::{InternalMethods, IntoValue, Object, PropertyDescriptor, PropertyKey},
+        Agent, Behaviour, BuiltinFunctionArgs, HostDefined, InternalMethods, Object,
+        PropertyDescriptor, PropertyKey, RegularFn, Value, create_builtin_function, parse_module,
     },
-    engine::context::{Bindable, GcScope},
+    engine::{Bindable, GcScope},
 };
 
 use crate::{HostData, OpsStorage, RuntimeError, exit_with_parse_errors, print_enhanced_error};
@@ -62,8 +58,7 @@ impl Extension {
     ) {
         for (idx, file_source) in self.files.iter().enumerate() {
             let specifier = format!("<ext:{}:{}>", self.name, idx);
-            let source_text =
-                nova_vm::ecmascript::types::String::from_str(agent, file_source, gc.nogc());
+            let source_text = nova_vm::ecmascript::String::from_str(agent, file_source, gc.nogc());
 
             let module = match parse_module(
                 agent,
@@ -77,7 +72,7 @@ impl Extension {
             };
 
             let eval_result = agent
-                .run_parsed_module(module.unbind(), None, gc.reborrow())
+                .run_module(module.unbind(), None, gc.reborrow())
                 .unbind();
             if let Err(e) = eval_result {
                 let error_value = e.value();
@@ -105,7 +100,7 @@ impl Extension {
                         agent,
                         property_key.unbind(),
                         PropertyDescriptor {
-                            value: Some(function.into_value().unbind()),
+                            value: Some(Value::from(function).unbind()),
                             ..Default::default()
                         },
                         gc.reborrow(),
@@ -117,7 +112,7 @@ impl Extension {
                         agent,
                         property_key.unbind(),
                         PropertyDescriptor {
-                            value: Some(function.into_value().unbind()),
+                            value: Some(Value::from(function).unbind()),
                             ..Default::default()
                         },
                         gc.reborrow(),

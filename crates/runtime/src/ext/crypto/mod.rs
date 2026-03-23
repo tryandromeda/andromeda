@@ -5,14 +5,10 @@
 mod subtle;
 use andromeda_core::{Extension, ExtensionOp, OpsStorage};
 use nova_vm::{
-    ecmascript::{
-        builtins::ArgumentsList,
-        execution::{Agent, JsResult},
-        types::Value,
-    },
-    engine::context::{Bindable, GcScope},
+    ecmascript::{Agent, ArgumentsList, JsResult, Value},
+    engine::{Bindable, GcScope},
 };
-use rand::RngCore;
+use rand::Rng;
 use std::collections::HashMap;
 
 pub use subtle::{CryptoExtResources, SimpleCryptoKey, SubtleCrypto};
@@ -180,13 +176,11 @@ impl CryptoExt {
 
         let random_data_base64 = base64_simd::STANDARD.encode_to_string(&bytes);
 
-        Ok(nova_vm::ecmascript::types::String::from_string(
-            agent,
-            random_data_base64,
-            gc.into_nogc(),
+        Ok(
+            nova_vm::ecmascript::String::from_string(agent, random_data_base64, gc.into_nogc())
+                .unbind()
+                .into(),
         )
-        .unbind()
-        .into())
     }
     fn internal_crypto_random_uuid<'gc>(
         agent: &mut Agent,
@@ -223,7 +217,7 @@ impl CryptoExt {
         );
 
         Ok(
-            nova_vm::ecmascript::types::String::from_string(agent, uuid, gc.nogc())
+            nova_vm::ecmascript::String::from_string(agent, uuid, gc.nogc())
                 .unbind()
                 .into(),
         )
@@ -346,7 +340,7 @@ impl CryptoExt {
         let gc = gc.into_nogc();
         Err(agent
             .throw_exception_with_static_message(
-                nova_vm::ecmascript::execution::agent::ExceptionType::Error,
+                nova_vm::ecmascript::ExceptionType::Error,
                 "CryptoKey creation not yet implemented",
                 gc,
             )
@@ -361,7 +355,7 @@ impl CryptoExt {
     ) -> JsResult<'gc, Value<'gc>> {
         // TODO: Implement CryptoKey type getter
         Ok(
-            nova_vm::ecmascript::types::String::from_string(agent, "secret".to_string(), gc.nogc())
+            nova_vm::ecmascript::String::from_string(agent, "secret".to_string(), gc.nogc())
                 .unbind()
                 .into(),
         )
@@ -385,13 +379,9 @@ impl CryptoExt {
     ) -> JsResult<'gc, Value<'gc>> {
         // TODO: Implement CryptoKey algorithm getter
         Ok(
-            nova_vm::ecmascript::types::String::from_string(
-                agent,
-                "AES-GCM".to_string(),
-                gc.nogc(),
-            )
-            .unbind()
-            .into(),
+            nova_vm::ecmascript::String::from_string(agent, "AES-GCM".to_string(), gc.nogc())
+                .unbind()
+                .into(),
         )
     }
 
@@ -402,7 +392,7 @@ impl CryptoExt {
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         // TODO: Implement CryptoKey usages getter
-        Ok(nova_vm::ecmascript::types::String::from_string(
+        Ok(nova_vm::ecmascript::String::from_string(
             agent,
             "encrypt,decrypt".to_string(),
             gc.nogc(),
@@ -419,7 +409,7 @@ impl CryptoExt {
     ) -> JsResult<'gc, Value<'gc>> {
         // TODO: Implement proper ArrayBuffer creation from bytes
         let _bytes_arg = args[0];
-        Ok(nova_vm::ecmascript::types::String::from_string(
+        Ok(nova_vm::ecmascript::String::from_string(
             agent,
             "arraybuffer_placeholder".to_string(),
             gc.nogc(),
@@ -435,7 +425,7 @@ impl CryptoExt {
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         // TODO: Implement proper bytes extraction from ArrayBuffer/TypedArray
-        Ok(nova_vm::ecmascript::types::String::from_string(
+        Ok(nova_vm::ecmascript::String::from_string(
             agent,
             "buffer_bytes_placeholder".to_string(),
             gc.nogc(),
