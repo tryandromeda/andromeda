@@ -454,8 +454,7 @@ impl CommandExt {
                 let os_pid = child.id();
                 let rid = {
                     let host_data = agent.get_host_data();
-                    let host_data: &HostData<RuntimeMacroTask> =
-                        host_data.downcast_ref().unwrap();
+                    let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
                     let mut storage = host_data.storage.borrow_mut();
                     let resources: &mut CommandExtResources = storage.get_mut().unwrap();
 
@@ -531,10 +530,7 @@ impl CommandExt {
             Err(e) => {
                 let error = RuntimeError::runtime_error(e);
                 let error_msg = ErrorReporter::format_error(&error);
-                Ok(
-                    Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc())
-                        .unbind(),
-                )
+                Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
         }
     }
@@ -593,9 +589,9 @@ impl CommandExt {
                         Ok(status) => {
                             let json = build_status_json(&status);
                             macro_task_tx
-                                .send(MacroTask::User(
-                                    RuntimeMacroTask::ResolvePromiseWithString(root_value, json),
-                                ))
+                                .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
+                                    root_value, json,
+                                )))
                                 .unwrap();
                         }
                         Err(e) => {
@@ -682,9 +678,9 @@ impl CommandExt {
                                 "piped",
                             );
                             macro_task_tx
-                                .send(MacroTask::User(
-                                    RuntimeMacroTask::ResolvePromiseWithString(root_value, json),
-                                ))
+                                .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
+                                    root_value, json,
+                                )))
                                 .unwrap();
                         }
                         Err(e) => {
