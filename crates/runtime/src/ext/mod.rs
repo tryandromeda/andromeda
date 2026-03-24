@@ -7,6 +7,7 @@ mod broadcast_channel;
 mod cache_storage;
 #[cfg(feature = "canvas")]
 mod canvas;
+mod command;
 mod console;
 pub mod cron;
 #[cfg(feature = "crypto")]
@@ -38,6 +39,7 @@ pub use broadcast_channel::*;
 pub use cache_storage::*;
 #[cfg(feature = "canvas")]
 pub use canvas::*;
+pub use command::*;
 pub use console::*;
 pub use cron::*;
 #[cfg(feature = "crypto")]

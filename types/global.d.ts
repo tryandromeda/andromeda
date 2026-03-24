@@ -571,6 +571,121 @@ declare namespace Andromeda {
     options: { backoffSchedule?: number[]; signal?: AbortSignal; },
     handler: () => Promise<void> | void,
   ): Promise<void>;
+
+  // Command API
+
+  /**
+   * Options for creating a new Command.
+   */
+  interface CommandOptions {
+    /** Arguments to pass to the command. */
+    args?: string[];
+    /** Working directory for the command. If not specified, the cwd of the parent process is used. */
+    cwd?: string;
+    /** Environment variables to pass to the subprocess. */
+    env?: Record<string, string>;
+    /** Clear environmental variables from parent process. */
+    clearEnv?: boolean;
+    /** How stdin of the spawned process should be handled. Defaults to "null" for output/outputSync and "inherit" for spawn. */
+    stdin?: "piped" | "inherit" | "null";
+    /** How stdout of the spawned process should be handled. Defaults to "piped". */
+    stdout?: "piped" | "inherit" | "null";
+    /** How stderr of the spawned process should be handled. Defaults to "piped". */
+    stderr?: "piped" | "inherit" | "null";
+    /** Sets the child process's user ID (Unix only). */
+    uid?: number;
+    /** Sets the child process's group ID (Unix only). */
+    gid?: number;
+    /** Skips quoting and escaping of the arguments on Windows. Ignored on non-Windows platforms. */
+    windowsRawArguments?: boolean;
+  }
+
+  /**
+   * The output of a completed command.
+   */
+  interface CommandOutput {
+    /** Whether the command exited successfully (exit code 0). */
+    success: boolean;
+    /** The exit code of the command. */
+    code: number;
+    /** The signal associated with the child process, or null. */
+    signal: Signal | null;
+    /** The standard output of the command. */
+    stdout: string;
+    /** The standard error output of the command. */
+    stderr: string;
+  }
+
+  /**
+   * The exit status of a completed command.
+   */
+  interface CommandStatus {
+    /** Whether the command exited successfully (exit code 0). */
+    success: boolean;
+    /** The exit code of the command. */
+    code: number;
+    /** The signal associated with the child process, or null. */
+    signal: Signal | null;
+  }
+
+  /**
+   * Represents a spawned child process.
+   */
+  interface ChildProcess {
+    /** The operating system process ID of the child process. */
+    readonly pid: number;
+    /** A promise that resolves with the exit status when the process completes. */
+    readonly status: Promise<CommandStatus>;
+    /** Kills the child process with the given signal. Defaults to "SIGTERM". */
+    kill(signo?: Signal): void;
+    /** Waits for the child to exit completely, returning all its output and status. */
+    output(): Promise<CommandOutput>;
+  }
+
+  /**
+   * A Command is used to configure and spawn subprocesses.
+   *
+   * @example Run a command and get its output
+   * ```ts
+   * const command = new Andromeda.Command("echo", { args: ["hello", "world"] });
+   * const output = await command.output();
+   * console.log(output.stdout); // "hello world\n"
+   * ```
+   *
+   * @example Run a command synchronously
+   * ```ts
+   * const command = new Andromeda.Command("ls", { args: ["-la"] });
+   * const output = command.outputSync();
+   * console.log(output.code); // 0
+   * ```
+   *
+   * @example Spawn a long-running process
+   * ```ts
+   * const command = new Andromeda.Command("sleep", { args: ["10"] });
+   * const child = command.spawn();
+   * child.kill();
+   * ```
+   *
+   * @example Custom environment and stderr handling
+   * ```ts
+   * const cmd = new Andromeda.Command("node", {
+   *   args: ["-e", "console.error('hi')"],
+   *   env: { NODE_ENV: "production" },
+   *   stderr: "piped",
+   * });
+   * const output = await cmd.output();
+   * console.log(output.stderr);
+   * ```
+   */
+  class Command {
+    constructor(program: string, options?: CommandOptions);
+    /** Runs the command and waits for it to complete, returning its output. */
+    output(): Promise<CommandOutput>;
+    /** Synchronously runs the command and returns its output. */
+    outputSync(): CommandOutput;
+    /** Spawns the command as a child process without waiting for completion. */
+    spawn(): ChildProcess;
+  }
 }
 /**
  * The `prompt` function prompts the user for input.

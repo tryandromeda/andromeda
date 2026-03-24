@@ -6,8 +6,9 @@ use crate::FillStyle;
 use crate::ext::canvas::renderer::{CompositeOperation, LineCap, LineJoin};
 
 /// Text alignment values for Canvas2D
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum TextAlign {
+    #[default]
     Start,
     End,
     Left,
@@ -15,41 +16,25 @@ pub enum TextAlign {
     Center,
 }
 
-impl Default for TextAlign {
-    fn default() -> Self {
-        Self::Start
-    }
-}
-
 /// Text baseline values for Canvas2D
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum TextBaseline {
     Top,
     Hanging,
     Middle,
+    #[default]
     Alphabetic,
     Ideographic,
     Bottom,
 }
 
-impl Default for TextBaseline {
-    fn default() -> Self {
-        Self::Alphabetic
-    }
-}
-
 /// Text direction values for Canvas2D
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
     Ltr,
     Rtl,
+    #[default]
     Inherit,
-}
-
-impl Default for Direction {
-    fn default() -> Self {
-        Self::Inherit
-    }
 }
 
 /// Canvas drawing state that can be saved and restored
