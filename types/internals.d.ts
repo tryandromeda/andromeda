@@ -2018,4 +2018,61 @@ declare namespace __andromeda__ {
     name: string,
     lockId: string,
   ): Promise<string>;
+
+  // Command extension internal functions
+
+  /**
+   * Synchronously runs a command and returns its output as a JSON string.
+   * @param program - The program to execute.
+   * @param optsJson - JSON string with command options.
+   * @returns JSON string with {success, code, signal, stdout, stderr} or error string.
+   */
+  export function internal_command_output_sync(
+    program: string,
+    optsJson: string,
+  ): string;
+
+  /**
+   * Asynchronously runs a command and returns a promise resolving to its output.
+   * @param program - The program to execute.
+   * @param optsJson - JSON string with command options.
+   * @returns Promise resolving to JSON string with {success, code, signal, stdout, stderr}.
+   */
+  export function internal_command_output(
+    program: string,
+    optsJson: string,
+  ): Promise<string>;
+
+  /**
+   * Spawns a child process without waiting for it to complete.
+   * @param program - The program to execute.
+   * @param optsJson - JSON string with command options.
+   * @returns JSON string with {rid, pid} or error string.
+   */
+  export function internal_command_spawn(
+    program: string,
+    optsJson: string,
+  ): string;
+
+  /**
+   * Kills a spawned child process.
+   * @param rid - The resource ID returned by internal_command_spawn.
+   * @param signal - Signal name (e.g. "SIGTERM").
+   * @returns undefined on success, or error string.
+   */
+  export function internal_command_kill(rid: string, signal: string): void;
+
+  /**
+   * Waits for a spawned child process to complete.
+   * @param rid - The resource ID returned by internal_command_spawn.
+   * @returns Promise resolving to JSON string with {success, code, signal}.
+   */
+  export function internal_command_wait(rid: string): Promise<string>;
+
+  /**
+   * Waits for a spawned child process and collects all output.
+   * @param rid - The resource ID returned by internal_command_spawn.
+   * @returns Promise resolving to JSON string with {success, code, signal, stdout, stderr}.
+   */
+  export function internal_command_child_output(rid: string): Promise<string>;
 }

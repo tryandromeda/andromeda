@@ -47,6 +47,161 @@ type Signal =
 const signalListeners: Map<Signal, Set<() => void>> = new Map();
 
 /**
+ * Represents a spawned child process.
+ */
+class ChildProcess {
+  #rid: string;
+  #pid: number;
+
+  constructor(rid: string, pid: number) {
+    this.#rid = rid;
+    this.#pid = pid;
+  }
+
+  /**
+   * The operating system process ID of the child process.
+   */
+  get pid(): number {
+    return this.#pid;
+  }
+
+  /**
+   * A promise that resolves with the exit status when the process completes.
+   */
+  get status(): Promise<{ success: boolean; code: number; signal: string }> {
+    return this.#getStatus();
+  }
+
+  async #getStatus(): Promise<{ success: boolean; code: number; signal: string }> {
+    const result = await __andromeda__.internal_command_wait(this.#rid);
+    return JSON.parse(result);
+  }
+
+  /**
+   * Kills the child process with the given signal.
+   * Defaults to "SIGTERM" if no signal is provided.
+   */
+  kill(signo?: string): void {
+    const signal = signo ? signo : "SIGTERM";
+    const result = __andromeda__.internal_command_kill(this.#rid, signal);
+    if (typeof result === "string" && result.startsWith("Error:")) {
+      throw new Error(result);
+    }
+  }
+
+  /**
+   * Waits for the child to exit completely, returning all its output and status.
+   */
+  async output(): Promise<{
+    success: boolean;
+    code: number;
+    signal: string;
+    stdout: string;
+    stderr: string;
+  }> {
+    const result = await __andromeda__.internal_command_child_output(this.#rid);
+    return JSON.parse(result);
+  }
+}
+
+/**
+ * A Command is used to configure and spawn subprocesses.
+ *
+ * @example
+ * ```ts
+ * const cmd = new Andromeda.Command("echo", { args: ["hello"] });
+ * const output = await cmd.output();
+ * console.log(output.stdout);
+ * ```
+ */
+class Command {
+  #program: string;
+  #optsJson: string;
+
+  constructor(program: string, options?: {
+    args?: string[];
+    cwd?: string;
+    env?: Record<string, string>;
+    clearEnv?: boolean;
+    stdin?: string;
+    stdout?: string;
+    stderr?: string;
+    uid?: number;
+    gid?: number;
+    windowsRawArguments?: boolean;
+  }) {
+    this.#program = program;
+    // Serialize options to JSON for the Rust backend
+    const opts: Record<string, unknown> = {};
+    if (options) {
+      if (options.args) opts["args"] = options.args;
+      if (options.cwd) opts["cwd"] = options.cwd;
+      if (options.env) opts["env"] = options.env;
+      if (options.clearEnv) opts["clearEnv"] = options.clearEnv;
+      if (options.stdin) opts["stdin"] = options.stdin;
+      if (options.stdout) opts["stdout"] = options.stdout;
+      if (options.stderr) opts["stderr"] = options.stderr;
+      if (options.uid !== undefined) opts["uid"] = options.uid;
+      if (options.gid !== undefined) opts["gid"] = options.gid;
+      if (options.windowsRawArguments) opts["windowsRawArguments"] = options.windowsRawArguments;
+    }
+    this.#optsJson = JSON.stringify(opts);
+  }
+
+  /**
+   * Runs the command and waits for it to complete, returning its output.
+   */
+  async output(): Promise<{
+    success: boolean;
+    code: number;
+    signal: string;
+    stdout: string;
+    stderr: string;
+  }> {
+    const result = await __andromeda__.internal_command_output(
+      this.#program,
+      this.#optsJson,
+    );
+    return JSON.parse(result);
+  }
+
+  /**
+   * Synchronously runs the command and returns its output.
+   */
+  outputSync(): {
+    success: boolean;
+    code: number;
+    signal: string;
+    stdout: string;
+    stderr: string;
+  } {
+    const result = __andromeda__.internal_command_output_sync(
+      this.#program,
+      this.#optsJson,
+    );
+    if (typeof result === "string" && result.startsWith("Error:")) {
+      throw new Error(result);
+    }
+    return JSON.parse(result);
+  }
+
+  /**
+   * Spawns the command as a child process without waiting for completion.
+   */
+  spawn(): ChildProcess {
+    const result = __andromeda__.internal_command_spawn(
+      this.#program,
+      this.#optsJson,
+    );
+    if (typeof result === "string" && result.startsWith("Error:")) {
+      throw new Error(result);
+    }
+    const info = JSON.parse(result);
+    return new ChildProcess(String(info.rid), info.pid);
+  }
+}
+
+/**
  * Andromeda namespace for the Andromeda runtime.
  */
 const Andromeda = {
@@ -676,6 +831,32 @@ const Andromeda = {
       }
     }
   },
+
+  /**
+   * Command class for spawning subprocesses.
+   *
+   * @example Run a command and get its output
+   * ```ts
+   * const command = new Andromeda.Command("echo", { args: ["hello", "world"] });
+   * const output = await command.output();
+   * console.log(output.stdout); // "hello world\n"
+   * ```
+   *
+   * @example Run a command synchronously
+   * ```ts
+   * const command = new Andromeda.Command("ls", { args: ["-la"] });
+   * const output = command.outputSync();
+   * console.log(output.stdout);
+   * ```
+   *
+   * @example Spawn a long-running process
+   * ```ts
+   * const command = new Andromeda.Command("sleep", { args: ["10"] });
+   * const child = command.spawn();
+   * child.kill();
+   * ```
+   */
+  Command: Command,
 
   /**
    * Creates an HTTP server that listens for requests.

@@ -36,7 +36,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2025-09-05
+          toolchain: nightly-2025-10-20
           components: rustfmt, clippy, llvm-tools-preview, rustc-dev
       - name: Cache on ${{ github.ref_name }}
         uses: Swatinem/rust-cache@v2
@@ -46,8 +46,8 @@ jobs:
         run: cargo fmt --check
       - name: Clippy
         run: |
-          cargo +nightly-2025-09-05 clippy --all-targets -- -D warnings
-          cargo +nightly-2025-09-05 clippy --all-targets --all-features -- -D warnings
+          cargo +nightly-2025-10-20 clippy --all-targets -- -D warnings
+          cargo +nightly-2025-10-20 clippy --all-targets --all-features -- -D warnings
 
   test:
     name: Build & Test
@@ -129,7 +129,7 @@ jobs:
       - name: Install the rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "nightly-2025-09-05"
+          toolchain: "nightly-2025-10-20"
           targets: ${{ matrix.rust-target }}
 
       - name: Install cross-compilation dependencies

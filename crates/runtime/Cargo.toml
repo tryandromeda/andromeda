@@ -33,7 +33,8 @@ tokio = { workspace = true, features = [
     "rt-multi-thread",
     "io-util",
     "sync",
-    "time"
+    "time",
+    "process"
 ] }
 oxc-miette.workspace = true
 oxc_diagnostics.workspace = true

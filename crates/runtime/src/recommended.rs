@@ -9,8 +9,9 @@ use nova_vm::{
 };
 
 use crate::{
-    BroadcastChannelExt, ConsoleExt, CronExt, FetchExt, FfiExt, FileExt, NetExt, ProcessExt,
-    RuntimeMacroTask, StreamsExt, TimeExt, TlsExt, URLExt, WebExt, WebIDLExt, WebLocksExt,
+    BroadcastChannelExt, CommandExt, ConsoleExt, CronExt, FetchExt, FfiExt, FileExt, NetExt,
+    ProcessExt, RuntimeMacroTask, StreamsExt, TimeExt, TlsExt, URLExt, WebExt, WebIDLExt,
+    WebLocksExt,
 };
 
 #[cfg(not(feature = "virtualfs"))]
@@ -30,6 +31,7 @@ pub fn recommended_extensions() -> Vec<Extension> {
         TimeExt::new_extension(),
         CronExt::new_extension(),
         ProcessExt::new_extension(),
+        CommandExt::new_extension(),
         URLExt::new_extension(),
         WebExt::new_extension(),
         WebLocksExt::new_extension(),

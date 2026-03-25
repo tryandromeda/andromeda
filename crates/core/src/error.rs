@@ -9,6 +9,7 @@ use std::fmt;
 
 /// Comprehensive error type for Andromeda runtime operations.
 #[derive(Diagnostic, Debug, Clone)]
+#[allow(unused_assignments)]
 pub enum RuntimeError {
     /// File system operation errors
     #[diagnostic(
