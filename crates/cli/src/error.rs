@@ -575,6 +575,16 @@ impl From<RuntimeError> for CliError {
                 source_code: None,
                 error_span: None,
             },
+            RuntimeError::WindowError {
+                operation, message, ..
+            } => CliError::RuntimeError {
+                message: format!("Window error during {}: {}", operation, message),
+                file_path: None,
+                line: None,
+                column: None,
+                source_code: None,
+                error_span: None,
+            },
             RuntimeError::InternalError { message, .. } => CliError::RuntimeError {
                 message: format!("Internal error: {}", message),
                 file_path: None,

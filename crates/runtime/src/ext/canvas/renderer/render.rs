@@ -261,6 +261,15 @@ impl Renderer {
             view_formats: &[],
         });
 
+        let srgb_view_format = match format {
+            wgpu::TextureFormat::Bgra8Unorm => Some(wgpu::TextureFormat::Bgra8UnormSrgb),
+            wgpu::TextureFormat::Rgba8Unorm => Some(wgpu::TextureFormat::Rgba8UnormSrgb),
+            _ => None,
+        };
+        let resolve_view_formats: &[wgpu::TextureFormat] = match &srgb_view_format {
+            Some(f) => std::slice::from_ref(f),
+            None => &[],
+        };
         let resolve_target = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Background (Resolve)"),
             dimension: wgpu::TextureDimension::D2,
@@ -272,8 +281,10 @@ impl Renderer {
                 height: dimensions.height,
                 width: dimensions.width,
             },
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: resolve_view_formats,
         });
 
         // Stencil texture sample count must match the color attachment's
@@ -411,6 +422,18 @@ impl Renderer {
         }
 
         self.queue.submit([encoder.finish()]);
+
+        // Drain the command queue once submitted. Each `RenderCommand`
+        // owns a `wgpu::Buffer` + `wgpu::BindGroup`; retaining them across
+        // `render_all` calls made the canvas accumulate draw commands
+        // (and GPU buffers) indefinitely in per-frame rendering loops
+        // like `examples/breakout.ts` — linear slowdown + linear memory
+        // growth. Since the background attachment is cleared at the start
+        // of every pass, replaying prior-frame commands doesn't preserve
+        // any state that the next frame can't re-emit. All existing
+        // canvas examples call `render()`/`saveAsPng`/`toDataURL` once
+        // after drawing, so this change is behavior-preserving for them.
+        self.commands.clear();
     }
 
     pub async fn create_bitmap(&mut self) -> Vec<u8> {

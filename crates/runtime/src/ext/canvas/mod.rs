@@ -904,6 +904,7 @@ impl CanvasExt {
             .get_host_data()
             .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
             .unwrap();
+        let (device, queue) = acquire_device_and_queue(host_data);
         let mut storage = host_data.storage.borrow_mut();
         let res: &mut CanvasResources = storage.get_mut().unwrap(); // Create canvas data
         let canvas_rid = res.canvases.push(CanvasData {
@@ -946,8 +947,8 @@ impl CanvasExt {
             direction: state::Direction::default(),
         });
 
-        // Create renderer with GPU device.
-        let (device, queue) = create_wgpu_device_sync();
+        // Renderer uses the wgpu device acquired above (shared with the
+        // window extension when both features are enabled).
         let dimensions = renderer::Dimensions { width, height };
         let format = wgpu::TextureFormat::Bgra8Unorm;
         let renderer = renderer::Renderer::new(device, queue, format, dimensions);
@@ -4780,6 +4781,59 @@ fn extract_image_region(
     }
 
     result
+}
+
+/// Flush pending canvas commands for the given canvas rid and return a
+/// clone of its `resolve_target` texture. Clones are cheap — `wgpu::Texture`
+/// is internally `Arc`-ed. Used by the `window` extension's canvas bridge
+/// to sample the latest canvas frame in a blit render pass. Takes the raw
+/// `OpsStorage` borrow to sidestep the `'gc` lifetime on `CanvasResources`.
+#[cfg(feature = "window")]
+pub(crate) fn render_canvas_to_texture(
+    storage: &mut OpsStorage,
+    canvas_rid: Rid,
+) -> Option<wgpu::Texture> {
+    let res: &mut CanvasResources = storage.get_mut()?;
+    let mut renderer = res.renderers.get_mut(canvas_rid)?;
+    renderer.render_all();
+    Some(renderer.resolve_target.clone())
+}
+
+/// Acquire a wgpu device+queue for a new canvas. When the `window` feature
+/// is enabled the shared `WindowingGpu` is used so canvas textures live on
+/// the same device as window surfaces — that's what lets `presentCanvas`
+/// blit a canvas frame into a window without cross-device copies. If the
+/// WindowingState slot is present but `ensure_gpu()` fails, we surface
+/// that error as a panic rather than silently creating a divergent
+/// standalone device — a mismatch would otherwise manifest as an opaque
+/// wgpu validation error at the next `presentCanvas` call. When the
+/// `window` feature is compiled out we fall back to stand-alone device
+/// creation, which has always been the canvas default.
+fn acquire_device_and_queue(
+    host_data: &HostData<crate::RuntimeMacroTask>,
+) -> (wgpu::Device, wgpu::Queue) {
+    #[cfg(feature = "window")]
+    {
+        let mut storage = host_data.storage.borrow_mut();
+        if let Some(state) = storage.get_mut::<crate::ext::window::state::WindowingState>() {
+            match state.ensure_gpu() {
+                Ok(gpu) => return (gpu.device.clone(), gpu.queue.clone()),
+                Err(e) => {
+                    // Loud failure keeps the error close to the root cause.
+                    // Silent fallback would produce a second, independent
+                    // wgpu::Device; any later bridge call would then crash
+                    // with a device-mismatch error with no backtrace to
+                    // this moment.
+                    panic!("[andromeda/canvas] shared WindowingGpu init failed: {e}");
+                }
+            }
+        }
+    }
+    #[cfg(not(feature = "window"))]
+    {
+        let _ = host_data; // silence unused-parameter warning
+    }
+    create_wgpu_device_sync()
 }
 
 fn create_wgpu_device_sync() -> (wgpu::Device, wgpu::Queue) {

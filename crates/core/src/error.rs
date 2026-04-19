@@ -492,6 +492,23 @@ pub enum RuntimeError {
         source_code: Option<NamedSource<String>>,
     },
 
+    /// Windowing / native window subsystem errors (winit-backed extension)
+    #[diagnostic(
+        code(andromeda::window::error),
+        help(
+            "🔍 Check that the window feature is enabled and the window hasn't been closed.\n💡 Verify the platform supports native windowing.\n🪟 Ensure window operations run on the main thread."
+        ),
+        url("https://docs.andromeda.dev/window")
+    )]
+    WindowError {
+        operation: String,
+        message: String,
+        #[label("🪟 Window operation failed here")]
+        error_location: Option<SourceSpan>,
+        #[source_code]
+        source_code: Option<NamedSource<String>>,
+    },
+
     /// Internal error (should not happen in normal operation)
     #[diagnostic(
         code(andromeda::internal::error),
@@ -1220,7 +1237,15 @@ impl RuntimeError {
         }
     }
 
-    // -------------------- Internal Errors --------------------
+    /// Create a new window error
+    pub fn window_error(operation: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::WindowError {
+            operation: operation.into(),
+            message: message.into(),
+            error_location: None,
+            source_code: None,
+        }
+    }
 
     /// Create an internal error
     pub fn internal_error(message: impl Into<String>) -> Self {
@@ -1340,6 +1365,11 @@ impl fmt::Display for RuntimeError {
             }
             RuntimeError::LlmNetworkError { message, .. } => {
                 write!(f, "LLM network error: {message}")
+            }
+            RuntimeError::WindowError {
+                operation, message, ..
+            } => {
+                write!(f, "Window error during {operation}: {message}")
             }
             RuntimeError::InternalError { message, .. } => {
                 write!(f, "Internal error: {message}")
@@ -1796,6 +1826,11 @@ macro_rules! runtime_error {
     };
     (llm_network: $msg:expr) => {
         $crate::RuntimeError::llm_network_error($msg)
+    };
+
+    // Window errors
+    (window: $op:expr, $msg:expr) => {
+        $crate::RuntimeError::window_error($op, $msg)
     };
 
     // Internal errors

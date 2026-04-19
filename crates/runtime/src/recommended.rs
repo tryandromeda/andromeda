@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use andromeda_core::{Extension, HostData};
+use andromeda_core::{Extension, HostData, PreTickHook};
 use nova_vm::{
     ecmascript::{GcAgent, PromiseCapability, RealmRoot, String as NovaString, Value},
     engine::{Bindable, Global},
@@ -46,6 +46,8 @@ pub fn recommended_extensions() -> Vec<Extension> {
         crate::ServeExt::new_extension(),
         #[cfg(feature = "canvas")]
         crate::CanvasExt::new_extension(),
+        #[cfg(feature = "window")]
+        crate::WindowExt::new_extension(),
         #[cfg(feature = "crypto")]
         crate::CryptoExt::new_extension(),
         #[cfg(feature = "storage")]
@@ -59,6 +61,20 @@ pub fn recommended_extensions() -> Vec<Extension> {
 
 pub fn recommended_builtins() -> Vec<&'static str> {
     vec![include_str!("../../../namespace/mod.ts")]
+}
+
+/// Returns the per-iteration runtime hook when any bundled extension needs
+/// to drive its own event loop on the main thread. Currently used by the
+/// `window` extension to pump winit events; `None` otherwise.
+pub fn recommended_pre_tick_hook() -> Option<PreTickHook<RuntimeMacroTask>> {
+    #[cfg(feature = "window")]
+    {
+        Some(Box::new(crate::ext::window::pump_windowing_state))
+    }
+    #[cfg(not(feature = "window"))]
+    {
+        None
+    }
 }
 
 #[hotpath::measure]

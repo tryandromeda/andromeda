@@ -290,7 +290,7 @@ fn run_main() -> CliResult<()> {
         Cli::parse()
     };
 
-    let rt = tokio::runtime::Builder::new_current_thread()
+    let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_time()
         .enable_io()
         .build()
@@ -301,9 +301,9 @@ fn run_main() -> CliResult<()> {
                 Some(Box::new(e)),
             )
         })?;
+    let _tokio_guard = rt.enter();
 
-    // Run Nova in a secondary blocking thread so tokio tasks can still run
-    let nova_thread = rt.spawn_blocking(move || -> CliResult<()> {
+    let nova_result: CliResult<()> = (move || -> CliResult<()> {
         match args.command {
             Command::Run {
                 verbose,
@@ -491,15 +491,9 @@ fn run_main() -> CliResult<()> {
             Command::Task { task_name } => run_task(task_name).map_err(|e| *e),
             Command::Config { action } => handle_config_command(action),
         }
-    });
-    match rt.block_on(nova_thread) {
-        Ok(result) => result,
-        Err(e) => Err(error::CliError::config_error(
-            "Runtime execution failed".to_string(),
-            None,
-            Some(Box::new(e)),
-        )),
-    }
+    })();
+    drop(_tokio_guard);
+    nova_result
 }
 
 fn generate_completions(shell: Option<Shell>) {

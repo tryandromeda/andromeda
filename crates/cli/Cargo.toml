@@ -9,7 +9,7 @@ repository.workspace = true
 readme = "../../README.md"
 
 [features]
-default = []
+default = ["window"]
 hotpath = [
     "hotpath/hotpath",
     "andromeda-core/hotpath",
@@ -17,6 +17,7 @@ hotpath = [
 ]
 hotpath-alloc = ["hotpath/hotpath-alloc"]
 llm = ["andromeda-core/llm"]
+window = ["andromeda-runtime/window"]
 
 [lib]
 name = "andromeda"

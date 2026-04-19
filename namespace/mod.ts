@@ -914,6 +914,65 @@ const Andromeda = {
     }
     return httpServe;
   },
+
+  /**
+   * Native window class backed by winit. Only available when Andromeda is
+   * built with the `window` feature enabled. Extends `EventTarget`; events
+   * `close`, `resize`, `keydown`, `keyup`, `mousemove`, `mousedown`,
+   * `mouseup` are dispatched during `Andromeda.Window.mainloop`.
+   *
+   * @example
+   * ```ts
+   * const w = new Andromeda.Window({ title: "Hi", width: 640, height: 480 });
+   * w.addEventListener("close", () => console.log("bye"));
+   * await Andromeda.Window.mainloop(() => {
+   *   // render this frame
+   * });
+   * ```
+   */
+  get Window(): any {
+    // @ts-ignore - cross-file handoff from ext/window/mod.ts
+    const Klass = globalThis.__andromeda_window_class;
+    if (typeof Klass !== "function") {
+      throw new Error(
+        "Window extension is not available. Make sure the 'window' feature is enabled.",
+      );
+    }
+    // @ts-ignore - cross-file handoff from ext/window/mod.ts
+    const mainloop = globalThis.__andromeda_window_mainloop;
+    if (mainloop && !Klass.mainloop) {
+      Object.defineProperty(Klass, "mainloop", {
+        value: mainloop,
+        enumerable: true,
+      });
+    }
+    return Klass;
+  },
+
+  /**
+   * Shorthand constructor for `new Andromeda.Window(options)`.
+   *
+   * @example
+   * ```ts
+   * const win = Andromeda.createWindow({ title: "Hello", width: 320, height: 240 });
+   * ```
+   */
+  createWindow(options: {
+    title?: string;
+    width?: number;
+    height?: number;
+    resizable?: boolean;
+    visible?: boolean;
+  } = {}): any {
+    // @ts-ignore - cross-file handoff from ext/window/mod.ts
+    const Klass = globalThis.__andromeda_window_class;
+    if (typeof Klass !== "function") {
+      throw new Error(
+        "Window extension is not available. Make sure the 'window' feature is enabled.",
+      );
+    }
+    return new Klass(options);
+  },
 };
 
 /**
