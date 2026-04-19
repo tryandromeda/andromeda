@@ -72,11 +72,11 @@ fn rgb_to_hsl(rgb: vec3f) -> vec3f {
     let max_c = max(max(rgb.r, rgb.g), rgb.b);
     let min_c = min(min(rgb.r, rgb.g), rgb.b);
     let l = (max_c + min_c) * 0.5;
-    
+
     if (max_c == min_c) {
         return vec3f(0.0, 0.0, l);
     }
-    
+
     let d = max_c - min_c;
     var s: f32;
     if (l > 0.5) {
@@ -84,7 +84,7 @@ fn rgb_to_hsl(rgb: vec3f) -> vec3f {
     } else {
         s = d / (max_c + min_c);
     }
-    
+
     var h: f32;
     if (max_c == rgb.r) {
         h = (rgb.g - rgb.b) / d + select(0.0, 6.0, rgb.g < rgb.b);
@@ -94,7 +94,7 @@ fn rgb_to_hsl(rgb: vec3f) -> vec3f {
         h = (rgb.r - rgb.g) / d + 4.0;
     }
     h = h / 6.0;
-    
+
     return vec3f(h, s, l);
 }
 
@@ -103,7 +103,7 @@ fn hsl_to_rgb(hsl: vec3f) -> vec3f {
     if (hsl.y == 0.0) {
         return vec3f(hsl.z, hsl.z, hsl.z);
     }
-    
+
     var q: f32;
     if (hsl.z < 0.5) {
         q = hsl.z * (1.0 + hsl.y);
@@ -111,11 +111,11 @@ fn hsl_to_rgb(hsl: vec3f) -> vec3f {
         q = hsl.z + hsl.y - hsl.z * hsl.y;
     }
     let p = 2.0 * hsl.z - q;
-    
+
     let r = hue_to_rgb(p, q, hsl.x + 1.0 / 3.0);
     let g = hue_to_rgb(p, q, hsl.x);
     let b = hue_to_rgb(p, q, hsl.x - 1.0 / 3.0);
-    
+
     return vec3f(r, g, b);
 }
 
@@ -145,14 +145,14 @@ fn clip_color(c_in: vec3f) -> vec3f {
     let l = luminosity(c);
     let n = min(min(c.r, c.g), c.b);
     let x = max(max(c.r, c.g), c.b);
-    
+
     if (n < 0.0) {
         c = l + (((c - l) * l) / (l - n));
     }
     if (x > 1.0) {
         c = l + (((c - l) * (1.0 - l)) / (x - l));
     }
-    
+
     return c;
 }
 
@@ -166,13 +166,13 @@ fn set_sat(c: vec3f, s: f32) -> vec3f {
     var result = c;
     let min_val = min(min(c.r, c.g), c.b);
     let max_val = max(max(c.r, c.g), c.b);
-    
+
     if (max_val > min_val) {
         result = (c - min_val) * s / (max_val - min_val);
     } else {
         result = vec3f(0.0, 0.0, 0.0);
     }
-    
+
     return result;
 }
 
@@ -181,10 +181,10 @@ fn apply_composite(src: vec4f, dst: vec4f, op: u32) -> vec4f {
     // Premultiply alpha for proper blending
     let src_rgb = src.rgb * src.a;
     let dst_rgb = dst.rgb * dst.a;
-    
+
     var result_rgb: vec3f;
     var result_a: f32;
-    
+
     switch op {
         case 0u: { // source-over
             result_rgb = src_rgb + dst_rgb * (1.0 - src.a);
@@ -336,24 +336,24 @@ fn apply_composite(src: vec4f, dst: vec4f, op: u32) -> vec4f {
             result_a = src.a + dst.a * (1.0 - src.a);
         }
     }
-    
+
     // Clamp and unpremultiply alpha
     result_a = clamp(result_a, 0.0, 1.0);
     if (result_a > 0.0) {
         result_rgb = clamp(result_rgb / result_a, vec3f(0.0), vec3f(1.0));
     }
-    
+
     return vec4f(result_rgb, result_a);
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     var src_color: vec4f;
-    
+
     // Handle texture sampling for images and patterns
     if (uniforms.has_texture == 1u) {
         var tex_coord = in.tex_coord;
-        
+
         // Apply pattern repetition modes
         if (uniforms.fill_style == 4u) { // Pattern fill style
             if (uniforms.pattern_repetition == 1u) { // repeat-x
@@ -368,9 +368,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
                 }
             }
         }
-        
+
         let tex_color = textureSample(texture, texture_sampler, tex_coord);
-        src_color = tex_color * uniforms.global_alpha;
+        src_color = tex_color;
+        src_color.w *= uniforms.global_alpha;
     } else if (uniforms.is_stroke == 1u) {
         src_color = uniforms.stroke_color;
         src_color.w *= uniforms.global_alpha;
@@ -411,34 +412,34 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
             var start_vec = vec2f(cos(start_angle), sin(start_angle));
             // atan2 is stable for all inputs
             ratio = atan2(
-                dot(pos_vec, start_vec), 
+                dot(pos_vec, start_vec),
                 determinant(mat2x2f(pos_vec, start_vec))
             ) / radians(360.0) + 0.5;
         }
         for(var i = 0u; i < arrayLength(&gradient) - 1; i++) {
             color = mix(
-                color, 
-                gradient[i + 1].color, 
+                color,
+                gradient[i + 1].color,
                 smoothstep(gradient[i].offset, gradient[i + 1].offset, ratio)
             );
         }
         src_color = color;
         src_color.w *= uniforms.global_alpha;
     }
-    
+
     // Apply shadow effects
     // Note: Full shadow blur would require a multi-pass Gaussian blur implementation
     // For now, we apply shadow offset and color modulation
     // The shadow blur effect would be best implemented as a separate render pass
     var final_color = src_color;
-    
+
     if (uniforms.shadow_blur > 0.0 || uniforms.shadow_offset.x != 0.0 || uniforms.shadow_offset.y != 0.0) {
         // Shadow is applied by the renderer in a separate pass
         // Here we just render the shape normally
         // The shadow will be rendered first in the renderer
         final_color = src_color;
     }
-    
+
     // Note: For proper compositing with existing canvas content, we would need
     // to load the destination color from the render target. This requires
     // framebuffer fetch or a separate texture read. For now, we assume a
@@ -447,13 +448,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     // 1. Use a texture attachment to store the current canvas state
     // 2. Sample from it here: let dst_color = textureLoad(canvas_texture, ...);
     // 3. Apply compositing: return apply_composite(src_color, dst_color, uniforms.composite_operation);
-    
+
     let dst_color = vec4f(0.0, 0.0, 0.0, 0.0); // Placeholder for destination
-    
-    // Apply composite operation
     if (uniforms.composite_operation == 0u) {
-        // Fast path for source-over (most common case)
-        return final_color;
+        // Fast path for source-over (most common case).
+        return vec4f(final_color.rgb * final_color.w, final_color.w);
     } else {
         return apply_composite(final_color, dst_color, uniforms.composite_operation);
     }

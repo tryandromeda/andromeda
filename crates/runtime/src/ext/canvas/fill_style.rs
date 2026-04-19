@@ -18,8 +18,9 @@ pub enum FillStyle {
     LinearGradient(LinearGradient),
     RadialGradient(RadialGradient),
     ConicGradient(ConicGradient),
-    /// Pattern with image resource ID and repetition mode
+    /// Pattern with image resource ID and repetition mode.
     Pattern {
+        pattern_rid: u32,
         image_rid: u32,
         repetition: PatternRepetition,
     },
@@ -100,8 +101,81 @@ impl FillStyle {
             return Self::parse_rgb_color(color_str);
         }
 
+        // Handle hsl() and hsla() colors
+        if color_str.starts_with("hsl(") || color_str.starts_with("hsla(") {
+            return Self::parse_hsl_color(color_str);
+        }
+
         // Handle named colors
         Self::parse_named_color(color_str)
+    }
+
+    fn parse_hsl_color(hsl: &str) -> Result<Self, String> {
+        let is_hsla = hsl.starts_with("hsla(");
+        let inner = if is_hsla {
+            hsl.trim_start_matches("hsla(").trim_end_matches(')')
+        } else {
+            hsl.trim_start_matches("hsl(").trim_end_matches(')')
+        };
+
+        let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+        if (!is_hsla && parts.len() != 3) || (is_hsla && parts.len() != 4) {
+            return Err("Invalid hsl/hsla format".to_string());
+        }
+
+        let h_deg = parts[0].parse::<f32>().map_err(|_| "Invalid hue")?;
+        let s = parts[1]
+            .trim_end_matches('%')
+            .parse::<f32>()
+            .map_err(|_| "Invalid saturation")?
+            / 100.0;
+        let l = parts[2]
+            .trim_end_matches('%')
+            .parse::<f32>()
+            .map_err(|_| "Invalid lightness")?
+            / 100.0;
+        let a = if is_hsla {
+            parts[3].parse::<f32>().map_err(|_| "Invalid alpha value")?
+        } else {
+            1.0
+        };
+
+        // Standard HSL -> RGB conversion (CSS3). Hue wrapped to [0, 360).
+        let h = (h_deg.rem_euclid(360.0)) / 360.0;
+        let (r, g, b) = if s == 0.0 {
+            (l, l, l)
+        } else {
+            let q = if l < 0.5 {
+                l * (1.0 + s)
+            } else {
+                l + s - l * s
+            };
+            let p = 2.0 * l - q;
+            let hue_to_rgb = |p: f32, q: f32, mut t: f32| -> f32 {
+                if t < 0.0 {
+                    t += 1.0;
+                }
+                if t > 1.0 {
+                    t -= 1.0;
+                }
+                if t < 1.0 / 6.0 {
+                    p + (q - p) * 6.0 * t
+                } else if t < 0.5 {
+                    q
+                } else if t < 2.0 / 3.0 {
+                    p + (q - p) * (2.0 / 3.0 - t) * 6.0
+                } else {
+                    p
+                }
+            };
+            (
+                hue_to_rgb(p, q, h + 1.0 / 3.0),
+                hue_to_rgb(p, q, h),
+                hue_to_rgb(p, q, h - 1.0 / 3.0),
+            )
+        };
+
+        Ok(FillStyle::Color { r, g, b, a })
     }
 
     fn parse_hex_color(hex: &str) -> Result<Self, String> {

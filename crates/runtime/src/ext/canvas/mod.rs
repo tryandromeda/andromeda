@@ -30,9 +30,140 @@ use crate::ext::canvas::context2d::{
     internal_canvas_stroke,
 };
 use nova_vm::{
-    ecmascript::{Agent, ArgumentsList, JsResult, SmallInteger, Value},
+    ecmascript::{Agent, ArgumentsList, ExceptionType, JsResult, SmallInteger, Value},
     engine::{Bindable, GcScope},
 };
+
+/// Iterate `(start, end)` index pairs of subpaths within a flat point
+/// array. Mirror of `subpath_ranges` in context2d but inlined here so
+/// this module does not depend on a visibility-export of that helper.
+fn current_subpath_ranges(points: &[renderer::Point], starts: &[usize]) -> Vec<(usize, usize)> {
+    if points.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::with_capacity(starts.len() + 1);
+    let mut bounds: Vec<usize> = Vec::with_capacity(starts.len() + 2);
+    if starts.first().copied() != Some(0) {
+        bounds.push(0);
+    }
+    for &s in starts {
+        if s <= points.len() && bounds.last().copied() != Some(s) {
+            bounds.push(s);
+        }
+    }
+    bounds.push(points.len());
+    for i in 0..bounds.len().saturating_sub(1) {
+        let s = bounds[i];
+        let e = bounds[i + 1];
+        if e > s {
+            out.push((s, e));
+        }
+    }
+    out
+}
+
+/// Ray-cast winding test: does the point (px, py) fall inside any
+/// subpath of `points` under the given fill rule?
+fn point_in_current_path(
+    points: &[renderer::Point],
+    starts: &[usize],
+    px: f64,
+    py: f64,
+    even_odd: bool,
+) -> bool {
+    let mut winding: i32 = 0;
+    let mut crossings: i32 = 0;
+    for (s, e) in current_subpath_ranges(points, starts) {
+        let sub = &points[s..e];
+        if sub.len() < 3 {
+            continue;
+        }
+        let n = sub.len();
+        for i in 0..n {
+            let p1 = &sub[i];
+            let p2 = &sub[(i + 1) % n];
+            if (p1.y <= py) != (p2.y <= py) {
+                let t = (py - p1.y) / (p2.y - p1.y);
+                let xh = p1.x + t * (p2.x - p1.x);
+                if xh > px {
+                    crossings += 1;
+                    if p1.y < p2.y {
+                        winding += 1;
+                    } else {
+                        winding -= 1;
+                    }
+                }
+            }
+        }
+    }
+    if even_odd {
+        crossings % 2 != 0
+    } else {
+        winding != 0
+    }
+}
+
+/// Approximate "point inside the stroked outline" test: return true
+/// iff the point lies within `line_width / 2` of any edge of any
+/// subpath. Matches the expected behavior of `isPointInStroke(x, y)`
+/// for typical hit-testing use cases.
+fn point_in_current_stroke(
+    points: &[renderer::Point],
+    starts: &[usize],
+    px: f64,
+    py: f64,
+    line_width: f64,
+) -> bool {
+    let half = (line_width / 2.0).max(0.0);
+    if half == 0.0 {
+        return false;
+    }
+    let half_sq = half * half;
+    for (s, e) in current_subpath_ranges(points, starts) {
+        let sub = &points[s..e];
+        if sub.len() < 2 {
+            continue;
+        }
+        let n = sub.len();
+        for i in 0..n {
+            let a = &sub[i];
+            let b = &sub[(i + 1) % n];
+            let abx = b.x - a.x;
+            let aby = b.y - a.y;
+            let ax = px - a.x;
+            let ay = py - a.y;
+            let seg_len_sq = abx * abx + aby * aby;
+            let t = if seg_len_sq > 0.0 {
+                ((ax * abx + ay * aby) / seg_len_sq).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            let cx = a.x + abx * t;
+            let cy = a.y + aby * t;
+            let dx = px - cx;
+            let dy = py - cy;
+            if dx * dx + dy * dy <= half_sq {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Encode a byte buffer as a comma-separated string of decimal octets.
+/// The TS wrappers for encoded-image ops split this back into a
+/// `Uint8Array`. This mirrors the existing `internal_image_data_get_data`
+/// pattern and avoids needing a zero-copy ArrayBuffer bridge today.
+fn encode_bytes_csv(bytes: &[u8]) -> String {
+    let mut s = String::with_capacity(bytes.len() * 4);
+    for (i, b) in bytes.iter().enumerate() {
+        if i > 0 {
+            s.push(',');
+        }
+        s.push_str(&b.to_string());
+    }
+    s
+}
 
 // Helper functions for text rendering
 fn calculate_baseline_offset(
@@ -89,6 +220,11 @@ struct CanvasData<'gc> {
     // Path state for renderer
     current_path: Vec<renderer::Point>,
     path_started: bool,
+    // Indices into `current_path` where each subpath starts. Updated by
+    // `moveTo` to preserve earlier subpaths in the same `beginPath/fill`
+    // block — Canvas 2D paths can contain multiple disconnected subpaths
+    // that must each render as their own closed shape.
+    subpath_starts: Vec<usize>,
     // State stack for save/restore functionality
     state_stack: Vec<state::CanvasState>,
     // Transformation matrix [a, b, c, d, e, f]
@@ -149,7 +285,7 @@ impl CanvasExt {
                     false,
                 ),
                 // Context2D operations
-                ExtensionOp::new("internal_canvas_arc", internal_canvas_arc, 5, false),
+                ExtensionOp::new("internal_canvas_arc", internal_canvas_arc, 6, false),
                 ExtensionOp::new("internal_canvas_arc_to", internal_canvas_arc_to, 5, false),
                 ExtensionOp::new(
                     "internal_canvas_bezier_curve_to",
@@ -196,7 +332,7 @@ impl CanvasExt {
                 ExtensionOp::new(
                     "internal_canvas_round_rect",
                     internal_canvas_round_rect,
-                    6,
+                    9,
                     false,
                 ),
                 ExtensionOp::new(
@@ -426,6 +562,18 @@ impl CanvasExt {
                     false,
                 ),
                 ExtensionOp::new(
+                    "internal_canvas_reset_state_stack",
+                    Self::internal_canvas_reset_state_stack,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_reset_bitmap",
+                    Self::internal_canvas_reset_bitmap,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
                     "internal_canvas_get_global_composite_operation",
                     Self::internal_canvas_get_global_composite_operation,
                     1,
@@ -441,6 +589,24 @@ impl CanvasExt {
                     "internal_canvas_render",
                     Self::internal_canvas_render,
                     1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_encode_png",
+                    Self::internal_canvas_encode_png,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_encode_jpeg",
+                    Self::internal_canvas_encode_jpeg,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_encode_data_url",
+                    Self::internal_canvas_encode_data_url,
+                    3,
                     false,
                 ),
                 ExtensionOp::new(
@@ -539,6 +705,30 @@ impl CanvasExt {
                     false,
                 ),
                 ExtensionOp::new(
+                    "internal_canvas_fill_path2d",
+                    Self::internal_canvas_fill_path2d,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_stroke_path2d",
+                    Self::internal_canvas_stroke_path2d,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_clip_path2d",
+                    Self::internal_canvas_clip_path2d,
+                    2,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_clip_current",
+                    Self::internal_canvas_clip_current,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
                     "internal_image_data_get_width",
                     Self::internal_image_data_get_width,
                     1,
@@ -554,6 +744,12 @@ impl CanvasExt {
                     "internal_image_data_get_data",
                     Self::internal_image_data_get_data,
                     1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_image_data_set_data",
+                    Self::internal_image_data_set_data,
+                    2,
                     false,
                 ),
                 // Gradient operations
@@ -603,7 +799,7 @@ impl CanvasExt {
                 ExtensionOp::new(
                     "internal_path2d_add_path",
                     Self::internal_path2d_add_path,
-                    2,
+                    8,
                     false,
                 ),
                 ExtensionOp::new(
@@ -654,6 +850,18 @@ impl CanvasExt {
                     "internal_path2d_close_path",
                     Self::internal_path2d_close_path,
                     1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_is_point_in_current_path",
+                    Self::internal_canvas_is_point_in_current_path,
+                    4,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_canvas_is_point_in_current_stroke",
+                    Self::internal_canvas_is_point_in_current_stroke,
+                    4,
                     false,
                 ),
                 ExtensionOp::new(
@@ -725,6 +933,7 @@ impl CanvasExt {
             shadow_offset_y: 0.0,
             current_path: Vec::new(),
             path_started: false,
+            subpath_starts: Vec::new(),
             state_stack: Vec::new(),
             // Identity transformation matrix
             transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
@@ -737,10 +946,10 @@ impl CanvasExt {
             direction: state::Direction::default(),
         });
 
-        // Create renderer with GPU device
+        // Create renderer with GPU device.
         let (device, queue) = create_wgpu_device_sync();
         let dimensions = renderer::Dimensions { width, height };
-        let format = wgpu::TextureFormat::Bgra8UnormSrgb; // Common format for canvas
+        let format = wgpu::TextureFormat::Bgra8Unorm;
         let renderer = renderer::Renderer::new(device, queue, format, dimensions);
         let _renderer_rid = res.renderers.push(renderer);
 
@@ -819,6 +1028,57 @@ impl CanvasExt {
         let res: &mut CanvasResources = storage.get_mut().unwrap();
         let mut data = res.canvases.get_mut(rid).unwrap();
         data.global_alpha = alpha;
+        Ok(Value::Undefined)
+    }
+
+    /// Clear the canvas's save/restore state stack AND its current
+    /// subpath + subpath_starts. Used by `ctx.reset()` to make the
+    /// subsequent `restore()` a no-op.
+    fn internal_canvas_reset_state_stack<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+        if let Some(mut data) = res.canvases.get_mut(rid) {
+            data.state_stack.clear();
+            data.current_path.clear();
+            data.subpath_starts.clear();
+            data.path_started = false;
+            data.commands.clear();
+        }
+        Ok(Value::Undefined)
+    }
+
+    /// Clear the canvas bitmap to fully transparent. Used by
+    /// `ctx.reset()` so the canvas surface itself is cleared.
+    fn internal_canvas_reset_bitmap<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+        if let Some(mut renderer) = res.renderers.get_mut(rid) {
+            renderer.commands.clear();
+            renderer.clip_path = None;
+            renderer.render_all();
+        }
         Ok(Value::Undefined)
     }
 
@@ -1157,6 +1417,165 @@ impl CanvasExt {
     }
 
     /// Internal op to save canvas as PNG file
+    /// Encode the rendered canvas as PNG bytes and return them as a
+    /// comma-separated-decimal string. TS wraps this into a Uint8Array
+    /// (matches the existing `internal_image_data_get_data` pattern).
+    fn internal_canvas_encode_png<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let result = Self::with_renderer(agent, rid, |renderer| {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| format!("tokio runtime init failed: {e}"))?;
+            rt.block_on(renderer.encode_as_png())
+                .map_err(|e| format!("PNG encode failed: {e}"))
+        });
+        match result {
+            Some(Ok(bytes)) => {
+                Ok(Value::from_string(agent, encode_bytes_csv(&bytes), gc.nogc()).unbind())
+            }
+            Some(Err(msg)) => Err(agent
+                .throw_exception(ExceptionType::Error, msg, gc.nogc())
+                .unbind()),
+            None => Err(agent
+                .throw_exception(
+                    ExceptionType::Error,
+                    "toBuffer: canvas has no associated renderer".to_string(),
+                    gc.nogc(),
+                )
+                .unbind()),
+        }
+    }
+
+    /// Encode the rendered canvas as JPEG bytes at the given quality
+    /// (0..=100). Return as a comma-separated-decimal string.
+    fn internal_canvas_encode_jpeg<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let quality_val = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let quality_f = if quality_val.is_finite() {
+            quality_val.clamp(0.0, 1.0)
+        } else {
+            0.92
+        };
+        let quality = (quality_f * 100.0).round() as u8;
+        let result = Self::with_renderer(agent, rid, |renderer| {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| format!("tokio runtime init failed: {e}"))?;
+            rt.block_on(renderer.encode_as_jpeg(quality))
+                .map_err(|e| format!("JPEG encode failed: {e}"))
+        });
+        match result {
+            Some(Ok(bytes)) => {
+                Ok(Value::from_string(agent, encode_bytes_csv(&bytes), gc.nogc()).unbind())
+            }
+            Some(Err(msg)) => Err(agent
+                .throw_exception(ExceptionType::Error, msg, gc.nogc())
+                .unbind()),
+            None => Err(agent
+                .throw_exception(
+                    ExceptionType::Error,
+                    "toBuffer: canvas has no associated renderer".to_string(),
+                    gc.nogc(),
+                )
+                .unbind()),
+        }
+    }
+
+    /// Encode the canvas as a `data:<mime>;base64,<payload>` string. `mime`
+    /// must be `"image/png"` or `"image/jpeg"`; any other value is treated
+    /// as `"image/png"`.
+    fn internal_canvas_encode_data_url<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let mime_str = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+        let mime = mime_str.as_str(agent).unwrap_or("image/png").to_owned();
+        let quality_val = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()
+            .map(|n| n.into_f64(agent))
+            .unwrap_or(0.92);
+        let quality = (quality_val.clamp(0.0, 1.0) * 100.0).round() as u8;
+
+        let result = Self::with_renderer(agent, rid, |renderer| {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| format!("tokio runtime init failed: {e}"))?;
+            if mime == "image/jpeg" || mime == "image/jpg" {
+                let b = rt
+                    .block_on(renderer.encode_as_jpeg(quality))
+                    .map_err(|e| format!("JPEG encode failed: {e}"))?;
+                Ok::<(String, Vec<u8>), String>(("image/jpeg".to_string(), b))
+            } else {
+                let b = rt
+                    .block_on(renderer.encode_as_png())
+                    .map_err(|e| format!("PNG encode failed: {e}"))?;
+                Ok(("image/png".to_string(), b))
+            }
+        });
+        let (mime_out, bytes) = match result {
+            Some(Ok(v)) => v,
+            Some(Err(msg)) => {
+                return Err(agent
+                    .throw_exception(ExceptionType::Error, msg, gc.nogc())
+                    .unbind());
+            }
+            None => {
+                return Err(agent
+                    .throw_exception(
+                        ExceptionType::Error,
+                        "toDataURL: canvas has no associated renderer".to_string(),
+                        gc.nogc(),
+                    )
+                    .unbind());
+            }
+        };
+
+        use base64_simd::STANDARD;
+        let b64 = STANDARD.encode_to_string(&bytes);
+        let data_url = format!("data:{};base64,{}", mime_out, b64);
+        Ok(Value::from_string(agent, data_url, gc.nogc()).unbind())
+    }
+
+    fn with_renderer<F, R>(agent: &mut Agent, rid: Rid, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut renderer::Renderer) -> R,
+    {
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+        let mut renderer = res.renderers.get_mut(rid)?;
+        renderer.render_all();
+        Some(f(&mut renderer))
+    }
+
     fn internal_canvas_save_as_png<'gc>(
         agent: &mut Agent,
         _this: Value<'_>,
@@ -1256,10 +1675,8 @@ impl CanvasExt {
             FillStyle::ConicGradient(gradient) => {
                 Ok(Value::from_i64(agent, gradient.rid as i64, gc.nogc()).unbind())
             }
-            FillStyle::Pattern { image_rid, .. } => {
-                // Return the image RID as a number for now
-                // In a full implementation, this would return a CanvasPattern object
-                Ok(Value::from_i64(agent, *image_rid as i64, gc.nogc()).unbind())
+            FillStyle::Pattern { pattern_rid, .. } => {
+                Ok(Value::from_i64(agent, *pattern_rid as i64, gc.nogc()).unbind())
             }
         }
     }
@@ -1358,9 +1775,8 @@ impl CanvasExt {
             FillStyle::ConicGradient(gradient) => {
                 Ok(Value::from_i64(agent, gradient.rid as i64, gc.nogc()).unbind())
             }
-            FillStyle::Pattern { image_rid, .. } => {
-                // Return the image RID as a number for now
-                Ok(Value::from_i64(agent, *image_rid as i64, gc.nogc()).unbind())
+            FillStyle::Pattern { pattern_rid, .. } => {
+                Ok(Value::from_i64(agent, *pattern_rid as i64, gc.nogc()).unbind())
             }
         }
     }
@@ -1585,6 +2001,24 @@ impl CanvasExt {
         let target_rid = Rid::from_index(target_rid_val);
         let source_rid = Rid::from_index(source_rid_val);
 
+        let defaults = [1.0f64, 0.0, 0.0, 1.0, 0.0, 0.0];
+        let mut matrix = defaults;
+        let mut has_non_identity = false;
+        for i in 0..6 {
+            let arg = args.get(2 + i);
+            let v = arg
+                .to_number(agent, gc.reborrow())
+                .unbind()
+                .map(|n| n.into_f64(agent))
+                .unwrap_or(defaults[i]);
+            if v.is_finite() {
+                matrix[i] = v;
+                if (matrix[i] - defaults[i]).abs() > f64::EPSILON {
+                    has_non_identity = true;
+                }
+            }
+        }
+
         let host_data = agent
             .get_host_data()
             .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
@@ -1593,11 +2027,301 @@ impl CanvasExt {
         let res: &mut CanvasResources = storage.get_mut().unwrap();
 
         let source_path = res.path2ds.get(source_rid).unwrap().clone();
+        let transform = if has_non_identity { Some(matrix) } else { None };
         res.path2ds
             .get_mut(target_rid)
             .unwrap()
-            .add_path(&source_path, None); // TODO: Add transform support
+            .add_path(&source_path, transform);
 
+        Ok(Value::Undefined)
+    }
+
+    /// Test if a point is inside the context's current subpath(s),
+    /// per the HTML spec's no-Path2D overload of `isPointInPath`.
+    /// Uses ray-casting winding; switches to even-odd when fillRule is
+    /// "evenodd".
+    fn internal_canvas_is_point_in_current_path<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let x = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let y = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let fill_rule_str = args.get(3).to_string(agent, gc.reborrow()).unbind()?;
+        let even_odd = matches!(fill_rule_str.as_str(agent), Some("evenodd"));
+
+        let rid = Rid::from_index(rid_val);
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let Some(data) = res.canvases.get(rid) else {
+            return Ok(Value::Boolean(false));
+        };
+        let result =
+            point_in_current_path(&data.current_path, &data.subpath_starts, x, y, even_odd);
+        Ok(Value::Boolean(result))
+    }
+
+    /// Test if a point is inside the stroke of the context's current
+    /// subpath(s). Approximates by checking distance from every edge
+    /// against `line_width / 2`.
+    fn internal_canvas_is_point_in_current_stroke<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let x = args
+            .get(1)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let y = args
+            .get(2)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+        let line_width = args
+            .get(3)
+            .to_number(agent, gc.reborrow())
+            .unbind()?
+            .into_f64(agent);
+
+        let rid = Rid::from_index(rid_val);
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let storage = host_data.storage.borrow();
+        let res: &CanvasResources = storage.get().unwrap();
+        let Some(data) = res.canvases.get(rid) else {
+            return Ok(Value::Boolean(false));
+        };
+        let result =
+            point_in_current_stroke(&data.current_path, &data.subpath_starts, x, y, line_width);
+        Ok(Value::Boolean(result))
+    }
+
+    /// Fill a Path2D onto the given canvas. Routes every subpath through
+    /// the same fan-triangulation pipeline that `internal_canvas_fill`
+    /// uses for the current subpath.
+    fn internal_canvas_fill_path2d<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let canvas_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let path_rid_val = args.get(1).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let canvas_rid = Rid::from_index(canvas_rid_val);
+        let path_rid = Rid::from_index(path_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        let Some(path) = res.path2ds.get(path_rid) else {
+            return Ok(Value::Undefined);
+        };
+        // Materialize subpaths so we can drop the Path2D borrow before
+        // reaching for a mutable renderer below.
+        let subpaths: Vec<Vec<renderer::Point>> = path
+            .subpaths
+            .iter()
+            .filter(|s| s.points.len() >= 3)
+            .map(|s| s.points.clone())
+            .collect();
+        drop(path);
+
+        if let Some(mut renderer) = res.renderers.get_mut(canvas_rid) {
+            let data = res.canvases.get(canvas_rid).unwrap();
+            let state = RenderState {
+                fill_style: data.fill_style.clone(),
+                global_alpha: data.global_alpha,
+                transform: data.transform,
+                line_cap: data.line_cap,
+                line_join: data.line_join,
+                miter_limit: data.miter_limit,
+                shadow_blur: data.shadow_blur,
+                shadow_color: data.shadow_color.clone(),
+                shadow_offset_x: data.shadow_offset_x,
+                shadow_offset_y: data.shadow_offset_y,
+                composite_operation: data.composite_operation,
+                clip_path: None,
+            };
+            for subpath in subpaths {
+                renderer.render_polygon(subpath, &state);
+            }
+        }
+        Ok(Value::Undefined)
+    }
+
+    /// Stroke a Path2D onto the given canvas. Each subpath goes through
+    /// the stroke-triangulation pipeline independently.
+    fn internal_canvas_stroke_path2d<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let canvas_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let path_rid_val = args.get(1).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let canvas_rid = Rid::from_index(canvas_rid_val);
+        let path_rid = Rid::from_index(path_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        let Some(path) = res.path2ds.get(path_rid) else {
+            return Ok(Value::Undefined);
+        };
+        let subpaths: Vec<Vec<renderer::Point>> = path
+            .subpaths
+            .iter()
+            .filter(|s| s.points.len() >= 2)
+            .map(|s| {
+                let mut pts = s.points.clone();
+                if s.closed
+                    && let (Some(first), Some(last)) = (pts.first(), pts.last())
+                    && (first.x != last.x || first.y != last.y)
+                {
+                    pts.push(pts[0].clone());
+                }
+                pts
+            })
+            .collect();
+        drop(path);
+
+        if let Some(mut renderer) = res.renderers.get_mut(canvas_rid) {
+            let data = res.canvases.get(canvas_rid).unwrap();
+            let state = RenderState {
+                fill_style: data.stroke_style.clone(),
+                global_alpha: data.global_alpha,
+                transform: data.transform,
+                line_cap: data.line_cap,
+                line_join: data.line_join,
+                miter_limit: data.miter_limit,
+                shadow_blur: data.shadow_blur,
+                shadow_color: data.shadow_color.clone(),
+                shadow_offset_x: data.shadow_offset_x,
+                shadow_offset_y: data.shadow_offset_y,
+                composite_operation: data.composite_operation,
+                clip_path: None,
+            };
+            let line_width = data.line_width;
+            let line_dash = data.line_dash.clone();
+            let dash_offset = data.line_dash_offset;
+            let line_cap = data.line_cap;
+            let line_join = data.line_join;
+            let miter_limit = data.miter_limit;
+            for subpath in subpaths {
+                let tris = crate::ext::canvas::context2d::generate_stroke_path_public(
+                    &subpath,
+                    line_width,
+                    &line_dash,
+                    dash_offset,
+                    line_cap,
+                    line_join,
+                    miter_limit,
+                );
+                if !tris.is_empty() {
+                    renderer.render_triangles(tris, &state);
+                }
+            }
+        }
+        Ok(Value::Undefined)
+    }
+
+    /// Clip the canvas to the Path2D's first non-empty subpath. The
+    /// stencil pipeline only supports a single-subpath clip today, so
+    /// multi-subpath Path2Ds are approximated by the first subpath.
+    fn internal_canvas_clip_path2d<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let canvas_rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let path_rid_val = args.get(1).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let canvas_rid = Rid::from_index(canvas_rid_val);
+        let path_rid = Rid::from_index(path_rid_val);
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        let Some(path) = res.path2ds.get(path_rid) else {
+            return Ok(Value::Undefined);
+        };
+        let first = path
+            .subpaths
+            .iter()
+            .find(|s| s.points.len() >= 3)
+            .map(|s| s.points.clone());
+        drop(path);
+
+        if let Some(points) = first
+            && let Some(mut renderer) = res.renderers.get_mut(canvas_rid)
+        {
+            renderer.set_clip_path(Some(points));
+        }
+        Ok(Value::Undefined)
+    }
+
+    /// Clip the canvas to the context's current subpath. Same
+    /// single-subpath approximation as clip_path2d.
+    fn internal_canvas_clip_current<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
+        let rid = Rid::from_index(rid_val);
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        let Some(data) = res.canvases.get(rid) else {
+            return Ok(Value::Undefined);
+        };
+        let first_subpath = current_subpath_ranges(&data.current_path, &data.subpath_starts)
+            .into_iter()
+            .map(|(s, e)| data.current_path[s..e].to_vec())
+            .find(|s| s.len() >= 3);
+        drop(data);
+        if let Some(points) = first_subpath
+            && let Some(mut renderer) = res.renderers.get_mut(rid)
+        {
+            renderer.set_clip_path(Some(points));
+        }
         Ok(Value::Undefined)
     }
 
@@ -2778,27 +3502,19 @@ impl CanvasExt {
         let mut storage = host_data.storage.borrow_mut();
         let res: &mut CanvasResources = storage.get_mut().unwrap();
 
-        // Get renderer and read pixel data
-        let renderer_rid = res.canvases.get(canvas_rid).map(|_| Rid::from_index(0));
-
-        let pixel_data = if let Some(renderer_rid) = renderer_rid {
-            if let Some(mut renderer) = res.renderers.get_mut(renderer_rid) {
-                // Render all pending commands first
+        // Each canvas owns its own renderer at the same rid.
+        let pixel_data = if res.canvases.get(canvas_rid).is_some() {
+            if let Some(mut renderer) = res.renderers.get_mut(canvas_rid) {
                 renderer.render_all();
-
-                // Read pixels from GPU (this requires async, so we'll use block_on)
-                let bitmap = futures::executor::block_on(renderer.create_bitmap());
-
-                // Extract the requested region
-                extract_image_region(
-                    &bitmap,
-                    renderer.dimensions.width,
-                    renderer.dimensions.height,
-                    sx,
-                    sy,
-                    sw,
-                    sh,
-                )
+                match futures::executor::block_on(renderer.snapshot_as_image()) {
+                    Ok(img) => {
+                        let full_w = img.width();
+                        let full_h = img.height();
+                        let raw = img.into_raw();
+                        extract_image_region(&raw, full_w, full_h, sx, sy, sw, sh)
+                    }
+                    Err(_) => vec![0u8; (sw * sh * 4) as usize],
+                }
             } else {
                 vec![0u8; (sw * sh * 4) as usize]
             }
@@ -2844,34 +3560,60 @@ impl CanvasExt {
         let mut storage = host_data.storage.borrow_mut();
         let res: &mut CanvasResources = storage.get_mut().unwrap();
 
-        // Get image data and load it as a texture
-        if let Some(image_data) = res.images.get(image_data_rid) {
-            let width = image_data.width;
-            let height = image_data.height;
+        // Resolve the ImageData's pixel buffer + dimensions, then drop
+        // the immutable borrow before we grab the renderer mutably.
+        let image_info = res.images.get(image_data_rid).and_then(|img| {
+            let width = img.width;
+            let height = img.height;
+            img.data.as_ref().map(|d| (width, height, d.clone()))
+        });
+        let Some((width, height, data)) = image_info else {
+            return Ok(Value::Undefined);
+        };
 
-            if let Some(data) = &image_data.data {
-                // Load the image data into a temporary texture
-                let renderer_rid = Rid::from_index(0); // Assume single renderer for now
-                if let Some(mut renderer) = res.renderers.get_mut(renderer_rid) {
-                    let temp_image_rid = u32::MAX; // Use special ID for temp texture
-                    renderer.load_image_texture(temp_image_rid, data, width, height);
-                }
+        // Render directly — do NOT queue on canvas.commands, since
+        // `process_all_commands` is never wired into render_all.
+        // putImageData also bypasses the current transform and globalAlpha.
+        if let Some(mut renderer) = res.renderers.get_mut(canvas_rid) {
+            let temp_image_rid = u32::MAX;
+            renderer.load_image_texture(temp_image_rid, &data, width, height);
 
-                // Add draw command
-                if let Some(mut canvas) = res.canvases.get_mut(canvas_rid) {
-                    canvas.commands.push(context2d::CanvasCommand::DrawImage {
-                        image_rid: u32::MAX,
-                        sx: 0.0,
-                        sy: 0.0,
-                        s_width: width as f64,
-                        s_height: height as f64,
-                        dx,
-                        dy,
-                        d_width: width as f64,
-                        d_height: height as f64,
-                    });
-                }
-            }
+            let render_state = RenderState {
+                fill_style: FillStyle::Color {
+                    r: 1.0,
+                    g: 1.0,
+                    b: 1.0,
+                    a: 1.0,
+                },
+                global_alpha: 1.0,
+                transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                line_cap: renderer::LineCap::default(),
+                line_join: renderer::LineJoin::default(),
+                miter_limit: 10.0,
+                shadow_blur: 0.0,
+                shadow_color: FillStyle::Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 0.0,
+                },
+                shadow_offset_x: 0.0,
+                shadow_offset_y: 0.0,
+                composite_operation: renderer::CompositeOperation::default(),
+                clip_path: None,
+            };
+            renderer.render_image(
+                temp_image_rid,
+                0.0,
+                0.0,
+                width as f64,
+                height as f64,
+                dx,
+                dy,
+                width as f64,
+                height as f64,
+                &render_state,
+            );
         }
 
         Ok(Value::Undefined)
@@ -2954,7 +3696,43 @@ impl CanvasExt {
         Ok(Value::Undefined)
     }
 
-    // ========== PHASE 2 IMPLEMENTATIONS: LINE STYLES ==========
+    fn internal_image_data_set_data<'gc>(
+        agent: &mut Agent,
+        _this: Value<'_>,
+        args: ArgumentsList<'_, '_>,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid = Rid::from_index(args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32);
+        let csv = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+        let csv_str = csv.as_str(agent).unwrap_or("");
+
+        let host_data = agent
+            .get_host_data()
+            .downcast_ref::<HostData<crate::RuntimeMacroTask>>()
+            .unwrap();
+        let mut storage = host_data.storage.borrow_mut();
+        let res: &mut CanvasResources = storage.get_mut().unwrap();
+
+        if let Some(mut image_data) = res.images.get_mut(rid) {
+            let expected = (image_data.width * image_data.height * 4) as usize;
+            let mut out = Vec::with_capacity(expected);
+            let stripped = csv_str
+                .strip_prefix('[')
+                .and_then(|s| s.strip_suffix(']'))
+                .unwrap_or(csv_str);
+            for piece in stripped.split(',') {
+                if out.len() >= expected {
+                    break;
+                }
+                if let Ok(n) = piece.trim().parse::<u32>() {
+                    out.push(n.min(255) as u8);
+                }
+            }
+            out.resize(expected, 0);
+            image_data.data = Some(out);
+        }
+        Ok(Value::Undefined)
+    }
 
     /// Internal op to set lineCap property
     fn internal_canvas_set_line_cap<'gc>(
@@ -3783,7 +4561,6 @@ impl CanvasExt {
                 let align_offset =
                     calculate_alignment_offset(&canvas.text_align, &canvas.direction, width as f64);
 
-                // Render text bitmap as textured rectangle
                 renderer.render_image(
                     texture_id,
                     0.0,
@@ -3925,8 +4702,6 @@ impl CanvasExt {
         Ok(Value::Undefined)
     }
 
-    // ========== PHASE 2 IMPLEMENTATIONS: PATTERNS ==========
-
     /// Internal op to create a pattern from an image with repetition mode
     fn internal_canvas_create_pattern<'gc>(
         agent: &mut Agent,
@@ -3949,12 +4724,18 @@ impl CanvasExt {
             .parse::<fill_style::PatternRepetition>()
             .unwrap_or(fill_style::PatternRepetition::Repeat);
 
-        let pattern = FillStyle::Pattern {
+        let pattern_rid = res.fill_styles.push(FillStyle::Pattern {
+            pattern_rid: 0,
             image_rid,
-            repetition,
-        };
-
-        let pattern_rid = res.fill_styles.push(pattern);
+            repetition: repetition.clone(),
+        });
+        if let Some(mut entry) = res.fill_styles.get_mut(pattern_rid) {
+            *entry = FillStyle::Pattern {
+                pattern_rid: pattern_rid.index(),
+                image_rid,
+                repetition,
+            };
+        }
 
         Ok(Value::Integer(SmallInteger::from(
             pattern_rid.index() as i32

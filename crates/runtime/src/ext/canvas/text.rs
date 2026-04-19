@@ -172,7 +172,7 @@ impl TextRenderer {
         for gy in 0..placement.height as i32 {
             for gx in 0..placement.width as i32 {
                 let tx = x + gx + placement.left;
-                let ty = target_height as i32 - (y + gy - placement.top) - 1;
+                let ty = y + gy - placement.top;
 
                 if tx < 0 || ty < 0 || tx >= target_width as i32 || ty >= target_height as i32 {
                     continue;
@@ -189,17 +189,15 @@ impl TextRenderer {
                 }
 
                 let alpha = image.data[glyph_idx];
-
                 if alpha == 0 {
                     continue;
                 }
 
                 let final_alpha = ((alpha as u16 * color[3] as u16) / 255) as u8;
 
-                let alpha_f = final_alpha as f32 / 255.0;
-                target[target_idx] = (color[0] as f32 * alpha_f) as u8;
-                target[target_idx + 1] = (color[1] as f32 * alpha_f) as u8;
-                target[target_idx + 2] = (color[2] as f32 * alpha_f) as u8;
+                target[target_idx] = color[0];
+                target[target_idx + 1] = color[1];
+                target[target_idx + 2] = color[2];
                 target[target_idx + 3] = final_alpha;
             }
         }

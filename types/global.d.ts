@@ -780,6 +780,14 @@ declare class OffscreenCanvas {
    * Returns true if save was successful, false otherwise.
    */
   saveAsPng(path: string): boolean;
+  /** Encode the canvas to image bytes. Supports "image/png" (default) and "image/jpeg". */
+  toBuffer(type?: "image/png" | "image/jpeg", quality?: number): Uint8Array;
+  /** Encode the canvas as a `data:` URL. Supports "image/png" (default) and "image/jpeg". */
+  toDataURL(type?: string, quality?: number): string;
+  /** Encode the canvas as a Blob. */
+  convertToBlob(
+    options?: { type?: string; quality?: number },
+  ): Promise<Blob>;
 }
 
 /**
@@ -790,19 +798,42 @@ declare class CanvasRenderingContext2D {
   fillStyle: string | CanvasGradient;
   /** Gets or sets the current stroke style for drawing operations. */
   strokeStyle: string;
-  /** Gets or sets the line width for drawing operations. */
+  /** Gets or sets the line width for drawing operations. Default 1. */
   lineWidth: number;
+  /** Gets or sets the line cap style. Default "butt". */
+  lineCap: "butt" | "round" | "square";
+  /** Gets or sets the line join style. Default "miter". */
+  lineJoin: "miter" | "round" | "bevel";
+  /** Gets or sets the miter limit. Default 10. */
+  miterLimit: number;
+  /** Gets or sets the line dash offset. Default 0. */
+  lineDashOffset: number;
+  /** Gets or sets image smoothing. Default true. */
+  imageSmoothingEnabled: boolean;
+  /** Gets or sets image smoothing quality. Default "low". */
+  imageSmoothingQuality: "low" | "medium" | "high";
+  /** Gets or sets a CSS filter string. Default "none". */
+  filter: string;
   /** Gets or sets the global alpha value (transparency) for drawing operations. Values range from 0.0 (transparent) to 1.0 (opaque). */
   globalAlpha: number;
   /** Gets or sets the type of compositing operation to apply when drawing new shapes. Valid values include 'source-over', 'source-in', 'source-out', 'source-atop', 'destination-over', 'destination-in', 'destination-out', 'destination-atop', 'lighter', 'copy', 'xor', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', and 'luminosity'. Default is 'source-over'. */
   globalCompositeOperation: string;
-  /** Creates an arc/curve on the canvas context. */
+  /** Resets the context to its default state per HTML spec. */
+  reset(): void;
+  /** Returns false — Andromeda never loses the canvas context. */
+  isContextLost(): boolean;
+  /** Sets the line dash pattern. */
+  setLineDash(segments: number[]): void;
+  /** Returns the current line dash pattern. */
+  getLineDash(): number[];
+  /** Creates an arc on the current path. */
   arc(
     x: number,
     y: number,
     radius: number,
     startAngle: number,
     endAngle: number,
+    counterclockwise?: boolean,
   ): void;
   /** Creates an arc-to command on the canvas context. */
   arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
@@ -852,9 +883,18 @@ declare class CanvasRenderingContext2D {
     x: number,
     y: number,
   ): void; /** Fills the current path with the current fill style. */
-  fill(): void;
-  /** Strokes the current path with the current stroke style. */
-  stroke(): void; /** Adds a rectangle to the current path. */
+  fill(pathOrRule?: Path2D | "nonzero" | "evenodd", fillRule?: "nonzero" | "evenodd"): void;
+  /** Strokes the current path or given Path2D with the current stroke style. */
+  stroke(path?: Path2D): void;
+  /** Turns the current path (or given Path2D) into the clipping region. */
+  clip(pathOrRule?: Path2D | "nonzero" | "evenodd", fillRule?: "nonzero" | "evenodd"): void;
+  /** Returns whether the given point is inside the current path. */
+  isPointInPath(x: number, y: number, fillRule?: "nonzero" | "evenodd"): boolean;
+  isPointInPath(path: Path2D, x: number, y: number, fillRule?: "nonzero" | "evenodd"): boolean;
+  /** Returns whether the given point is inside the stroked path. */
+  isPointInStroke(x: number, y: number): boolean;
+  isPointInStroke(path: Path2D, x: number, y: number): boolean;
+  /** Adds a rectangle to the current path. */
   rect(x: number, y: number, width: number, height: number): void;
   /** Adds a quadratic Bézier curve to the current path. */
   quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void;
@@ -875,7 +915,10 @@ declare class CanvasRenderingContext2D {
     y: number,
     w: number,
     h: number,
-    radii: number | number[],
+    radii?:
+      | number
+      | { x: number; y: number }
+      | Array<number | { x: number; y: number }>,
   ): void;
   /** Saves the current canvas state (styles, transformations, etc.) to a stack. */
   save(): void;
@@ -937,6 +980,8 @@ declare class ImageBitmap {
 declare class ImageData {
   /** Creates a new ImageData object with the specified dimensions. */
   constructor(width: number, height: number);
+  /** Creates an ImageData wrapping an existing Uint8ClampedArray. */
+  constructor(data: Uint8ClampedArray, width: number, height?: number);
 
   /** The width of the ImageData in pixels. */
   readonly width: number;
@@ -944,6 +989,62 @@ declare class ImageData {
   readonly height: number;
   /** The one-dimensional array containing the pixel data in RGBA order. */
   readonly data: Uint8ClampedArray;
+}
+
+interface DOMMatrix2DInit {
+  a?: number;
+  b?: number;
+  c?: number;
+  d?: number;
+  e?: number;
+  f?: number;
+  m11?: number;
+  m12?: number;
+  m21?: number;
+  m22?: number;
+  m41?: number;
+  m42?: number;
+}
+
+declare class DOMMatrixReadOnly {
+  constructor(init?: number[] | DOMMatrix2DInit | string);
+  readonly a: number;
+  readonly b: number;
+  readonly c: number;
+  readonly d: number;
+  readonly e: number;
+  readonly f: number;
+  readonly m11: number;
+  readonly m12: number;
+  readonly m21: number;
+  readonly m22: number;
+  readonly m41: number;
+  readonly m42: number;
+  readonly is2D: boolean;
+  readonly isIdentity: boolean;
+  multiply(other: DOMMatrix2DInit | DOMMatrixReadOnly): DOMMatrix;
+  translate(tx: number, ty?: number): DOMMatrix;
+  scale(sx: number, sy?: number): DOMMatrix;
+  rotate(angleDegrees: number): DOMMatrix;
+  inverse(): DOMMatrix;
+  transformPoint(point: { x: number; y: number }): { x: number; y: number };
+  toFloat32Array(): Float32Array;
+  toString(): string;
+}
+
+declare class DOMMatrix extends DOMMatrixReadOnly {
+  constructor(init?: number[] | DOMMatrix2DInit | string);
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  e: number;
+  f: number;
+  multiplySelf(other: DOMMatrix2DInit | DOMMatrixReadOnly): DOMMatrix;
+  translateSelf(tx: number, ty?: number): DOMMatrix;
+  scaleSelf(sx: number, sy?: number): DOMMatrix;
+  rotateSelf(angleDegrees: number): DOMMatrix;
+  invertSelf(): DOMMatrix;
 }
 
 /**

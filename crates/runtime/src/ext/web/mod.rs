@@ -85,20 +85,19 @@ impl WebExt {
             .expect("String is not valid UTF-8")
             .to_string();
         let gc = gc.into_nogc();
+        let mut bytes = Vec::with_capacity(rust_string.chars().count());
         for c in rust_string.chars() {
-            if c as u32 > 0xFF {
+            let cp = c as u32;
+            if cp > 0xFF {
                 // TODO: Returning an InvalidCharacterError is the correct behavior.
                 // ref: https://html.spec.whatwg.org/multipage/webappapis.html#atob
                 return Err(agent.throw_exception(ExceptionType::Error, format!(
                     "InvalidCharacterError: The string to be encoded contains characters outside of the Latin1 range. Found: '{c}'"
                 ), gc).unbind());
             }
+            bytes.push(cp as u8);
         }
-        Ok(Self::forgiving_base64_encode(
-            agent,
-            rust_string.as_bytes(),
-            gc,
-        ))
+        Ok(Self::forgiving_base64_encode(agent, &bytes, gc))
     }
 
     pub fn internal_atob<'gc>(
@@ -154,12 +153,8 @@ impl WebExt {
                 ).unbind());
                 }
             };
-        Ok(Value::from_string(
-            agent,
-            String::from_utf8_lossy(decoded_bytes).to_string(),
-            gc,
-        )
-        .unbind())
+        let decoded_string: String = decoded_bytes.iter().map(|&b| b as char).collect();
+        Ok(Value::from_string(agent, decoded_string, gc).unbind())
     }
 
     pub fn internal_text_encode<'gc>(
