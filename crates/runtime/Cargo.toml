@@ -14,6 +14,7 @@ crypto = ["dep:ring", "dep:rand"]
 storage = ["dep:rusqlite"]
 virtualfs = ["storage"]
 serve = []
+window = ["dep:winit", "dep:raw-window-handle", "dep:wgpu"]
 hotpath = ["hotpath/hotpath", "andromeda-core/hotpath"]
 hotpath-alloc = ["hotpath/hotpath-alloc"]
 typescript = ["nova_vm/typescript"]
@@ -64,6 +65,8 @@ libffi.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 wgpu = { workspace = true, optional = true }
+winit = { workspace = true, optional = true }
+raw-window-handle = { workspace = true, optional = true }
 rustls.workspace = true
 tokio-rustls.workspace = true
 webpki-roots.workspace = true

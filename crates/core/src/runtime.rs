@@ -649,6 +649,11 @@ impl RuntimeFile {
     }
 }
 
+/// Called once per iteration of the main `Runtime::run` loop, after promise
+/// jobs and timeouts have been drained and before the runtime blocks waiting
+/// on macro tasks.
+pub type PreTickHook<UserMacroTask> = Box<dyn Fn(&HostData<UserMacroTask>) + 'static>;
+
 pub struct RuntimeConfig<UserMacroTask: 'static> {
     /// Disable or not strict mode.
     pub no_strict: bool,
@@ -666,6 +671,9 @@ pub struct RuntimeConfig<UserMacroTask: 'static> {
     pub macro_task_rx: Receiver<MacroTask<UserMacroTask>>,
     /// Import map for module resolution
     pub import_map: Option<ImportMap>,
+    /// Optional per-iteration hook invoked inside the main run loop. See
+    /// [`PreTickHook`] for semantics and threading constraints.
+    pub pre_tick_hook: Option<PreTickHook<UserMacroTask>>,
 }
 
 pub struct Runtime<UserMacroTask: 'static> {
@@ -858,6 +866,12 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                 });
                 // Running a job may have caused timeout deadlines to pass
                 self.host_hooks.drain_ready_timeout_jobs();
+            }
+
+            // Pump any extension-owned event loop (e.g. winit) before we
+            // consider blocking on macro tasks.
+            if let Some(ref hook) = self.config.pre_tick_hook {
+                hook(&self.host_hooks.host_data);
             }
 
             // Try to handle a macro task without blocking

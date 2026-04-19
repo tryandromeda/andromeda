@@ -386,6 +386,38 @@ or disabled as needed:
 | **Time**          | Timing utilities              | `performance.now()`, `setTimeout()`, `setInterval()`, `Andromeda.sleep()`      |
 | **URL**           | URL parsing and manipulation  | `URL`, `URLSearchParams`                                                       |
 | **Web**           | Web standards                 | `TextEncoder`, `TextDecoder`, `navigator`, `queueMicrotask()`                  |
+| **Window** *(optional)* | Native OS windowing (winit) | `Andromeda.Window`, `Andromeda.createWindow()`, DOM-style events, `rawHandle()` |
+
+### Window extension (optional, behind `window` feature)
+
+The `window` feature adds `Andromeda.Window` — a native OS window backed by
+[`winit`](https://crates.io/crates/winit) on macOS, Windows, and Linux
+(X11/Wayland). Inspired by [`deno-windowing/dwm`](https://github.com/deno-windowing/dwm),
+the class extends `EventTarget` and dispatches DOM-style events (`resize`,
+`close`, `keydown`, `keyup`, `mousemove`, `mousedown`, `mouseup`).
+
+```ts
+const win = Andromeda.createWindow({ title: "Hello", width: 640, height: 480 });
+win.addEventListener("keydown", (e) => {
+  if ((e as CustomEvent).detail.code === "Escape") win.close();
+});
+await Andromeda.Window.mainloop();
+```
+
+Enable the feature:
+
+```bash
+cargo run --features window -- run examples/window.ts
+```
+
+`window.rawHandle()` returns a `{ system, windowHandle, displayHandle, width, height }`
+object compatible with `Deno.UnsafeWindowSurface` for future WebGPU-surface bridges.
+
+When the `canvas` feature is also enabled, `window.presentCanvas(canvas)` blits an
+`OffscreenCanvas`'s latest frame into the window via a shared wgpu device — no CPU
+readback, any size allowed. `examples/window.ts` demonstrates a live 2D scene streamed
+from an `OffscreenCanvas` into a winit-backed window. `examples/breakout.ts` is a
+keyboard-driven Breakout clone exercising the full window + canvas input/render pipeline.
 
 ## Andromeda Satellites
 

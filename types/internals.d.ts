@@ -2075,4 +2075,67 @@ declare namespace __andromeda__ {
    * @returns Promise resolving to JSON string with {success, code, signal, stdout, stderr}.
    */
   export function internal_command_child_output(rid: string): Promise<string>;
+
+  // ---------------------------------------------------------------------
+  // Window (optional, feature = "window")
+  // ---------------------------------------------------------------------
+
+  /**
+   * Create a new native window.
+   * @param optionsJson JSON-serialized {@link AndromedaWindowOptions}.
+   * @returns String-form rid of the new window.
+   */
+  export function internal_window_create(optionsJson: string): string;
+
+  /** Close a window by rid. Idempotent. */
+  export function internal_window_close(rid: number): void;
+
+  /**
+   * Pump pending winit events and return them as a JSON array of
+   * `{ rid, type, detail }` records.
+   */
+  export function internal_window_poll_events(): string;
+
+  /**
+   * Return the raw window + display handle for the given rid as a JSON
+   * string. Pointer-sized values are strings to survive JS number precision.
+   */
+  export function internal_window_raw_handle(rid: number): string;
+
+  export function internal_window_set_title(rid: number, title: string): void;
+
+  /** Returns a JSON string `{"width":N,"height":N,"scaleFactor":N}`. */
+  export function internal_window_get_size(rid: number): string;
+
+  export function internal_window_set_size(rid: number, width: number, height: number): void;
+
+  export function internal_window_set_visible(rid: number, visible: boolean): void;
+
+  /** Clear the window's swapchain to RGBA (0..1 channels) and present one frame. */
+  export function internal_window_present_color(
+    rid: number,
+    r: number,
+    g: number,
+    b: number,
+    a: number,
+  ): void;
+
+  /**
+   * Flush the canvas's pending commands and blit its latest frame into
+   * the window's swapchain. Present after. Only registered when both
+   * `window` and `canvas` features are compiled in.
+   */
+  export function internal_window_present_canvas(
+    window_rid: number,
+    canvas_rid: number,
+  ): void;
+}
+
+/** Options accepted by {@link Andromeda.createWindow}. */
+interface AndromedaWindowOptions {
+  title?: string;
+  width?: number;
+  height?: number;
+  resizable?: boolean;
+  visible?: boolean;
 }

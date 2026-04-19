@@ -33,7 +33,8 @@ mod virtualfs;
 mod web;
 mod web_locks;
 mod webidl;
-
+#[cfg(feature = "window")]
+pub mod window;
 pub use broadcast_channel::*;
 #[cfg(feature = "storage")]
 pub use cache_storage::*;
@@ -65,3 +66,5 @@ pub use virtualfs::*;
 pub use web::*;
 pub use web_locks::*;
 pub use webidl::*;
+#[cfg(feature = "window")]
+pub use window::{WindowExt, pump_windowing_state};

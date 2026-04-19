@@ -110,6 +110,7 @@ pub fn run_with_config(
             eventloop_handler: recommended_eventloop_handler,
             macro_task_rx,
             import_map,
+            pre_tick_hook: andromeda_runtime::recommended_pre_tick_hook(),
         },
         host_data,
     );

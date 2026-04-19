@@ -539,6 +539,15 @@ class OffscreenCanvas {
   }
 
   /**
+   * Internal resource id — exposed so extensions like `Andromeda.Window`
+   * can bridge this canvas's rendered texture to another surface. Not
+   * part of the web OffscreenCanvas spec; treat as implementation detail.
+   */
+  get rid(): number {
+    return this.#rid;
+  }
+
+  /**
    * Get the width of the canvas.
    */
   getWidth(): number {
