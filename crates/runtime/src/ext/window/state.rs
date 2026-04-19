@@ -233,20 +233,11 @@ impl WindowingApp {
 }
 
 /// Owns the event loop plus the app state. One instance lives in `OpsStorage`.
+#[derive(Default)]
 pub struct WindowingState {
     pub event_loop: Option<EventLoop<()>>,
     pub app: WindowingApp,
     pub gpu: Option<WindowingGpu>,
-}
-
-impl Default for WindowingState {
-    fn default() -> Self {
-        Self {
-            event_loop: None,
-            app: WindowingApp::default(),
-            gpu: None,
-        }
-    }
 }
 
 impl WindowingState {

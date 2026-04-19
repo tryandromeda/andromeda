@@ -24,7 +24,7 @@ pub fn present_canvas_on_window(
 
     let canvas_texture = {
         let mut storage = host_data.storage.borrow_mut();
-        render_canvas_to_texture(&mut *storage, canvas_rid)
+        render_canvas_to_texture(&mut storage, canvas_rid)
             .ok_or_else(|| format!("canvas rid {canvas_rid_raw} not found"))?
     };
 

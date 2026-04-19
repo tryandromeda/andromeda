@@ -447,8 +447,10 @@ fn raw_handle_json(window: &winit::window::Window) -> Result<String, String> {
     let (system, window_value) = match wh.as_raw() {
         RawWindowHandle::AppKit(h) => ("cocoa", h.ns_view.as_ptr() as u64),
         RawWindowHandle::Win32(h) => ("win32", h.hwnd.get() as u64),
-        RawWindowHandle::Xlib(h) => ("x11", h.window as u64),
-        RawWindowHandle::Xcb(h) => ("x11", h.window.get() as u64),
+        #[allow(clippy::useless_conversion)]
+        RawWindowHandle::Xlib(h) => ("x11", u64::from(h.window)),
+        #[allow(clippy::useless_conversion)]
+        RawWindowHandle::Xcb(h) => ("x11", u64::from(h.window.get())),
         RawWindowHandle::Wayland(h) => ("wayland", h.surface.as_ptr() as u64),
         other => {
             return Err(format!("unsupported window handle variant: {other:?}"));
