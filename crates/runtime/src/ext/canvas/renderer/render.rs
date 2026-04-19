@@ -12,7 +12,9 @@ pub struct Renderer {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub pipeline: wgpu::RenderPipeline,
+    /// MSAA-sampled color target — what every render pass writes to.
     pub background: wgpu::Texture,
+    pub resolve_target: wgpu::Texture,
     pub stencil_texture: wgpu::Texture,
     pub default_sampler: wgpu::Sampler,
     pub default_texture: wgpu::Texture,
@@ -23,9 +25,13 @@ pub struct Renderer {
     pub texture_cache: std::collections::HashMap<u32, wgpu::Texture>,
     /// Current clipping path
     pub clip_path: Option<Path>,
+    pub flip_v_next: bool,
 }
 
 const U32_SIZE: u32 = std::mem::size_of::<u32>() as u32;
+
+/// Multisample count for anti-aliasing.
+pub const MSAA_SAMPLES: u32 = 4;
 
 #[allow(dead_code)]
 impl Renderer {
@@ -69,45 +75,32 @@ impl Renderer {
         &mut self,
         rect: Rect,
         render_state: &RenderState,
-        stroke_color: [f32; 4],
+        _stroke_color: [f32; 4],
         stroke_width: f32,
     ) {
-        let stroke_data = self.create_stroke_data(render_state, stroke_color, stroke_width);
-        // Apply transformation to all four corners
-        let top_left = transform_point(&rect.start, &render_state.transform);
-        let top_right = transform_point(
-            &Point {
+        let path = vec![
+            Point {
+                x: rect.start.x,
+                y: rect.start.y,
+            },
+            Point {
                 x: rect.end.x,
                 y: rect.start.y,
             },
-            &render_state.transform,
-        );
-        let bottom_right = transform_point(&rect.end, &render_state.transform);
-        let bottom_left = transform_point(
-            &Point {
+            Point {
+                x: rect.end.x,
+                y: rect.end.y,
+            },
+            Point {
                 x: rect.start.x,
                 y: rect.end.y,
             },
-            &render_state.transform,
-        );
-
-        let tl = translate_coords(&top_left, &self.dimensions);
-        let tr = translate_coords(&top_right, &self.dimensions);
-        let br = translate_coords(&bottom_right, &self.dimensions);
-        let bl = translate_coords(&bottom_left, &self.dimensions);
-
-        let vertex = vec![
-            (tl.0, tl.1),
-            (tr.0, tr.1),
-            (br.0, br.1),
-            (bl.0, bl.1),
-            (tl.0, tl.1), // close the loop
+            Point {
+                x: rect.start.x,
+                y: rect.start.y,
+            },
         ];
-        self.create_render_command(RenderData {
-            vertex,
-            fill_data: stroke_data,
-            length: 5,
-        });
+        self.render_polyline(path, render_state, stroke_width as f64);
     }
     pub fn new(
         device: wgpu::Device,
@@ -215,7 +208,7 @@ impl Renderer {
                 })],
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleStrip,
+                topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: None,
@@ -246,7 +239,7 @@ impl Renderer {
                 bias: wgpu::DepthBiasState::default(),
             }),
             multisample: wgpu::MultisampleState {
-                count: 1,
+                count: MSAA_SAMPLES,
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
@@ -254,7 +247,22 @@ impl Renderer {
         });
 
         let background = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("Background"),
+            label: Some("Background (MSAA)"),
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            mip_level_count: 1,
+            sample_count: MSAA_SAMPLES,
+            size: wgpu::Extent3d {
+                depth_or_array_layers: 1,
+                height: dimensions.height,
+                width: dimensions.width,
+            },
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+
+        let resolve_target = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Background (Resolve)"),
             dimension: wgpu::TextureDimension::D2,
             format,
             mip_level_count: 1,
@@ -268,13 +276,14 @@ impl Renderer {
             view_formats: &[],
         });
 
-        // Create stencil texture for clipping operations
+        // Stencil texture sample count must match the color attachment's
+        // sample count for every render pass that uses both.
         let stencil_texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Stencil"),
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Depth24PlusStencil8,
             mip_level_count: 1,
-            sample_count: 1,
+            sample_count: MSAA_SAMPLES,
             size: wgpu::Extent3d {
                 depth_or_array_layers: 1,
                 height: dimensions.height,
@@ -338,6 +347,7 @@ impl Renderer {
             queue,
             pipeline,
             background,
+            resolve_target,
             stencil_texture,
             default_sampler,
             default_texture,
@@ -345,6 +355,7 @@ impl Renderer {
             commands: vec![],
             texture_cache: std::collections::HashMap::new(),
             clip_path: None,
+            flip_v_next: false,
         }
     }
 
@@ -359,6 +370,7 @@ impl Renderer {
         }
 
         {
+            let resolve_view = self.resolve_target.create_view(&Default::default());
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -371,9 +383,9 @@ impl Renderer {
                             b: 1.0,
                             a: 1.0,
                         }),
-                        store: wgpu::StoreOp::Store,
+                        store: wgpu::StoreOp::Discard,
                     },
-                    resolve_target: None,
+                    resolve_target: Some(&resolve_view),
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &self.stencil_texture.create_view(&Default::default()),
@@ -426,7 +438,7 @@ impl Renderer {
             wgpu::TexelCopyTextureInfo {
                 aspect: wgpu::TextureAspect::All,
                 mip_level: 0,
-                texture: &self.background,
+                texture: &self.resolve_target,
                 origin: wgpu::Origin3d::ZERO,
             },
             wgpu::TexelCopyBufferInfo {
@@ -572,6 +584,16 @@ impl Renderer {
     }
 
     pub fn create_fill_data(&self, render_state: &RenderState) -> FillData {
+        let tx = |p: (f32, f32)| -> (f32, f32) {
+            let tp = transform_point(
+                &Point {
+                    x: p.0 as f64,
+                    y: p.1 as f64,
+                },
+                &render_state.transform,
+            );
+            (tp.x as f32, tp.y as f32)
+        };
         match &render_state.fill_style {
             FillStyle::Color { r, g, b, a } => FillData {
                 uniforms: Uniforms {
@@ -604,8 +626,8 @@ impl Renderer {
             FillStyle::LinearGradient(gradient) => FillData {
                 uniforms: Uniforms {
                     color: [0.0, 0.0, 0.0, 0.0],
-                    gradient_start: gradient.start,
-                    gradient_end: gradient.end,
+                    gradient_start: tx(gradient.start),
+                    gradient_end: tx(gradient.end),
                     fill_style: 1,
                     global_alpha: render_state.global_alpha,
                     radius_start: 0.0,
@@ -632,8 +654,8 @@ impl Renderer {
             FillStyle::RadialGradient(gradient) => FillData {
                 uniforms: Uniforms {
                     color: [0.0, 0.0, 0.0, 0.0],
-                    gradient_start: gradient.start,
-                    gradient_end: gradient.end,
+                    gradient_start: tx(gradient.start),
+                    gradient_end: tx(gradient.end),
                     fill_style: 2,
                     global_alpha: render_state.global_alpha,
                     radius_start: gradient.start_radius,
@@ -660,7 +682,7 @@ impl Renderer {
             FillStyle::ConicGradient(gradient) => FillData {
                 uniforms: Uniforms {
                     color: [0.0, 0.0, 0.0, 0.0],
-                    gradient_start: gradient.center,
+                    gradient_start: tx(gradient.center),
                     gradient_end: (0.0, 0.0),
                     fill_style: 3,
                     global_alpha: render_state.global_alpha,
@@ -727,28 +749,83 @@ impl Renderer {
     }
 
     pub async fn save_as_png(&mut self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        // Extract pixel data from GPU
-        let pixel_data = self.create_bitmap().await;
-
-        // Convert from BGRA to RGBA (wgpu typically uses BGRA format)
-        let mut rgba_data = Vec::new();
-        for chunk in pixel_data.chunks(4) {
-            if chunk.len() == 4 {
-                // Convert BGRA -> RGBA
-                rgba_data.push(chunk[2]); // R
-                rgba_data.push(chunk[1]); // G
-                rgba_data.push(chunk[0]); // B
-                rgba_data.push(chunk[3]); // A
-            }
-        }
-
-        // Save as PNG using the image crate
-        let img =
-            image::RgbaImage::from_raw(self.dimensions.width, self.dimensions.height, rgba_data)
-                .ok_or("Failed to create image from pixel data")?;
-
+        let img = self.snapshot_as_image().await?;
         img.save(path)?;
         Ok(())
+    }
+
+    pub async fn snapshot_as_image(
+        &mut self,
+    ) -> Result<image::RgbaImage, Box<dyn std::error::Error>> {
+        let pixel_data = self.create_bitmap().await;
+        // wgpu typically produces BGRA on swapchain textures; convert to
+        // RGBA and unpremultiply in the same pass.
+        let mut rgba_data = Vec::with_capacity(pixel_data.len());
+        for chunk in pixel_data.chunks(4) {
+            if chunk.len() != 4 {
+                continue;
+            }
+            let b = chunk[0] as u32;
+            let g = chunk[1] as u32;
+            let r = chunk[2] as u32;
+            let a = chunk[3] as u32;
+            if a == 0 {
+                // Spec: transparent pixels have no defined rgb — zero.
+                rgba_data.extend_from_slice(&[0, 0, 0, 0]);
+            } else if a == 255 {
+                // Fast path for opaque: no division needed.
+                rgba_data.extend_from_slice(&[r as u8, g as u8, b as u8, 255]);
+            } else {
+                // Unpremultiply with round-to-nearest. Clamp at 255 so
+                // accumulated floating-point error in the blend doesn't
+                // push a channel over the top.
+                let unr = ((r * 255 + a / 2) / a).min(255) as u8;
+                let ung = ((g * 255 + a / 2) / a).min(255) as u8;
+                let unb = ((b * 255 + a / 2) / a).min(255) as u8;
+                rgba_data.extend_from_slice(&[unr, ung, unb, a as u8]);
+            }
+        }
+        image::RgbaImage::from_raw(self.dimensions.width, self.dimensions.height, rgba_data)
+            .ok_or_else(|| "Failed to create image from pixel data".into())
+    }
+
+    /// Encode the current framebuffer as a PNG into an in-memory buffer.
+    pub async fn encode_as_png(&mut self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        use image::ImageEncoder;
+        let img = self.snapshot_as_image().await?;
+        let mut out = Vec::new();
+        image::codecs::png::PngEncoder::new(&mut out).write_image(
+            img.as_raw(),
+            img.width(),
+            img.height(),
+            image::ExtendedColorType::Rgba8,
+        )?;
+        Ok(out)
+    }
+
+    /// Encode the current framebuffer as a JPEG into an in-memory buffer.
+    /// `quality` is in [1..=100]; caller clamps before passing.
+    pub async fn encode_as_jpeg(
+        &mut self,
+        quality: u8,
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        let img = self.snapshot_as_image().await?;
+        let mut rgb = Vec::with_capacity((img.width() * img.height() * 3) as usize);
+        for pixel in img.pixels() {
+            let a = pixel[3] as u16;
+            rgb.push(((pixel[0] as u16 * a + 127) / 255) as u8);
+            rgb.push(((pixel[1] as u16 * a + 127) / 255) as u8);
+            rgb.push(((pixel[2] as u16 * a + 127) / 255) as u8);
+        }
+        let mut out = Vec::new();
+        let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, quality);
+        encoder.encode(
+            &rgb,
+            img.width(),
+            img.height(),
+            image::ExtendedColorType::Rgb8,
+        )?;
+        Ok(out)
     }
 
     pub fn render_rect(&mut self, rect: Rect, render_state: &RenderState) {
@@ -785,6 +862,11 @@ impl Renderer {
         let bl = translate_coords(&bottom_left, &self.dimensions);
         let br = translate_coords(&bottom_right, &self.dimensions);
 
+        let rect_triangles =
+            |tl: (f32, f32), bl: (f32, f32), tr: (f32, f32), br: (f32, f32)| -> Vec<(f32, f32)> {
+                vec![tl, bl, tr, bl, br, tr]
+            };
+
         // Render shadow first if enabled
         if is_shadow_enabled(render_state) {
             let shadow_fill_data = create_shadow_fill_data(render_state, &fill_data);
@@ -793,43 +875,69 @@ impl Renderer {
             let offset_y =
                 -(render_state.shadow_offset_y / self.dimensions.height as f64) as f32 * 2.0;
 
-            let shadow_vertex = vec![
+            let shadow_vertex = rect_triangles(
                 (tl.0 + offset_x, tl.1 + offset_y),
                 (bl.0 + offset_x, bl.1 + offset_y),
                 (tr.0 + offset_x, tr.1 + offset_y),
                 (br.0 + offset_x, br.1 + offset_y),
-            ];
+            );
 
             self.create_render_command_with_texture(
                 RenderData {
+                    length: shadow_vertex.len() as u32,
                     vertex: shadow_vertex,
                     fill_data: shadow_fill_data,
-                    length: 4,
                 },
                 None,
             );
         }
 
-        let vertex = vec![(tl.0, tl.1), (bl.0, bl.1), (tr.0, tr.1), (br.0, br.1)];
-
+        let vertex = rect_triangles(tl, bl, tr, br);
         let texture_view = pattern_image_rid
             .and_then(|image_rid| self.texture_cache.get(&image_rid))
             .map(|t| t.create_view(&Default::default()));
 
         self.create_render_command_with_texture_view(
             RenderData {
+                length: vertex.len() as u32,
                 vertex,
                 fill_data,
-                length: 4,
             },
             texture_view,
         );
     }
 
+    /// Fill a polygon given its perimeter.
     pub fn render_polygon(&mut self, polygon: Path, render_state: &RenderState) {
+        if polygon.len() < 3 {
+            return;
+        }
+        let triangles = if is_convex_polygon(&polygon) {
+            let mut out: Path = Vec::with_capacity(3 * (polygon.len() - 2));
+            for i in 1..(polygon.len() - 1) {
+                out.push(polygon[0].clone());
+                out.push(polygon[i].clone());
+                out.push(polygon[i + 1].clone());
+            }
+            out
+        } else {
+            earcut_triangulate(&polygon)
+        };
+        self.render_triangles(triangles, render_state);
+    }
+
+    /// Dispatch a pre-triangulated list of world-space triangles to the GPU.
+    pub fn render_triangles(&mut self, triangles: Path, render_state: &RenderState) {
+        debug_assert!(
+            triangles.len().is_multiple_of(3),
+            "render_triangles: length must be a multiple of 3"
+        );
+        if triangles.is_empty() {
+            return;
+        }
+
         let fill_data = self.create_fill_data(render_state);
 
-        // Check if we need a texture for pattern fill style
         let pattern_image_rid =
             if let FillStyle::Pattern { image_rid, .. } = &render_state.fill_style {
                 Some(*image_rid)
@@ -837,21 +945,16 @@ impl Renderer {
                 None
             };
 
-        let mut data = Vec::new();
-        if let 0 = polygon.len() % 2 {
-            for i in 0..(polygon.len() / 2) {
-                data.push(&polygon[i]);
-                data.push(&polygon[polygon.len() - 1 - i]);
-            }
-        } else {
-            for i in 0..((polygon.len() - 1) / 2) {
-                data.push(&polygon[i]);
-                data.push(&polygon[polygon.len() - 1 - i]);
-            }
-            data.push(&polygon[(polygon.len() - 1) / 2]);
-        }
+        // Project once.
+        let projected: Vec<Coordinate> = triangles
+            .iter()
+            .map(|p| {
+                let transformed = transform_point(p, &render_state.transform);
+                translate_coords(&transformed, &self.dimensions)
+            })
+            .collect();
 
-        // Render shadow first if enabled
+        // Shadow pass.
         if is_shadow_enabled(render_state) {
             let shadow_fill_data = create_shadow_fill_data(render_state, &fill_data);
             let offset_x =
@@ -859,43 +962,30 @@ impl Renderer {
             let offset_y =
                 -(render_state.shadow_offset_y / self.dimensions.height as f64) as f32 * 2.0;
 
-            let shadow_vertex: Vec<Coordinate> = data
+            let shadow_vertex: Vec<Coordinate> = projected
                 .iter()
-                .map(|p| {
-                    let transformed = transform_point(p, &render_state.transform);
-                    let coords = translate_coords(&transformed, &self.dimensions);
-                    (coords.0 + offset_x, coords.1 + offset_y)
-                })
+                .map(|&(x, y)| (x + offset_x, y + offset_y))
                 .collect();
 
             self.create_render_command_with_texture(
                 RenderData {
+                    length: shadow_vertex.len() as u32,
                     vertex: shadow_vertex,
                     fill_data: shadow_fill_data,
-                    length: data.len() as u32,
                 },
                 None,
-            ); // Shadows don't use textures
-        };
-        // Apply transformation to each point before translating to clip space
-        let vertex = data
-            .iter()
-            .map(|point| {
-                let transformed = transform_point(point, &render_state.transform);
-                translate_coords(&transformed, &self.dimensions)
-            })
-            .collect::<Vec<Coordinate>>();
+            );
+        }
 
-        // Handle texture for patterns - create view before mutable borrow
         let texture_view = pattern_image_rid
             .and_then(|image_rid| self.texture_cache.get(&image_rid))
             .map(|t| t.create_view(&Default::default()));
 
         self.create_render_command_with_texture_view(
             RenderData {
-                vertex,
+                length: projected.len() as u32,
+                vertex: projected,
                 fill_data,
-                length: polygon.len() as u32,
             },
             texture_view,
         );
@@ -1001,8 +1091,11 @@ impl Renderer {
             vertices.push(c.clone());
         }
 
-        // Render the triangles
-        self.render_polygon(vertices, render_state);
+        // Vertices are already laid out as a triangle list (two triangles
+        // per stroke segment). Dispatch directly — do NOT route through
+        // `render_polygon`, which would fan-triangulate from the first
+        // vertex and turn multi-segment strokes into a fan shape.
+        self.render_triangles(vertices, render_state);
     }
 
     #[allow(dead_code)]
@@ -1333,25 +1426,20 @@ impl Renderer {
         let br = translate_coords(&bottom_right, &self.dimensions);
         let bl = translate_coords(&bottom_left, &self.dimensions);
 
-        // Create vertex data with UV coordinates using triangle strip with 4 vertices
-        // Order for triangle strip: TL, BL, TR, BR
-        let vertex_positions = [
-            (tl.0, tl.1), // Top-left
-            (bl.0, bl.1), // Bottom-left
-            (tr.0, tr.1), // Top-right
-            (br.0, br.1), // Bottom-right
-        ];
+        let (tl_v, bl_v, tr_v, br_v) = if self.flip_v_next {
+            (v_end, v_start, v_end, v_start)
+        } else {
+            (v_start, v_end, v_start, v_end)
+        };
+        self.flip_v_next = false;
+        let tl_uv = (u_start, tl_v);
+        let bl_uv = (u_start, bl_v);
+        let tr_uv = (u_end, tr_v);
+        let br_uv = (u_end, br_v);
 
-        // UV coordinates in same order: TL, BL, TR, BR
-        // Images are stored with origin at top-left, so we flip V coordinates
-        let uvs = [
-            (u_start, v_end),   // Top-left (V flipped)
-            (u_start, v_start), // Bottom-left (V flipped)
-            (u_end, v_end),     // Top-right (V flipped)
-            (u_end, v_start),   // Bottom-right (V flipped)
-        ];
+        let vertex_positions = [tl, bl, tr, bl, br, tr];
+        let uvs = [tl_uv, bl_uv, tr_uv, bl_uv, br_uv, tr_uv];
 
-        // Manually create vertex data with UVs
         let mut vertex_data_with_uv = Vec::new();
         for (i, pos) in vertex_positions.iter().enumerate() {
             vertex_data_with_uv.extend_from_slice(&pos.0.to_ne_bytes());
@@ -1366,8 +1454,12 @@ impl Renderer {
             gradient: vec![],
         };
 
-        // Create a custom render command for images
-        self.create_image_render_command(vertex_data_with_uv, fill_data, 4, texture_view);
+        self.create_image_render_command(
+            vertex_data_with_uv,
+            fill_data,
+            vertex_positions.len() as u32,
+            texture_view,
+        );
     }
 
     /// Create a render command specifically for images with UV coordinates
@@ -1458,7 +1550,7 @@ impl Renderer {
                 fn vs_main(@location(0) position: vec2f) -> @builtin(position) vec4f {
                     return vec4f(position, 0.0, 1.0);
                 }
-                
+
                 @fragment
                 fn fs_main() -> @location(0) vec4f {
                     return vec4f(0.0, 0.0, 0.0, 0.0);
@@ -1537,7 +1629,7 @@ impl Renderer {
                         bias: wgpu::DepthBiasState::default(),
                     }),
                     multisample: wgpu::MultisampleState {
-                        count: 1,
+                        count: MSAA_SAMPLES,
                         mask: !0,
                         alpha_to_coverage_enabled: false,
                     },
@@ -1686,4 +1778,133 @@ pub fn translate_coords(point: &Point, dimensions: &Dimensions) -> (f32, f32) {
     let x = (point.x / (dimensions.width as f64) * 2.0 - 1.0) as f32;
     let y = (point.y / (dimensions.height as f64) * -2.0 + 1.0) as f32;
     (x, y)
+}
+
+/// Signed area × 2 of a polygon (positive = CCW, negative = CW).
+fn polygon_signed_area2(poly: &[Point]) -> f64 {
+    let n = poly.len();
+    if n < 3 {
+        return 0.0;
+    }
+    let mut sum = 0.0;
+    for i in 0..n {
+        let a = &poly[i];
+        let b = &poly[(i + 1) % n];
+        sum += a.x * b.y - b.x * a.y;
+    }
+    sum
+}
+
+/// True if every interior vertex of `poly` turns in the same direction.
+fn is_convex_polygon(poly: &[Point]) -> bool {
+    let n = poly.len();
+    if n < 4 {
+        return true;
+    }
+    let mut sign = 0i8;
+    for i in 0..n {
+        let a = &poly[i];
+        let b = &poly[(i + 1) % n];
+        let c = &poly[(i + 2) % n];
+        let cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+        if cross.abs() < 1e-9 {
+            continue;
+        }
+        let s: i8 = if cross > 0.0 { 1 } else { -1 };
+        if sign == 0 {
+            sign = s;
+        } else if sign != s {
+            return false;
+        }
+    }
+    true
+}
+
+/// Ear-clipping triangulation for a simple polygon (handles concave but not
+/// self-intersecting). Normalizes winding to CCW, then repeatedly clips the
+/// "pointiest" convex ear whose triangle contains no other vertex.
+fn earcut_triangulate(poly: &[Point]) -> Path {
+    let n = poly.len();
+    if n < 3 {
+        return Vec::new();
+    }
+    // Work in CCW so the convex-vertex test is consistent.
+    let ccw = polygon_signed_area2(poly) >= 0.0;
+    let mut idx: Vec<usize> = if ccw {
+        (0..n).collect()
+    } else {
+        (0..n).rev().collect()
+    };
+
+    let cross = |a: &Point, b: &Point, c: &Point| -> f64 {
+        (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+    };
+    let point_in_tri = |p: &Point, a: &Point, b: &Point, c: &Point| -> bool {
+        let d1 = cross(a, b, p);
+        let d2 = cross(b, c, p);
+        let d3 = cross(c, a, p);
+        let has_neg = d1 < 0.0 || d2 < 0.0 || d3 < 0.0;
+        let has_pos = d1 > 0.0 || d2 > 0.0 || d3 > 0.0;
+        !(has_neg && has_pos)
+    };
+
+    let mut out: Path = Vec::with_capacity(3 * (n - 2));
+    // Bail-out counter avoids an infinite loop on degenerate/self-intersecting
+    // input (ear finder may fail to find a valid ear).
+    let mut guard = 2 * idx.len();
+    while idx.len() > 3 && guard > 0 {
+        guard -= 1;
+        let m = idx.len();
+        let mut clipped = false;
+        for i in 0..m {
+            let ia = idx[(i + m - 1) % m];
+            let ib = idx[i];
+            let ic = idx[(i + 1) % m];
+            let a = &poly[ia];
+            let b = &poly[ib];
+            let c = &poly[ic];
+            // Reflex vertex -> not an ear.
+            if cross(a, b, c) <= 0.0 {
+                continue;
+            }
+            // Some other vertex inside the candidate ear -> not an ear.
+            let mut contains_other = false;
+            for (j, &jidx) in idx.iter().enumerate() {
+                if j == i || j == (i + m - 1) % m || j == (i + 1) % m {
+                    continue;
+                }
+                if point_in_tri(&poly[jidx], a, b, c) {
+                    contains_other = true;
+                    break;
+                }
+            }
+            if contains_other {
+                continue;
+            }
+            out.push(a.clone());
+            out.push(b.clone());
+            out.push(c.clone());
+            idx.remove(i);
+            clipped = true;
+            break;
+        }
+        if !clipped {
+            // Fallback: degenerate input. Emit remaining fan so we draw
+            // something instead of nothing.
+            break;
+        }
+    }
+    if idx.len() == 3 {
+        out.push(poly[idx[0]].clone());
+        out.push(poly[idx[1]].clone());
+        out.push(poly[idx[2]].clone());
+    } else if idx.len() > 3 {
+        // Fan fallback from the ear-clip bailout path.
+        for i in 1..(idx.len() - 1) {
+            out.push(poly[idx[0]].clone());
+            out.push(poly[idx[i]].clone());
+            out.push(poly[idx[i + 1]].clone());
+        }
+    }
+    out
 }

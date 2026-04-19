@@ -40,6 +40,17 @@ class ImageBitmap {
     }
     return this[_height];
   }
+
+  /**
+   * Internal accessor for the backing image rid. Used by
+   * `CanvasRenderingContext2D.createPattern` to avoid reading the
+   * private `#rid` field via bracket syntax (which fails against true
+   * private fields and returned undefined, making `createPattern` a
+   * silent no-op).
+   */
+  __getRid(): number {
+    return this.#rid;
+  }
 }
 
 /**

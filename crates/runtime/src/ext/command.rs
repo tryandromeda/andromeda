@@ -273,7 +273,7 @@ impl CommandExt {
         cmd.stderr(parse_stdio(&opts.stderr));
         #[cfg(unix)]
         {
-            use std::os::unix::process::CommandExt as UnixCommandExt;
+            use std::os::unix::process::CommandExt as _;
             if let Some(uid) = opts.uid {
                 cmd.uid(uid);
             }
@@ -308,7 +308,6 @@ impl CommandExt {
         cmd.stderr(parse_stdio(&opts.stderr));
         #[cfg(unix)]
         {
-            use std::os::unix::process::CommandExt as UnixCommandExt;
             if let Some(uid) = opts.uid {
                 cmd.uid(uid);
             }

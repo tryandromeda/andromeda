@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 #![allow(clippy::result_large_err)]
+#![allow(unused_assignments)]
 
 use andromeda_core::RuntimeError;
 use miette::{Diagnostic, NamedSource, SourceSpan};

@@ -467,11 +467,10 @@ impl FsExt {
             }
         };
 
-        // For now, just write the string as bytes
-        // TODO: handle Uint8Array directly
-        let content = content_str.as_bytes();
+        // TODO: when nova supports it, accept an actual Uint8Array and write those bytes directly
+        let content: Vec<u8> = content_str.chars().map(|c| c as u8).collect();
 
-        match std::fs::write(&resolved_path, content) {
+        match std::fs::write(&resolved_path, &content) {
             Ok(_) => Ok(Value::from_string(agent, "Success".to_string(), gc.nogc()).unbind()),
             Err(e) => {
                 let error = RuntimeError::fs_error(e, "write_file", path);
@@ -1362,10 +1361,11 @@ impl FsExt {
         let macro_task_tx = host_data.macro_task_tx();
 
         host_data.spawn_macro_task(async move {
-            // For now, just write the string as bytes
-            // TODO: In a full implementation, you'd want to handle Uint8Array directly
-            let content = content_string.as_bytes();
-            let result = tokio::fs::write(&path_string, content).await;
+            // Mirror the sync path: the TS wrapper passes a binary string
+            // where each code unit carries one byte. Map every code point
+            // back to its low 8 bits before writing.
+            let content: Vec<u8> = content_string.chars().map(|c| c as u8).collect();
+            let result = tokio::fs::write(&path_string, &content).await;
             match result {
                 Ok(_) => {
                     macro_task_tx

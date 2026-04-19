@@ -56,6 +56,8 @@
 //! max_warnings = 10
 //! ```
 
+#![allow(unused_assignments)]
+
 use crate::config::{AndromedaConfig, ConfigManager, LintConfig};
 use crate::error::{CliError, CliResult};
 use console::Style;

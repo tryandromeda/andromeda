@@ -72,7 +72,11 @@ class ChildProcess {
     return this.#getStatus();
   }
 
-  async #getStatus(): Promise<{ success: boolean; code: number; signal: string }> {
+  async #getStatus(): Promise<{
+    success: boolean;
+    code: number;
+    signal: string;
+  }> {
     const result = await __andromeda__.internal_command_wait(this.#rid);
     return JSON.parse(result);
   }
@@ -118,18 +122,21 @@ class Command {
   #program: string;
   #optsJson: string;
 
-  constructor(program: string, options?: {
-    args?: string[];
-    cwd?: string;
-    env?: Record<string, string>;
-    clearEnv?: boolean;
-    stdin?: string;
-    stdout?: string;
-    stderr?: string;
-    uid?: number;
-    gid?: number;
-    windowsRawArguments?: boolean;
-  }) {
+  constructor(
+    program: string,
+    options?: {
+      args?: string[];
+      cwd?: string;
+      env?: Record<string, string>;
+      clearEnv?: boolean;
+      stdin?: string;
+      stdout?: string;
+      stderr?: string;
+      uid?: number;
+      gid?: number;
+      windowsRawArguments?: boolean;
+    },
+  ) {
     this.#program = program;
     // Serialize options to JSON for the Rust backend
     const opts: Record<string, unknown> = {};
@@ -143,7 +150,8 @@ class Command {
       if (options.stderr) opts["stderr"] = options.stderr;
       if (options.uid !== undefined) opts["uid"] = options.uid;
       if (options.gid !== undefined) opts["gid"] = options.gid;
-      if (options.windowsRawArguments) opts["windowsRawArguments"] = options.windowsRawArguments;
+      if (options.windowsRawArguments)
+        opts["windowsRawArguments"] = options.windowsRawArguments;
     }
     this.#optsJson = JSON.stringify(opts);
   }
@@ -199,6 +207,19 @@ class Command {
     const info = JSON.parse(result);
     return new ChildProcess(String(info.rid), info.pid);
   }
+}
+
+// TODO: This is a workaround to convert Uint8Array to a binary string for the Rust backend.
+function bytesToBinaryString(data: Uint8Array): string {
+  let out = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < data.length; i += CHUNK) {
+    const end = Math.min(i + CHUNK, data.length);
+    for (let j = i; j < end; j++) {
+      out += String.fromCharCode(data[j]);
+    }
+  }
+  return out;
 }
 
 /**
@@ -297,7 +318,7 @@ const Andromeda = {
    * ```
    */
   writeFileSync(path: string, data: Uint8Array): void {
-    __andromeda__.internal_write_file(path, data);
+    __andromeda__.internal_write_file(path, bytesToBinaryString(data));
   },
 
   /**
@@ -310,7 +331,10 @@ const Andromeda = {
    * ```
    */
   async writeFile(path: string, data: Uint8Array): Promise<void> {
-    await __andromeda__.internal_write_file_async(path, data);
+    await __andromeda__.internal_write_file_async(
+      path,
+      bytesToBinaryString(data),
+    );
   },
 
   /**
@@ -721,7 +745,7 @@ const Andromeda = {
      */
     remove(key: string): void {
       __andromeda__.internal_delete_env(key);
-    }, /**
+    } /**
      * The `keys` function gets the environment variable keys.
      *
      * @example
@@ -729,7 +753,7 @@ const Andromeda = {
      * const keys = Andromeda.env.keys();
      * console.log(keys);
      * ```
-     */
+     */,
     keys(): string[] {
       return __andromeda__.internal_get_env_keys();
     },
