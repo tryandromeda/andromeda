@@ -957,13 +957,15 @@ const Andromeda = {
    * const win = Andromeda.createWindow({ title: "Hello", width: 320, height: 240 });
    * ```
    */
-  createWindow(options: {
-    title?: string;
-    width?: number;
-    height?: number;
-    resizable?: boolean;
-    visible?: boolean;
-  } = {}): any {
+  createWindow(
+    options: {
+      title?: string;
+      width?: number;
+      height?: number;
+      resizable?: boolean;
+      visible?: boolean;
+    } = {},
+  ): any {
     // @ts-ignore - cross-file handoff from ext/window/mod.ts
     const Klass = globalThis.__andromeda_window_class;
     if (typeof Klass !== "function") {
@@ -972,6 +974,71 @@ const Andromeda = {
       );
     }
     return new Klass(options);
+  },
+
+  /**
+   * Returns the hostname of the machine running the Andromeda process.
+   *
+   * @example
+   * ```ts
+   * console.log(Andromeda.hostname()); // "my-laptop.local"
+   * ```
+   */
+  hostname(): string {
+    // @ts-ignore - cross-file handoff from ext/os/mod.ts
+    return (globalThis as any).__andromeda_os.hostname();
+  },
+
+  /**
+   * Returns the operating-system release.
+   */
+  osRelease(): string {
+    // @ts-ignore - cross-file handoff
+    return (globalThis as any).__andromeda_os.osRelease();
+  },
+
+  /**
+   * Number of seconds since the system booted.
+   */
+  osUptime(): number {
+    // @ts-ignore - cross-file handoff
+    return (globalThis as any).__andromeda_os.osUptime();
+  },
+
+  /**
+   * 1-, 5-, and 15-minute system load averages. Returns `[0, 0, 0]` on
+   * Windows.
+   */
+  loadavg(): [number, number, number] {
+    // @ts-ignore - cross-file handoff
+    return (globalThis as any).__andromeda_os.loadavg();
+  },
+
+  /**
+   * Memory usage of the current process in bytes.
+   *
+   * @remarks `rss` is the authoritative number; `heapTotal` / `heapUsed`
+   *   mirror `rss` and `external` is `0` until Nova exposes engine-level
+   *   heap accounting. Shape matches Deno's `Deno.MemoryUsage` for
+   *   cross-runtime code compatibility.
+   */
+  memoryUsage(): {
+    rss: number;
+    heapTotal: number;
+    heapUsed: number;
+    external: number;
+  } {
+    // @ts-ignore - cross-file handoff
+    return (globalThis as any).__andromeda_os.memoryUsage();
+  },
+
+  /**
+   * Terminal size of the controlling TTY. Returns `{columns: 80, rows: 24}`
+   * when stdout is not a TTY.
+   */
+  consoleSize(): { columns: number; rows: number } {
+    // @ts-ignore - cross-file handoff
+    return (globalThis as any).__andromeda_os.consoleSize();
   },
 };
 

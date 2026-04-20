@@ -267,7 +267,8 @@ async function __andromeda_window_mainloop(
         await callback();
       }
       // Yield to the event loop so timers/promises can run.
-      await new Promise((r) => setTimeout(r, 0));
+      // Prefer a shared already-resolved promise to avoid per-frame timer allocation churn.
+      await Promise.resolve();
     }
   } finally {
     for (const w of Array.from(__andromeda_window_registry.values())) {
