@@ -165,21 +165,28 @@ fn encode_bytes_csv(bytes: &[u8]) -> String {
     s
 }
 
-// Helper functions for text rendering
-fn calculate_baseline_offset(
-    baseline: &state::TextBaseline,
-    font_descriptor: &font_system::FontDescriptor,
-    text_height: f64,
-) -> f64 {
-    // Note: Y coordinate in canvas is positive downward
-    // The baseline offset adjusts where the text bitmap is placed relative to the Y coordinate
+// Helper functions for text rendering.
+//
+// Given a canvas `y` argument and the font's real em-ascent (A) and
+// em-descent (D), returns the Y position in canvas coordinates where the
+// alphabetic baseline of the text should land. Follows the WHATWG canvas
+// spec:
+//   top         -> baseline at y + A  (y is the top of the em box)
+//   hanging     -> baseline at y + 0.8*A
+//   middle      -> baseline at y + (A - D) / 2
+//   alphabetic  -> baseline at y  (default)
+//   ideographic -> baseline at y - D
+//   bottom      -> baseline at y - D
+fn baseline_target_y(baseline: &state::TextBaseline, y: f64, ascent: f32, descent: f32) -> f64 {
+    let a = ascent as f64;
+    let d = descent as f64;
     match baseline {
-        state::TextBaseline::Top => 0.0, // Top of text at Y
-        state::TextBaseline::Hanging => font_descriptor.size as f64 * 0.2, // Slightly below top
-        state::TextBaseline::Middle => text_height / 2.0 - font_descriptor.size as f64 * 0.8, // Center vertically
-        state::TextBaseline::Alphabetic => -font_descriptor.size as f64 * 0.2, // Baseline is ~20% up from bottom
-        state::TextBaseline::Ideographic => 0.0, // Similar to bottom for CJK
-        state::TextBaseline::Bottom => -text_height, // Bottom of text at Y
+        state::TextBaseline::Top => y + a,
+        state::TextBaseline::Hanging => y + a * 0.8,
+        state::TextBaseline::Middle => y + (a - d) / 2.0,
+        state::TextBaseline::Alphabetic => y,
+        state::TextBaseline::Ideographic => y - d,
+        state::TextBaseline::Bottom => y - d,
     }
 }
 
@@ -1600,10 +1607,13 @@ impl CanvasExt {
 
         // Try to save with GPU renderer if available
         if let Some(mut renderer) = res.renderers.get_mut(rid) {
-            // Since we can't use async in this context, we'll use a blocking approach
-
-            // First render all pending operations
-            renderer.render_all();
+            // The JS `saveAsPng` wrapper already calls `render()` (which
+            // submits and drains pending draw commands) before reaching
+            // this op. Calling `render_all()` again here would start a new
+            // render pass with `LoadOp::Clear`, no commands to draw, and
+            // resolve white pixels into `resolve_target` -- erasing the
+            // frame we just rendered. So we read straight from the
+            // resolve target.
 
             // Use tokio to handle the async save operation
             let rt = match tokio::runtime::Builder::new_current_thread()
@@ -4516,13 +4526,13 @@ impl CanvasExt {
             };
 
             // Render text to bitmap
-            let (bitmap, width, height) =
-                match text_renderer.render_text_to_bitmap(&text, &font_descriptor, color) {
-                    Ok(result) => result,
-                    Err(_) => return Ok(Value::Undefined), // Silently fail on render error
-                };
+            let rendered = match text_renderer.render_text_to_bitmap(&text, &font_descriptor, color)
+            {
+                Ok(result) => result,
+                Err(_) => return Ok(Value::Undefined), // Silently fail on render error
+            };
 
-            if width == 0 || height == 0 {
+            if rendered.width == 0 || rendered.height == 0 {
                 return Ok(Value::Undefined); // Nothing to render
             }
 
@@ -4533,7 +4543,12 @@ impl CanvasExt {
                 res.next_texture_id += 1;
 
                 // Upload bitmap to GPU
-                renderer.load_image_texture(texture_id, &bitmap, width, height);
+                renderer.load_image_texture(
+                    texture_id,
+                    &rendered.bitmap,
+                    rendered.width,
+                    rendered.height,
+                );
 
                 // Create render state from canvas
                 let render_state = renderer::RenderState {
@@ -4551,27 +4566,26 @@ impl CanvasExt {
                     clip_path: None,
                 };
 
-                // Calculate baseline adjustment
-                let baseline_offset = calculate_baseline_offset(
-                    &canvas.text_baseline,
-                    &font_descriptor,
-                    height as f64,
+                let target_baseline_y =
+                    baseline_target_y(&canvas.text_baseline, y, rendered.ascent, rendered.descent);
+                let align_offset = calculate_alignment_offset(
+                    &canvas.text_align,
+                    &canvas.direction,
+                    rendered.advance_width as f64,
                 );
-
-                // Calculate alignment adjustment
-                let align_offset =
-                    calculate_alignment_offset(&canvas.text_align, &canvas.direction, width as f64);
+                let draw_x = x + align_offset - rendered.x_offset as f64;
+                let draw_y = target_baseline_y - rendered.baseline_y as f64;
 
                 renderer.render_image(
                     texture_id,
                     0.0,
                     0.0,
-                    width as f64,
-                    height as f64,
-                    x + align_offset,
-                    y + baseline_offset,
-                    width as f64,
-                    height as f64,
+                    rendered.width as f64,
+                    rendered.height as f64,
+                    draw_x,
+                    draw_y,
+                    rendered.width as f64,
+                    rendered.height as f64,
                     &render_state,
                 );
             }
@@ -4645,13 +4659,13 @@ impl CanvasExt {
                 _ => [0, 0, 0, 255], // Default to black for gradients/patterns
             };
 
-            let (bitmap, width, height) =
-                match text_renderer.render_text_to_bitmap(&text, &font_descriptor, color) {
-                    Ok(result) => result,
-                    Err(_) => return Ok(Value::Undefined),
-                };
+            let rendered = match text_renderer.render_text_to_bitmap(&text, &font_descriptor, color)
+            {
+                Ok(result) => result,
+                Err(_) => return Ok(Value::Undefined),
+            };
 
-            if width == 0 || height == 0 {
+            if rendered.width == 0 || rendered.height == 0 {
                 return Ok(Value::Undefined);
             }
 
@@ -4659,7 +4673,12 @@ impl CanvasExt {
                 let texture_id = res.next_texture_id;
                 res.next_texture_id += 1;
 
-                renderer.load_image_texture(texture_id, &bitmap, width, height);
+                renderer.load_image_texture(
+                    texture_id,
+                    &rendered.bitmap,
+                    rendered.width,
+                    rendered.height,
+                );
 
                 let render_state = renderer::RenderState {
                     fill_style: canvas.stroke_style.clone(), // Use stroke style for stroked text
@@ -4676,25 +4695,26 @@ impl CanvasExt {
                     clip_path: None,
                 };
 
-                let baseline_offset = calculate_baseline_offset(
-                    &canvas.text_baseline,
-                    &font_descriptor,
-                    height as f64,
+                let target_baseline_y =
+                    baseline_target_y(&canvas.text_baseline, y, rendered.ascent, rendered.descent);
+                let align_offset = calculate_alignment_offset(
+                    &canvas.text_align,
+                    &canvas.direction,
+                    rendered.advance_width as f64,
                 );
-
-                let align_offset =
-                    calculate_alignment_offset(&canvas.text_align, &canvas.direction, width as f64);
+                let draw_x = x + align_offset - rendered.x_offset as f64;
+                let draw_y = target_baseline_y - rendered.baseline_y as f64;
 
                 renderer.render_image(
                     texture_id,
                     0.0,
                     0.0,
-                    width as f64,
-                    height as f64,
-                    x + align_offset,
-                    y + baseline_offset,
-                    width as f64,
-                    height as f64,
+                    rendered.width as f64,
+                    rendered.height as f64,
+                    draw_x,
+                    draw_y,
+                    rendered.width as f64,
+                    rendered.height as f64,
                     &render_state,
                 );
             }

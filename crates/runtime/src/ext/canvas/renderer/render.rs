@@ -1346,7 +1346,6 @@ impl Renderer {
         width: u32,
         height: u32,
     ) {
-        // TODO: image texture color isn't rendering correctly, appears very light
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some(&format!("Image Texture {}", image_rid)),
             dimension: wgpu::TextureDimension::D2,

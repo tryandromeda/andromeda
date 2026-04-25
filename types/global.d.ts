@@ -757,11 +757,32 @@ declare function structuredClone<T = any>(
 /**
  * An offscreen Canvas implementation.
  */
+type CanvasFillRule = "nonzero" | "evenodd";
+type CanvasLineCap = "butt" | "round" | "square";
+type CanvasLineJoin = "miter" | "round" | "bevel";
+type CanvasTextAlign = "start" | "end" | "left" | "right" | "center";
+type CanvasTextBaseline =
+  | "top"
+  | "hanging"
+  | "middle"
+  | "alphabetic"
+  | "ideographic"
+  | "bottom";
+type CanvasDirection = "ltr" | "rtl" | "inherit";
+type ImageSmoothingQuality = "low" | "medium" | "high";
+type CanvasPatternRepetition =
+  | "repeat"
+  | "repeat-x"
+  | "repeat-y"
+  | "no-repeat";
+
 declare class OffscreenCanvas {
   /**
    * Create a new off-screen canvas with the given dimensions.
    */
   constructor(width: number, height: number);
+  /** Internal resource id. Used by `Window.presentCanvas`. */
+  readonly rid: number;
   /** Get the width of the canvas. */
   getWidth(): number;
   /** Get the height of the canvas. */
@@ -794,16 +815,22 @@ declare class OffscreenCanvas {
  * The 2D rendering context for a Canvas.
  */
 declare class CanvasRenderingContext2D {
-  /** Gets or sets the current fill style for drawing operations. */
-  fillStyle: string | CanvasGradient;
-  /** Gets or sets the current stroke style for drawing operations. */
-  strokeStyle: string;
+  /**
+   * Gets or sets the current fill style for drawing operations.
+   * Accepts a CSS color string, a `CanvasGradient`, or a `CanvasPattern`.
+   */
+  fillStyle: string | CanvasGradient | CanvasPattern;
+  /**
+   * Gets or sets the current stroke style for drawing operations.
+   * Accepts a CSS color string, a `CanvasGradient`, or a `CanvasPattern`.
+   */
+  strokeStyle: string | CanvasGradient | CanvasPattern;
   /** Gets or sets the line width for drawing operations. Default 1. */
   lineWidth: number;
   /** Gets or sets the line cap style. Default "butt". */
-  lineCap: "butt" | "round" | "square";
+  lineCap: CanvasLineCap;
   /** Gets or sets the line join style. Default "miter". */
-  lineJoin: "miter" | "round" | "bevel";
+  lineJoin: CanvasLineJoin;
   /** Gets or sets the miter limit. Default 10. */
   miterLimit: number;
   /** Gets or sets the line dash offset. Default 0. */
@@ -811,13 +838,45 @@ declare class CanvasRenderingContext2D {
   /** Gets or sets image smoothing. Default true. */
   imageSmoothingEnabled: boolean;
   /** Gets or sets image smoothing quality. Default "low". */
-  imageSmoothingQuality: "low" | "medium" | "high";
-  /** Gets or sets a CSS filter string. Default "none". */
+  imageSmoothingQuality: ImageSmoothingQuality;
+  /** Gets or sets a CSS filter string. Default "none" (stored but not applied). */
   filter: string;
-  /** Gets or sets the global alpha value (transparency) for drawing operations. Values range from 0.0 (transparent) to 1.0 (opaque). */
+  /**
+   * Gets or sets the global alpha value (transparency) for drawing
+   * operations. Values range from 0.0 (transparent) to 1.0 (opaque).
+   */
   globalAlpha: number;
-  /** Gets or sets the type of compositing operation to apply when drawing new shapes. Valid values include 'source-over', 'source-in', 'source-out', 'source-atop', 'destination-over', 'destination-in', 'destination-out', 'destination-atop', 'lighter', 'copy', 'xor', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', and 'luminosity'. Default is 'source-over'. */
+  /**
+   * Gets or sets the type of compositing operation to apply when drawing
+   * new shapes. Valid values: `source-over`, `source-in`, `source-out`,
+   * `source-atop`, `destination-over`, `destination-in`, `destination-out`,
+   * `destination-atop`, `lighter`, `copy`, `xor`, `multiply`, `screen`,
+   * `overlay`, `darken`, `lighten`, `color-dodge`, `color-burn`,
+   * `hard-light`, `soft-light`, `difference`, `exclusion`, `hue`,
+   * `saturation`, `color`, `luminosity`. Default `source-over`.
+   */
   globalCompositeOperation: string;
+
+  // Shadow properties
+  /** Gets or sets the blur radius used for shadows. Default 0. */
+  shadowBlur: number;
+  /** Gets or sets the shadow color. Default `rgba(0, 0, 0, 0)`. */
+  shadowColor: string;
+  /** Gets or sets the horizontal shadow offset. Default 0. */
+  shadowOffsetX: number;
+  /** Gets or sets the vertical shadow offset. Default 0. */
+  shadowOffsetY: number;
+
+  // Text properties
+  /** Gets or sets the current font, e.g. `"18px sans-serif"`. Default `"10px sans-serif"`. */
+  font: string;
+  /** Gets or sets text alignment. Default `"start"`. */
+  textAlign: CanvasTextAlign;
+  /** Gets or sets the text baseline. Default `"alphabetic"`. */
+  textBaseline: CanvasTextBaseline;
+  /** Gets or sets the text direction. Default `"inherit"`. */
+  direction: CanvasDirection;
+
   /** Resets the context to its default state per HTML spec. */
   reset(): void;
   /** Returns false — Andromeda never loses the canvas context. */
@@ -826,6 +885,8 @@ declare class CanvasRenderingContext2D {
   setLineDash(segments: number[]): void;
   /** Returns the current line dash pattern. */
   getLineDash(): number[];
+
+  // Path construction
   /** Creates an arc on the current path. */
   arc(
     x: number,
@@ -835,11 +896,11 @@ declare class CanvasRenderingContext2D {
     endAngle: number,
     counterclockwise?: boolean,
   ): void;
-  /** Creates an arc-to command on the canvas context. */
+  /** Adds an arc-to segment to the current path. */
   arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
-  /** Begins a new path on the canvas context. */
+  /** Begins a new path. */
   beginPath(): void;
-  /** Adds a cubic Bézier curve to the path. */
+  /** Adds a cubic Bézier curve to the current path. */
   bezierCurveTo(
     cp1x: number,
     cp1y: number,
@@ -848,57 +909,17 @@ declare class CanvasRenderingContext2D {
     x: number,
     y: number,
   ): void;
-  /** Clears the specified rectangular area, making it fully transparent. */
-  clearRect(x: number, y: number, width: number, height: number): void;
-  /** Creates a gradient along the line connecting two given coordinates. */
-  createLinearGradient(
-    x0: number,
-    y0: number,
-    x1: number,
-    y1: number,
-  ): CanvasGradient;
-  /** Creates a radial gradient using the size and coordinates of two circles. */
-  createRadialGradient(
-    x0: number,
-    y0: number,
-    r0: number,
-    x1: number,
-    y1: number,
-    r1: number,
-  ): CanvasGradient;
-  /** Creates a gradient around a point with given coordinates. */
-  createConicGradient(
-    startAngle: number,
-    x: number,
-    y: number,
-  ): CanvasGradient;
-  /** Closes the current path on the canvas context. */
+  /** Closes the current path. */
   closePath(): void;
-  /** Draws a filled rectangle whose starting corner is at (x, y). */
-  fillRect(x: number, y: number, width: number, height: number): void;
-  /** Moves the path starting point to the specified coordinates. */
+  /** Moves the path starting point. */
   moveTo(x: number, y: number): void;
-  /** Connects the last point in the current sub-path to the specified coordinates with a straight line. */
-  lineTo(
-    x: number,
-    y: number,
-  ): void; /** Fills the current path with the current fill style. */
-  fill(pathOrRule?: Path2D | "nonzero" | "evenodd", fillRule?: "nonzero" | "evenodd"): void;
-  /** Strokes the current path or given Path2D with the current stroke style. */
-  stroke(path?: Path2D): void;
-  /** Turns the current path (or given Path2D) into the clipping region. */
-  clip(pathOrRule?: Path2D | "nonzero" | "evenodd", fillRule?: "nonzero" | "evenodd"): void;
-  /** Returns whether the given point is inside the current path. */
-  isPointInPath(x: number, y: number, fillRule?: "nonzero" | "evenodd"): boolean;
-  isPointInPath(path: Path2D, x: number, y: number, fillRule?: "nonzero" | "evenodd"): boolean;
-  /** Returns whether the given point is inside the stroked path. */
-  isPointInStroke(x: number, y: number): boolean;
-  isPointInStroke(path: Path2D, x: number, y: number): boolean;
-  /** Adds a rectangle to the current path. */
+  /** Adds a straight line from the last point to (x, y). */
+  lineTo(x: number, y: number): void;
+  /** Adds a rectangle sub-path. */
   rect(x: number, y: number, width: number, height: number): void;
   /** Adds a quadratic Bézier curve to the current path. */
   quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void;
-  /** Adds an ellipse to the current path. */
+  /** Adds an ellipse sub-path. */
   ellipse(
     x: number,
     y: number,
@@ -909,7 +930,7 @@ declare class CanvasRenderingContext2D {
     endAngle: number,
     counterclockwise?: boolean,
   ): void;
-  /** Adds a rounded rectangle to the current path. */
+  /** Adds a rounded rectangle sub-path. */
   roundRect(
     x: number,
     y: number,
@@ -920,15 +941,116 @@ declare class CanvasRenderingContext2D {
       | { x: number; y: number }
       | Array<number | { x: number; y: number }>,
   ): void;
-  /** Saves the current canvas state (styles, transformations, etc.) to a stack. */
+
+  // Rectangles
+  /** Clears the specified rectangular area. */
+  clearRect(x: number, y: number, width: number, height: number): void;
+  /** Draws a filled rectangle with the current fill style. */
+  fillRect(x: number, y: number, width: number, height: number): void;
+  /** Draws a stroked rectangle with the current stroke style. */
+  strokeRect(x: number, y: number, width: number, height: number): void;
+
+  // Fill / stroke / clip
+  /** Fills the current path (or given `Path2D`) with the current fill style. */
+  fill(fillRule?: CanvasFillRule): void;
+  fill(path: Path2D, fillRule?: CanvasFillRule): void;
+  /** Strokes the current path (or given `Path2D`) with the current stroke style. */
+  stroke(path?: Path2D): void;
+  /** Turns the current path (or given `Path2D`) into the clipping region. */
+  clip(fillRule?: CanvasFillRule): void;
+  clip(path: Path2D, fillRule?: CanvasFillRule): void;
+
+  // Hit testing
+  /** Returns whether the given point is inside the current path. */
+  isPointInPath(x: number, y: number, fillRule?: CanvasFillRule): boolean;
+  isPointInPath(
+    path: Path2D,
+    x: number,
+    y: number,
+    fillRule?: CanvasFillRule,
+  ): boolean;
+  /** Returns whether the given point is inside the stroked path. */
+  isPointInStroke(x: number, y: number): boolean;
+  isPointInStroke(path: Path2D, x: number, y: number): boolean;
+
+  // Gradients & patterns
+  /** Creates a linear gradient along the line between two points. */
+  createLinearGradient(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+  ): CanvasGradient;
+  /** Creates a radial gradient between two circles. */
+  createRadialGradient(
+    x0: number,
+    y0: number,
+    r0: number,
+    x1: number,
+    y1: number,
+    r1: number,
+  ): CanvasGradient;
+  /** Creates a conic gradient around a point. */
+  createConicGradient(
+    startAngle: number,
+    x: number,
+    y: number,
+  ): CanvasGradient;
+  /** Creates a pattern from an image with the given repetition mode. */
+  createPattern(
+    image: ImageBitmap,
+    repetition: CanvasPatternRepetition,
+  ): CanvasPattern | null;
+
+  // State
+  /** Saves the current canvas state to a stack. */
   save(): void;
   /** Restores the most recently saved canvas state from the stack. */
   restore(): void;
 
-  // Image Drawing APIs
-  /** Draws an image onto the canvas at the specified coordinates. */
+  // Transforms
+  /** Adds a rotation (in radians) to the current transform. */
+  rotate(angle: number): void;
+  /** Adds a scaling transformation. */
+  scale(x: number, y: number): void;
+  /** Adds a translation. */
+  translate(x: number, y: number): void;
+  /** Multiplies the current transform by the given 2×3 matrix. */
+  transform(
+    a: number,
+    b: number,
+    c: number,
+    d: number,
+    e: number,
+    f: number,
+  ): void;
+  /** Resets the current transform, then applies the given matrix. */
+  setTransform(
+    a: number,
+    b: number,
+    c: number,
+    d: number,
+    e: number,
+    f: number,
+  ): void;
+  setTransform(matrix?: DOMMatrix2DInit | DOMMatrixReadOnly | null): void;
+  /** Resets the current transform to identity. */
+  resetTransform(): void;
+  /** Returns the current transformation matrix. */
+  getTransform(): DOMMatrix;
+
+  // Text
+  /** Returns a `TextMetrics` object for the given text in the current font. */
+  measureText(text: string): TextMetrics;
+  /** Draws filled text at (x, y). */
+  fillText(text: string, x: number, y: number, maxWidth?: number): void;
+  /** Draws stroked (outlined) text at (x, y). */
+  strokeText(text: string, x: number, y: number, maxWidth?: number): void;
+
+  // Image drawing
+  /** Draws an image at (dx, dy). */
   drawImage(image: ImageBitmap, dx: number, dy: number): void;
-  /** Draws an image onto the canvas with scaling. */
+  /** Draws an image at (dx, dy) scaled to (dWidth, dHeight). */
   drawImage(
     image: ImageBitmap,
     dx: number,
@@ -936,7 +1058,7 @@ declare class CanvasRenderingContext2D {
     dWidth: number,
     dHeight: number,
   ): void;
-  /** Draws a portion of an image onto the canvas with optional scaling. */
+  /** Draws a sub-rect of an image at (dx, dy) scaled to (dWidth, dHeight). */
   drawImage(
     image: ImageBitmap,
     sx: number,
@@ -949,18 +1071,115 @@ declare class CanvasRenderingContext2D {
     dHeight: number,
   ): void;
 
-  // ImageData APIs
-  /** Creates a new ImageData object with the specified dimensions. */
+  // ImageData
+  /** Creates a new blank `ImageData` with the given dimensions. */
   createImageData(width: number, height: number): ImageData;
-  /** Returns an ImageData object representing the pixel data for the specified rectangle. */
+  /** Creates a new `ImageData` matching the dimensions of another. */
+  createImageData(imageData: ImageData): ImageData;
+  /** Returns pixel data for the given rectangle. */
   getImageData(sx: number, sy: number, sw: number, sh: number): ImageData;
-  /** Paints pixel data from an ImageData object onto the canvas. */
+  /** Paints pixel data at (dx, dy). */
   putImageData(imageData: ImageData, dx: number, dy: number): void;
+  /** Paints a dirty sub-rect of pixel data at (dx, dy). */
+  putImageData(
+    imageData: ImageData,
+    dx: number,
+    dy: number,
+    dirtyX: number,
+    dirtyY: number,
+    dirtyWidth: number,
+    dirtyHeight: number,
+  ): void;
+}
+
+/**
+ * A reusable path description. Can be constructed from another `Path2D`,
+ * an SVG path string (`"M10 10 L20 20"`), or empty.
+ */
+declare class Path2D {
+  constructor(path?: Path2D | string);
+  addPath(path: Path2D, transform?: DOMMatrix2DInit | DOMMatrixReadOnly): void;
+  moveTo(x: number, y: number): void;
+  lineTo(x: number, y: number): void;
+  closePath(): void;
+  arc(
+    x: number,
+    y: number,
+    radius: number,
+    startAngle: number,
+    endAngle: number,
+    counterclockwise?: boolean,
+  ): void;
+  arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
+  bezierCurveTo(
+    cp1x: number,
+    cp1y: number,
+    cp2x: number,
+    cp2y: number,
+    x: number,
+    y: number,
+  ): void;
+  quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void;
+  ellipse(
+    x: number,
+    y: number,
+    radiusX: number,
+    radiusY: number,
+    rotation: number,
+    startAngle: number,
+    endAngle: number,
+    counterclockwise?: boolean,
+  ): void;
+  rect(x: number, y: number, w: number, h: number): void;
+  roundRect(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    radii?:
+      | number
+      | { x: number; y: number }
+      | Array<number | { x: number; y: number }>,
+  ): void;
+  isPointInPath(x: number, y: number, fillRule?: CanvasFillRule): boolean;
+  isPointInStroke(x: number, y: number, lineWidth?: number): boolean;
 }
 
 declare class CanvasGradient {
-  /** Adds a new color stop to a given canvas gradient. */
+  /** Adds a new color stop. `offset` must be in [0, 1]. */
   addColorStop(offset: number, color: string): void;
+}
+
+/**
+ * A pattern created from an `ImageBitmap` with a given repetition mode.
+ */
+declare class CanvasPattern {
+  /** Sets the transformation matrix applied when rendering this pattern. */
+  setTransform(transform?: DOMMatrix2DInit | DOMMatrixReadOnly | null): void;
+}
+
+/**
+ * Dimensions of measured text returned by `measureText`.
+ */
+declare class TextMetrics {
+  /** Pen advance width of the text. */
+  readonly width: number;
+  readonly actualBoundingBoxLeft: number;
+  readonly actualBoundingBoxRight: number;
+  /** Font ascent (em-ascent) above the alphabetic baseline, positive. */
+  readonly fontBoundingBoxAscent: number;
+  /** Font descent (em-descent) below the alphabetic baseline, positive. */
+  readonly fontBoundingBoxDescent: number;
+  readonly actualBoundingBoxAscent: number;
+  readonly actualBoundingBoxDescent: number;
+  readonly emHeightAscent: number;
+  readonly emHeightDescent: number;
+  /** Hanging baseline offset above alphabetic baseline. */
+  readonly hangingBaseline: number;
+  /** Alphabetic baseline offset (always 0). */
+  readonly alphabeticBaseline: number;
+  /** Ideographic baseline offset below alphabetic baseline (negative). */
+  readonly ideographicBaseline: number;
 }
 
 /**
@@ -978,9 +1197,9 @@ declare class ImageBitmap {
  * ImageData represents the underlying pixel data of a canvas area.
  */
 declare class ImageData {
-  /** Creates a new ImageData object with the specified dimensions. */
+  /** Creates a new blank `ImageData` with the given dimensions. */
   constructor(width: number, height: number);
-  /** Creates an ImageData wrapping an existing Uint8ClampedArray. */
+  /** Creates an `ImageData` wrapping an existing `Uint8ClampedArray`. */
   constructor(data: Uint8ClampedArray, width: number, height?: number);
 
   /** The width of the ImageData in pixels. */

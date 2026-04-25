@@ -369,18 +369,24 @@ impl ApplicationHandler<()> for WindowingApp {
                     .get(&rid)
                     .map(|w| w.window.scale_factor())
                     .unwrap_or(1.0);
+                // Report logical (CSS) pixels so JS-side canvas coordinates
+                // line up 1:1 with the values users pass to createWindow.
+                let logical_w = (size.width as f64 / scale).round() as u32;
+                let logical_h = (size.height as f64 / scale).round() as u32;
                 self.pending_events.push_back(SerializedWindowEvent::resize(
-                    rid,
-                    size.width,
-                    size.height,
-                    scale,
+                    rid, logical_w, logical_h, scale,
                 ));
             }
             WindowEvent::ModifiersChanged(mods) => {
                 self.modifiers = mods.state();
             }
             WindowEvent::CursorMoved { position, .. } => {
-                self.pointer = (position.x, position.y);
+                let scale = self
+                    .windows
+                    .get(&rid)
+                    .map(|w| w.window.scale_factor())
+                    .unwrap_or(1.0);
+                self.pointer = (position.x / scale, position.y / scale);
                 let detail = self.mouse_detail(-1);
                 self.pending_events.push_back(SerializedWindowEvent {
                     rid,
