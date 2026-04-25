@@ -1600,7 +1600,11 @@ class CanvasRenderingContext2D {
    * - drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
    */
   drawImage(image: ImageBitmap, ...args: number[]): void {
-    const imageRid = image["#rid" as keyof ImageBitmap] as number;
+    // Bracket access to a true private field returns `undefined`, which
+    // coerces to image_rid 0 in Rust -- making every drawImage call
+    // sample whichever texture was loaded first. Use the public
+    // accessor instead (same fix as createPattern).
+    const imageRid = (image as unknown as { __getRid(): number }).__getRid();
 
     if (args.length === 2) {
       // drawImage(image, dx, dy)

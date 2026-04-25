@@ -283,9 +283,11 @@ impl WindowExt {
                 Some(d) if !d.closed => {
                     let size = d.window.inner_size();
                     let scale = d.window.scale_factor();
+                    let logical_w = (size.width as f64 / scale).round() as u32;
+                    let logical_h = (size.height as f64 / scale).round() as u32;
                     format!(
                         "{{\"width\":{},\"height\":{},\"scaleFactor\":{}}}",
-                        size.width, size.height, scale
+                        logical_w, logical_h, scale
                     )
                 }
                 _ => {
