@@ -10,7 +10,7 @@ readme = "../../README.md"
 [features]
 default = []
 canvas = ["dep:wgpu", "dep:image", "dep:lru", "dep:cosmic-text", "dep:swash"]
-crypto = ["dep:ring", "dep:rand"]
+crypto = ["dep:ring", "dep:rand", "dep:aes", "dep:cbc", "dep:ctr"]
 storage = ["dep:rusqlite"]
 virtualfs = ["storage"]
 serve = []
@@ -67,6 +67,11 @@ uuid.workspace = true
 wgpu = { workspace = true, optional = true }
 winit = { workspace = true, optional = true }
 raw-window-handle = { workspace = true, optional = true }
+sysinfo = { workspace = true }
+libc = { workspace = true }
+aes = { workspace = true, optional = true }
+cbc = { workspace = true, optional = true }
+ctr = { workspace = true, optional = true }
 rustls.workspace = true
 tokio-rustls.workspace = true
 webpki-roots.workspace = true

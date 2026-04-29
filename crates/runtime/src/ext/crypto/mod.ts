@@ -40,26 +40,30 @@ const AlgorithmIdentifierConverter = webidl.createUnionConverter([
 ]);
 
 // AesGcmParams dictionary
-const AesGcmParams = webidl.createDictionaryConverter("AesGcmParams", [], [
-  {
-    key: "name",
-    converter: webidl.converters.DOMString,
-    required: true,
-  },
-  {
-    key: "iv",
-    converter: webidl.converters.BufferSource,
-    required: true,
-  },
-  {
-    key: "additionalData",
-    converter: webidl.converters.BufferSource,
-  },
-  {
-    key: "tagLength",
-    converter: webidl.converters.octet,
-  },
-]);
+const AesGcmParams = webidl.createDictionaryConverter(
+  "AesGcmParams",
+  [],
+  [
+    {
+      key: "name",
+      converter: webidl.converters.DOMString,
+      required: true,
+    },
+    {
+      key: "iv",
+      converter: webidl.converters.BufferSource,
+      required: true,
+    },
+    {
+      key: "additionalData",
+      converter: webidl.converters.BufferSource,
+    },
+    {
+      key: "tagLength",
+      converter: webidl.converters.octet,
+    },
+  ],
+);
 
 // AesKeyGenParams dictionary
 const AesKeyGenParams = webidl.createDictionaryConverter(
@@ -196,11 +200,77 @@ class CryptoKey {
 const CryptoKeyPrototype = CryptoKey.prototype;
 webidl.configureInterface(CryptoKey);
 
+/** Internal factory — the public constructor is guarded by
+ * `webidl.illegalConstructor()` so user code can't mint a CryptoKey, but
+ * `generateKey` and `importKey` need a way to produce branded instances
+ * that pass the WebIDL converter in `encrypt`/`decrypt`/`sign`/`verify`.
+ * `webidl.createBranded` sets both the prototype and the internal brand
+ * symbol the converter checks for. */
+function createCryptoKey(
+  type: string,
+  extractable: boolean,
+  algorithm: object,
+  usages: string[],
+  handle: number,
+): CryptoKey {
+  const key = webidl.createBranded(CryptoKey) as CryptoKey;
+  (key as any)[_type] = type;
+  (key as any)[_extractable] = extractable;
+  (key as any)[_algorithm] = algorithm;
+  (key as any)[_usages] = usages;
+  (key as any)[_handle] = handle;
+  return key;
+}
+
 // CryptoKey converter for WebIDL
 const CryptoKeyConverter = webidl.createInterfaceConverter(
   "CryptoKey",
   CryptoKeyPrototype,
 );
+
+/** Extract the JSON-serializable shape the Rust ops expect from a
+ * branded CryptoKey.*/
+function keyForRust(key: CryptoKey): string {
+  return JSON.stringify({ keyId: (key as any)[_handle] });
+}
+
+/** Convert a base64 string (as the Rust encrypt/decrypt ops return) into
+ * a spec-compliant `ArrayBuffer` for the `SubtleCrypto` contract. */
+function base64ToArrayBuffer(b64: string): ArrayBuffer {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+/** Encode an input buffer as a JSON array string so the Rust op can
+ * decode it with `serde_json`. `Value::to_string` on a Uint8Array yields
+ * a CSV of byte values — not parseable as bytes — so we canonicalize
+ * here. */
+function dataForRust(data: Uint8Array | ArrayBuffer): string {
+  const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : data;
+  const arr: number[] = new Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes[i];
+  return JSON.stringify(arr);
+}
+
+/** Serialize the normalized algorithm object for the Rust ops. Any
+ * `Uint8Array` / `ArrayBuffer` fields (IV, counter, additionalData) are
+ * flattened into plain number arrays so `serde_json` on the Rust side can
+ * read them without a binary-aware codec. */
+function algorithmForRust(alg: object): string {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(alg as Record<string, unknown>)) {
+    if (v instanceof Uint8Array) {
+      out[k] = Array.from(v);
+    } else if (v instanceof ArrayBuffer) {
+      out[k] = Array.from(new Uint8Array(v));
+    } else {
+      out[k] = v;
+    }
+  }
+  return JSON.stringify(out);
+}
 
 // Helper: Normalize algorithm identifier to algorithm object
 function normalizeAlgorithm(
@@ -216,9 +286,7 @@ function normalizeAlgorithm(
   if (typeof algorithm === "object" && algorithm !== null) {
     const alg = algorithm as unknown as Record<string, unknown>;
     if (!alg.name || typeof alg.name !== "string") {
-      throw new TypeError(
-        `Algorithm: name: Missing or not a string`,
-      );
+      throw new TypeError(`Algorithm: name: Missing or not a string`);
     }
     // Return a copy to avoid mutation
     return { ...alg };
@@ -228,25 +296,15 @@ function normalizeAlgorithm(
 }
 
 // Helper: Validate key usages
-function validateKeyUsages(
-  usages: KeyUsage[],
-  validUsages: KeyUsage[],
-): void {
+function validateKeyUsages(usages: KeyUsage[], validUsages: KeyUsage[]): void {
   for (const usage of usages) {
     if (!validUsages.includes(usage)) {
-      throw new DOMException(
-        `Unsupported key usage: ${usage}`,
-        "SyntaxError",
-      );
+      throw new DOMException(`Unsupported key usage: ${usage}`, "SyntaxError");
     }
   }
 }
 
-// Helper: Get usage intersection
-function usageIntersection(
-  a: KeyUsage[],
-  b: KeyUsage[],
-): KeyUsage[] {
+function usageIntersection(a: KeyUsage[], b: KeyUsage[]): KeyUsage[] {
   return a.filter((usage) => b.includes(usage));
 }
 
@@ -275,25 +333,17 @@ const subtle = {
     const prefix = "Failed to execute 'digest' on 'SubtleCrypto'";
     webidl.requiredArguments(arguments.length, 2, prefix);
 
-    algorithm = AlgorithmIdentifierConverter(
-      algorithm,
-      prefix,
-      "Argument 1",
-    );
-    data = webidl.converters.BufferSource(
-      data,
-      prefix,
-      "Argument 2",
-    );
+    algorithm = AlgorithmIdentifierConverter(algorithm, prefix, "Argument 1");
+    data = webidl.converters.BufferSource(data, prefix, "Argument 2");
 
     // Normalize algorithm
     const normalizedAlgorithm = normalizeAlgorithm(algorithm, "digest");
 
     // Extract algorithm name for Rust FFI (Rust expects a simple string)
     const algorithmName =
-      typeof normalizedAlgorithm === "object" && normalizedAlgorithm !== null ?
-        (normalizedAlgorithm as any).name :
-        String(normalizedAlgorithm);
+      typeof normalizedAlgorithm === "object" && normalizedAlgorithm !== null
+        ? (normalizedAlgorithm as any).name
+        : String(normalizedAlgorithm);
 
     const result = __andromeda__.internal_subtle_digest(algorithmName, data);
 
@@ -334,11 +384,7 @@ const subtle = {
     // Test converters one by one
     webidl.requiredArguments(3, 3, prefix);
 
-    algorithm = AlgorithmIdentifierConverter(
-      algorithm,
-      prefix,
-      "Argument 1",
-    );
+    algorithm = AlgorithmIdentifierConverter(algorithm, prefix, "Argument 1");
 
     extractable = webidl.converters.boolean(extractable);
     keyUsages = webidl.createSequenceConverter(KeyUsage)(
@@ -352,9 +398,9 @@ const subtle = {
 
     // Extract algorithm name for Rust FFI (Rust expects a simple string)
     const algorithmName =
-      typeof normalizedAlgorithm === "object" && normalizedAlgorithm !== null ?
-        (normalizedAlgorithm as any).name :
-        String(normalizedAlgorithm);
+      typeof normalizedAlgorithm === "object" && normalizedAlgorithm !== null
+        ? (normalizedAlgorithm as any).name
+        : String(normalizedAlgorithm);
 
     const result = __andromeda__.internal_subtle_generateKey(
       algorithmName,
@@ -365,7 +411,16 @@ const subtle = {
     // Parse the result - Rust returns a JSON string
     if (typeof result === "string") {
       const keyData = JSON.parse(result);
-      return keyData; // Return the plain object for now
+      // Wrap the plain JSON object into a branded CryptoKey so downstream
+      // encrypt/decrypt/sign/verify converters accept it. `keyId` from
+      // Rust becomes the internal `_handle` slot the ops look up.
+      return createCryptoKey(
+        keyData.type,
+        keyData.extractable,
+        keyData.algorithm ?? normalizedAlgorithm,
+        keyData.usages,
+        keyData.keyId,
+      );
     }
 
     return result;
@@ -404,11 +459,7 @@ const subtle = {
       keyData = webidl.converters.BufferSource(keyData, prefix, "Argument 2");
     }
 
-    algorithm = AlgorithmIdentifierConverter(
-      algorithm,
-      prefix,
-      "Argument 3",
-    );
+    algorithm = AlgorithmIdentifierConverter(algorithm, prefix, "Argument 3");
     extractable = webidl.converters.boolean(extractable);
     keyUsages = webidl.createSequenceConverter(KeyUsage)(
       keyUsages,
@@ -475,28 +526,20 @@ const subtle = {
     const prefix = "Failed to execute 'encrypt' on 'SubtleCrypto'";
     webidl.requiredArguments(arguments.length, 3, prefix);
 
-    algorithm = AlgorithmIdentifierConverter(
-      algorithm,
-      prefix,
-      "Argument 1",
-    );
+    algorithm = AlgorithmIdentifierConverter(algorithm, prefix, "Argument 1");
     key = CryptoKeyConverter(key, prefix, "Argument 2");
-    data = webidl.converters.BufferSource(
-      data,
-      prefix,
-      "Argument 3",
-    );
+    data = webidl.converters.BufferSource(data, prefix, "Argument 3");
 
     // Normalize algorithm
     const normalizedAlgorithm = normalizeAlgorithm(algorithm, "encrypt");
 
     const result = __andromeda__.internal_subtle_encrypt(
-      normalizedAlgorithm,
-      key,
-      data,
+      algorithmForRust(normalizedAlgorithm),
+      keyForRust(key),
+      dataForRust(data),
     );
 
-    return result;
+    return base64ToArrayBuffer(result as unknown as string);
   },
 
   /**
@@ -521,28 +564,20 @@ const subtle = {
     const prefix = "Failed to execute 'decrypt' on 'SubtleCrypto'";
     webidl.requiredArguments(arguments.length, 3, prefix);
 
-    algorithm = AlgorithmIdentifierConverter(
-      algorithm,
-      prefix,
-      "Argument 1",
-    );
+    algorithm = AlgorithmIdentifierConverter(algorithm, prefix, "Argument 1");
     key = CryptoKeyConverter(key, prefix, "Argument 2");
-    data = webidl.converters.BufferSource(
-      data,
-      prefix,
-      "Argument 3",
-    );
+    data = webidl.converters.BufferSource(data, prefix, "Argument 3");
 
     // Normalize algorithm
     const normalizedAlgorithm = normalizeAlgorithm(algorithm, "decrypt");
 
     const result = __andromeda__.internal_subtle_decrypt(
-      normalizedAlgorithm,
-      key,
-      data,
+      algorithmForRust(normalizedAlgorithm),
+      keyForRust(key),
+      dataForRust(data),
     );
 
-    return result;
+    return base64ToArrayBuffer(result as unknown as string);
   },
 
   /**
@@ -570,17 +605,9 @@ const subtle = {
     const prefix = "Failed to execute 'sign' on 'SubtleCrypto'";
     webidl.requiredArguments(arguments.length, 3, prefix);
 
-    algorithm = AlgorithmIdentifierConverter(
-      algorithm,
-      prefix,
-      "Argument 1",
-    );
+    algorithm = AlgorithmIdentifierConverter(algorithm, prefix, "Argument 1");
     key = CryptoKeyConverter(key, prefix, "Argument 2");
-    data = webidl.converters.BufferSource(
-      data,
-      prefix,
-      "Argument 3",
-    );
+    data = webidl.converters.BufferSource(data, prefix, "Argument 3");
 
     // Normalize algorithm
     const normalizedAlgorithm = normalizeAlgorithm(algorithm, "sign");
@@ -615,22 +642,10 @@ const subtle = {
     const prefix = "Failed to execute 'verify' on 'SubtleCrypto'";
     webidl.requiredArguments(arguments.length, 4, prefix);
 
-    algorithm = AlgorithmIdentifierConverter(
-      algorithm,
-      prefix,
-      "Argument 1",
-    );
+    algorithm = AlgorithmIdentifierConverter(algorithm, prefix, "Argument 1");
     key = CryptoKeyConverter(key, prefix, "Argument 2");
-    signature = webidl.converters.BufferSource(
-      signature,
-      prefix,
-      "Argument 3",
-    );
-    data = webidl.converters.BufferSource(
-      data,
-      prefix,
-      "Argument 4",
-    );
+    signature = webidl.converters.BufferSource(signature, prefix, "Argument 3");
+    data = webidl.converters.BufferSource(data, prefix, "Argument 4");
 
     // Normalize algorithm
     const normalizedAlgorithm = normalizeAlgorithm(algorithm, "verify");
@@ -669,11 +684,7 @@ const subtle = {
     const prefix = "Failed to execute 'deriveKey' on 'SubtleCrypto'";
     webidl.requiredArguments(arguments.length, 5, prefix);
 
-    algorithm = AlgorithmIdentifierConverter(
-      algorithm,
-      prefix,
-      "Argument 1",
-    );
+    algorithm = AlgorithmIdentifierConverter(algorithm, prefix, "Argument 1");
     baseKey = CryptoKeyConverter(baseKey, prefix, "Argument 2");
     derivedKeyType = AlgorithmIdentifierConverter(
       derivedKeyType,
@@ -725,19 +736,11 @@ const subtle = {
     const prefix = "Failed to execute 'deriveBits' on 'SubtleCrypto'";
     webidl.requiredArguments(arguments.length, 2, prefix);
 
-    algorithm = AlgorithmIdentifierConverter(
-      algorithm,
-      prefix,
-      "Argument 1",
-    );
+    algorithm = AlgorithmIdentifierConverter(algorithm, prefix, "Argument 1");
     baseKey = CryptoKeyConverter(baseKey, prefix, "Argument 2");
 
     if (length !== undefined) {
-      length = webidl.converters["unsigned long"](
-        length,
-        prefix,
-        "Argument 3",
-      );
+      length = webidl.converters["unsigned long"](length, prefix, "Argument 3");
     }
 
     // Normalize algorithm
