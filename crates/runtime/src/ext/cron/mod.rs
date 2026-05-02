@@ -5,7 +5,7 @@
 use crate::RuntimeMacroTask;
 use andromeda_core::{Extension, ExtensionOp, HostData, MacroTask, OpsStorage};
 use nova_vm::{
-    ecmascript::{Agent, ArgumentsList, JsResult, Value},
+    ecmascript::{Agent, ArgumentsList, ExceptionType, JsResult, Value},
     engine::{Bindable, GcScope, Global},
 };
 use std::collections::HashMap;
@@ -168,8 +168,13 @@ impl CronExt {
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         if args.len() < 3 {
-            // Return undefined if arguments are insufficient
-            return Ok(Value::Undefined);
+            return Err(agent
+                .throw_exception_with_static_message(
+                    ExceptionType::TypeError,
+                    "Andromeda.cron expects 3 arguments: name, schedule, handler",
+                    gc.nogc(),
+                )
+                .unbind());
         }
 
         // Validate name
@@ -181,18 +186,36 @@ impl CronExt {
             .to_string();
 
         if name.is_empty() {
-            return Ok(Value::Undefined);
+            return Err(agent
+                .throw_exception_with_static_message(
+                    ExceptionType::TypeError,
+                    "Cron name must not be empty",
+                    gc.nogc(),
+                )
+                .unbind());
         }
 
         if name.len() > 64 {
-            return Ok(Value::Undefined);
+            return Err(agent
+                .throw_exception_with_static_message(
+                    ExceptionType::TypeError,
+                    "Cron name must not exceed 64 characters",
+                    gc.nogc(),
+                )
+                .unbind());
         }
 
         if !name
             .chars()
             .all(|c| c.is_ascii_whitespace() || c.is_ascii_alphanumeric() || c == '_' || c == '-')
         {
-            return Ok(Value::Undefined);
+            return Err(agent
+                .throw_exception_with_static_message(
+                    ExceptionType::TypeError,
+                    "Cron name may only contain alphanumeric characters, whitespace, hyphens, and underscores",
+                    gc.nogc(),
+                )
+                .unbind());
         }
 
         // Validate schedule
@@ -205,13 +228,25 @@ impl CronExt {
 
         // Validate cron expression
         if schedule.parse::<saffron::Cron>().is_err() {
-            return Ok(Value::Undefined);
+            return Err(agent
+                .throw_exception(
+                    ExceptionType::TypeError,
+                    format!("Invalid cron schedule: {schedule:?}"),
+                    gc.nogc(),
+                )
+                .unbind());
         }
 
         // Validate handler
         let handler_value = args[2];
         if !handler_value.is_function() {
-            return Ok(Value::Undefined);
+            return Err(agent
+                .throw_exception_with_static_message(
+                    ExceptionType::TypeError,
+                    "Cron handler must be a function",
+                    gc.nogc(),
+                )
+                .unbind());
         }
 
         let callback = Global::new(agent, handler_value.unbind());
