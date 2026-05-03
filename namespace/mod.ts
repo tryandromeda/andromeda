@@ -150,8 +150,9 @@ class Command {
       if (options.stderr) opts["stderr"] = options.stderr;
       if (options.uid !== undefined) opts["uid"] = options.uid;
       if (options.gid !== undefined) opts["gid"] = options.gid;
-      if (options.windowsRawArguments)
+      if (options.windowsRawArguments) {
         opts["windowsRawArguments"] = options.windowsRawArguments;
+      }
     }
     this.#optsJson = JSON.stringify(opts);
   }
@@ -220,6 +221,182 @@ function bytesToBinaryString(data: Uint8Array): string {
     }
   }
   return out;
+}
+
+type CronScheduleExpression =
+  | number
+  | { exact: number | number[] }
+  | { start?: number; end?: number; every?: number };
+
+interface CronScheduleObject {
+  minute?: CronScheduleExpression;
+  hour?: CronScheduleExpression;
+  dayOfMonth?: CronScheduleExpression;
+  month?: CronScheduleExpression;
+  dayOfWeek?: CronScheduleExpression;
+}
+
+const CRON_FIELD_BOUNDS: Record<
+  "minute" | "hour" | "dayOfMonth" | "month" | "dayOfWeek",
+  { min: number; max: number }
+> = {
+  minute: { min: 0, max: 59 },
+  hour: { min: 0, max: 23 },
+  dayOfMonth: { min: 1, max: 31 },
+  month: { min: 1, max: 12 },
+  dayOfWeek: { min: 1, max: 7 },
+};
+
+function assertIntegerInRange(
+  field: string,
+  value: number,
+  min: number,
+  max: number,
+): void {
+  if (!Number.isInteger(value)) {
+    throw new TypeError(
+      `Cron field "${field}" must be an integer, got: ${value}`,
+    );
+  }
+  if (value < min || value > max) {
+    throw new RangeError(
+      `Cron field "${field}" value ${value} is out of range [${min}, ${max}]`,
+    );
+  }
+}
+
+function expressionToCronField(
+  field: string,
+  expr: CronScheduleExpression | undefined,
+  min: number,
+  max: number,
+): string {
+  if (expr === undefined) {
+    return "*";
+  }
+  if (typeof expr === "number") {
+    assertIntegerInRange(field, expr, min, max);
+    return String(expr);
+  }
+  if (typeof expr !== "object" || expr === null) {
+    throw new TypeError(
+      `Cron field "${field}" must be a number or schedule object, got: ${typeof expr}`,
+    );
+  }
+  const obj = expr as Record<string, unknown>;
+  const hasExact = obj.exact !== undefined;
+  const hasStart = obj.start !== undefined;
+  const hasEnd = obj.end !== undefined;
+  const hasEvery = obj.every !== undefined;
+
+  if (hasExact && (hasStart || hasEnd || hasEvery)) {
+    throw new TypeError(
+      `Cron field "${field}" must use either "exact" or "start"/"end"/"every", not both`,
+    );
+  }
+
+  if (hasExact) {
+    const exact = obj.exact;
+    if (typeof exact === "number") {
+      assertIntegerInRange(field, exact, min, max);
+      return String(exact);
+    }
+    if (Array.isArray(exact)) {
+      if (exact.length === 0) {
+        throw new TypeError(
+          `Cron field "${field}" exact list must not be empty`,
+        );
+      }
+      for (const v of exact) {
+        assertIntegerInRange(field, v as number, min, max);
+      }
+      return exact.join(",");
+    }
+    throw new TypeError(
+      `Cron field "${field}" exact must be a number or number[]`,
+    );
+  }
+
+  if (!hasStart && !hasEnd && !hasEvery) {
+    throw new TypeError(
+      `Cron field "${field}" requires at least one of start, end, or every`,
+    );
+  }
+
+  if (hasEvery && !hasStart && !hasEnd) {
+    const every = obj.every as number;
+    if (!Number.isInteger(every) || every < 1) {
+      throw new RangeError(
+        `Cron field "${field}" every must be a positive integer, got: ${every}`,
+      );
+    }
+    return `*/${every}`;
+  }
+
+  if (hasStart && hasEnd) {
+    const start = obj.start as number;
+    const end = obj.end as number;
+    assertIntegerInRange(field, start, min, max);
+    assertIntegerInRange(field, end, min, max);
+    if (start > end) {
+      throw new RangeError(
+        `Cron field "${field}" start (${start}) must be <= end (${end})`,
+      );
+    }
+    if (hasEvery) {
+      const every = obj.every as number;
+      if (!Number.isInteger(every) || every < 1) {
+        throw new RangeError(
+          `Cron field "${field}" every must be a positive integer, got: ${every}`,
+        );
+      }
+      return `${start}-${end}/${every}`;
+    }
+    return `${start}-${end}`;
+  }
+
+  throw new TypeError(
+    `Cron field "${field}" range form must be {every}, {start, end}, or {start, end, every}`,
+  );
+}
+
+function cronScheduleToString(schedule: CronScheduleObject): string {
+  if (schedule === null || typeof schedule !== "object") {
+    throw new TypeError(
+      `cron schedule must be a string or CronSchedule object, got: ${typeof schedule}`,
+    );
+  }
+  const minute = expressionToCronField(
+    "minute",
+    schedule.minute,
+    CRON_FIELD_BOUNDS.minute.min,
+    CRON_FIELD_BOUNDS.minute.max,
+  );
+  const hour = expressionToCronField(
+    "hour",
+    schedule.hour,
+    CRON_FIELD_BOUNDS.hour.min,
+    CRON_FIELD_BOUNDS.hour.max,
+  );
+  const dayOfMonth = expressionToCronField(
+    "dayOfMonth",
+    schedule.dayOfMonth,
+    CRON_FIELD_BOUNDS.dayOfMonth.min,
+    CRON_FIELD_BOUNDS.dayOfMonth.max,
+  );
+  const month = expressionToCronField(
+    "month",
+    schedule.month,
+    CRON_FIELD_BOUNDS.month.min,
+    CRON_FIELD_BOUNDS.month.max,
+  );
+  const dayOfWeek = expressionToCronField(
+    "dayOfWeek",
+    schedule.dayOfWeek,
+    CRON_FIELD_BOUNDS.dayOfWeek.min,
+    CRON_FIELD_BOUNDS.dayOfWeek.max,
+  );
+  return `${minute} ${hour} ${dayOfMonth} ${month} ${dayOfWeek}`;
 }
 
 /**
@@ -745,7 +922,7 @@ const Andromeda = {
      */
     remove(key: string): void {
       __andromeda__.internal_delete_env(key);
-    } /**
+    }, /**
      * The `keys` function gets the environment variable keys.
      *
      * @example
@@ -753,7 +930,7 @@ const Andromeda = {
      * const keys = Andromeda.env.keys();
      * console.log(keys);
      * ```
-     */,
+     */
     keys(): string[] {
       return __andromeda__.internal_get_env_keys();
     },
@@ -771,15 +948,26 @@ const Andromeda = {
    * });
    * ```
    *
-   * `schedule` can be a string in the Unix cron format, where time is specified
-   * using UTC time zone.
+   * @example
+   * ```ts
+   * Andromeda.cron("sample cron", { minute: { every: 1 } }, () => {
+   *   console.log("cron job executed");
+   * });
+   * ```
+   *
+   * `schedule` can be a string in the Unix cron format or in JSON format
+   * as specified by interface {@linkcode Andromeda.CronSchedule}, where
+   * time is specified using UTC time zone.
    */
   async cron(
     name: string,
-    schedule: string,
+    schedule: string | CronScheduleObject,
     handler: () => Promise<void> | void,
   ): Promise<void> {
-    return await __andromeda__.cron(name, schedule, handler);
+    const cronString = typeof schedule === "string"
+      ? schedule
+      : cronScheduleToString(schedule);
+    return await __andromeda__.cron(name, cronString, handler);
   },
 
   // Signal handling functions
