@@ -92,6 +92,11 @@ webpki-roots = "1.0.7"
 wgpu = { version = "27.0.1", features = ["wgsl", "webgpu"] }
 winit = "0.30"
 raw-window-handle = "0.6"
+sysinfo = { version = "0.32", default-features = false, features = ["system"] }
+aes = "0.8"
+cbc = { version = "0.1", features = ["alloc", "block-padding"] }
+ctr = "0.9"
+libc = "0.2"
 
 [profile.dev]
 split-debuginfo = "packed"

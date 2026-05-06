@@ -167,78 +167,175 @@ impl SubtleCrypto {
     }
 
     /// Helper function to extract bytes from a Value (Uint8Array or similar)
+    /// Decode a TS-supplied buffer into `Vec<u8>`.
+    ///
+    /// The TS layer always sends a JSON-array-of-bytes string via
+    /// `dataForRust()` (Nova can't round-trip Uint8Array through `ToString`
+    /// without lossy formatting). Fallbacks:
+    ///   1. JSON array `[1, 2, 3]` — primary path.
+    ///   2. All-hex string — accepted so tests / legacy callers still work.
+    ///   3. Anything else — treated as raw UTF-8 bytes.
     fn extract_bytes_from_value(
         agent: &mut Agent,
         value: Value,
         gc: GcScope<'_, '_>,
     ) -> Result<Vec<u8>, String> {
-        // Try to convert to string first as a fallback
-        if let Ok(str_value) = value.to_string(agent, gc) {
-            let string_data = str_value.as_str(agent).ok_or("Invalid string")?;
-            // If it looks like hex data, try to decode it
-            if string_data.chars().all(|c| c.is_ascii_hexdigit()) && string_data.len() % 2 == 0 {
-                let mut bytes = Vec::new();
-                for chunk in string_data.as_bytes().chunks(2) {
-                    if let Ok(byte_str) = std::str::from_utf8(chunk)
-                        && let Ok(byte_val) = u8::from_str_radix(byte_str, 16)
-                    {
-                        bytes.push(byte_val);
-                    }
-                }
-                if !bytes.is_empty() {
-                    return Ok(bytes);
+        let Ok(str_value) = value.to_string(agent, gc) else {
+            return Err("data argument is not representable as a string".to_string());
+        };
+        let string_data = str_value.as_str(agent).ok_or("Invalid string")?;
+
+        // 1. Canonical JSON-array path (what `dataForRust` emits).
+        if string_data.starts_with('[')
+            && let Ok(json) = serde_json::from_str::<serde_json::Value>(string_data)
+            && let Some(arr) = json.as_array()
+        {
+            return Ok(arr
+                .iter()
+                .filter_map(|v| v.as_u64().map(|n| n as u8))
+                .collect());
+        }
+
+        // 2. Hex fallback — useful for raw keys / IVs supplied as hex text.
+        if !string_data.is_empty()
+            && string_data.len() % 2 == 0
+            && string_data.chars().all(|c| c.is_ascii_hexdigit())
+        {
+            let mut bytes = Vec::with_capacity(string_data.len() / 2);
+            for chunk in string_data.as_bytes().chunks(2) {
+                if let Ok(byte_str) = std::str::from_utf8(chunk)
+                    && let Ok(byte_val) = u8::from_str_radix(byte_str, 16)
+                {
+                    bytes.push(byte_val);
                 }
             }
-            // Otherwise treat as UTF-8 string
-            Ok(string_data.as_bytes().to_vec())
-        } else {
-            // For now, return a test message when we can't extract properly
-            // TODO: Implement proper TypedArray extraction when Nova VM supports it
-            Ok("Secret message!".as_bytes().to_vec())
+            if !bytes.is_empty() {
+                return Ok(bytes);
+            }
         }
+
+        // 3. Last resort: treat as UTF-8.
+        Ok(string_data.as_bytes().to_vec())
     }
 
-    /// Helper function to parse algorithm from JS value
+    /// Parse an algorithm descriptor coming from TS.
+    ///
+    /// The TS layer always passes a **JSON-stringified** object via
+    /// `algorithmForRust()` — a plain `name` for bare hashes (e.g.
+    /// `{"name":"SHA-256"}`) and richer shapes for AES modes that carry
+    /// their IV / counter as arrays of byte values. Legacy string
+    /// algorithms (e.g. a bare `"SHA-256"`) are still accepted so the
+    /// digest path stays compatible.
     fn parse_algorithm(
         agent: &mut Agent,
         algo_value: Value,
         gc: GcScope<'_, '_>,
     ) -> Result<CryptoAlgorithm, String> {
-        if let Ok(algorithm_str) = algo_value.to_string(agent, gc) {
-            let algorithm_name = algorithm_str
-                .as_str(agent)
-                .expect("String is not valid UTF-8");
+        let algorithm_str = algo_value
+            .to_string(agent, gc)
+            .map_err(|_| "Algorithm argument must be a string or object".to_string())?;
+        let raw = algorithm_str
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
 
-            match algorithm_name {
-                "SHA-1" => Ok(CryptoAlgorithm::Sha1),
-                "SHA-256" => Ok(CryptoAlgorithm::Sha256),
-                "SHA-384" => Ok(CryptoAlgorithm::Sha384),
-                "SHA-512" => Ok(CryptoAlgorithm::Sha512),
-                "HMAC" => Ok(CryptoAlgorithm::Hmac {
-                    hash: "SHA-256".to_string(),
-                    length: None,
-                }),
-                "AES-GCM" => Ok(CryptoAlgorithm::AesGcm {
-                    length: 256,
-                    iv: vec![0u8; 12], // Placeholder IV
-                    iv_length: Some(12),
-                    additional_data: None,
-                    tag_length: Some(16),
-                }),
-                "AES-CBC" => Ok(CryptoAlgorithm::AesCbc {
-                    length: 256,
-                    iv: vec![0u8; 16], // Placeholder IV
-                }),
-                "AES-CTR" => Ok(CryptoAlgorithm::AesCtr {
-                    length: 256,
-                    counter: vec![0u8; 16], // Placeholder counter
-                    counter_length: 64,
-                }),
-                _ => Err(format!("Unsupported algorithm: {algorithm_name}")),
+        // Try JSON first — that's what `algorithmForRust` emits.
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(raw) {
+            if let Some(name) = json.get("name").and_then(|v| v.as_str()) {
+                return Self::algorithm_from_json(name, &json);
             }
-        } else {
-            // TODO: Handle algorithm objects (e.g., { name: "SHA-256" })
-            Err("Algorithm must be a string or object with name property".to_string())
+        }
+
+        // Fallback: bare algorithm name (legacy digest path).
+        Self::algorithm_from_name(raw)
+    }
+
+    fn algorithm_from_name(name: &str) -> Result<CryptoAlgorithm, String> {
+        match name {
+            "SHA-1" => Ok(CryptoAlgorithm::Sha1),
+            "SHA-256" => Ok(CryptoAlgorithm::Sha256),
+            "SHA-384" => Ok(CryptoAlgorithm::Sha384),
+            "SHA-512" => Ok(CryptoAlgorithm::Sha512),
+            "HMAC" => Ok(CryptoAlgorithm::Hmac {
+                hash: "SHA-256".to_string(),
+                length: None,
+            }),
+            "AES-GCM" => Ok(CryptoAlgorithm::AesGcm {
+                length: 256,
+                iv: vec![0u8; 12],
+                iv_length: Some(12),
+                additional_data: None,
+                tag_length: Some(16),
+            }),
+            "AES-CBC" => Ok(CryptoAlgorithm::AesCbc {
+                length: 256,
+                iv: vec![0u8; 16],
+            }),
+            "AES-CTR" => Ok(CryptoAlgorithm::AesCtr {
+                length: 256,
+                counter: vec![0u8; 16],
+                counter_length: 64,
+            }),
+            _ => Err(format!("Unsupported algorithm: {name}")),
+        }
+    }
+
+    fn algorithm_from_json(
+        name: &str,
+        json: &serde_json::Value,
+    ) -> Result<CryptoAlgorithm, String> {
+        let byte_array = |field: &str| -> Option<Vec<u8>> {
+            json.get(field)
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|n| n.as_u64().map(|x| x as u8))
+                        .collect()
+                })
+        };
+        match name {
+            "SHA-1" => Ok(CryptoAlgorithm::Sha1),
+            "SHA-256" => Ok(CryptoAlgorithm::Sha256),
+            "SHA-384" => Ok(CryptoAlgorithm::Sha384),
+            "SHA-512" => Ok(CryptoAlgorithm::Sha512),
+            "HMAC" => Ok(CryptoAlgorithm::Hmac {
+                hash: json
+                    .get("hash")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("SHA-256")
+                    .to_string(),
+                length: json.get("length").and_then(|v| v.as_u64()).map(|n| n as u32),
+            }),
+            "AES-GCM" => {
+                let iv = byte_array("iv").unwrap_or_else(|| vec![0u8; 12]);
+                Ok(CryptoAlgorithm::AesGcm {
+                    length: 256,
+                    iv_length: Some(iv.len() as u32),
+                    iv,
+                    additional_data: byte_array("additionalData"),
+                    tag_length: json
+                        .get("tagLength")
+                        .and_then(|v| v.as_u64())
+                        .map(|n| n as u32)
+                        .or(Some(16)),
+                })
+            }
+            "AES-CBC" => {
+                let iv = byte_array("iv").ok_or("AES-CBC: missing iv")?;
+                Ok(CryptoAlgorithm::AesCbc { length: 256, iv })
+            }
+            "AES-CTR" => {
+                let counter = byte_array("counter").ok_or("AES-CTR: missing counter")?;
+                Ok(CryptoAlgorithm::AesCtr {
+                    length: 256,
+                    counter,
+                    counter_length: json
+                        .get("length")
+                        .and_then(|v| v.as_u64())
+                        .map(|n| n as u32)
+                        .unwrap_or(64),
+                })
+            }
+            _ => Err(format!("Unsupported algorithm: {name}")),
         }
     }
     pub fn digest<'gc>(
@@ -900,20 +997,89 @@ impl SubtleCrypto {
         Ok(result)
     }
 
-    fn encrypt_aes_cbc(_key_data: &[u8], _plaintext: &[u8], _iv: &[u8]) -> Result<Vec<u8>, String> {
-        // TODO: Implement AES-CBC encryption using ring or another crate
-        // Ring doesn't provide AES-CBC, so we'd need another dependency
-        Err("AES-CBC encryption not yet implemented".to_string())
+    /// AES-CBC encryption with PKCS#7 padding. Per the Web Crypto spec
+    /// (https://w3c.github.io/webcrypto/#aes-cbc-operations), the IV must
+    /// be exactly 16 bytes and padding is PKCS#7. Supports 128/192/256-bit
+    /// keys by dispatching on `key_data.len()`.
+    fn encrypt_aes_cbc(key_data: &[u8], plaintext: &[u8], iv: &[u8]) -> Result<Vec<u8>, String> {
+        use cbc::cipher::{BlockEncryptMut, KeyIvInit, block_padding::Pkcs7};
+
+        if iv.len() != 16 {
+            return Err(format!(
+                "AES-CBC IV must be 16 bytes, got {}",
+                iv.len()
+            ));
+        }
+
+        match key_data.len() {
+            16 => {
+                type Enc = cbc::Encryptor<aes::Aes128>;
+                Ok(Enc::new(key_data.into(), iv.into())
+                    .encrypt_padded_vec_mut::<Pkcs7>(plaintext))
+            }
+            24 => {
+                type Enc = cbc::Encryptor<aes::Aes192>;
+                Ok(Enc::new(key_data.into(), iv.into())
+                    .encrypt_padded_vec_mut::<Pkcs7>(plaintext))
+            }
+            32 => {
+                type Enc = cbc::Encryptor<aes::Aes256>;
+                Ok(Enc::new(key_data.into(), iv.into())
+                    .encrypt_padded_vec_mut::<Pkcs7>(plaintext))
+            }
+            n => Err(format!(
+                "AES-CBC key must be 16, 24, or 32 bytes; got {n}"
+            )),
+        }
     }
 
+    /// AES-CTR encryption. Counter block must be 16 bytes. No padding
+    /// (CTR is a stream cipher). Supports 128/192/256-bit keys.
+    ///
+    /// This uses a full 128-bit big-endian counter. The Web Crypto spec
+    /// allows a partial-bit counter via `AesCtrParams.length`, but real
+    /// implementations overwhelmingly use the 128-bit form — and our
+    /// algorithm parser currently stores only the counter block. If
+    /// partial-bit counters become needed, thread the `length` value
+    /// here and pick the appropriate `Ctr` type.
     fn encrypt_aes_ctr(
-        _key_data: &[u8],
-        _plaintext: &[u8],
-        _counter: &[u8],
+        key_data: &[u8],
+        plaintext: &[u8],
+        counter: &[u8],
     ) -> Result<Vec<u8>, String> {
-        // TODO: Implement AES-CTR encryption using ring or another crate
-        // Ring doesn't provide AES-CTR, so we'd need another dependency
-        Err("AES-CTR encryption not yet implemented".to_string())
+        use ctr::cipher::{KeyIvInit, StreamCipher};
+
+        if counter.len() != 16 {
+            return Err(format!(
+                "AES-CTR counter block must be 16 bytes, got {}",
+                counter.len()
+            ));
+        }
+
+        let mut out = plaintext.to_vec();
+        match key_data.len() {
+            16 => {
+                type Cipher = ctr::Ctr128BE<aes::Aes128>;
+                Cipher::new(key_data.into(), counter.into())
+                    .apply_keystream(&mut out);
+            }
+            24 => {
+                type Cipher = ctr::Ctr128BE<aes::Aes192>;
+                Cipher::new(key_data.into(), counter.into())
+                    .apply_keystream(&mut out);
+            }
+            32 => {
+                type Cipher = ctr::Ctr128BE<aes::Aes256>;
+                Cipher::new(key_data.into(), counter.into())
+                    .apply_keystream(&mut out);
+            }
+            n => {
+                return Err(format!(
+                    "AES-CTR key must be 16, 24, or 32 bytes; got {n}"
+                ));
+            }
+        }
+        Ok(out)
     }
 
     pub fn decrypt<'gc>(
@@ -989,11 +1155,11 @@ impl SubtleCrypto {
             CryptoAlgorithm::AesGcm { .. } => {
                 Self::decrypt_aes_gcm(&crypto_key.key_data, &ciphertext)
             }
-            CryptoAlgorithm::AesCbc { .. } => {
-                Self::decrypt_aes_cbc(&crypto_key.key_data, &ciphertext)
+            CryptoAlgorithm::AesCbc { iv, .. } => {
+                Self::decrypt_aes_cbc(&crypto_key.key_data, &ciphertext, &iv)
             }
-            CryptoAlgorithm::AesCtr { .. } => {
-                Self::decrypt_aes_ctr(&crypto_key.key_data, &ciphertext)
+            CryptoAlgorithm::AesCtr { counter, .. } => {
+                Self::decrypt_aes_ctr(&crypto_key.key_data, &ciphertext, &counter)
             }
             _ => Err("Unsupported decryption algorithm".to_string()),
         };
@@ -1054,16 +1220,64 @@ impl SubtleCrypto {
         Ok(plaintext.to_vec())
     }
 
-    fn decrypt_aes_cbc(_key_data: &[u8], _ciphertext: &[u8]) -> Result<Vec<u8>, String> {
-        // TODO: Implement AES-CBC decryption using ring or another crate
-        // Ring doesn't provide AES-CBC, so we'd need another dependency
-        Err("AES-CBC decryption not yet implemented".to_string())
+    /// AES-CBC decryption with PKCS#7 unpadding.
+    fn decrypt_aes_cbc(
+        key_data: &[u8],
+        ciphertext: &[u8],
+        iv: &[u8],
+    ) -> Result<Vec<u8>, String> {
+        use cbc::cipher::{BlockDecryptMut, KeyIvInit, block_padding::Pkcs7};
+
+        if iv.len() != 16 {
+            return Err(format!(
+                "AES-CBC IV must be 16 bytes, got {}",
+                iv.len()
+            ));
+        }
+        if ciphertext.is_empty() || ciphertext.len() % 16 != 0 {
+            return Err(format!(
+                "AES-CBC ciphertext length must be a positive multiple of 16, got {}",
+                ciphertext.len()
+            ));
+        }
+
+        let result = match key_data.len() {
+            16 => {
+                type Dec = cbc::Decryptor<aes::Aes128>;
+                Dec::new(key_data.into(), iv.into())
+                    .decrypt_padded_vec_mut::<Pkcs7>(ciphertext)
+                    .map_err(|e| format!("AES-CBC decrypt: {e}"))?
+            }
+            24 => {
+                type Dec = cbc::Decryptor<aes::Aes192>;
+                Dec::new(key_data.into(), iv.into())
+                    .decrypt_padded_vec_mut::<Pkcs7>(ciphertext)
+                    .map_err(|e| format!("AES-CBC decrypt: {e}"))?
+            }
+            32 => {
+                type Dec = cbc::Decryptor<aes::Aes256>;
+                Dec::new(key_data.into(), iv.into())
+                    .decrypt_padded_vec_mut::<Pkcs7>(ciphertext)
+                    .map_err(|e| format!("AES-CBC decrypt: {e}"))?
+            }
+            n => {
+                return Err(format!(
+                    "AES-CBC key must be 16, 24, or 32 bytes; got {n}"
+                ));
+            }
+        };
+        Ok(result)
     }
 
-    fn decrypt_aes_ctr(_key_data: &[u8], _ciphertext: &[u8]) -> Result<Vec<u8>, String> {
-        // TODO: Implement AES-CTR decryption using ring or another crate
-        // Ring doesn't provide AES-CTR, so we'd need another dependency
-        Err("AES-CTR decryption not yet implemented".to_string())
+    /// AES-CTR decryption — same operation as encryption for a stream
+    /// cipher, but we keep a separate function for symmetry with the CBC
+    /// path and to let a future `length`-aware implementation diverge.
+    fn decrypt_aes_ctr(
+        key_data: &[u8],
+        ciphertext: &[u8],
+        counter: &[u8],
+    ) -> Result<Vec<u8>, String> {
+        Self::encrypt_aes_ctr(key_data, ciphertext, counter)
     }
 
     pub fn sign<'gc>(
