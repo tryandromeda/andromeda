@@ -18,11 +18,10 @@ use thiserror::Error;
 #[derive(Error, Diagnostic, Debug)]
 #[allow(clippy::result_large_err)]
 pub enum CliError {
-    #[error("📁 File not found: {}", path.display())]
+    #[error("File not found: {}", path.display())]
     #[diagnostic(
         code(andromeda::cli::file_not_found),
-        help("💡 Make sure the file exists and you have permission to read it"),
-        url("https://doc.rust-lang.org/std/fs/fn.read_to_string.html")
+        help("Make sure the file exists and you have permission to read it.")
     )]
     FileNotFound {
         path: PathBuf,
@@ -30,10 +29,10 @@ pub enum CliError {
         source: std::io::Error,
     },
 
-    #[error("📄 File reading error: {}", path.display())]
+    #[error("Failed to read file: {}", path.display())]
     #[diagnostic(
         code(andromeda::cli::file_read_error),
-        help("💡 Check file permissions and ensure the file is not corrupted")
+        help("Check file permissions and ensure the file is not corrupted.")
     )]
     FileReadError {
         path: PathBuf,
@@ -41,11 +40,10 @@ pub enum CliError {
         source: std::io::Error,
     },
 
-    #[error("🚨 JavaScript/TypeScript parsing failed in {file_path}")]
+    #[error("Parsing failed in {file_path}")]
     #[diagnostic(
         code(andromeda::cli::parse_error),
-        help("💡 Syntax errors detected. Check for missing semicolons, brackets, or quotes."),
-        url("https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types")
+        help("Check for missing semicolons, brackets, or quotes.")
     )]
     ParseError {
         diagnostics: Vec<OxcDiagnostic>,
@@ -55,12 +53,8 @@ pub enum CliError {
         error_spans: Vec<miette::SourceSpan>,
     },
 
-    #[error("⚡ JavaScript runtime error: {message}")]
-    #[diagnostic(
-        code(andromeda::cli::runtime_error),
-        help("💡 Check the stack trace for the exact error location and cause"),
-        url("https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors")
-    )]
+    #[error("{message}")]
+    #[diagnostic(code(andromeda::cli::runtime_error))]
     RuntimeError {
         message: String,
         file_path: Option<String>,
@@ -68,14 +62,14 @@ pub enum CliError {
         column: Option<u32>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
-        #[label("⚠️ Error occurred here")]
+        #[label("error occurred here")]
         error_span: Option<SourceSpan>,
     },
 
     #[error("Compilation failed: {reason}")]
     #[diagnostic(
         code(andromeda::cli::compile_error),
-        help("Try checking if you have write permissions for the output directory")
+        help("Check that you have write permissions for the output directory.")
     )]
     CompileError {
         reason: String,

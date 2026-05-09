@@ -16,15 +16,14 @@ pub enum RuntimeError {
     #[diagnostic(
         code(andromeda::fs::io_error),
         help(
-            "🔍 Check that the file exists and you have proper permissions.\n💡 Try running with elevated permissions if needed.\n📂 Verify the path is correct and accessible."
-        ),
-        url("https://doc.rust-lang.org/std/fs/index.html")
+            "Check that the file exists, the path is correct, and you have permission to access it."
+        )
     )]
     FsError {
         operation: String,
         path: String,
         error_message: String,
-        #[label("📁 File operation failed here")]
+        #[label("file operation failed here")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -33,17 +32,14 @@ pub enum RuntimeError {
     /// Parse errors from JavaScript/TypeScript source
     #[diagnostic(
         code(andromeda::parse::syntax_error),
-        help(
-            "🔍 Check the syntax of your JavaScript/TypeScript code.\n💡 Look for missing semicolons, brackets, or quotes.\n📖 Refer to the JavaScript/TypeScript language specification."
-        ),
-        url("https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types")
+        help("Check for missing semicolons, brackets, or quotes.")
     )]
     ParseError {
         errors: Vec<OxcDiagnostic>,
         source_path: String,
         #[source_code]
         source_code: NamedSource<String>,
-        #[label("❌ Parse error occurred here")]
+        #[label("parse error occurred here")]
         primary_error_span: Option<SourceSpan>,
         related_spans: Vec<SourceSpan>,
     },
@@ -52,13 +48,12 @@ pub enum RuntimeError {
     #[diagnostic(
         code(andromeda::runtime::execution_error),
         help(
-            "🔍 Check the runtime state and ensure all required resources are available.\n💡 Verify that all variables are properly initialized.\n🐛 Review the call stack for the error source."
-        ),
-        url("https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors")
+            "Verify that all variables are initialized and review the call stack for the error source."
+        )
     )]
     RuntimeError {
         message: String,
-        #[label("⚡ Runtime error occurred here")]
+        #[label("runtime error occurred here")]
         location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -73,14 +68,13 @@ pub enum RuntimeError {
     #[diagnostic(
         code(andromeda::extension::load_error),
         help(
-            "🔍 Ensure the extension is properly configured and dependencies are available.\n💡 Check that the extension exports are correctly defined.\n📦 Verify all required dependencies are installed."
-        ),
-        url("https://docs.andromeda.dev/extensions")
+            "Check that the extension is configured correctly and all required dependencies are installed."
+        )
     )]
     ExtensionError {
         extension_name: String,
         message: String,
-        #[label("🧩 Extension error occurred here")]
+        #[label("extension error occurred here")]
         error_location: Option<SourceSpan>,
         #[source_code]
         extension_source: Option<NamedSource<String>>,
@@ -91,16 +85,13 @@ pub enum RuntimeError {
     /// Resource management errors
     #[diagnostic(
         code(andromeda::resource::invalid_rid),
-        help(
-            "🔍 Ensure the resource ID is valid and the resource hasn't been closed.\n💡 Check for race conditions in resource cleanup.\n🔒 Verify resource lifecycle management."
-        ),
-        url("https://docs.andromeda.dev/resources")
+        help("Ensure the resource ID is valid and the resource has not been closed.")
     )]
     ResourceError {
         rid: u32,
         operation: String,
         message: String,
-        #[label("🗂️ Resource operation failed here")]
+        #[label("resource operation failed here")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -111,15 +102,12 @@ pub enum RuntimeError {
     /// Task management errors
     #[diagnostic(
         code(andromeda::task::task_error),
-        help(
-            "🔍 Check task state and ensure proper cleanup.\n💡 Verify async task handling and synchronization.\n⏱️ Check for deadlocks or infinite loops."
-        ),
-        url("https://docs.andromeda.dev/tasks")
+        help("Check task state and async synchronization for deadlocks or improper cleanup.")
     )]
     TaskError {
         task_id: u32,
         message: String,
-        #[label("⚙️ Task error occurred here")]
+        #[label("task error occurred here")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -130,16 +118,13 @@ pub enum RuntimeError {
     /// Network/HTTP errors
     #[diagnostic(
         code(andromeda::network::request_error),
-        help(
-            "🔍 Check network connectivity and request parameters.\n💡 Verify the URL format and endpoint availability.\n🌐 Check firewall and proxy settings."
-        ),
-        url("https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API")
+        help("Check the URL format, network connectivity, and any proxy or firewall settings.")
     )]
     NetworkError {
         url: String,
         operation: String,
         error_message: String,
-        #[label("🌐 Network error occurred here")]
+        #[label("network error occurred here")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -152,15 +137,12 @@ pub enum RuntimeError {
     /// Encoding/Decoding errors
     #[diagnostic(
         code(andromeda::encoding::decode_error),
-        help(
-            "🔍 Ensure the input data is properly formatted.\n💡 Check the encoding format and character set.\n📄 Verify data integrity and completeness."
-        ),
-        url("https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder")
+        help("Verify the input data is well-formed and matches the expected encoding.")
     )]
     EncodingError {
         format: String,
         message: String,
-        #[label("🔤 Encoding error occurred here")]
+        #[label("encoding error occurred here")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -172,15 +154,12 @@ pub enum RuntimeError {
     /// Configuration errors
     #[diagnostic(
         code(andromeda::config::invalid_config),
-        help(
-            "🔍 Check the configuration file format and required fields.\n💡 Verify JSON/TOML syntax and field types.\n📋 Ensure all required configuration options are present."
-        ),
-        url("https://docs.andromeda.dev/configuration")
+        help("Verify the configuration file syntax and that all required fields are present.")
     )]
     ConfigError {
         field: String,
         message: String,
-        #[label("⚙️ Configuration error occurred here")]
+        #[label("configuration error occurred here")]
         error_location: Option<SourceSpan>,
         #[source_code]
         config_source: Option<NamedSource<String>>,
@@ -194,15 +173,14 @@ pub enum RuntimeError {
     #[diagnostic(
         code(andromeda::types::mismatch),
         help(
-            "🔍 Check the types of your variables and function parameters.\n💡 Ensure type compatibility between operations.\n📝 Consider explicit type conversions if needed."
-        ),
-        url("https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures")
+            "Check the types of variables and function parameters; consider an explicit conversion."
+        )
     )]
     TypeError {
         message: String,
         expected_type: String,
         actual_type: String,
-        #[label("❌ Type error occurred here")]
+        #[label("type error occurred here")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -214,15 +192,12 @@ pub enum RuntimeError {
     /// Memory and performance related errors
     #[diagnostic(
         code(andromeda::memory::allocation_error),
-        help(
-            "🔍 Check memory usage and allocation patterns.\n💡 Consider reducing memory footprint or optimizing algorithms.\n📊 Monitor for memory leaks and excessive allocations."
-        ),
-        url("https://docs.andromeda.dev/performance")
+        help("Reduce memory footprint or investigate possible leaks and excessive allocations.")
     )]
     MemoryError {
         message: String,
         operation: String,
-        #[label("💾 Memory error occurred here")]
+        #[label("memory error occurred here")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -234,14 +209,11 @@ pub enum RuntimeError {
     /// Module not found error
     #[diagnostic(
         code(andromeda::module::not_found),
-        help(
-            "🔍 Check that the module path is correct and the file exists.\n💡 Verify import specifiers match actual file names.\n📦 Ensure dependencies are installed."
-        ),
-        url("https://docs.andromeda.dev/modules")
+        help("Check that the module path is correct and the file exists.")
     )]
     ModuleNotFound {
         specifier: String,
-        #[label("📦 Module not found")]
+        #[label("module not found")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -252,15 +224,12 @@ pub enum RuntimeError {
     /// Module parse error
     #[diagnostic(
         code(andromeda::module::parse_error),
-        help(
-            "🔍 Check the syntax of the module source code.\n💡 Look for missing semicolons, brackets, or quotes.\n📖 Ensure the file is valid JavaScript/TypeScript."
-        ),
-        url("https://docs.andromeda.dev/modules")
+        help("Check the syntax of the module source code.")
     )]
     ModuleParseError {
         path: String,
         message: String,
-        #[label("❌ Module parse error")]
+        #[label("module parse error")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -269,16 +238,13 @@ pub enum RuntimeError {
     /// Module resolution error
     #[diagnostic(
         code(andromeda::module::resolution_error),
-        help(
-            "🔍 Check import paths and module specifiers.\n💡 Verify relative paths are correct.\n📂 Ensure the module resolution algorithm can find the file."
-        ),
-        url("https://docs.andromeda.dev/modules#resolution")
+        help("Check import paths and verify the resolver can find the file.")
     )]
     ModuleResolutionError {
         message: String,
         specifier: Option<String>,
         referrer: Option<String>,
-        #[label("🔍 Resolution failed here")]
+        #[label("resolution failed here")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -287,15 +253,12 @@ pub enum RuntimeError {
     /// Module runtime error
     #[diagnostic(
         code(andromeda::module::runtime_error),
-        help(
-            "🔍 Check the module's execution logic.\n💡 Verify all imports are correctly resolved.\n🐛 Review the module's dependencies."
-        ),
-        url("https://docs.andromeda.dev/modules#runtime")
+        help("Review the module's execution logic and verify all imports resolve correctly.")
     )]
     ModuleRuntimeError {
         path: String,
         message: String,
-        #[label("⚡ Module runtime error")]
+        #[label("module runtime error")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -304,14 +267,11 @@ pub enum RuntimeError {
     /// Circular import detected
     #[diagnostic(
         code(andromeda::module::circular_import),
-        help(
-            "🔍 Review the import chain to find the cycle.\n💡 Consider restructuring your modules to avoid circular dependencies.\n📦 Use dynamic imports or dependency injection to break cycles."
-        ),
-        url("https://docs.andromeda.dev/modules#circular-imports")
+        help("Restructure modules to break the cycle, or use dynamic imports.")
     )]
     CircularImport {
         cycle: String,
-        #[label("🔄 Circular import detected")]
+        #[label("circular import detected")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -323,14 +283,13 @@ pub enum RuntimeError {
     #[diagnostic(
         code(andromeda::module::import_not_found),
         help(
-            "🔍 Check that the export exists in the source module.\n💡 Verify the export name matches exactly (case-sensitive).\n📦 Ensure the module exports what you're trying to import."
-        ),
-        url("https://docs.andromeda.dev/modules#exports")
+            "Verify the export name matches exactly (case-sensitive) and is exported by the module."
+        )
     )]
     ImportNotFound {
         import: String,
         module: String,
-        #[label("❓ Import not found")]
+        #[label("import not found")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -341,15 +300,12 @@ pub enum RuntimeError {
     /// Ambiguous export in module
     #[diagnostic(
         code(andromeda::module::ambiguous_export),
-        help(
-            "🔍 The export name is defined multiple times.\n💡 Use explicit re-exports to resolve ambiguity.\n📦 Check for conflicting star exports."
-        ),
-        url("https://docs.andromeda.dev/modules#exports")
+        help("Use explicit re-exports to disambiguate, and check for conflicting star exports.")
     )]
     AmbiguousExport {
         export: String,
         module: String,
-        #[label("⚠️ Ambiguous export")]
+        #[label("ambiguous export")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -360,14 +316,11 @@ pub enum RuntimeError {
     /// Module already loaded
     #[diagnostic(
         code(andromeda::module::already_loaded),
-        help(
-            "🔍 The module has already been loaded.\n💡 This may indicate a configuration issue.\n📦 Check for duplicate module registrations."
-        ),
-        url("https://docs.andromeda.dev/modules#caching")
+        help("Check for duplicate module registrations.")
     )]
     ModuleAlreadyLoaded {
         specifier: String,
-        #[label("📦 Module already loaded")]
+        #[label("module already loaded")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -376,15 +329,12 @@ pub enum RuntimeError {
     /// Invalid module specifier
     #[diagnostic(
         code(andromeda::module::invalid_specifier),
-        help(
-            "🔍 Check the module specifier format.\n💡 Use relative paths (./), absolute paths (/), or bare specifiers.\n📦 Ensure URLs are properly formatted."
-        ),
-        url("https://docs.andromeda.dev/modules#specifiers")
+        help("Use a relative path (./), absolute path (/), bare specifier, or a well-formed URL.")
     )]
     InvalidModuleSpecifier {
         specifier: String,
         reason: Option<String>,
-        #[label("❌ Invalid module specifier")]
+        #[label("invalid module specifier")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -393,15 +343,12 @@ pub enum RuntimeError {
     /// Module I/O error
     #[diagnostic(
         code(andromeda::module::io_error),
-        help(
-            "🔍 Check file permissions and disk space.\n💡 Verify the file is not locked by another process.\n📂 Ensure the path is accessible."
-        ),
-        url("https://docs.andromeda.dev/modules#loading")
+        help("Check file permissions, disk space, and that the path is accessible.")
     )]
     ModuleIoError {
         message: String,
         path: Option<String>,
-        #[label("📁 I/O error")]
+        #[label("I/O error")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -410,25 +357,19 @@ pub enum RuntimeError {
     /// LLM provider not initialized
     #[diagnostic(
         code(andromeda::llm::not_initialized),
-        help(
-            "🔍 Initialize the LLM provider before requesting suggestions.\n💡 Call init_llm_provider() or init_copilot_provider() first.\n🔧 Check that the llm feature is enabled."
-        ),
-        url("https://docs.andromeda.dev/llm-suggestions")
+        help("Call init_llm_provider() or init_copilot_provider() before requesting suggestions.")
     )]
     LlmNotInitialized,
 
     /// LLM provider error
     #[diagnostic(
         code(andromeda::llm::provider_error),
-        help(
-            "🔍 Check the LLM provider configuration.\n💡 Verify API keys and credentials are valid.\n🌐 Ensure network connectivity to the LLM service."
-        ),
-        url("https://docs.andromeda.dev/llm-suggestions")
+        help("Verify the LLM provider configuration, API keys, and network connectivity.")
     )]
     LlmProviderError {
         message: String,
         provider_name: Option<String>,
-        #[label("🤖 LLM provider error")]
+        #[label("LLM provider error")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -437,14 +378,11 @@ pub enum RuntimeError {
     /// LLM request timeout
     #[diagnostic(
         code(andromeda::llm::timeout),
-        help(
-            "🔍 The LLM request took too long.\n💡 Try increasing the timeout duration.\n🌐 Check network latency to the LLM service."
-        ),
-        url("https://docs.andromeda.dev/llm-suggestions#configuration")
+        help("Increase the timeout duration or check network latency to the LLM service.")
     )]
     LlmTimeout {
         timeout_ms: u64,
-        #[label("⏱️ Request timed out")]
+        #[label("request timed out")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -453,10 +391,7 @@ pub enum RuntimeError {
     /// LLM suggestions disabled
     #[diagnostic(
         code(andromeda::llm::disabled),
-        help(
-            "🔍 LLM suggestions are currently disabled.\n💡 Enable them in the configuration.\n🔧 Set enabled: true in LlmSuggestionConfig."
-        ),
-        url("https://docs.andromeda.dev/llm-suggestions#configuration")
+        help("Set enabled: true in LlmSuggestionConfig to turn on LLM suggestions.")
     )]
     LlmDisabled,
 
@@ -464,13 +399,12 @@ pub enum RuntimeError {
     #[diagnostic(
         code(andromeda::llm::auth_error),
         help(
-            "🔍 Check your authentication credentials.\n💡 Verify API keys or tokens are valid and not expired.\n🔑 Ensure GITHUB_TOKEN is set for Copilot integration."
-        ),
-        url("https://docs.andromeda.dev/llm-suggestions#authentication")
+            "Verify API keys or tokens are valid; ensure GITHUB_TOKEN is set for Copilot integration."
+        )
     )]
     LlmAuthenticationError {
         message: String,
-        #[label("🔑 Authentication failed")]
+        #[label("authentication failed")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -479,14 +413,11 @@ pub enum RuntimeError {
     /// LLM network error
     #[diagnostic(
         code(andromeda::llm::network_error),
-        help(
-            "🔍 Check network connectivity.\n💡 Verify firewall and proxy settings.\n🌐 Ensure the LLM service endpoint is accessible."
-        ),
-        url("https://docs.andromeda.dev/llm-suggestions#troubleshooting")
+        help("Check network connectivity, firewall and proxy settings, and the LLM endpoint URL.")
     )]
     LlmNetworkError {
         message: String,
-        #[label("🌐 Network error")]
+        #[label("network error")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -496,14 +427,13 @@ pub enum RuntimeError {
     #[diagnostic(
         code(andromeda::window::error),
         help(
-            "🔍 Check that the window feature is enabled and the window hasn't been closed.\n💡 Verify the platform supports native windowing.\n🪟 Ensure window operations run on the main thread."
-        ),
-        url("https://docs.andromeda.dev/window")
+            "Verify the window feature is enabled, the platform supports native windowing, and operations run on the main thread."
+        )
     )]
     WindowError {
         operation: String,
         message: String,
-        #[label("🪟 Window operation failed here")]
+        #[label("window operation failed here")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -513,13 +443,13 @@ pub enum RuntimeError {
     #[diagnostic(
         code(andromeda::internal::error),
         help(
-            "🔍 This is an internal error that should not occur.\n💡 Please report this issue on GitHub.\n🐛 Include the error message and reproduction steps."
+            "This is an internal error. Please report it on GitHub with the error message and reproduction steps."
         ),
         url("https://github.com/aspect-build/andromeda/issues")
     )]
     InternalError {
         message: String,
-        #[label("🐛 Internal error")]
+        #[label("internal error")]
         error_location: Option<SourceSpan>,
         #[source_code]
         source_code: Option<NamedSource<String>>,
@@ -1402,40 +1332,18 @@ impl ErrorReporter {
 
     /// Print a formatted error with full miette reporting
     pub fn print_error(error: &RuntimeError) {
-        eprintln!();
-        eprintln!(
-            "{} {}",
-            "🚨".red().bold(),
-            "Andromeda Runtime Error".bright_red().bold()
-        );
-        eprintln!("{}", "─".repeat(50).red());
         eprintln!("{:?}", oxc_miette::Report::new(error.clone()));
     }
 
     /// Print multiple errors with enhanced formatting
     pub fn print_errors(errors: &[RuntimeError]) {
-        eprintln!();
-        eprintln!(
-            "{} {} ({} error{})",
-            "🚨".red().bold(),
-            "Andromeda Runtime Errors".bright_red().bold(),
-            errors.len(),
-            if errors.len() == 1 { "" } else { "s" }
-        );
-        eprintln!("{}", "─".repeat(50).red());
-
-        for (i, error) in errors.iter().enumerate() {
-            if errors.len() > 1 {
-                eprintln!();
-                eprintln!(
-                    "{} Error {} of {}:",
-                    "📍".cyan(),
-                    (i + 1).to_string().bright_cyan(),
-                    errors.len().to_string().bright_cyan()
-                );
-                eprintln!("{}", "─".repeat(30).cyan());
-            }
+        for error in errors {
             eprintln!("{:?}", oxc_miette::Report::new(error.clone()));
+        }
+        if errors.len() > 1 {
+            eprintln!();
+            let plural = if errors.len() == 1 { "" } else { "s" };
+            eprintln!("Found {} error{}.", errors.len(), plural);
         }
     }
 
@@ -1450,18 +1358,12 @@ impl ErrorReporter {
     pub fn create_detailed_report(error: &RuntimeError) -> String {
         let mut report = String::new();
 
-        // Header with emoji and color
-        report.push_str(&format!("{} Andromeda Error Report\n", "🔍".bright_blue()));
-        report.push_str(&format!("{}\n", "═".repeat(60).blue()));
-
-        // Main error display
         report.push_str(&format!("{:?}\n", oxc_miette::Report::new(error.clone())));
 
-        // Additional context based on error type
         match error {
             RuntimeError::ParseError { errors, .. } => {
-                report.push_str(&format!("\n{} Parse Details:\n", "📝".bright_yellow()));
-                report.push_str(&format!("Total errors found: {}\n", errors.len()));
+                report.push_str("\nParse details:\n");
+                report.push_str(&format!("  Total errors: {}\n", errors.len()));
                 for (i, err) in errors.iter().enumerate() {
                     report.push_str(&format!("  {}. {}\n", i + 1, err));
                 }
@@ -1472,12 +1374,12 @@ impl ErrorReporter {
                 ..
             } => {
                 if !stack.is_empty() {
-                    report.push_str(&format!("\n{} Stack Trace:\n", "📚".bright_magenta()));
+                    report.push_str("\nStack trace:\n");
                     report.push_str(stack);
                     report.push('\n');
                 }
                 if !variable_context.is_empty() {
-                    report.push_str(&format!("\n{} Variable Context:\n", "🔍".bright_cyan()));
+                    report.push_str("\nVariable context:\n");
                     for (name, value) in variable_context {
                         report.push_str(&format!(
                             "  {} = {}\n",
@@ -1492,12 +1394,16 @@ impl ErrorReporter {
                 request_headers,
                 ..
             } => {
-                report.push_str(&format!("\n{} Network Details:\n", "🌐".bright_green()));
-                report.push_str(&format!("Status Code: {code}\n"));
+                report.push_str("\nNetwork details:\n");
+                report.push_str(&format!("  Status code: {code}\n"));
                 if !request_headers.is_empty() {
-                    report.push_str("Request Headers:\n");
+                    report.push_str("  Request headers:\n");
                     for (key, value) in request_headers {
-                        report.push_str(&format!("  {}: {}\n", key.bright_white(), value.dimmed()));
+                        report.push_str(&format!(
+                            "    {}: {}\n",
+                            key.bright_white(),
+                            value.dimmed()
+                        ));
                     }
                 }
             }
@@ -1506,36 +1412,35 @@ impl ErrorReporter {
                 heap_info: Some(heap),
                 ..
             } => {
-                report.push_str(&format!("\n{} Memory Information:\n", "💾".bright_red()));
-                report.push_str(&format!("Memory Stats: {stats}\n"));
-                report.push_str(&format!("Heap Info: {heap}\n"));
+                report.push_str("\nMemory information:\n");
+                report.push_str(&format!("  Memory stats: {stats}\n"));
+                report.push_str(&format!("  Heap info: {heap}\n"));
             }
             RuntimeError::CircularImport {
                 involved_modules, ..
             } if !involved_modules.is_empty() => {
-                report.push_str(&format!("\n{} Involved Modules:\n", "🔄".bright_yellow()));
+                report.push_str("\nInvolved modules:\n");
                 for module in involved_modules {
-                    report.push_str(&format!("  • {}\n", module));
+                    report.push_str(&format!("  - {}\n", module));
                 }
             }
             RuntimeError::ImportNotFound {
                 available_exports, ..
             } if !available_exports.is_empty() => {
-                report.push_str(&format!("\n{} Available Exports:\n", "📦".bright_green()));
+                report.push_str("\nAvailable exports:\n");
                 for export in available_exports {
-                    report.push_str(&format!("  • {}\n", export));
+                    report.push_str(&format!("  - {}\n", export));
                 }
             }
             RuntimeError::ModuleNotFound { suggestions, .. } if !suggestions.is_empty() => {
-                report.push_str(&format!("\n{} Did you mean:\n", "💡".bright_yellow()));
+                report.push_str("\nDid you mean:\n");
                 for suggestion in suggestions {
-                    report.push_str(&format!("  • {}\n", suggestion));
+                    report.push_str(&format!("  - {}\n", suggestion));
                 }
             }
             _ => {}
         }
 
-        report.push_str(&format!("\n{}\n", "═".repeat(60).blue()));
         report
     }
 }

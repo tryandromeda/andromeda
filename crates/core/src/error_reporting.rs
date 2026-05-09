@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use miette::{MietteHandlerOpts, Report};
+#[cfg(feature = "llm")]
 use owo_colors::OwoColorize;
 use std::sync::Once;
 
@@ -111,13 +112,6 @@ pub fn print_error<E>(error: E)
 where
     E: std::error::Error + miette::Diagnostic + Send + Sync + 'static,
 {
-    eprintln!();
-    eprintln!(
-        "{} {}",
-        "🚨".red().bold(),
-        "Andromeda Error".bright_red().bold()
-    );
-    eprintln!("{}", "─".repeat(50).red());
     eprintln!("{:?}", Report::new(error));
 }
 
@@ -153,18 +147,10 @@ where
 {
     use crate::llm_suggestions::{ErrorContext, get_error_suggestion, is_llm_initialized};
 
-    eprintln!();
-    eprintln!(
-        "{} {}",
-        "🚨".red().bold(),
-        "Andromeda Error".bright_red().bold()
-    );
-    eprintln!("{}", "─".repeat(50).red());
     eprintln!("{:?}", Report::new(error));
 
-    // Try to get LLM suggestion if available
     if is_llm_initialized() {
-        let error_message = format!("{}", std::io::Error::other("placeholder")); // We'll use the actual error
+        let error_message = format!("{}", std::io::Error::other("placeholder"));
         let mut context = ErrorContext::new(&error_message);
 
         if let Some(source) = source_code {
@@ -178,12 +164,10 @@ where
         if let Some(suggestion) = get_error_suggestion(&context) {
             eprintln!();
             eprintln!(
-                "{} {} {}",
-                "💡".bright_yellow(),
-                "AI Suggestion".bright_yellow().bold(),
+                "{} {}",
+                "AI suggestion".yellow().bold(),
                 format!("(via {})", suggestion.provider_name).dimmed()
             );
-            eprintln!("{}", "─".repeat(50).yellow());
             eprintln!("{}", suggestion.suggestion);
         }
     }
@@ -208,27 +192,17 @@ pub fn print_error_with_context<E>(error: E, context: &crate::llm_suggestions::E
 where
     E: std::error::Error + miette::Diagnostic + Send + Sync + 'static,
 {
-    eprintln!();
-    eprintln!(
-        "{} {}",
-        "🚨".red().bold(),
-        "Andromeda Error".bright_red().bold()
-    );
-    eprintln!("{}", "─".repeat(50).red());
     eprintln!("{:?}", Report::new(error));
 
-    // Try to get LLM suggestion if available
     if crate::llm_suggestions::is_llm_initialized()
         && let Some(suggestion) = crate::llm_suggestions::get_error_suggestion(context)
     {
         eprintln!();
         eprintln!(
-            "{} {} {}",
-            "💡".bright_yellow(),
-            "AI Suggestion".bright_yellow().bold(),
+            "{} {}",
+            "AI suggestion".yellow().bold(),
             format!("(via {})", suggestion.provider_name).dimmed()
         );
-        eprintln!("{}", "─".repeat(50).yellow());
         eprintln!("{}", suggestion.suggestion);
     }
 }
@@ -290,10 +264,8 @@ where
         }
 
         if let Some(suggestion) = get_error_suggestion(&context) {
-            output.push_str("\n\n💡 AI Suggestion ");
+            output.push_str("\n\nAI suggestion ");
             output.push_str(&format!("(via {}):\n", suggestion.provider_name));
-            output.push_str(&"─".repeat(50));
-            output.push('\n');
             output.push_str(&suggestion.suggestion);
         }
     }
@@ -338,27 +310,12 @@ where
         return;
     }
 
-    eprintln!();
-    eprintln!(
-        "{} {} ({} error{})",
-        "🚨".red().bold(),
-        "Andromeda Errors".bright_red().bold(),
-        errors.len(),
-        if errors.len() == 1 { "" } else { "s" }
-    );
-    eprintln!("{}", "─".repeat(50).red());
-
-    for (i, error) in errors.iter().enumerate() {
-        if errors.len() > 1 {
-            eprintln!();
-            eprintln!(
-                "{} Error {} of {}:",
-                "📍".cyan(),
-                (i + 1).to_string().bright_cyan(),
-                errors.len().to_string().bright_cyan()
-            );
-            eprintln!("{}", "─".repeat(30).cyan());
-        }
+    for error in errors {
         eprintln!("{:?}", Report::new(error.clone()));
+    }
+
+    if errors.len() > 1 {
+        eprintln!();
+        eprintln!("Found {} errors.", errors.len());
     }
 }

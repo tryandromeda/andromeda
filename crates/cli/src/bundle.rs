@@ -96,8 +96,6 @@ fn should_transform_typescript(input_path: &Path, output_path: &Path) -> bool {
         .and_then(|s| s.to_str())
         .unwrap_or("");
 
-    // Transform TypeScript to JavaScript if:
-    // - Input is .ts/.tsx and output is .js/.jsx
     matches!(
         (input_ext, output_ext),
         ("ts", "js") | ("tsx", "jsx") | ("ts", "jsx") | ("tsx", "js")

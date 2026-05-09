@@ -28,7 +28,7 @@ use helper::{find_formattable_files_for_format, find_formattable_files_for_lint}
 mod lint;
 use lint::lint_file_with_config;
 mod check;
-use check::check_files_with_config;
+use check::{CheckOutputFormat, check_files_with_options};
 mod config;
 mod lsp;
 mod task;
@@ -153,6 +153,17 @@ enum Command {
         /// The file(s) or directory(ies) to type-check
         #[arg(required = false)]
         paths: Vec<PathBuf>,
+
+        /// Emit one JSON object per diagnostic (ndjson) on stdout. Progress and
+        /// summary lines are still written to stderr. Mutually exclusive with
+        /// --quiet.
+        #[arg(long, conflicts_with = "quiet")]
+        json: bool,
+
+        /// Suppress all output; rely on the exit code to signal status. Mutually
+        /// exclusive with --json.
+        #[arg(long)]
+        quiet: bool,
     },
 
     /// Start Language Server Protocol (LSP) server
@@ -470,11 +481,18 @@ fn run_main() -> CliResult<()> {
                     Ok(())
                 }
             }
-            Command::Check { paths } => {
-                // Load configuration
+            Command::Check { paths, json, quiet } => {
                 let config = ConfigManager::load_or_default(None);
 
-                check_files_with_config(&paths, Some(config))
+                let format = if json {
+                    CheckOutputFormat::Json
+                } else if quiet {
+                    CheckOutputFormat::Quiet
+                } else {
+                    CheckOutputFormat::Pretty
+                };
+
+                check_files_with_options(&paths, Some(config), format)
             }
             Command::Lsp => {
                 run_lsp_server().map_err(|e| {

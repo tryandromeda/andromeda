@@ -1,50 +1,29 @@
-// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-// If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
 #![allow(unused_assignments)]
 
 use crate::config::AndromedaConfig;
-use crate::error::{CliError, CliResult};
+use crate::error::CliResult;
 use crate::helper::find_formattable_files;
 use console::Style;
 use miette as oxc_miette;
 use miette::{Diagnostic, NamedSource, SourceSpan};
-use owo_colors::OwoColorize;
 use oxc_allocator::Allocator;
 use oxc_parser::Parser;
 use oxc_semantic::SemanticBuilder;
 use oxc_span::SourceType;
+use serde::Serialize;
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Type checking error types with rich diagnostic information
-#[allow(dead_code)]
+/// Type checking error types with rich diagnostic information.
 #[derive(Diagnostic, Debug, Clone)]
+#[non_exhaustive]
 pub enum TypeCheckError {
-    /// Type mismatch error
-    #[diagnostic(
-        code(andromeda::check::type_mismatch),
-        help(
-            "🔍 Ensure the value matches the expected type.\n💡 Check variable assignments and function return types.\n📖 Use type assertions (as Type) or type guards if needed."
-        ),
-        url("https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#type-annotations")
-    )]
-    TypeMismatch {
-        expected: String,
-        actual: String,
-        #[label("Type '{actual}' is not assignable to type '{expected}'")]
-        span: SourceSpan,
-        #[source_code]
-        source_code: NamedSource<String>,
-    },
-    /// Unknown identifier
-    #[diagnostic(
-        code(andromeda::check::unknown_identifier),
-        help(
-            "🔍 Check for typos in the identifier name.\n💡 Ensure the variable is declared before use.\n📖 Import the identifier if it's from another module."
-        ),
-        url("https://www.typescriptlang.org/docs/handbook/variable-declarations.html")
-    )]
+    /// Unknown identifier (could not be resolved against any scope or ambient declaration)
+    #[diagnostic(code(andromeda::check::unknown_identifier))]
     UnknownIdentifier {
         name: String,
         #[label("Cannot find name '{name}'")]
@@ -52,113 +31,8 @@ pub enum TypeCheckError {
         #[source_code]
         source_code: NamedSource<String>,
     },
-    /// Property does not exist on type
-    #[diagnostic(
-        code(andromeda::check::property_not_found),
-        help(
-            "🔍 Check the property name for typos.\n💡 Ensure the object has the expected shape.\n📖 Use optional chaining (?.) if the property might not exist."
-        ),
-        url("https://www.typescriptlang.org/docs/handbook/2/objects.html#property-access")
-    )]
-    PropertyNotFound {
-        property: String,
-        object_type: String,
-        #[label("Property '{property}' does not exist on type '{object_type}'")]
-        span: SourceSpan,
-        #[source_code]
-        source_code: NamedSource<String>,
-    },
-    /// Function call with incorrect arguments
-    #[allow(dead_code)]
-    #[diagnostic(
-        code(andromeda::check::argument_mismatch),
-        help(
-            "🔍 Check the function signature and provide the correct number of arguments.\n💡 Use optional parameters (?) or default parameters if applicable.\n📖 Consider function overloads if the function supports multiple call signatures."
-        ),
-        url("https://www.typescriptlang.org/docs/handbook/2/functions.html")
-    )]
-    ArgumentMismatch {
-        function_name: String,
-        expected_args: usize,
-        actual_args: usize,
-        #[label(
-            "Expected {expected_args} arguments for function '{function_name}', but got {actual_args}"
-        )]
-        span: SourceSpan,
-        #[source_code]
-        source_code: NamedSource<String>,
-    },
-    /// Return type mismatch
-    #[allow(dead_code)]
-    #[diagnostic(
-        code(andromeda::check::return_type_mismatch),
-        help(
-            "🔍 Ensure the return value matches the function's return type.\n💡 Check all code paths return the expected type.\n📖 Use union types if multiple return types are valid."
-        ),
-        url(
-            "https://www.typescriptlang.org/docs/handbook/2/functions.html#return-type-annotations"
-        )
-    )]
-    ReturnTypeMismatch {
-        expected: String,
-        actual: String,
-        #[label("Return type '{actual}' is not assignable to expected return type '{expected}'")]
-        span: SourceSpan,
-        #[source_code]
-        source_code: NamedSource<String>,
-    },
-    /// Cannot assign to readonly property
-    #[diagnostic(
-        code(andromeda::check::readonly_assignment),
-        help(
-            "🔍 Remove the assignment to the readonly property.\n💡 Use a different approach like creating a new object.\n📖 Consider if the property should be mutable instead."
-        ),
-        url("https://www.typescriptlang.org/docs/handbook/2/objects.html#readonly-properties")
-    )]
-    ReadonlyAssignment {
-        property: String,
-        #[label("Cannot assign to '{property}' because it is a read-only property")]
-        span: SourceSpan,
-        #[source_code]
-        source_code: NamedSource<String>,
-    },
-    /// Missing type annotation
-    #[diagnostic(
-        code(andromeda::check::missing_type_annotation),
-        help(
-            "🔍 Add a type annotation to the identifier.\n💡 Use type inference when possible, explicit types when needed.\n📖 Consider using const assertions for literal types."
-        ),
-        url("https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#type-annotations")
-    )]
-    MissingTypeAnnotation {
-        identifier: String,
-        #[label("Missing type annotation for '{identifier}'")]
-        span: SourceSpan,
-        #[source_code]
-        source_code: NamedSource<String>,
-    },
-    /// Unreachable code
-    #[diagnostic(
-        code(andromeda::check::unreachable_code),
-        help(
-            "🔍 Remove the unreachable code.\n💡 Check for early returns or conditions that prevent execution.\n📖 Consider restructuring the code flow."
-        ),
-        url("https://www.typescriptlang.org/docs/handbook/2/narrowing.html")
-    )]
-    UnreachableCode {
-        #[label("This code is unreachable")]
-        span: SourceSpan,
-        #[source_code]
-        source_code: NamedSource<String>,
-    },
     /// Parse error
-    #[diagnostic(
-        code(andromeda::check::parse_error),
-        help(
-            "🔍 Fix the syntax error in the code.\n💡 Check for missing brackets, semicolons, or incorrect syntax.\n📖 Ensure proper TypeScript/JavaScript syntax."
-        ),
-        url("https://www.typescriptlang.org/docs/handbook/intro.html")
-    )]
+    #[diagnostic(code(andromeda::check::parse_error))]
     ParseError {
         message: String,
         #[label("Syntax error: {message}")]
@@ -166,14 +40,8 @@ pub enum TypeCheckError {
         #[source_code]
         source_code: NamedSource<String>,
     },
-    /// Semantic error
-    #[diagnostic(
-        code(andromeda::check::semantic_error),
-        help(
-            "🔍 Fix the semantic error in the code.\n💡 Check variable declarations, scope, and language semantics.\n📖 Ensure proper language usage and structure."
-        ),
-        url("https://www.typescriptlang.org/docs/handbook/intro.html")
-    )]
+    /// Semantic error (anything from oxc_semantic that isn't a name resolution issue)
+    #[diagnostic(code(andromeda::check::semantic_error))]
     SemanticError {
         message: String,
         #[label("Semantic error: {message}")]
@@ -182,13 +50,7 @@ pub enum TypeCheckError {
         source_code: NamedSource<String>,
     },
     /// Unused variable
-    #[diagnostic(
-        code(andromeda::check::unused_variable),
-        help(
-            "🔍 Remove the unused variable or prefix with underscore (_) to indicate intentional.\n💡 Consider if the variable is needed for future use.\n📖 Use ESLint's no-unused-vars rule to catch these automatically."
-        ),
-        url("https://www.typescriptlang.org/docs/handbook/variable-declarations.html")
-    )]
+    #[diagnostic(code(andromeda::check::unused_variable))]
     UnusedVariable {
         name: String,
         #[label("Variable '{name}' is declared but never used")]
@@ -198,57 +60,32 @@ pub enum TypeCheckError {
     },
 }
 
+impl TypeCheckError {
+    /// The stable diagnostic code for serialised output.
+    pub fn code(&self) -> &'static str {
+        match self {
+            TypeCheckError::UnknownIdentifier { .. } => "andromeda::check::unknown_identifier",
+            TypeCheckError::ParseError { .. } => "andromeda::check::parse_error",
+            TypeCheckError::SemanticError { .. } => "andromeda::check::semantic_error",
+            TypeCheckError::UnusedVariable { .. } => "andromeda::check::unused_variable",
+        }
+    }
+
+    pub fn span(&self) -> SourceSpan {
+        match self {
+            TypeCheckError::UnknownIdentifier { span, .. } => *span,
+            TypeCheckError::ParseError { span, .. } => *span,
+            TypeCheckError::SemanticError { span, .. } => *span,
+            TypeCheckError::UnusedVariable { span, .. } => *span,
+        }
+    }
+}
+
 impl std::fmt::Display for TypeCheckError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeCheckError::TypeMismatch {
-                expected, actual, ..
-            } => {
-                write!(f, "Type '{actual}' is not assignable to type '{expected}'")
-            }
             TypeCheckError::UnknownIdentifier { name, .. } => {
                 write!(f, "Cannot find name '{name}'")
-            }
-            TypeCheckError::PropertyNotFound {
-                property,
-                object_type,
-                ..
-            } => {
-                write!(
-                    f,
-                    "Property '{property}' does not exist on type '{object_type}'"
-                )
-            }
-            TypeCheckError::ArgumentMismatch {
-                function_name,
-                expected_args,
-                actual_args,
-                ..
-            } => {
-                write!(
-                    f,
-                    "Expected {expected_args} arguments for function '{function_name}', but got {actual_args}"
-                )
-            }
-            TypeCheckError::ReturnTypeMismatch {
-                expected, actual, ..
-            } => {
-                write!(
-                    f,
-                    "Return type '{actual}' is not assignable to expected return type '{expected}'"
-                )
-            }
-            TypeCheckError::ReadonlyAssignment { property, .. } => {
-                write!(
-                    f,
-                    "Cannot assign to '{property}' because it is a read-only property"
-                )
-            }
-            TypeCheckError::MissingTypeAnnotation { identifier, .. } => {
-                write!(f, "Missing type annotation for '{identifier}'")
-            }
-            TypeCheckError::UnreachableCode { .. } => {
-                write!(f, "Unreachable code detected")
             }
             TypeCheckError::ParseError { message, .. } => {
                 write!(f, "Parse error: {message}")
@@ -265,16 +102,213 @@ impl std::fmt::Display for TypeCheckError {
 
 impl std::error::Error for TypeCheckError {}
 
-/// Type check a single TypeScript file
-#[allow(clippy::result_large_err)]
-pub fn check_file_with_config(
-    path: &PathBuf,
-    config_override: Option<AndromedaConfig>,
-) -> CliResult<Vec<TypeCheckError>> {
-    let content =
-        fs::read_to_string(path).map_err(|e| CliError::file_read_error(path.clone(), e))?;
+/// JSON-friendly view of a single diagnostic, for `--json` output.
+#[derive(Debug, Serialize)]
+pub struct JsonDiagnostic {
+    pub path: String,
+    pub code: &'static str,
+    pub message: String,
+    pub line: usize,
+    pub column: usize,
+    pub offset: usize,
+    pub length: usize,
+}
 
-    check_file_content_with_config(path, &content, config_override)
+impl JsonDiagnostic {
+    fn from_error(path: &Path, source: &str, err: &TypeCheckError) -> Self {
+        let span = err.span();
+        let offset = span.offset();
+        let length = span.len();
+        let (line, column) = offset_to_line_column(source, offset);
+        Self {
+            path: path.display().to_string(),
+            code: err.code(),
+            message: err.to_string(),
+            line,
+            column,
+            offset,
+            length,
+        }
+    }
+}
+
+fn offset_to_line_column(source: &str, offset: usize) -> (usize, usize) {
+    let mut line = 1usize;
+    let mut col = 1usize;
+    let mut byte = 0usize;
+    for ch in source.chars() {
+        if byte >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            col = 1;
+        } else {
+            col += 1;
+        }
+        byte += ch.len_utf8();
+    }
+    (line, col)
+}
+
+/// Names that are always considered globally available, so they should not trigger `UnknownIdentifier`
+const BUILTIN_GLOBALS: &[&str] = &[
+    "globalThis",
+    "undefined",
+    "NaN",
+    "Infinity",
+    "this",
+    "arguments",
+    "eval",
+    "Object",
+    "Function",
+    "Array",
+    "String",
+    "Boolean",
+    "Number",
+    "BigInt",
+    "Symbol",
+    "Date",
+    "RegExp",
+    "Error",
+    "TypeError",
+    "RangeError",
+    "SyntaxError",
+    "ReferenceError",
+    "EvalError",
+    "URIError",
+    "AggregateError",
+    "Promise",
+    "Proxy",
+    "Reflect",
+    "JSON",
+    "Math",
+    "Map",
+    "Set",
+    "WeakMap",
+    "WeakSet",
+    "WeakRef",
+    "FinalizationRegistry",
+    "Iterator",
+    "AsyncIterator",
+    "ArrayBuffer",
+    "SharedArrayBuffer",
+    "DataView",
+    "Atomics",
+    "Int8Array",
+    "Uint8Array",
+    "Uint8ClampedArray",
+    "Int16Array",
+    "Uint16Array",
+    "Int32Array",
+    "Uint32Array",
+    "Float16Array",
+    "Float32Array",
+    "Float64Array",
+    "BigInt64Array",
+    "BigUint64Array",
+    "parseInt",
+    "parseFloat",
+    "isNaN",
+    "isFinite",
+    "encodeURI",
+    "encodeURIComponent",
+    "decodeURI",
+    "decodeURIComponent",
+    "console",
+    "self",
+    "performance",
+    "setTimeout",
+    "setInterval",
+    "clearTimeout",
+    "clearInterval",
+    "queueMicrotask",
+    "structuredClone",
+    "fetch",
+    "Request",
+    "Response",
+    "Headers",
+    "URL",
+    "URLPattern",
+    "URLSearchParams",
+    "TextEncoder",
+    "TextEncoderStream",
+    "TextDecoder",
+    "TextDecoderStream",
+    "ReadableStream",
+    "WritableStream",
+    "TransformStream",
+    "ByteLengthQueuingStrategy",
+    "CountQueuingStrategy",
+    "Blob",
+    "File",
+    "FormData",
+    "AbortController",
+    "AbortSignal",
+    "Event",
+    "EventTarget",
+    "CustomEvent",
+    "MessageEvent",
+    "ErrorEvent",
+    "CloseEvent",
+    "BroadcastChannel",
+    "MessageChannel",
+    "MessagePort",
+    "crypto",
+    "Crypto",
+    "SubtleCrypto",
+    "CryptoKey",
+    "atob",
+    "btoa",
+    "alert",
+    "confirm",
+    "prompt",
+    "localStorage",
+    "sessionStorage",
+    "Storage",
+    "WebSocket",
+    "Worker",
+    "DOMException",
+    "Navigator",
+    "navigator",
+    "clientInformation",
+    "Image",
+    "ImageData",
+    "ImageBitmap",
+    "OffscreenCanvas",
+    "Path2D",
+    "CanvasGradient",
+    "CanvasPattern",
+    "CanvasRenderingContext2D",
+    "DOMMatrix",
+    "DOMMatrixReadOnly",
+    "TextMetrics",
+    "createImageBitmap",
+    "Database",
+    "DatabaseSync",
+    "StatementSync",
+    "sqlite",
+    "Cron",
+    "Window",
+    "createWindow",
+    "Andromeda",
+    "__andromeda__",
+    "assert",
+    "assertEquals",
+    "assertNotEquals",
+    "assertThrows",
+    "constants",
+    "exports",
+];
+
+fn known_globals() -> &'static HashSet<&'static str> {
+    use std::sync::OnceLock;
+    static GLOBALS: OnceLock<HashSet<&'static str>> = OnceLock::new();
+    GLOBALS.get_or_init(|| BUILTIN_GLOBALS.iter().copied().collect())
+}
+
+fn is_known_global(name: &str) -> bool {
+    known_globals().contains(name)
 }
 
 /// Type check file content directly
@@ -291,26 +325,25 @@ pub fn check_file_content_with_config(
         return Ok(Vec::new());
     }
 
+    let is_declaration = source_type.is_typescript_definition();
+
     let ret = Parser::new(&allocator, content, source_type).parse();
     let program = &ret.program;
-    let mut type_errors = Vec::new();
+    let mut type_errors: Vec<TypeCheckError> = Vec::new();
 
-    if !ret.errors.is_empty() {
-        for error in &ret.errors {
-            let source_name = path.display().to_string();
-            let named_source = NamedSource::new(source_name, content.to_string());
+    let source_name = path.display().to_string();
+    let named_source = NamedSource::new(source_name, content.to_string());
 
-            if let Some(labels) = &error.labels
-                && let Some(label) = labels.first()
-            {
-                let span = SourceSpan::new(label.offset().into(), label.len());
-
-                type_errors.push(TypeCheckError::ParseError {
-                    message: error.to_string(),
-                    span,
-                    source_code: named_source,
-                });
-            }
+    for error in &ret.errors {
+        if let Some(labels) = &error.labels
+            && let Some(label) = labels.first()
+        {
+            let span = SourceSpan::new(label.offset().into(), label.len());
+            type_errors.push(TypeCheckError::ParseError {
+                message: error.to_string(),
+                span,
+                source_code: named_source.clone(),
+            });
         }
     }
 
@@ -319,64 +352,30 @@ pub fn check_file_content_with_config(
         .with_cfg(true)
         .build(program);
 
-    let source_name = path.display().to_string();
-    let named_source = NamedSource::new(source_name, content.to_string());
+    let semantic = &semantic_ret.semantic;
+    let scoping = semantic.scoping();
 
-    for error in &semantic_ret.errors {
-        if let Some(labels) = &error.labels
-            && let Some(label) = labels.first()
-        {
-            let span = SourceSpan::new(label.offset().into(), label.len());
-
-            let error_message = error.to_string();
-
-            if error_message.contains("Cannot find name") {
-                if let Some(name) = extract_identifier_from_error(&error_message) {
-                    type_errors.push(TypeCheckError::UnknownIdentifier {
-                        name,
-                        span,
-                        source_code: named_source.clone(),
-                    });
-                }
-            } else if error_message.contains("Property") && error_message.contains("does not exist")
-            {
-                if let (Some(property), Some(object_type)) =
-                    extract_property_error_info(&error_message)
-                {
-                    type_errors.push(TypeCheckError::PropertyNotFound {
-                        property,
-                        object_type,
-                        span,
-                        source_code: named_source.clone(),
-                    });
-                }
-            } else if error_message.contains("not assignable to") {
-                if let (Some(actual), Some(expected)) = extract_type_mismatch_info(&error_message) {
-                    type_errors.push(TypeCheckError::TypeMismatch {
-                        expected,
-                        actual,
-                        span,
-                        source_code: named_source.clone(),
-                    });
-                }
-            } else {
-                type_errors.push(TypeCheckError::SemanticError {
-                    message: error.to_string(),
-                    span,
-                    source_code: named_source.clone(),
-                });
-            }
-        }
-    }
-
-    let _semantic = &semantic_ret.semantic;
-    let scoping = _semantic.scoping();
+    let mut unresolved_spans: HashSet<(u32, u32)> = HashSet::new();
 
     for reference_id_list in scoping.root_unresolved_references_ids() {
         for reference_id in reference_id_list {
             let reference = scoping.get_reference(reference_id);
-            let name = _semantic.reference_name(reference);
-            let ref_span = _semantic.reference_span(reference);
+
+            if reference.flags().is_type_only() {
+                continue;
+            }
+
+            let name = semantic.reference_name(reference);
+
+            if is_known_global(name) {
+                continue;
+            }
+
+            let ref_span = semantic.reference_span(reference);
+            let key = (ref_span.start, ref_span.end);
+            if !unresolved_spans.insert(key) {
+                continue;
+            }
 
             let span = SourceSpan::new((ref_span.start as usize).into(), ref_span.size() as usize);
 
@@ -388,215 +387,78 @@ pub fn check_file_content_with_config(
         }
     }
 
-    for symbol_id in scoping.symbol_ids() {
-        if scoping.symbol_is_unused(symbol_id) {
-            let name = scoping.symbol_name(symbol_id);
-            let symbol_span = scoping.symbol_span(symbol_id);
+    for error in &semantic_ret.errors {
+        let Some(labels) = &error.labels else {
+            continue;
+        };
+        let Some(label) = labels.first() else {
+            continue;
+        };
 
-            if !name.starts_with('_') {
-                let span = SourceSpan::new(
-                    (symbol_span.start as usize).into(),
-                    symbol_span.size() as usize,
-                );
+        let start = label.offset() as u32;
+        let end = start + label.len() as u32;
+        if unresolved_spans.contains(&(start, end)) {
+            continue;
+        }
 
-                type_errors.push(TypeCheckError::UnusedVariable {
-                    name: name.to_string(),
-                    span,
-                    source_code: named_source.clone(),
-                });
+        let span = SourceSpan::new(label.offset().into(), label.len());
+        type_errors.push(TypeCheckError::SemanticError {
+            message: error.to_string(),
+            span,
+            source_code: named_source.clone(),
+        });
+    }
+
+    if !is_declaration {
+        for symbol_id in scoping.symbol_ids() {
+            if !scoping.symbol_is_unused(symbol_id) {
+                continue;
             }
+            let name = scoping.symbol_name(symbol_id);
+            if name.starts_with('_') {
+                continue;
+            }
+            let symbol_span = scoping.symbol_span(symbol_id);
+            let span = SourceSpan::new(
+                (symbol_span.start as usize).into(),
+                symbol_span.size() as usize,
+            );
+            type_errors.push(TypeCheckError::UnusedVariable {
+                name: name.to_string(),
+                span,
+                source_code: named_source.clone(),
+            });
         }
     }
 
     Ok(type_errors)
 }
 
-/// Helper function to extract identifier name from error message
-fn extract_identifier_from_error(error_message: &str) -> Option<String> {
-    let patterns = [
-        "Cannot find name '",
-        "Identifier '",
-        "Variable '",
-        "Function '",
-        "Property '",
-        "Type '",
-        "Interface '",
-        "Class '",
-        "Enum '",
-        "Namespace '",
-        "Module '",
-    ];
-
-    for pattern in &patterns {
-        if let Some(start_pos) = error_message.find(pattern) {
-            let content_start = start_pos + pattern.len();
-            if let Some(end_pos) = error_message[content_start..].find("'") {
-                let identifier = &error_message[content_start..content_start + end_pos];
-                if !identifier.is_empty()
-                    && identifier
-                        .chars()
-                        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
-                {
-                    return Some(identifier.to_string());
-                }
-            }
-        }
-    }
-
-    let mut in_quotes = false;
-    let mut current_identifier = String::new();
-
-    for ch in error_message.chars() {
-        if ch == '\'' {
-            if in_quotes && !current_identifier.is_empty() {
-                if current_identifier
-                    .chars()
-                    .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
-                {
-                    return Some(current_identifier);
-                }
-                current_identifier.clear();
-            }
-            in_quotes = !in_quotes;
-        } else if in_quotes {
-            current_identifier.push(ch);
-        }
-    }
-
-    None
-}
-
-/// Helper function to extract property error information
-fn extract_property_error_info(error_message: &str) -> (Option<String>, Option<String>) {
-    if let Some(prop_start) = error_message.find("Property '") {
-        let prop_content_start = prop_start + "Property '".len();
-        if let Some(prop_end) = error_message[prop_content_start..].find("'") {
-            let property =
-                error_message[prop_content_start..prop_content_start + prop_end].to_string();
-
-            if let Some(type_start) = error_message.find("on type '") {
-                let type_content_start = type_start + "on type '".len();
-                if let Some(type_end) = error_message[type_content_start..].find("'") {
-                    let object_type = error_message
-                        [type_content_start..type_content_start + type_end]
-                        .to_string();
-                    return (Some(property), Some(object_type));
-                }
-            }
-
-            return (Some(property), Some("unknown".to_string()));
-        }
-    }
-
-    if error_message.contains("property does not exist on") {
-        let parts: Vec<&str> = error_message.split('\'').collect();
-        if parts.len() >= 4 {
-            let property = parts[1].to_string();
-            let object_type = if parts.len() >= 6 {
-                parts[3].to_string()
-            } else {
-                "unknown".to_string()
-            };
-            return (Some(property), Some(object_type));
-        }
-    }
-
-    if let Some(property) = extract_identifier_from_error(error_message) {
-        return (Some(property), Some("unknown".to_string()));
-    }
-
-    (None, None)
-}
-
-/// Helper function to extract type mismatch information
-fn extract_type_mismatch_info(error_message: &str) -> (Option<String>, Option<String>) {
-    if let Some(actual_start) = error_message.find("Type '") {
-        let actual_content_start = actual_start + "Type '".len();
-        if let Some(actual_end) = error_message[actual_content_start..].find("'") {
-            let actual_type =
-                error_message[actual_content_start..actual_content_start + actual_end].to_string();
-
-            if let Some(expected_start) = error_message.find("assignable to type '") {
-                let expected_content_start = expected_start + "assignable to type '".len();
-                if let Some(expected_end) = error_message[expected_content_start..].find("'") {
-                    let expected_type = error_message
-                        [expected_content_start..expected_content_start + expected_end]
-                        .to_string();
-                    return (Some(actual_type), Some(expected_type));
-                }
-            }
-        }
-    }
-
-    if error_message.contains("is not assignable to") {
-        let parts: Vec<&str> = error_message.split('\'').collect();
-        if parts.len() >= 4 {
-            let actual_type = parts[1].to_string();
-            let expected_type = if parts.len() >= 6 {
-                parts[3].to_string()
-            } else {
-                "unknown".to_string()
-            };
-            return (Some(actual_type), Some(expected_type));
-        }
-    }
-
-    if error_message.contains("Cannot assign") {
-        let parts: Vec<&str> = error_message.split('\'').collect();
-        if parts.len() >= 4 {
-            let actual_type = parts[1].to_string();
-            let expected_type = if parts.len() >= 6 {
-                parts[3].to_string()
-            } else {
-                "unknown".to_string()
-            };
-            return (Some(actual_type), Some(expected_type));
-        }
-    }
-
-    if error_message.contains("Return type") && error_message.contains("not assignable to") {
-        let parts: Vec<&str> = error_message.split('\'').collect();
-        if parts.len() >= 4 {
-            let actual_type = parts[1].to_string();
-            let expected_type = if parts.len() >= 6 {
-                parts[3].to_string()
-            } else {
-                "unknown".to_string()
-            };
-            return (Some(actual_type), Some(expected_type));
-        }
-    }
-
-    let quoted_types: Vec<&str> = error_message
-        .split('\'')
-        .enumerate()
-        .filter_map(|(i, part)| if i % 2 == 1 { Some(part) } else { None })
-        .collect();
-
-    if quoted_types.len() >= 2 {
-        return (
-            Some(quoted_types[0].to_string()),
-            Some(quoted_types[1].to_string()),
-        );
-    } else if quoted_types.len() == 1 {
-        return (
-            Some(quoted_types[0].to_string()),
-            Some("unknown".to_string()),
-        );
-    }
-
-    (Some("unknown".to_string()), Some("unknown".to_string()))
+/// Output format for `andromeda check`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CheckOutputFormat {
+    Pretty,
+    Json,
+    Quiet,
 }
 
 /// Type check multiple files
-#[allow(clippy::result_large_err)]
+#[allow(clippy::result_large_err, dead_code)]
 #[hotpath::measure]
 pub fn check_files_with_config(
     paths: &[PathBuf],
     config_override: Option<AndromedaConfig>,
 ) -> CliResult<()> {
+    check_files_with_options(paths, config_override, CheckOutputFormat::Pretty)
+}
+
+#[allow(clippy::result_large_err)]
+pub fn check_files_with_options(
+    paths: &[PathBuf],
+    config_override: Option<AndromedaConfig>,
+    format: CheckOutputFormat,
+) -> CliResult<()> {
     let files_to_check: Vec<PathBuf> = if paths.is_empty() {
-        // If no paths provided, check all TypeScript files in current directory
         find_formattable_files(&[PathBuf::from(".")])
             .unwrap_or_default()
             .into_iter()
@@ -617,60 +479,57 @@ pub fn check_files_with_config(
     };
 
     if files_to_check.is_empty() {
-        let warning = Style::new().yellow().bold().apply_to("⚠️");
-        let msg = Style::new()
-            .yellow()
-            .apply_to("No TypeScript files found to type-check.");
-        println!("{warning} {msg}");
+        if format == CheckOutputFormat::Pretty {
+            let warning = Style::new().yellow().apply_to("Warning");
+            eprintln!("{warning} No matching files found.");
+        }
         return Ok(());
     }
 
-    let count = Style::new().cyan().apply_to(files_to_check.len());
-    println!("Found {count} file(s) to type-check");
-    println!("{}", Style::new().dim().apply_to("─".repeat(40)));
-
-    let mut total_errors = 0;
-    let mut files_with_errors = 0;
+    let mut total_errors = 0usize;
+    let mut files_with_read_errors = 0usize;
 
     for path in &files_to_check {
-        match check_file_with_config(path, config_override.clone()) {
-            Ok(type_errors) => {
-                if !type_errors.is_empty() {
-                    files_with_errors += 1;
-                    total_errors += type_errors.len();
+        if format == CheckOutputFormat::Pretty {
+            let label = Style::new().green().apply_to("Check");
+            eprintln!("{label} {}", path.display());
+        }
+
+        let content = match fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(e) => {
+                files_with_read_errors += 1;
+                if format == CheckOutputFormat::Pretty {
+                    let prefix = Style::new().red().bold().apply_to("error");
+                    eprintln!("{prefix}: Failed to read {}: {e}", path.display());
                 }
-                display_type_check_results(path, &type_errors);
+                continue;
+            }
+        };
+
+        match check_file_content_with_config(path, &content, config_override.clone()) {
+            Ok(type_errors) => {
+                total_errors += type_errors.len();
+                emit_results(path, &content, &type_errors, format);
             }
             Err(e) => {
-                let error_icon = Style::new().red().bold().apply_to("❌");
-                let file = Style::new().cyan().apply_to(path.display());
-                println!("{error_icon} {file}: Failed to type-check - {e}");
-                files_with_errors += 1;
+                total_errors += 1;
+                if format == CheckOutputFormat::Pretty {
+                    let prefix = Style::new().red().bold().apply_to("error");
+                    eprintln!("{prefix}: Failed to type-check {}: {e}", path.display());
+                }
             }
         }
     }
 
-    println!();
-    if total_errors == 0 {
-        let success = Style::new().green().bold().apply_to("✅");
-        let complete_msg = Style::new()
-            .green()
-            .bold()
-            .apply_to("Type checking complete");
-        let files_count = Style::new().green().bold().apply_to(files_to_check.len());
-        println!("{success} {complete_msg}: All {files_count} files passed type checking!");
-    } else {
-        let warning = Style::new().yellow().bold().apply_to("⚠️");
-        let complete_msg = Style::new()
-            .yellow()
-            .bold()
-            .apply_to("Type checking complete");
-        let error_count = Style::new().red().bold().apply_to(total_errors);
-        let file_count = Style::new().red().bold().apply_to(files_with_errors);
-        println!("{warning} {complete_msg}: Found {error_count} error(s) in {file_count} file(s)");
-        return Err(CliError::runtime_error_simple(
-            "Type checking completed with errors",
-        ));
+    if format == CheckOutputFormat::Pretty && total_errors > 0 {
+        eprintln!();
+        let plural = if total_errors == 1 { "error" } else { "errors" };
+        eprintln!("Found {total_errors} {plural}.");
+    }
+
+    if total_errors > 0 || files_with_read_errors > 0 {
+        std::process::exit(1);
     }
 
     Ok(())
@@ -679,56 +538,44 @@ pub fn check_files_with_config(
 /// Maximum number of type errors to display per file before truncating.
 const MAX_DISPLAY_ERRORS: usize = 20;
 
-/// Display type check results to the console with rich diagnostics
-fn display_type_check_results(path: &Path, type_errors: &[TypeCheckError]) {
-    if !type_errors.is_empty() {
-        let error_icon = Style::new().red().bold().apply_to("❌");
-        let file = Style::new().cyan().apply_to(path.display());
-        let error_count = Style::new().red().bold().apply_to(type_errors.len());
-        let error_text = if type_errors.len() == 1 {
-            "error"
-        } else {
-            "errors"
-        };
+fn emit_results(
+    path: &Path,
+    content: &str,
+    type_errors: &[TypeCheckError],
+    format: CheckOutputFormat,
+) {
+    match format {
+        CheckOutputFormat::Pretty => display_type_check_results(type_errors),
+        CheckOutputFormat::Json => emit_json_results(path, content, type_errors),
+        CheckOutputFormat::Quiet => {}
+    }
+}
 
-        println!("{error_icon} {file}: {error_count} type {error_text}");
-
-        let errors_to_show = type_errors.len().min(MAX_DISPLAY_ERRORS);
-
-        for (i, error) in type_errors.iter().take(errors_to_show).enumerate() {
-            if type_errors.len() > 1 {
-                println!();
-                println!(
-                    "     {} Issue {} of {}:",
-                    "📍".cyan(),
-                    (i + 1).to_string().bright_cyan(),
-                    type_errors.len().to_string().bright_cyan()
-                );
-                println!("     {}", "─".repeat(25).cyan());
-            }
-            let report = oxc_miette::Report::new(error.clone());
-            let report_str = format!("{report:?}");
-            for line in report_str.lines() {
-                println!("     {line}");
-            }
+fn emit_json_results(path: &Path, content: &str, type_errors: &[TypeCheckError]) {
+    for err in type_errors {
+        let diag = JsonDiagnostic::from_error(path, content, err);
+        if let Ok(line) = serde_json::to_string(&diag) {
+            println!("{line}");
         }
+    }
+}
 
-        let remaining = type_errors.len() - errors_to_show;
-        if remaining > 0 {
-            println!();
-            println!(
-                "     {} {} more issue{} not shown",
-                "⚠️".bright_yellow(),
-                remaining.to_string().bright_yellow(),
-                if remaining == 1 { "" } else { "s" }
-            );
-        }
+/// Display type check diagnostics. Silent when there are none.
+fn display_type_check_results(type_errors: &[TypeCheckError]) {
+    if type_errors.is_empty() {
+        return;
+    }
 
-        println!();
-    } else {
-        let ok = Style::new().green().bold().apply_to("✅");
-        let file = Style::new().cyan().apply_to(path.display());
-        let msg = Style::new().white().dim().apply_to("No type errors found.");
-        println!("{ok} {file}: {msg}");
+    let errors_to_show = type_errors.len().min(MAX_DISPLAY_ERRORS);
+
+    for error in type_errors.iter().take(errors_to_show) {
+        let report = oxc_miette::Report::new(error.clone());
+        eprintln!("{report:?}");
+    }
+
+    let remaining = type_errors.len() - errors_to_show;
+    if remaining > 0 {
+        let plural = if remaining == 1 { "" } else { "s" };
+        eprintln!("... {remaining} more diagnostic{plural} not shown.");
     }
 }

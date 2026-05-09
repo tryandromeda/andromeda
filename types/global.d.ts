@@ -769,6 +769,30 @@ type CanvasTextBaseline =
   | "ideographic"
   | "bottom";
 type CanvasDirection = "ltr" | "rtl" | "inherit";
+type CanvasFontKerning = "auto" | "normal" | "none";
+type CanvasFontStretch =
+  | "ultra-condensed"
+  | "extra-condensed"
+  | "condensed"
+  | "semi-condensed"
+  | "normal"
+  | "semi-expanded"
+  | "expanded"
+  | "extra-expanded"
+  | "ultra-expanded";
+type CanvasFontVariantCaps =
+  | "normal"
+  | "small-caps"
+  | "all-small-caps"
+  | "petite-caps"
+  | "all-petite-caps"
+  | "unicase"
+  | "titling-caps";
+type CanvasTextRendering =
+  | "auto"
+  | "optimizeSpeed"
+  | "optimizeLegibility"
+  | "geometricPrecision";
 type ImageSmoothingQuality = "low" | "medium" | "high";
 type CanvasPatternRepetition =
   | "repeat"
@@ -876,6 +900,20 @@ declare class CanvasRenderingContext2D {
   textBaseline: CanvasTextBaseline;
   /** Gets or sets the text direction. Default `"inherit"`. */
   direction: CanvasDirection;
+  /** Letter spacing as a CSS `<length>` (e.g. `"2px"`, `"0.5em"`). Default `"0px"`. */
+  letterSpacing: string;
+  /** Word spacing as a CSS `<length>`. Default `"0px"`. */
+  wordSpacing: string;
+  /** Font kerning. Default `"auto"`. */
+  fontKerning: CanvasFontKerning;
+  /** Font stretch (one of the nine CSS keywords). Default `"normal"`. */
+  fontStretch: CanvasFontStretch;
+  /** Font variant caps. Default `"normal"`. */
+  fontVariantCaps: CanvasFontVariantCaps;
+  /** Text rendering hint. Default `"auto"`. */
+  textRendering: CanvasTextRendering;
+  /** BCP 47 language tag, or `"inherit"`. Default `"inherit"`. */
+  lang: string;
 
   /** Resets the context to its default state per HTML spec. */
   reset(): void;

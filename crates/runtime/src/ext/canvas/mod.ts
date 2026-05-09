@@ -1327,6 +1327,13 @@ class CanvasRenderingContext2D {
     __andromeda__.internal_canvas_set_text_align(this.#rid, "start");
     __andromeda__.internal_canvas_set_text_baseline(this.#rid, "alphabetic");
     __andromeda__.internal_canvas_set_direction(this.#rid, "inherit");
+    __andromeda__.internal_canvas_set_letter_spacing(this.#rid, "0px");
+    __andromeda__.internal_canvas_set_word_spacing(this.#rid, "0px");
+    __andromeda__.internal_canvas_set_font_kerning(this.#rid, "auto");
+    __andromeda__.internal_canvas_set_font_stretch(this.#rid, "normal");
+    __andromeda__.internal_canvas_set_font_variant_caps(this.#rid, "normal");
+    __andromeda__.internal_canvas_set_text_rendering(this.#rid, "auto");
+    __andromeda__.internal_canvas_set_lang(this.#rid, "inherit");
     this.#lineDashOffset = 0;
     this.#imageSmoothingEnabled = true;
     this.#imageSmoothingQuality = "low";
@@ -1488,6 +1495,62 @@ class CanvasRenderingContext2D {
 
   set direction(value: string) {
     __andromeda__.internal_canvas_set_direction(this.#rid, value);
+  }
+
+  get letterSpacing(): string {
+    return __andromeda__.internal_canvas_get_letter_spacing(this.#rid);
+  }
+
+  set letterSpacing(value: string) {
+    __andromeda__.internal_canvas_set_letter_spacing(this.#rid, value);
+  }
+
+  get wordSpacing(): string {
+    return __andromeda__.internal_canvas_get_word_spacing(this.#rid);
+  }
+
+  set wordSpacing(value: string) {
+    __andromeda__.internal_canvas_set_word_spacing(this.#rid, value);
+  }
+
+  get fontKerning(): string {
+    return __andromeda__.internal_canvas_get_font_kerning(this.#rid);
+  }
+
+  set fontKerning(value: string) {
+    __andromeda__.internal_canvas_set_font_kerning(this.#rid, value);
+  }
+
+  get fontStretch(): string {
+    return __andromeda__.internal_canvas_get_font_stretch(this.#rid);
+  }
+
+  set fontStretch(value: string) {
+    __andromeda__.internal_canvas_set_font_stretch(this.#rid, value);
+  }
+
+  get fontVariantCaps(): string {
+    return __andromeda__.internal_canvas_get_font_variant_caps(this.#rid);
+  }
+
+  set fontVariantCaps(value: string) {
+    __andromeda__.internal_canvas_set_font_variant_caps(this.#rid, value);
+  }
+
+  get textRendering(): string {
+    return __andromeda__.internal_canvas_get_text_rendering(this.#rid);
+  }
+
+  set textRendering(value: string) {
+    __andromeda__.internal_canvas_set_text_rendering(this.#rid, value);
+  }
+
+  get lang(): string {
+    return __andromeda__.internal_canvas_get_lang(this.#rid);
+  }
+
+  set lang(value: string) {
+    __andromeda__.internal_canvas_set_lang(this.#rid, value);
   }
 
   /**
