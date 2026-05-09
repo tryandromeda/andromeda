@@ -311,7 +311,9 @@ fn build_prefix_offset(text: &str, spacing: ShapingParams) -> Vec<f32> {
     let mut prefix = Vec::with_capacity(chars.len() + 1);
     let mut whitespace_seen = 0usize;
     for (i, ch) in chars.iter().enumerate() {
-        prefix.push(spacing.letter_spacing_px * i as f32 + spacing.word_spacing_px * whitespace_seen as f32);
+        prefix.push(
+            spacing.letter_spacing_px * i as f32 + spacing.word_spacing_px * whitespace_seen as f32,
+        );
         if ch.is_whitespace() {
             whitespace_seen += 1;
         }

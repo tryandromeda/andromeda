@@ -15,7 +15,9 @@ pub enum RuntimeError {
     /// File system operation errors
     #[diagnostic(
         code(andromeda::fs::io_error),
-        help("Check that the file exists, the path is correct, and you have permission to access it.")
+        help(
+            "Check that the file exists, the path is correct, and you have permission to access it."
+        )
     )]
     FsError {
         operation: String,
@@ -45,7 +47,9 @@ pub enum RuntimeError {
     /// Runtime execution errors
     #[diagnostic(
         code(andromeda::runtime::execution_error),
-        help("Verify that all variables are initialized and review the call stack for the error source.")
+        help(
+            "Verify that all variables are initialized and review the call stack for the error source."
+        )
     )]
     RuntimeError {
         message: String,
@@ -63,7 +67,9 @@ pub enum RuntimeError {
     /// Extension loading errors
     #[diagnostic(
         code(andromeda::extension::load_error),
-        help("Check that the extension is configured correctly and all required dependencies are installed.")
+        help(
+            "Check that the extension is configured correctly and all required dependencies are installed."
+        )
     )]
     ExtensionError {
         extension_name: String,
@@ -166,7 +172,9 @@ pub enum RuntimeError {
     /// Type-related errors with enhanced diagnostics
     #[diagnostic(
         code(andromeda::types::mismatch),
-        help("Check the types of variables and function parameters; consider an explicit conversion.")
+        help(
+            "Check the types of variables and function parameters; consider an explicit conversion."
+        )
     )]
     TypeError {
         message: String,
@@ -274,7 +282,9 @@ pub enum RuntimeError {
     /// Import not found in module
     #[diagnostic(
         code(andromeda::module::import_not_found),
-        help("Verify the export name matches exactly (case-sensitive) and is exported by the module.")
+        help(
+            "Verify the export name matches exactly (case-sensitive) and is exported by the module."
+        )
     )]
     ImportNotFound {
         import: String,
@@ -388,7 +398,9 @@ pub enum RuntimeError {
     /// LLM authentication error
     #[diagnostic(
         code(andromeda::llm::auth_error),
-        help("Verify API keys or tokens are valid; ensure GITHUB_TOKEN is set for Copilot integration.")
+        help(
+            "Verify API keys or tokens are valid; ensure GITHUB_TOKEN is set for Copilot integration."
+        )
     )]
     LlmAuthenticationError {
         message: String,
@@ -414,7 +426,9 @@ pub enum RuntimeError {
     /// Windowing / native window subsystem errors (winit-backed extension)
     #[diagnostic(
         code(andromeda::window::error),
-        help("Verify the window feature is enabled, the platform supports native windowing, and operations run on the main thread.")
+        help(
+            "Verify the window feature is enabled, the platform supports native windowing, and operations run on the main thread."
+        )
     )]
     WindowError {
         operation: String,
@@ -428,7 +442,9 @@ pub enum RuntimeError {
     /// Internal error (should not happen in normal operation)
     #[diagnostic(
         code(andromeda::internal::error),
-        help("This is an internal error. Please report it on GitHub with the error message and reproduction steps."),
+        help(
+            "This is an internal error. Please report it on GitHub with the error message and reproduction steps."
+        ),
         url("https://github.com/aspect-build/andromeda/issues")
     )]
     InternalError {
