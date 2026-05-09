@@ -557,9 +557,6 @@ pub fn internal_canvas_close_path<'gc>(
     let res: &mut CanvasResources = storage.get_mut().unwrap();
     let mut data = res.canvases.get_mut(rid).unwrap();
 
-    // Close the CURRENT subpath by appending a copy of its first point.
-    // The GPU render path reads data.current_path directly, so without this
-    // the closing edge of a stroked polygon is never drawn.
     let subpath_start = data.subpath_starts.last().copied().unwrap_or(0);
     if subpath_start < data.current_path.len() {
         let first = data.current_path[subpath_start].clone();
@@ -613,8 +610,6 @@ pub fn internal_canvas_fill_rect<'gc>(
     };
 
     if has_renderer {
-        // Convert Nova VM Number to f64 for GPU renderer
-        // Use into_f64() method that Nova VM provides
         let x_val = x.into_f64(agent);
         let y_val = y.into_f64(agent);
         let width_val = width.into_f64(agent);
@@ -694,11 +689,6 @@ pub fn internal_canvas_move_to<'gc>(
     let y_f64 = y.into_f64(agent);
 
     // Start a new subpath in the current path.
-    //
-    // Canvas 2D paths can contain multiple disconnected subpaths. Record
-    // the index at which this subpath begins so `fill`/`stroke` can render
-    // each subpath independently instead of drawing one giant polygon that
-    // zig-zags between subpath endpoints.
     let start_idx = data.current_path.len();
     data.subpath_starts.push(start_idx);
     data.current_path
@@ -920,16 +910,10 @@ pub fn internal_canvas_rect<'gc>(
     let width_f64 = width.into_f64(agent);
     let height_f64 = height.into_f64(agent);
 
-    // Per the Canvas 2D spec, `rect` creates a new implicit subpath.
-    // Record the subpath start so a preceding moveTo/lineTo block doesn't
-    // get zig-zag-joined to these four corners under fan triangulation.
     let subpath_start = data.current_path.len();
     data.subpath_starts.push(subpath_start);
 
-    // Add rectangle to current path as four corners, plus a fifth point
-    // duplicating the first. Per the HTML Canvas 2D spec, `rect` emits a
-    // CLOSED subpath — the duplicate closes it so `stroke()` walks all four
-    // edges instead of stopping at the third segment.
+    // Add rectangle to current path as four corners, plus a fifth point duplicating the first
     data.current_path
         .push(crate::ext::canvas::renderer::Point { x: x_f64, y: y_f64 });
     data.current_path.push(crate::ext::canvas::renderer::Point {
@@ -999,10 +983,6 @@ pub fn internal_canvas_set_stroke_style<'gc>(
     let rid = Rid::from_index(rid_val);
     let style = args.get(1);
 
-    // If the style is a number it's a gradient or pattern rid; if it's a
-    // string it's a CSS color. Resolve each path separately so that
-    // `ctx.strokeStyle = gradient` actually propagates to the canvas's
-    // `stroke_style` field (matches fillStyle's behavior).
     let is_number = style.is_number();
     let fill_rid = if is_number {
         style.to_uint32(agent, gc.reborrow()).unbind().ok()
@@ -1347,6 +1327,13 @@ pub fn internal_canvas_save<'gc>(
         text_align: data.text_align,
         text_baseline: data.text_baseline,
         direction: data.direction,
+        letter_spacing: data.letter_spacing.clone(),
+        word_spacing: data.word_spacing.clone(),
+        font_kerning: data.font_kerning,
+        font_stretch: data.font_stretch,
+        font_variant_caps: data.font_variant_caps,
+        text_rendering: data.text_rendering,
+        lang: data.lang.clone(),
     };
     data.state_stack.push(current_state);
 
@@ -1374,13 +1361,6 @@ pub fn internal_canvas_restore<'gc>(
     let res: &mut CanvasResources = storage.get_mut().unwrap();
     let mut data = res.canvases.get_mut(rid).unwrap();
 
-    // Restore state from stack if available. The spec requires
-    // restore() to revert EVERY field that save() captured — previously
-    // this path only restored 8 of 19 fields, so shadow state, line
-    // cap/join/miter, and all text attributes leaked across save/restore
-    // boundaries. The most visible symptom: a fill drawn with shadows
-    // inside a save()/restore() block still left a shadow trail behind
-    // subsequent fills that expected no shadow.
     if let Some(saved_state) = data.state_stack.pop() {
         data.fill_style = saved_state.fill_style;
         data.stroke_style = saved_state.stroke_style;
@@ -1401,6 +1381,13 @@ pub fn internal_canvas_restore<'gc>(
         data.text_align = saved_state.text_align;
         data.text_baseline = saved_state.text_baseline;
         data.direction = saved_state.direction;
+        data.letter_spacing = saved_state.letter_spacing;
+        data.word_spacing = saved_state.word_spacing;
+        data.font_kerning = saved_state.font_kerning;
+        data.font_stretch = saved_state.font_stretch;
+        data.font_variant_caps = saved_state.font_variant_caps;
+        data.text_rendering = saved_state.text_rendering;
+        data.lang = saved_state.lang;
     }
 
     // Add restore command to command list
@@ -1730,9 +1717,8 @@ pub fn process_all_commands<'gc>(
                         composite_operation: CompositeOperation::default(),
                         clip_path: None,
                     },
-                ); // White background
+                );
             }
-            // Handle other commands that don't directly affect rendering
             CanvasCommand::Arc { .. }
             | CanvasCommand::ArcTo { .. }
             | CanvasCommand::Rect { .. }
@@ -1760,7 +1746,7 @@ pub fn process_all_commands<'gc>(
             | CanvasCommand::CreateRadialGradient { .. }
             | CanvasCommand::CreateConicGradient { .. } => {
                 // These commands would need more complex state management
-                // For now, we'll skip them in this basic implementation
+                // For now, we'll skip them
             }
             CanvasCommand::DrawImage {
                 image_rid,

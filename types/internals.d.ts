@@ -1082,6 +1082,21 @@ declare namespace __andromeda__ {
    */
   export function internal_canvas_get_direction(rid: number): string;
 
+  export function internal_canvas_set_letter_spacing(rid: number, value: string): void;
+  export function internal_canvas_get_letter_spacing(rid: number): string;
+  export function internal_canvas_set_word_spacing(rid: number, value: string): void;
+  export function internal_canvas_get_word_spacing(rid: number): string;
+  export function internal_canvas_set_font_kerning(rid: number, value: string): void;
+  export function internal_canvas_get_font_kerning(rid: number): string;
+  export function internal_canvas_set_font_stretch(rid: number, value: string): void;
+  export function internal_canvas_get_font_stretch(rid: number): string;
+  export function internal_canvas_set_font_variant_caps(rid: number, value: string): void;
+  export function internal_canvas_get_font_variant_caps(rid: number): string;
+  export function internal_canvas_set_text_rendering(rid: number, value: string): void;
+  export function internal_canvas_get_text_rendering(rid: number): string;
+  export function internal_canvas_set_lang(rid: number, value: string): void;
+  export function internal_canvas_get_lang(rid: number): string;
+
   /**
    * The `internal_canvas_measure_text` function measures the dimensions of the specified text.
    * Returns a JSON string containing TextMetrics data with all measurement properties.

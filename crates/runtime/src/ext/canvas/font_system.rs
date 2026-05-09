@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use cosmic_text::{FontSystem, Style, Weight, fontdb};
+use cosmic_text::{FontSystem, Stretch, Style, Weight, fontdb};
 
 /// Font descriptor matching Canvas2D font properties
 #[derive(Debug, Clone)]
@@ -11,15 +11,16 @@ pub struct FontDescriptor {
     pub size: f32,
     pub weight: u16,
     pub style: Style,
+    pub stretch: Stretch,
 }
 
-// Manual implementations for hash/eq to handle f32
 impl PartialEq for FontDescriptor {
     fn eq(&self, other: &Self) -> bool {
         self.family == other.family
             && self.size.to_bits() == other.size.to_bits()
             && self.weight == other.weight
             && self.style == other.style
+            && self.stretch == other.stretch
     }
 }
 
@@ -31,6 +32,7 @@ impl std::hash::Hash for FontDescriptor {
         self.size.to_bits().hash(state);
         self.weight.hash(state);
         self.style.hash(state);
+        self.stretch.hash(state);
     }
 }
 
@@ -41,8 +43,17 @@ impl Default for FontDescriptor {
             size: 10.0,
             weight: 400,
             style: Style::Normal,
+            stretch: Stretch::Normal,
         }
     }
+}
+
+/// Per-shape parameters drawn from `CanvasTextDrawingStyles` properties
+/// that aren't captured in the font string itself.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ShapingParams {
+    pub letter_spacing_px: f32,
+    pub word_spacing_px: f32,
 }
 
 /// Font manager for loading system fonts and parsing CSS font strings

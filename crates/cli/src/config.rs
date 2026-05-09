@@ -297,12 +297,9 @@ impl ConfigManager {
     pub fn load_or_default(start_dir: Option<&Path>) -> AndromedaConfig {
         if let Some((config_path, _)) = Self::find_config_file(start_dir) {
             match Self::load_config(&config_path) {
-                Ok(config) => {
-                    // println!("📝 Using config file: {}", config_path.display());
-                    config
-                }
+                Ok(config) => config,
                 Err(err) => {
-                    eprintln!("⚠️  Config file error: {err}");
+                    eprintln!("Config file error: {err}");
                     eprintln!("   Using default configuration");
                     AndromedaConfig::default()
                 }
@@ -404,7 +401,7 @@ impl ConfigManager {
     pub fn create_default_config(path: &Path, format: ConfigFormat) -> CliResult<()> {
         let config = AndromedaConfig::default();
         Self::save_config(&config, path, format)?;
-        println!("✅ Created default config file: {}", path.display());
+        println!("Created default config file: {}", path.display());
         Ok(())
     }
 

@@ -4,7 +4,7 @@
 
 use cosmic_text::Buffer;
 
-use crate::ext::canvas::font_system::{FontDescriptor, FontManager};
+use crate::ext::canvas::font_system::{FontDescriptor, FontManager, ShapingParams};
 
 /// Metrics for measured text.
 #[derive(Debug, Clone)]
@@ -30,6 +30,7 @@ impl TextMetrics {
         text: &str,
         font_manager: &mut FontManager,
         font_descriptor: &FontDescriptor,
+        spacing: ShapingParams,
     ) -> Result<Self, String> {
         let mut buffer = Buffer::new(
             &mut font_manager.font_system,
@@ -39,6 +40,7 @@ impl TextMetrics {
         let attrs = cosmic_text::Attrs::new()
             .family(cosmic_text::Family::Name(&font_descriptor.family))
             .weight(cosmic_text::Weight(font_descriptor.weight))
+            .stretch(font_descriptor.stretch)
             .style(font_descriptor.style);
 
         buffer.set_text(
@@ -100,10 +102,13 @@ impl TextMetrics {
 
         let _ = baseline_y;
 
+        let extra = spacing_extra(text, spacing);
+        let width = advance_width + extra;
+
         Ok(Self {
-            width: advance_width,
+            width,
             actual_bounding_box_left: (-ink_left).max(0.0),
-            actual_bounding_box_right: ink_right,
+            actual_bounding_box_right: ink_right + extra,
             font_bounding_box_ascent: ascent,
             font_bounding_box_descent: descent,
             actual_bounding_box_ascent: ink_top_above,
@@ -115,4 +120,18 @@ impl TextMetrics {
             ideographic_baseline: -descent,
         })
     }
+}
+
+/// Total horizontal spacing added by `letterSpacing` and `wordSpacing` over
+/// `text`, in pixels. `letterSpacing` applies between every adjacent character
+/// pair; `wordSpacing` applies once per whitespace cluster.
+pub fn spacing_extra(text: &str, spacing: ShapingParams) -> f32 {
+    let chars: Vec<char> = text.chars().collect();
+    if chars.is_empty() {
+        return 0.0;
+    }
+    let letter_extra = spacing.letter_spacing_px * (chars.len().saturating_sub(1)) as f32;
+    let word_count = chars.iter().filter(|c| c.is_whitespace()).count();
+    let word_extra = spacing.word_spacing_px * word_count as f32;
+    letter_extra + word_extra
 }

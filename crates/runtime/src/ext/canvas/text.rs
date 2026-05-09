@@ -4,15 +4,9 @@
 
 use cosmic_text::{Buffer, Placement, SwashCache};
 
-use crate::ext::canvas::font_system::{FontDescriptor, FontManager};
+use crate::ext::canvas::font_system::{FontDescriptor, FontManager, ShapingParams};
 
 /// Result of rasterizing a line of text.
-///
-/// The bitmap is sized to its actual ink bounds (so descenders are never
-/// clipped). `baseline_y` is the row inside the bitmap where the alphabetic
-/// baseline sits, and `x_offset` is the column where the pen origin (x = 0 in
-/// glyph coordinates) sits. Callers use these to land the baseline at a
-/// specific canvas coordinate regardless of which glyphs happen to appear.
 pub struct RenderedText {
     pub bitmap: Vec<u8>,
     pub width: u32,
@@ -47,6 +41,8 @@ struct TextCacheKey {
     text: String,
     font_descriptor: FontDescriptor,
     color: [u8; 4],
+    letter_spacing_bits: u32,
+    word_spacing_bits: u32,
 }
 
 /// Cached texture data for rendered text
@@ -83,11 +79,14 @@ impl TextRenderer {
         text: &str,
         font_descriptor: &FontDescriptor,
         color: [u8; 4],
+        spacing: ShapingParams,
     ) -> Result<RenderedText, String> {
         let cache_key = TextCacheKey {
             text: text.to_string(),
             font_descriptor: font_descriptor.clone(),
             color,
+            letter_spacing_bits: spacing.letter_spacing_px.to_bits(),
+            word_spacing_bits: spacing.word_spacing_px.to_bits(),
         };
 
         if let Some(cached) = self.texture_cache.get(&cache_key) {
@@ -111,6 +110,7 @@ impl TextRenderer {
         let attrs = cosmic_text::Attrs::new()
             .family(cosmic_text::Family::Name(&font_descriptor.family))
             .weight(cosmic_text::Weight(font_descriptor.weight))
+            .stretch(font_descriptor.stretch)
             .style(font_descriptor.style);
 
         buffer.set_text(
@@ -151,9 +151,12 @@ impl TextRenderer {
             });
         };
 
+        let prefix_offset = build_prefix_offset(text, spacing);
+        let total_extra = prefix_offset.last().copied().unwrap_or(0.0);
+
         let mut glyph_draws: Vec<(i32, i32, cosmic_text::CacheKey, Placement)> = Vec::new();
         let mut min_x: f32 = 0.0;
-        let mut max_x: f32 = advance_width;
+        let mut max_x: f32 = advance_width + total_extra;
         let mut min_y: f32 = baseline_buffer_y - ascent;
         let mut max_y: f32 = baseline_buffer_y + descent;
 
@@ -167,7 +170,8 @@ impl TextRenderer {
                 let Some(image) = image_opt else { continue };
                 let placement = image.placement;
 
-                let pen_x = physical.x;
+                let extra = lookup_offset_for_byte(&prefix_offset, glyph.start, text);
+                let pen_x = physical.x + extra.round() as i32;
                 let pen_y = run.line_y.round() as i32 + physical.y;
 
                 let ink_left = (pen_x + placement.left) as f32;
@@ -216,6 +220,8 @@ impl TextRenderer {
             Self::blit_glyph(&mut bitmap, width, height, image, draw_x, draw_y, color);
         }
 
+        let final_advance = advance_width + total_extra;
+
         self.texture_cache.put(
             cache_key,
             CachedTextTexture {
@@ -226,7 +232,7 @@ impl TextRenderer {
                 x_offset,
                 ascent,
                 descent,
-                advance_width,
+                advance_width: final_advance,
             },
         );
 
@@ -238,7 +244,7 @@ impl TextRenderer {
             x_offset,
             ascent,
             descent,
-            advance_width,
+            advance_width: final_advance,
         })
     }
 
@@ -294,4 +300,42 @@ impl Default for TextRenderer {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Build a prefix-sum table mapping char index → cumulative spacing offset.
+/// Slot `i` is the offset that should be added to a glyph whose source byte
+/// position lands on the i-th character of `text`. Slot `len(chars)` exists
+/// so callers can compute the total post-text extent.
+fn build_prefix_offset(text: &str, spacing: ShapingParams) -> Vec<f32> {
+    let chars: Vec<char> = text.chars().collect();
+    let mut prefix = Vec::with_capacity(chars.len() + 1);
+    let mut whitespace_seen = 0usize;
+    for (i, ch) in chars.iter().enumerate() {
+        prefix.push(spacing.letter_spacing_px * i as f32 + spacing.word_spacing_px * whitespace_seen as f32);
+        if ch.is_whitespace() {
+            whitespace_seen += 1;
+        }
+    }
+    let final_offset = spacing.letter_spacing_px * chars.len() as f32
+        + spacing.word_spacing_px * whitespace_seen as f32;
+    prefix.push(final_offset);
+    prefix
+}
+
+/// Map a glyph's byte-start offset back to the prefix-offset table built by
+/// `build_prefix_offset`. Returns 0.0 when `text` is empty.
+fn lookup_offset_for_byte(prefix: &[f32], byte_start: usize, text: &str) -> f32 {
+    if prefix.is_empty() || text.is_empty() {
+        return 0.0;
+    }
+    let mut char_idx = 0usize;
+    for (idx, (b, _)) in text.char_indices().enumerate() {
+        if b >= byte_start {
+            char_idx = idx;
+            break;
+        }
+        char_idx = idx + 1;
+    }
+    let i = char_idx.min(prefix.len() - 1);
+    prefix[i]
 }

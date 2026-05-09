@@ -288,9 +288,7 @@ impl FfiExt {
 
         if let Value::Object(_obj) = symbols_obj {
             // TODO: Implement full symbol definition parsing
-            // This requires careful Nova VM GC scope management that will be completed
-            // in the next phase to avoid the complex borrowing conflicts.
-            // For now, we'll parse definitions lazily in get_symbol when they're requested
+            // This requires careful Nova VM GC scope management
         }
 
         let host_data = agent.get_host_data();
