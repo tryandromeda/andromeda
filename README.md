@@ -429,7 +429,6 @@ keyboard-driven Breakout clone exercising the full window + canvas input/render 
 - **andromeda-compile** - Compile JS/TS to executables
 - **andromeda-fmt** - Format code
 - **andromeda-lint** - Lint code for quality issues
-- **andromeda-check** - Type-check TypeScript
 - **andromeda-bundle** - Bundle and minify code
 
 ## Crates

@@ -43,7 +43,7 @@ struct PlatformInfo {
 
 /// Run the upgrade process
 pub fn run_upgrade(force: bool, target_version: Option<String>, dry_run: bool) -> Result<()> {
-    println!("🚀 Andromeda Upgrade Tool");
+    println!("Andromeda Upgrade Tool");
     println!("Current version: {CURRENT_VERSION}");
     println!();
 
@@ -59,12 +59,12 @@ pub fn run_upgrade(force: bool, target_version: Option<String>, dry_run: bool) -
     println!("Latest available version: {}", release.tag_name);
 
     if !force && release.tag_name == CURRENT_VERSION {
-        println!("✅ You are already running the latest version!");
+        println!("You are already running the latest version!");
         return Ok(());
     }
 
     if release.tag_name == CURRENT_VERSION && !force {
-        println!("ℹ️  You are already on version {CURRENT_VERSION}. Use --force to reinstall.");
+        println!("You are already on version {CURRENT_VERSION}. Use --force to reinstall.");
         return Ok(());
     }
 
@@ -83,7 +83,7 @@ pub fn run_upgrade(force: bool, target_version: Option<String>, dry_run: bool) -
 
     if dry_run {
         println!(
-            "🔍 Dry run mode - would upgrade from {} to {}",
+            "Dry run mode - would upgrade from {} to {}",
             CURRENT_VERSION, release.tag_name
         );
         println!("Would download: {}", asset.browser_download_url);
@@ -107,13 +107,13 @@ pub fn run_upgrade(force: bool, target_version: Option<String>, dry_run: bool) -
         }
     }
 
-    println!("⬇️  Downloading {}...", asset.name);
+    println!("Downloading {}...", asset.name);
     let new_binary = download_asset(&asset.browser_download_url)?;
 
-    println!("🔄 Installing new version...");
+    println!("Installing new version...");
     install_binary(&new_binary, &platform)?;
 
-    println!("✅ Successfully upgraded to version {}!", release.tag_name);
+    println!("Successfully upgraded to version {}!", release.tag_name);
     println!("Run 'andromeda --version' to verify the new version.");
 
     Ok(())
@@ -169,7 +169,7 @@ fn get_latest_release() -> Result<GitHubRelease> {
             Ok(release)
         }
         Err(_) => {
-            println!("ℹ️  No stable release found, checking for pre-releases...");
+            println!("No stable release found, checking for pre-releases...");
             get_most_recent_release()
         }
     }
@@ -288,7 +288,7 @@ echo Upgrade completed successfully!
             .spawn()
             .context("Failed to start upgrade process")?;
 
-        println!("⚠️  The upgrade will complete after this process exits.");
+        println!("The upgrade will complete after this process exits.");
         Ok(())
     }
 

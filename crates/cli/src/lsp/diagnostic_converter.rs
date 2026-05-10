@@ -1,5 +1,6 @@
-// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-// If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::lint::LintError;
 use miette as oxc_miette;
@@ -94,14 +95,6 @@ pub fn lint_error_to_diagnostic(lint_error: &LintError, source_code: &str) -> Di
             DiagnosticSeverity::INFORMATION,
             Some(NumberOrString::String(
                 "andromeda::lint::camelcase".to_string(),
-            )),
-            Some("andromeda".to_string()),
-        ),
-        LintError::NoBooleanLiteralForArguments { value, .. } => (
-            format!("Boolean literal '{value}' passed as argument"),
-            DiagnosticSeverity::INFORMATION,
-            Some(NumberOrString::String(
-                "andromeda::lint::no-boolean-literal-for-arguments".to_string(),
             )),
             Some("andromeda".to_string()),
         ),
@@ -257,7 +250,6 @@ fn get_lint_error_span(lint_error: &LintError) -> SourceSpan {
         LintError::NoEval { span, .. } => *span,
         LintError::Eqeqeq { span, .. } => *span,
         LintError::Camelcase { span, .. } => *span,
-        LintError::NoBooleanLiteralForArguments { span, .. } => *span,
         LintError::NoUnreachable { span, .. } => *span,
         LintError::NoDuplicateCase { span, .. } => *span,
         LintError::NoConstantCondition { span, .. } => *span,

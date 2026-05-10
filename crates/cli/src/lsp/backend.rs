@@ -1,5 +1,6 @@
-// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-// If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::config::ConfigManager;
 use crate::lint::lint_file_content_with_config;
@@ -25,81 +26,71 @@ fn get_canvas_context_completions() -> Vec<CompletionItem> {
             "fillStyle",
             CompletionItemKind::PROPERTY,
             "fillStyle: string | CanvasGradient",
-            "🎨 Sets or returns the color, gradient, or pattern used to fill the drawing.",
+            "Sets or returns the color, gradient, or pattern used to fill the drawing.",
             "fillStyle = ${1:color}",
-            Some("🎨"),
         ),
         create_completion_item(
             "strokeStyle",
             CompletionItemKind::PROPERTY,
             "strokeStyle: string",
-            "🖌️ Sets or returns the color, gradient, or pattern used for strokes.",
+            "Sets or returns the color, gradient, or pattern used for strokes.",
             "strokeStyle = ${1:color}",
-            Some("🖌️"),
         ),
         create_completion_item(
             "fillRect",
             CompletionItemKind::FUNCTION,
             "fillRect(x: number, y: number, width: number, height: number): void",
-            "🔳 Draws a filled rectangle.",
+            "Draws a filled rectangle.",
             "fillRect(${1:x}, ${2:y}, ${3:width}, ${4:height})",
-            Some("🔳"),
         ),
         create_completion_item(
             "strokeRect",
             CompletionItemKind::FUNCTION,
             "strokeRect(x: number, y: number, width: number, height: number): void",
-            "▭ Draws a rectangle outline.",
+            "Draws a rectangle outline.",
             "strokeRect(${1:x}, ${2:y}, ${3:width}, ${4:height})",
-            Some("▭"),
         ),
         create_completion_item(
             "beginPath",
             CompletionItemKind::FUNCTION,
             "beginPath(): void",
-            "🎯 Begins a new path.",
+            "Begins a new path.",
             "beginPath()",
-            Some("🎯"),
         ),
         create_completion_item(
             "moveTo",
             CompletionItemKind::FUNCTION,
             "moveTo(x: number, y: number): void",
-            "📍 Moves the path to the specified point.",
+            "Moves the path to the specified point.",
             "moveTo(${1:x}, ${2:y})",
-            Some("📍"),
         ),
         create_completion_item(
             "lineTo",
             CompletionItemKind::FUNCTION,
             "lineTo(x: number, y: number): void",
-            "📏 Adds a line to the path.",
+            "Adds a line to the path.",
             "lineTo(${1:x}, ${2:y})",
-            Some("📏"),
         ),
         create_completion_item(
             "arc",
             CompletionItemKind::FUNCTION,
             "arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void",
-            "⭕ Adds an arc to the path.",
+            "Adds an arc to the path.",
             "arc(${1:x}, ${2:y}, ${3:radius}, ${4:startAngle}, ${5:endAngle})",
-            Some("⭕"),
         ),
         create_completion_item(
             "fill",
             CompletionItemKind::FUNCTION,
             "fill(): void",
-            "🎨 Fills the current path.",
+            "Fills the current path.",
             "fill()",
-            Some("🎨"),
         ),
         create_completion_item(
             "stroke",
             CompletionItemKind::FUNCTION,
             "stroke(): void",
-            "🖌️ Strokes the current path.",
+            "Strokes the current path.",
             "stroke()",
-            Some("🖌️"),
         ),
     ]
 }
@@ -111,49 +102,43 @@ fn get_crypto_subtle_completions() -> Vec<CompletionItem> {
             "digest",
             CompletionItemKind::FUNCTION,
             "digest(algorithm: AlgorithmIdentifier, data: BufferSource): Promise<ArrayBuffer>",
-            "🔐 Computes a digest of the given data.",
+            "Computes a digest of the given data.",
             "digest(${1:'SHA-256'}, ${2:data})",
-            Some("🔐"),
         ),
         create_completion_item(
             "encrypt",
             CompletionItemKind::FUNCTION,
             "encrypt(algorithm: AlgorithmIdentifier, key: CryptoKey, data: BufferSource): Promise<ArrayBuffer>",
-            "🔒 Encrypts data using the specified algorithm and key.",
+            "Encrypts data using the specified algorithm and key.",
             "encrypt(${1:algorithm}, ${2:key}, ${3:data})",
-            Some("🔒"),
         ),
         create_completion_item(
             "decrypt",
             CompletionItemKind::FUNCTION,
             "decrypt(algorithm: AlgorithmIdentifier, key: CryptoKey, data: BufferSource): Promise<ArrayBuffer>",
-            "🔓 Decrypts data using the specified algorithm and key.",
+            "Decrypts data using the specified algorithm and key.",
             "decrypt(${1:algorithm}, ${2:key}, ${3:data})",
-            Some("🔓"),
         ),
         create_completion_item(
             "generateKey",
             CompletionItemKind::FUNCTION,
             "generateKey(algorithm: AlgorithmIdentifier, extractable: boolean, keyUsages: KeyUsage[]): Promise<CryptoKey | CryptoKeyPair>",
-            "🔑 Generates a key or key pair.",
+            "Generates a key or key pair.",
             "generateKey(${1:algorithm}, ${2:extractable}, ${3:keyUsages})",
-            Some("🔑"),
         ),
         create_completion_item(
             "sign",
             CompletionItemKind::FUNCTION,
             "sign(algorithm: AlgorithmIdentifier, key: CryptoKey, data: BufferSource): Promise<ArrayBuffer>",
-            "✍️ Signs data using the specified algorithm and key.",
+            "Signs data using the specified algorithm and key.",
             "sign(${1:algorithm}, ${2:key}, ${3:data})",
-            Some("✍️"),
         ),
         create_completion_item(
             "verify",
             CompletionItemKind::FUNCTION,
             "verify(algorithm: AlgorithmIdentifier, key: CryptoKey, signature: BufferSource, data: BufferSource): Promise<boolean>",
-            "✅ Verifies a signature.",
+            "Verifies a signature.",
             "verify(${1:algorithm}, ${2:key}, ${3:signature}, ${4:data})",
-            Some("✅"),
         ),
     ]
 }
@@ -165,41 +150,36 @@ fn get_performance_completions() -> Vec<CompletionItem> {
             "now",
             CompletionItemKind::FUNCTION,
             "now(): number",
-            "⏱️ Returns a high-resolution timestamp in milliseconds.",
+            "Returns a high-resolution timestamp in milliseconds.",
             "now()",
-            Some("⏱️"),
         ),
         create_completion_item(
             "mark",
             CompletionItemKind::FUNCTION,
             "mark(name: string, options?: PerformanceMarkOptions): PerformanceMark",
-            "📍 Creates a named timestamp in the performance timeline.",
+            "Creates a named timestamp in the performance timeline.",
             "mark(${1:name})",
-            Some("📍"),
         ),
         create_completion_item(
             "measure",
             CompletionItemKind::FUNCTION,
             "measure(name: string, startOrOptions?: string | PerformanceMeasureOptions, endMark?: string): PerformanceMeasure",
-            "📏 Creates a named measurement between two marks.",
+            "Creates a named measurement between two marks.",
             "measure(${1:name}, ${2:start}, ${3:end})",
-            Some("📏"),
         ),
         create_completion_item(
             "clearMarks",
             CompletionItemKind::FUNCTION,
             "clearMarks(name?: string): void",
-            "🗑️ Removes performance marks from the timeline.",
+            "Removes performance marks from the timeline.",
             "clearMarks(${1:name})",
-            Some("🗑️"),
         ),
         create_completion_item(
             "clearMeasures",
             CompletionItemKind::FUNCTION,
             "clearMeasures(name?: string): void",
-            "🗑️ Removes performance measures from the timeline.",
+            "Removes performance measures from the timeline.",
             "clearMeasures(${1:name})",
-            Some("🗑️"),
         ),
     ]
 }
@@ -211,49 +191,43 @@ fn get_storage_completions() -> Vec<CompletionItem> {
             "getItem",
             CompletionItemKind::FUNCTION,
             "getItem(key: string): string | null",
-            "🔍 Returns the value for the specified key.",
+            "Returns the value for the specified key.",
             "getItem(${1:key})",
-            Some("🔍"),
         ),
         create_completion_item(
             "setItem",
             CompletionItemKind::FUNCTION,
             "setItem(key: string, value: string): void",
-            "💾 Sets the value for the specified key.",
+            "Sets the value for the specified key.",
             "setItem(${1:key}, ${2:value})",
-            Some("💾"),
         ),
         create_completion_item(
             "removeItem",
             CompletionItemKind::FUNCTION,
             "removeItem(key: string): void",
-            "🗑️ Removes the item with the specified key.",
+            "Removes the item with the specified key.",
             "removeItem(${1:key})",
-            Some("🗑️"),
         ),
         create_completion_item(
             "clear",
             CompletionItemKind::FUNCTION,
             "clear(): void",
-            "🗑️ Removes all items from storage.",
+            "Removes all items from storage.",
             "clear()",
-            Some("🗑️"),
         ),
         create_completion_item(
             "key",
             CompletionItemKind::FUNCTION,
             "key(index: number): string | null",
-            "🔑 Returns the key at the specified index.",
+            "Returns the key at the specified index.",
             "key(${1:index})",
-            Some("🔑"),
         ),
         create_completion_item(
             "length",
             CompletionItemKind::PROPERTY,
             "length: number",
-            "📊 The number of items in storage.",
+            "The number of items in storage.",
             "length",
-            Some("📊"),
         ),
     ]
 }
@@ -265,71 +239,45 @@ fn get_database_completions() -> Vec<CompletionItem> {
             "prepare",
             CompletionItemKind::FUNCTION,
             "prepare(sql: string): StatementSync",
-            "🗄️ Prepares a SQL statement for execution.",
+            "Prepares a SQL statement for execution.",
             "prepare(${1:sql})",
-            Some("🗄️"),
         ),
         create_completion_item(
             "exec",
             CompletionItemKind::FUNCTION,
             "exec(sql: string): void",
-            "⚡ Executes SQL statements without returning results.",
+            "Executes SQL statements without returning results.",
             "exec(${1:sql})",
-            Some("⚡"),
         ),
         create_completion_item(
             "close",
             CompletionItemKind::FUNCTION,
             "close(): void",
-            "🔒 Closes the database connection.",
+            "Closes the database connection.",
             "close()",
-            Some("🔒"),
         ),
         create_completion_item(
             "all",
             CompletionItemKind::FUNCTION,
             "all(...params: any[]): unknown[]",
-            "📋 Executes the statement and returns all results.",
+            "Executes the statement and returns all results.",
             "all(${1:params})",
-            Some("📋"),
         ),
         create_completion_item(
             "get",
             CompletionItemKind::FUNCTION,
             "get(...params: any[]): unknown",
-            "🎯 Executes the statement and returns the first result.",
+            "Executes the statement and returns the first result.",
             "get(${1:params})",
-            Some("🎯"),
         ),
         create_completion_item(
             "run",
             CompletionItemKind::FUNCTION,
             "run(...params: any[]): StatementResultingChanges",
-            "🏃 Executes the statement and returns change information.",
+            "Executes the statement and returns change information.",
             "run(${1:params})",
-            Some("🏃"),
         ),
     ]
-}
-
-/// Get context-specific completions based on what the user is typing
-#[allow(dead_code)]
-fn get_context_specific_completions(text_before_cursor: &str) -> Option<Vec<CompletionItem>> {
-    if text_before_cursor.contains("ctx.") || text_before_cursor.contains("context.") {
-        Some(get_canvas_context_completions())
-    } else if text_before_cursor.contains("crypto.subtle.") {
-        Some(get_crypto_subtle_completions())
-    } else if text_before_cursor.contains("performance.") {
-        Some(get_performance_completions())
-    } else if text_before_cursor.contains("localStorage.")
-        || text_before_cursor.contains("sessionStorage.")
-    {
-        Some(get_storage_completions())
-    } else if text_before_cursor.contains("db.") {
-        Some(get_database_completions())
-    } else {
-        None
-    }
 }
 
 /// Document tracker for maintaining document state

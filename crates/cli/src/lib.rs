@@ -8,7 +8,6 @@
 //! including running, compiling, formatting, linting, and bundling JavaScript/TypeScript code.
 
 pub mod bundle;
-pub mod check;
 pub mod compile;
 pub mod config;
 pub mod error;

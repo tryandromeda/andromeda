@@ -27,8 +27,6 @@ mod helper;
 use helper::{find_formattable_files_for_format, find_formattable_files_for_lint};
 mod lint;
 use lint::lint_file_with_config;
-mod check;
-use check::{CheckOutputFormat, check_files_with_options};
 mod config;
 mod lsp;
 mod task;
@@ -142,28 +140,11 @@ enum Command {
     },
 
     /// Lint JavaScript/TypeScript files
+    #[command(visible_alias = "check")]
     Lint {
         /// The file(s) or directory(ies) to lint
         #[arg(required = false)]
         paths: Vec<PathBuf>,
-    },
-
-    /// Type-check TypeScript files
-    Check {
-        /// The file(s) or directory(ies) to type-check
-        #[arg(required = false)]
-        paths: Vec<PathBuf>,
-
-        /// Emit one JSON object per diagnostic (ndjson) on stdout. Progress and
-        /// summary lines are still written to stderr. Mutually exclusive with
-        /// --quiet.
-        #[arg(long, conflicts_with = "quiet")]
-        json: bool,
-
-        /// Suppress all output; rely on the exit code to signal status. Mutually
-        /// exclusive with --json.
-        #[arg(long)]
-        quiet: bool,
     },
 
     /// Start Language Server Protocol (LSP) server
@@ -351,7 +332,7 @@ fn run_main() -> CliResult<()> {
                 } else {
                     String::new()
                 };
-                println!("✅ Successfully created the output binary at {out:?}{config_str}");
+                println!("Created output binary at {out:?}{config_str}");
                 Ok(())
             }
             Command::Repl {
@@ -365,59 +346,39 @@ fn run_main() -> CliResult<()> {
                     .map_err(|e| error::CliError::repl_error(format!("REPL failed: {e}"), Some(e)))
             }
             Command::Fmt { paths } => {
-                // Load configuration
                 let config = ConfigManager::load_or_default(None);
 
                 let files_to_format = find_formattable_files_for_format(&paths, &config.format)?;
                 if files_to_format.is_empty() {
-                    let warning = Style::new().yellow().bold().apply_to("⚠️");
-                    let msg = Style::new()
-                        .yellow()
-                        .apply_to("No formattable files found.");
-                    println!("{warning} {msg}");
+                    let warning = Style::new().yellow().apply_to("Warning");
+                    eprintln!("{warning} No matching files found.");
                     return Ok(());
                 }
-
-                let count = Style::new().cyan().apply_to(files_to_format.len());
-                println!("Found {count} file(s) to format");
-                println!("{}", Style::new().dim().apply_to("─".repeat(40)));
 
                 let mut already_formatted_count = 0;
                 let mut formatted_count = 0;
 
                 for path in &files_to_format {
                     match format_file(path)? {
-                        FormatResult::Changed => formatted_count += 1,
+                        FormatResult::Changed => {
+                            let label = Style::new().green().apply_to("Format");
+                            eprintln!("{label} {}", path.display());
+                            formatted_count += 1;
+                        }
                         FormatResult::AlreadyFormatted => already_formatted_count += 1,
                     }
                 }
 
-                println!();
-                let success = Style::new().green().bold().apply_to("✅");
-                let complete_msg = Style::new().green().bold().apply_to("Formatting complete");
-                println!("{success} {complete_msg}:");
-
+                let total = formatted_count + already_formatted_count;
                 if formatted_count > 0 {
-                    let formatted_icon = Style::new().green().apply_to("📄");
-                    let formatted_num = Style::new().green().bold().apply_to(formatted_count);
-                    let formatted_text = if formatted_count == 1 {
-                        "file"
-                    } else {
-                        "files"
-                    };
-                    println!("   {formatted_icon} {formatted_num} {formatted_text} formatted");
-                }
-
-                if already_formatted_count > 0 {
-                    let already_icon = Style::new().cyan().apply_to("✨");
-                    let already_num = Style::new().cyan().bold().apply_to(already_formatted_count);
-                    let already_text = if already_formatted_count == 1 {
-                        "file"
-                    } else {
-                        "files"
-                    };
-                    let already_msg = Style::new().cyan().apply_to("already formatted");
-                    println!("   {already_icon} {already_num} {already_text} {already_msg}");
+                    let plural = if formatted_count == 1 { "" } else { "s" };
+                    eprintln!();
+                    eprintln!(
+                        "Formatted {formatted_count} file{plural} ({already_formatted_count} unchanged of {total})."
+                    );
+                } else {
+                    let plural = if total == 1 { "" } else { "s" };
+                    eprintln!("Checked {total} file{plural}.");
                 }
 
                 Ok(())
@@ -449,50 +410,43 @@ fn run_main() -> CliResult<()> {
                         None,
                     )
                 })?;
-                println!("✅ Successfully bundled and minified to {output:?}");
+                println!("Bundled and minified to {output:?}");
                 Ok(())
             }
             Command::Lint { paths } => {
-                // Load configuration
                 let config = ConfigManager::load_or_default(None);
 
                 let files_to_lint = find_formattable_files_for_lint(&paths, &config.lint)?;
                 if files_to_lint.is_empty() {
-                    println!("No lintable files found.");
+                    let warning = console::Style::new().yellow().apply_to("Warning");
+                    eprintln!("{warning} No matching files found.");
                     return Ok(());
                 }
-                println!("Found {} file(s) to lint:", files_to_lint.len());
-                let mut had_issues = false;
+
+                let mut total_issues = 0usize;
+                let mut had_read_errors = false;
                 for path in &files_to_lint {
-                    if let Err(e) = lint_file_with_config(path, Some(config.clone())) {
-                        print_error(e);
-                        had_issues = true;
+                    let label = console::Style::new().green().apply_to("Lint");
+                    eprintln!("{label} {}", path.display());
+                    match lint_file_with_config(path, Some(config.clone())) {
+                        Ok(count) => total_issues += count,
+                        Err(e) => {
+                            print_error(e);
+                            had_read_errors = true;
+                        }
                     }
                 }
-                if had_issues {
-                    Err(error::CliError::runtime_error(
-                        "Linting completed with errors".to_string(),
-                        None,
-                        None,
-                        None,
-                        None,
-                    ))
-                } else {
-                    Ok(())
+
+                if total_issues > 0 {
+                    eprintln!();
+                    let plural = if total_issues == 1 { "" } else { "s" };
+                    eprintln!("Found {total_issues} issue{plural}.");
                 }
-            }
-            Command::Check { paths, json, quiet } => {
-                let config = ConfigManager::load_or_default(None);
 
-                let format = if json {
-                    CheckOutputFormat::Json
-                } else if quiet {
-                    CheckOutputFormat::Quiet
-                } else {
-                    CheckOutputFormat::Pretty
-                };
-
-                check_files_with_options(&paths, Some(config), format)
+                if total_issues > 0 || had_read_errors {
+                    std::process::exit(1);
+                }
+                Ok(())
             }
             Command::Lsp => {
                 run_lsp_server().map_err(|e| {
@@ -605,7 +559,7 @@ fn handle_config_command(action: ConfigAction) -> CliResult<()> {
                 )
             })?;
 
-            println!("✅ Created config file: {}", config_path.display());
+            println!("Created config file: {}", config_path.display());
             Ok(())
         }
         ConfigAction::Show { file } => {
@@ -655,7 +609,7 @@ fn handle_config_command(action: ConfigAction) -> CliResult<()> {
                 )
             })?;
 
-            println!("✅ Configuration is valid!");
+            println!("Configuration is valid.");
             Ok(())
         }
     }

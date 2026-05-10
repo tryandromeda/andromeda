@@ -1,68 +1,11 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 // If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! # Andromeda Linter
-//!
-//! A comprehensive JavaScript/TypeScript linter with 27+ rules inspired by ESLint, Deno, and oxc_linter.
-//!
-//! ## Implemented Rules
-//!
-//! ### Code Quality Rules
-//! - **no-empty** - Disallow empty statements
-//! - **no-var** - Require let or const instead of var
-//! - **no-unused-vars** - Disallow unused variables
-//! - **prefer-const** - Require const declarations for variables that are never reassigned
-//! - **camelcase** - Enforce camelCase naming convention
-//! - **no-eval** - Disallow use of eval()
-//!
-//! ### Error Prevention Rules
-//! - **no-debugger** - Disallow debugger statements
-//! - **no-console** - Disallow console statements
-//! - **no-unreachable** - Disallow unreachable code after return, throw, break, or continue
-//! - **no-duplicate-case** - Disallow duplicate case labels in switch statements
-//! - **no-constant-condition** - Disallow constant expressions in conditions
-//! - **no-dupe-keys** - Disallow duplicate keys in object literals
-//! - **no-const-assign** - Disallow reassigning const variables
-//! - **no-func-assign** - Disallow reassigning function declarations
-//! - **no-ex-assign** - Disallow reassigning exception parameters in catch clauses
-//!
-//! ### Best Practices Rules
-//! - **eqeqeq** - Require === and !== instead of == and !=
-//! - **no-compare-neg-zero** - Disallow comparing against -0
-//! - **no-cond-assign** - Disallow assignment operators in conditional expressions
-//! - **use-isnan** - Require calls to isNaN() when checking for NaN
-//! - **no-fallthrough** - Disallow fallthrough of case statements
-//! - **no-unsafe-negation** - Disallow negating the left operand of relational operators
-//! - **no-boolean-literal-for-arguments** - Disallow boolean literals as arguments
-//!
-//! ### TypeScript Rules
-//! - **no-explicit-any** - Disallow the any type
-//!
-//! ### Async/Await Rules
-//! - **require-await** - Disallow async functions which have no await expression
-//! - **no-async-promise-executor** - Disallow async functions as Promise executors
-//!
-//! ### Advanced Rules
-//! - **no-sparse-arrays** - Disallow sparse array literals
-//! - **no-unsafe-finally** - Disallow control flow statements in finally blocks
-//!
-//! ## Usage
-//!
-//! Rules can be configured in `.andromeda.toml`:
-//! ```toml
-//! [lint]
-//! rules = ["no-var", "no-debugger", "eqeqeq"]
-//! disabled_rules = ["no-console"]
-//! max_warnings = 10
-//! ```
-
 #![allow(unused_assignments)]
 
 use crate::config::{AndromedaConfig, ConfigManager, LintConfig};
 use crate::error::{CliError, CliResult};
-use console::Style;
 use miette as oxc_miette;
-use owo_colors::OwoColorize;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Expression, Statement};
 use oxc_miette::{Diagnostic, NamedSource, SourceSpan};
@@ -72,21 +15,19 @@ use oxc_semantic::SymbolFlags;
 use oxc_span::{GetSpan, SourceType};
 use std::collections::HashSet;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-/// Comprehensive lint error types based on Deno's rule set with enhanced diagnostics
+/// Comprehensive lint error types using rules from oxc_linter (hopefully can use oxc_linter if they publish it).
 #[derive(Diagnostic, Debug, Clone)]
 pub enum LintError {
     /// Empty statement found (no-empty)
     #[diagnostic(
         code(andromeda::lint::no_empty),
-        help(
-            "🔍 Remove unnecessary semicolons that create empty statements.\n💡 Empty statements can make code harder to read and may indicate errors."
-        ),
-        url("https://docs.deno.com/lint/rules/no-empty")
+        help("Remove unnecessary semicolons that create empty statements."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-empty")
     )]
     NoEmpty {
-        #[label("Empty statement found here")]
+        #[label("empty statement")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -95,10 +36,8 @@ pub enum LintError {
     /// Usage of 'var' keyword (no-var)
     #[diagnostic(
         code(andromeda::lint::no_var),
-        help(
-            "🔍 Replace 'var' with 'let' or 'const' for better scoping.\n💡 'var' has function-level scoping which can lead to unexpected behavior.\n📖 Use 'let' for variables that will be reassigned, 'const' for constants."
-        ),
-        url("https://docs.deno.com/lint/rules/no-var")
+        help("Use 'let' for variables that will be reassigned, or 'const' for constants."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-var")
     )]
     NoVar {
         #[label("'var' keyword used here")]
@@ -111,13 +50,11 @@ pub enum LintError {
     /// Unused variable (no-unused-vars)
     #[diagnostic(
         code(andromeda::lint::no_unused_vars),
-        help(
-            "🔍 Remove the unused variable or prefix it with '_' if intentionally unused.\n💡 Unused variables can indicate dead code or typos in variable names.\n🧹 Removing unused variables helps keep code clean and maintainable."
-        ),
-        url("https://docs.deno.com/lint/rules/no-unused-vars")
+        help("Remove the unused variable, or prefix it with '_' if intentionally unused."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-unused-vars")
     )]
     NoUnusedVars {
-        #[label("Unused variable '{variable_name}'")]
+        #[label("unused variable '{variable_name}'")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -127,13 +64,11 @@ pub enum LintError {
     /// Variable could be const (prefer-const)
     #[diagnostic(
         code(andromeda::lint::prefer_const),
-        help(
-            "🔍 Use 'const' instead of 'let' for variables that are never reassigned.\n💡 'const' prevents accidental reassignment and makes intent clearer.\n📖 Save 'let' for variables that will be modified."
-        ),
-        url("https://docs.deno.com/lint/rules/prefer-const")
+        help("Use 'const' for variables that are never reassigned."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/prefer-const")
     )]
     PreferConst {
-        #[label("Variable '{variable_name}' is never reassigned, use 'const'")]
+        #[label("'{variable_name}' is never reassigned, use 'const'")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -143,13 +78,11 @@ pub enum LintError {
     /// Console.log usage (no-console)
     #[diagnostic(
         code(andromeda::lint::no_console),
-        help(
-            "🔍 Remove console statements from production code.\n💡 Console statements should not be left in production code.\n📖 Use proper logging or remove console statements."
-        ),
-        url("https://docs.deno.com/lint/rules/no-console")
+        help("Remove console statements from production code or use proper logging."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-console")
     )]
     NoConsole {
-        #[label("Console statement found here")]
+        #[label("console statement")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -159,13 +92,11 @@ pub enum LintError {
     /// Debugger statement (no-debugger)
     #[diagnostic(
         code(andromeda::lint::no_debugger),
-        help(
-            "🔍 Remove debugger statements from production code.\n💡 Debugger statements should not be left in production code.\n🚨 This can cause applications to stop in production."
-        ),
-        url("https://docs.deno.com/lint/rules/no-debugger")
+        help("Remove debugger statements from production code."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-debugger")
     )]
     NoDebugger {
-        #[label("Debugger statement found here")]
+        #[label("debugger statement")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -174,13 +105,11 @@ pub enum LintError {
     /// Explicit any type (no-explicit-any)
     #[diagnostic(
         code(andromeda::lint::no_explicit_any),
-        help(
-            "🔍 Use specific types instead of 'any'.\n💡 The 'any' type defeats the purpose of TypeScript.\n📖 Consider using specific types, union types, or generic constraints."
-        ),
-        url("https://docs.deno.com/lint/rules/no-explicit-any")
+        help("Use specific types, union types, or generic constraints instead of 'any'."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/typescript/no-explicit-any")
     )]
     NoExplicitAny {
-        #[label("Explicit 'any' type used here")]
+        #[label("explicit 'any' type")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -189,13 +118,11 @@ pub enum LintError {
     /// Missing await in async function (require-await)
     #[diagnostic(
         code(andromeda::lint::require_await),
-        help(
-            "🔍 Add await keyword or remove async from function.\n💡 Async functions should contain await expressions.\n📖 Functions without await don't need to be async."
-        ),
-        url("https://docs.deno.com/lint/rules/require-await")
+        help("Add an await expression, or remove the 'async' keyword."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/require-await")
     )]
     RequireAwait {
-        #[label("Async function without await")]
+        #[label("async function without await")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -205,13 +132,11 @@ pub enum LintError {
     /// Use of eval (no-eval)
     #[diagnostic(
         code(andromeda::lint::no_eval),
-        help(
-            "🔍 Avoid using eval() as it's a security risk.\n💡 eval() can execute arbitrary code and is a security vulnerability.\n🚨 Consider alternative approaches for dynamic code execution."
-        ),
-        url("https://docs.deno.com/lint/rules/no-eval")
+        help("eval() executes arbitrary code; use a safer alternative."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-eval")
     )]
     NoEval {
-        #[label("eval() usage found here")]
+        #[label("eval() usage")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -220,61 +145,41 @@ pub enum LintError {
     /// Loose equality comparison (eqeqeq)
     #[diagnostic(
         code(andromeda::lint::eqeqeq),
-        help(
-            "🔍 Use strict equality (=== or !==) instead of loose equality (== or !=).\n💡 Strict equality prevents type coercion bugs.\n📖 Use === and !== for safer comparisons."
-        ),
-        url("https://docs.deno.com/lint/rules/eqeqeq")
+        help("Use strict equality (=== or !==) to avoid type coercion bugs."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/eqeqeq")
     )]
     Eqeqeq {
-        #[label("Use strict equality (=== or !==) instead")]
+        #[label("use strict equality (=== or !==) instead")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
         operator: String,
     },
 
-    /// Camelcase naming convention (camelcase)
+    /// Camelcase naming convention (camelcase).
+    ///
+    /// oxc does not implement stylistic rules, so the documentation link points at the upstream Deno lint reference.
     #[diagnostic(
         code(andromeda::lint::camelcase),
-        help(
-            "🔍 Use camelCase naming convention.\n💡 Consistent naming improves code readability.\n📖 Use camelCase for variables, functions, and methods."
-        ),
+        help("Use camelCase for variables, functions, and methods."),
         url("https://docs.deno.com/lint/rules/camelcase")
     )]
     Camelcase {
-        #[label("Identifier '{name}' is not in camelCase")]
+        #[label("identifier '{name}' is not in camelCase")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
         name: String,
     },
 
-    /// Boolean literal as argument (no-boolean-literal-for-arguments)
-    #[diagnostic(
-        code(andromeda::lint::no_boolean_literal_for_arguments),
-        help(
-            "🔍 Avoid passing boolean literals as arguments.\n💡 Boolean arguments make code harder to understand.\n📖 Consider using named objects or enums instead."
-        ),
-        url("https://docs.deno.com/lint/rules/no-boolean-literal-for-arguments")
-    )]
-    NoBooleanLiteralForArguments {
-        #[label("Boolean literal passed as argument")]
-        span: SourceSpan,
-        #[source_code]
-        source_code: NamedSource<String>,
-        value: bool,
-    },
-
     /// Unreachable code (no-unreachable)
     #[diagnostic(
         code(andromeda::lint::no_unreachable),
-        help(
-            "🔍 Remove unreachable code after return, throw, break, or continue.\n💡 Code after these statements will never execute.\n🧹 This usually indicates a logical error or dead code."
-        ),
-        url("https://eslint.org/docs/latest/rules/no-unreachable")
+        help("Remove unreachable code after return, throw, break, or continue."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-unreachable")
     )]
     NoUnreachable {
-        #[label("Unreachable code detected")]
+        #[label("unreachable code")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -283,13 +188,11 @@ pub enum LintError {
     /// Duplicate case label (no-duplicate-case)
     #[diagnostic(
         code(andromeda::lint::no_duplicate_case),
-        help(
-            "🔍 Remove duplicate case labels in switch statements.\n💡 Duplicate cases will never be reached.\n🐛 This is likely a copy-paste error."
-        ),
-        url("https://eslint.org/docs/latest/rules/no-duplicate-case")
+        help("Remove or rename the duplicate case label."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-duplicate-case")
     )]
     NoDuplicateCase {
-        #[label("Duplicate case label")]
+        #[label("duplicate case label")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -298,13 +201,11 @@ pub enum LintError {
     /// Constant condition (no-constant-condition)
     #[diagnostic(
         code(andromeda::lint::no_constant_condition),
-        help(
-            "🔍 Avoid using constant expressions in conditions.\n💡 Constant conditions make branches unreachable.\n📖 Use meaningful boolean expressions instead."
-        ),
-        url("https://eslint.org/docs/latest/rules/no-constant-condition")
+        help("Use a meaningful boolean expression instead of a constant condition."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-constant-condition")
     )]
     NoConstantCondition {
-        #[label("Constant condition detected")]
+        #[label("constant condition")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -313,13 +214,11 @@ pub enum LintError {
     /// Duplicate keys in object literals (no-dupe-keys)
     #[diagnostic(
         code(andromeda::lint::no_dupe_keys),
-        help(
-            "🔍 Remove duplicate keys in object literals.\n💡 Later keys overwrite earlier ones silently.\n🐛 This often indicates a typo or logical error."
-        ),
-        url("https://eslint.org/docs/latest/rules/no-dupe-keys")
+        help("Remove the duplicate key; later keys silently overwrite earlier ones."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-dupe-keys")
     )]
     NoDupeKeys {
-        #[label("Duplicate key '{key}'")]
+        #[label("duplicate key '{key}'")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -329,13 +228,11 @@ pub enum LintError {
     /// Comparing against -0 (no-compare-neg-zero)
     #[diagnostic(
         code(andromeda::lint::no_compare_neg_zero),
-        help(
-            "🔍 Use Object.is(x, -0) to check for negative zero.\n💡 Regular equality doesn't distinguish between 0 and -0.\n📖 This can lead to unexpected behavior in some cases."
-        ),
-        url("https://eslint.org/docs/latest/rules/no-compare-neg-zero")
+        help("Use Object.is(x, -0) to detect negative zero."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-compare-neg-zero")
     )]
     NoCompareNegZero {
-        #[label("Comparing against -0")]
+        #[label("comparing against -0")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -344,13 +241,11 @@ pub enum LintError {
     /// Assignment in conditional (no-cond-assign)
     #[diagnostic(
         code(andromeda::lint::no_cond_assign),
-        help(
-            "🔍 Avoid assignments in conditional expressions.\n💡 This is often a typo where == was intended instead of =.\n📖 If intentional, wrap the assignment in parentheses."
-        ),
-        url("https://eslint.org/docs/latest/rules/no-cond-assign")
+        help("Use '==' or wrap the assignment in extra parentheses if intentional."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-cond-assign")
     )]
     NoCondAssign {
-        #[label("Assignment in conditional expression")]
+        #[label("assignment in conditional expression")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -359,13 +254,11 @@ pub enum LintError {
     /// Const reassignment (no-const-assign)
     #[diagnostic(
         code(andromeda::lint::no_const_assign),
-        help(
-            "🔍 Cannot reassign const variable '{variable_name}'.\n💡 Const variables cannot be reassigned after declaration.\n🐛 Use 'let' if you need to reassign the variable."
-        ),
-        url("https://eslint.org/docs/latest/rules/no-const-assign")
+        help("Use 'let' if the variable needs to be reassigned."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-const-assign")
     )]
     NoConstAssign {
-        #[label("Reassignment to const variable '{variable_name}'")]
+        #[label("reassignment to const variable '{variable_name}'")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -375,13 +268,11 @@ pub enum LintError {
     /// Use isNaN for NaN checks (use-isnan)
     #[diagnostic(
         code(andromeda::lint::use_isnan),
-        help(
-            "🔍 Use Number.isNaN() or isNaN() to check for NaN.\n💡 NaN is never equal to itself, so comparisons will always be false.\n📖 Use isNaN(x) or Number.isNaN(x) instead."
-        ),
-        url("https://eslint.org/docs/latest/rules/use-isnan")
+        help("Use Number.isNaN(x) or isNaN(x); NaN is never equal to itself."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/use-isnan")
     )]
     UseIsNan {
-        #[label("Use isNaN() instead of comparing to NaN")]
+        #[label("use isNaN() instead of comparing to NaN")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -390,13 +281,11 @@ pub enum LintError {
     /// Missing break in switch case (no-fallthrough)
     #[diagnostic(
         code(andromeda::lint::no_fallthrough),
-        help(
-            "🔍 Add break, return, or throw at the end of this case.\n💡 Fallthrough cases can lead to unexpected behavior.\n📖 Add a comment '// fallthrough' if intentional."
-        ),
-        url("https://eslint.org/docs/latest/rules/no-fallthrough")
+        help("Add break, return, or throw; or add a '// fallthrough' comment if intentional."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-fallthrough")
     )]
     NoFallthrough {
-        #[label("Case falls through without break/return/throw")]
+        #[label("case falls through without break/return/throw")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -405,13 +294,11 @@ pub enum LintError {
     /// Function reassignment (no-func-assign)
     #[diagnostic(
         code(andromeda::lint::no_func_assign),
-        help(
-            "🔍 Avoid reassigning function declarations.\n💡 Reassigning functions can lead to confusing code.\n🐛 This may indicate a logical error."
-        ),
-        url("https://eslint.org/docs/latest/rules/no-func-assign")
+        help("Avoid reassigning function declarations."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-func-assign")
     )]
     NoFuncAssign {
-        #[label("Reassignment to function '{function_name}'")]
+        #[label("reassignment to function '{function_name}'")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -421,13 +308,11 @@ pub enum LintError {
     /// Unsafe negation (no-unsafe-negation)
     #[diagnostic(
         code(andromeda::lint::no_unsafe_negation),
-        help(
-            "🔍 Use parentheses to clarify negation intent.\n💡 Negating the left operand of relational operators is often a mistake.\n📖 Did you mean !(a in b) instead of !a in b?"
-        ),
-        url("https://eslint.org/docs/latest/rules/no-unsafe-negation")
+        help("Did you mean !(a in b) instead of !a in b? Use parentheses to clarify intent."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-unsafe-negation")
     )]
     NoUnsafeNegation {
-        #[label("Unsafe negation of left operand")]
+        #[label("unsafe negation of left operand")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -436,13 +321,11 @@ pub enum LintError {
     /// Sparse arrays (no-sparse-arrays)
     #[diagnostic(
         code(andromeda::lint::no_sparse_arrays),
-        help(
-            "🔍 Remove extra commas in array literals.\n💡 Sparse arrays have undefined 'holes' which can cause bugs.\n📖 Use explicit undefined values if needed."
-        ),
-        url("https://eslint.org/docs/latest/rules/no-sparse-arrays")
+        help("Remove the extra comma, or use an explicit 'undefined' value."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-sparse-arrays")
     )]
     NoSparseArrays {
-        #[label("Sparse array detected")]
+        #[label("sparse array")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -451,13 +334,11 @@ pub enum LintError {
     /// Exception parameter reassignment (no-ex-assign)
     #[diagnostic(
         code(andromeda::lint::no_ex_assign),
-        help(
-            "🔍 Avoid reassigning exception parameters in catch clauses.\n💡 This can lead to confusing code and lost error information.\n📖 Use a different variable if you need to modify the value."
-        ),
-        url("https://eslint.org/docs/latest/rules/no-ex-assign")
+        help("Use a different variable if you need to modify the value."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-ex-assign")
     )]
     NoExAssign {
-        #[label("Reassignment to exception parameter")]
+        #[label("reassignment to exception parameter")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -466,13 +347,11 @@ pub enum LintError {
     /// Async Promise executor (no-async-promise-executor)
     #[diagnostic(
         code(andromeda::lint::no_async_promise_executor),
-        help(
-            "🔍 Don't use async functions as Promise executors.\n💡 Async executors can hide errors and lead to unhandled rejections.\n📖 Use regular functions and return promises explicitly."
-        ),
-        url("https://eslint.org/docs/latest/rules/no-async-promise-executor")
+        help("Use a regular function and return a promise explicitly."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-async-promise-executor")
     )]
     NoAsyncPromiseExecutor {
-        #[label("Async function used as Promise executor")]
+        #[label("async function used as Promise executor")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -481,13 +360,11 @@ pub enum LintError {
     /// Unsafe finally (no-unsafe-finally)
     #[diagnostic(
         code(andromeda::lint::no_unsafe_finally),
-        help(
-            "🔍 Avoid return, throw, break, or continue in finally blocks.\n💡 Control flow statements in finally can override earlier returns/throws.\n🐛 This can mask errors and lead to unexpected behavior."
-        ),
-        url("https://eslint.org/docs/latest/rules/no-unsafe-finally")
+        help("Avoid return, throw, break, or continue inside a finally block."),
+        url("https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-unsafe-finally")
     )]
     NoUnsafeFinally {
-        #[label("Unsafe control flow in finally block")]
+        #[label("unsafe control flow in finally block")]
         span: SourceSpan,
         #[source_code]
         source_code: NamedSource<String>,
@@ -522,9 +399,6 @@ impl std::fmt::Display for LintError {
             LintError::Camelcase { name, .. } => {
                 write!(f, "Identifier '{name}' is not in camelCase")
             }
-            LintError::NoBooleanLiteralForArguments { value, .. } => {
-                write!(f, "Boolean literal '{value}' passed as argument")
-            }
             LintError::NoUnreachable { .. } => write!(f, "Unreachable code detected"),
             LintError::NoDuplicateCase { .. } => write!(f, "Duplicate case label in switch"),
             LintError::NoConstantCondition { .. } => write!(f, "Constant condition in expression"),
@@ -553,9 +427,6 @@ impl std::fmt::Display for LintError {
 impl std::error::Error for LintError {}
 
 /// Helper function to check if a lint rule should be applied
-/// Rules are enabled if:
-/// 1. They are explicitly in the `rules` list, OR
-/// 2. They are in the default enabled rules list AND not in the `disabled_rules` list
 fn is_rule_enabled(rule_name: &str, lint_config: &LintConfig) -> bool {
     // If disabled_rules contains the rule, it's disabled
     if lint_config.disabled_rules.contains(&rule_name.to_string()) {
@@ -576,7 +447,6 @@ fn is_rule_enabled(rule_name: &str, lint_config: &LintConfig) -> bool {
         "no-unused-vars",
         // "camelcase",
         // "no-console"
-        "no-boolean-literal-for-arguments",
         "no-explicit-any",
         "require-await",
         "no-eval",
@@ -675,23 +545,6 @@ fn check_expression_for_issues(
                     span,
                     source_code: named_source.clone(),
                 });
-            }
-
-            // Check for boolean literals as arguments (no-boolean-literal-for-arguments)
-            if is_rule_enabled("no-boolean-literal-for-arguments", lint_config) {
-                for arg in &call.arguments {
-                    if let Some(Expression::BooleanLiteral(bool_lit)) = arg.as_expression() {
-                        let span = SourceSpan::new(
-                            (bool_lit.span.start as usize).into(),
-                            bool_lit.span.size() as usize,
-                        );
-                        lint_errors.push(LintError::NoBooleanLiteralForArguments {
-                            span,
-                            source_code: named_source.clone(),
-                            value: bool_lit.value,
-                        });
-                    }
-                }
             }
 
             // Recursively check arguments
@@ -1126,7 +979,7 @@ fn check_unreachable_code(
     }
 }
 
-/// Check for duplicate case labels in switch statements
+/// Check for duplicate case labels in switch statements.
 fn check_duplicate_cases(
     switch_stmt: &oxc_ast::ast::SwitchStatement,
     named_source: &NamedSource<String>,
@@ -1137,27 +990,27 @@ fn check_duplicate_cases(
         return;
     }
 
-    use std::collections::HashSet;
-    let mut seen_cases = HashSet::new();
+    use oxc_span::ContentEq;
 
-    for case in &switch_stmt.cases {
-        if let Some(test) = &case.test {
-            let case_str = format!("{:?}", test);
-            if !seen_cases.insert(case_str) {
-                let span = SourceSpan::new(
-                    (test.span().start as usize).into(),
-                    test.span().size() as usize,
-                );
-                lint_errors.push(LintError::NoDuplicateCase {
-                    span,
-                    source_code: named_source.clone(),
-                });
-            }
+    let mut previous_tests: Vec<&Expression<'_>> = Vec::new();
+    for test in switch_stmt.cases.iter().filter_map(|c| c.test.as_ref()) {
+        let test = test.without_parentheses();
+        if previous_tests.iter().any(|prev| prev.content_eq(test)) {
+            let span = SourceSpan::new(
+                (test.span().start as usize).into(),
+                test.span().size() as usize,
+            );
+            lint_errors.push(LintError::NoDuplicateCase {
+                span,
+                source_code: named_source.clone(),
+            });
+        } else {
+            previous_tests.push(test);
         }
     }
 }
 
-/// Check for constant conditions
+/// Check for constant conditions.
 fn check_constant_condition(
     test_expr: &Expression,
     named_source: &NamedSource<String>,
@@ -1168,24 +1021,59 @@ fn check_constant_condition(
         return;
     }
 
-    match test_expr {
-        Expression::BooleanLiteral(_)
-        | Expression::NumericLiteral(_)
-        | Expression::StringLiteral(_) => {
-            let span = SourceSpan::new(
-                (test_expr.span().start as usize).into(),
-                test_expr.span().size() as usize,
-            );
-            lint_errors.push(LintError::NoConstantCondition {
-                span,
-                source_code: named_source.clone(),
-            });
-        }
-        _ => {}
+    if is_constant_expression(test_expr) {
+        let span = SourceSpan::new(
+            (test_expr.span().start as usize).into(),
+            test_expr.span().size() as usize,
+        );
+        lint_errors.push(LintError::NoConstantCondition {
+            span,
+            source_code: named_source.clone(),
+        });
     }
 }
 
-/// Check for duplicate keys in object literals
+/// Returns `true` when an expression always evaluates to a value with a statically-known truthiness
+fn is_constant_expression(expr: &Expression) -> bool {
+    use oxc_ast::ast::{LogicalOperator, UnaryOperator};
+
+    match expr {
+        Expression::BooleanLiteral(_)
+        | Expression::NumericLiteral(_)
+        | Expression::BigIntLiteral(_)
+        | Expression::StringLiteral(_)
+        | Expression::NullLiteral(_)
+        | Expression::RegExpLiteral(_)
+        | Expression::ObjectExpression(_)
+        | Expression::ArrayExpression(_)
+        | Expression::FunctionExpression(_)
+        | Expression::ArrowFunctionExpression(_)
+        | Expression::ClassExpression(_) => true,
+        Expression::ParenthesizedExpression(p) => is_constant_expression(&p.expression),
+        Expression::UnaryExpression(u) => match u.operator {
+            // `typeof x` is not constant — it depends on the binding's existence.
+            UnaryOperator::Typeof => false,
+            _ => is_constant_expression(&u.argument),
+        },
+        Expression::LogicalExpression(l) => match l.operator {
+            LogicalOperator::And | LogicalOperator::Or | LogicalOperator::Coalesce => {
+                is_constant_expression(&l.left) && is_constant_expression(&l.right)
+            }
+        },
+        Expression::ConditionalExpression(c) => {
+            is_constant_expression(&c.test)
+                && is_constant_expression(&c.consequent)
+                && is_constant_expression(&c.alternate)
+        }
+        Expression::SequenceExpression(s) => {
+            s.expressions.last().is_some_and(is_constant_expression)
+        }
+        Expression::TemplateLiteral(t) => t.expressions.iter().all(is_constant_expression),
+        _ => false,
+    }
+}
+
+/// Check for duplicate keys in object literals.
 fn check_dupe_keys(
     obj_expr: &oxc_ast::ast::ObjectExpression,
     named_source: &NamedSource<String>,
@@ -1196,25 +1084,43 @@ fn check_dupe_keys(
         return;
     }
 
+    use oxc_ast::ast::{ObjectProperty, ObjectPropertyKind, PropertyKind};
     use std::collections::HashMap;
-    let mut seen_keys: HashMap<String, oxc_span::Span> = HashMap::new();
+
+    fn is_proto_setter_property(prop: &ObjectProperty<'_>, name: &str) -> bool {
+        name == "__proto__"
+            && prop.kind == PropertyKind::Init
+            && !prop.computed
+            && !prop.shorthand
+            && !prop.method
+    }
+
+    let mut seen_keys: HashMap<String, PropertyKind> = HashMap::new();
 
     for prop in &obj_expr.properties {
-        if let oxc_ast::ast::ObjectPropertyKind::ObjectProperty(obj_prop) = prop
-            && let oxc_ast::ast::PropertyKey::StaticIdentifier(ident) = &obj_prop.key
+        let ObjectPropertyKind::ObjectProperty(obj_prop) = prop else {
+            continue;
+        };
+        let Some(name) = obj_prop.key.static_name() else {
+            continue;
+        };
+        if is_proto_setter_property(obj_prop, &name) {
+            continue;
+        }
+
+        let key_name = name.into_owned();
+        if let Some(prev_kind) = seen_keys.insert(key_name.clone(), obj_prop.kind)
+            && (prev_kind == PropertyKind::Init
+                || obj_prop.kind == PropertyKind::Init
+                || prev_kind == obj_prop.kind)
         {
-            let key_name = ident.name.to_string();
-            if seen_keys.insert(key_name.clone(), ident.span).is_some() {
-                let span = SourceSpan::new(
-                    (ident.span.start as usize).into(),
-                    ident.span.size() as usize,
-                );
-                lint_errors.push(LintError::NoDupeKeys {
-                    span,
-                    source_code: named_source.clone(),
-                    key: key_name,
-                });
-            }
+            let key_span = obj_prop.key.span();
+            let span = SourceSpan::new((key_span.start as usize).into(), key_span.size() as usize);
+            lint_errors.push(LintError::NoDupeKeys {
+                span,
+                source_code: named_source.clone(),
+                key: key_name,
+            });
         }
     }
 }
@@ -1252,7 +1158,10 @@ fn check_compare_neg_zero(
     }
 }
 
-/// Check for NaN comparisons
+/// Check for NaN comparisons.
+///
+/// Mirrors oxc_linter's `eslint/use-isnan` identifier detection: both the
+/// global `NaN` binding and the `Number.NaN` member access are recognized.
 fn check_nan_comparison(
     bin_expr: &oxc_ast::ast::BinaryExpression,
     named_source: &NamedSource<String>,
@@ -1263,15 +1172,7 @@ fn check_nan_comparison(
         return;
     }
 
-    let is_nan = |expr: &Expression| -> bool {
-        if let Expression::Identifier(ident) = expr {
-            ident.name == "NaN"
-        } else {
-            false
-        }
-    };
-
-    if is_nan(&bin_expr.left) || is_nan(&bin_expr.right) {
+    if is_nan_identifier(&bin_expr.left) || is_nan_identifier(&bin_expr.right) {
         let span = SourceSpan::new(
             (bin_expr.span.start as usize).into(),
             bin_expr.span.size() as usize,
@@ -1281,6 +1182,12 @@ fn check_nan_comparison(
             source_code: named_source.clone(),
         });
     }
+}
+
+/// Returns `true` if `expr` resolves to the `NaN` value at runtime — either the bare `NaN` global or `Number.NaN`.
+fn is_nan_identifier(expr: &Expression) -> bool {
+    let expr = expr.get_inner_expression();
+    expr.is_specific_id("NaN") || expr.is_specific_member_access("Number", "NaN")
 }
 
 /// Check for sparse arrays
@@ -1800,29 +1707,102 @@ fn check_for_reassignments(stmt: &Statement, reassigned_variables: &mut HashSet<
         Statement::ExpressionStatement(expr_stmt) => {
             check_expression_for_reassignments(&expr_stmt.expression, reassigned_variables);
         }
+        Statement::VariableDeclaration(decl) => {
+            for declarator in &decl.declarations {
+                if let Some(init) = &declarator.init {
+                    check_expression_for_reassignments(init, reassigned_variables);
+                }
+            }
+        }
+        Statement::ReturnStatement(ret) => {
+            if let Some(arg) = &ret.argument {
+                check_expression_for_reassignments(arg, reassigned_variables);
+            }
+        }
+        Statement::ThrowStatement(throw) => {
+            check_expression_for_reassignments(&throw.argument, reassigned_variables);
+        }
         Statement::BlockStatement(block) => {
             for stmt in &block.body {
                 check_for_reassignments(stmt, reassigned_variables);
             }
         }
         Statement::IfStatement(if_stmt) => {
+            check_expression_for_reassignments(&if_stmt.test, reassigned_variables);
             check_for_reassignments(&if_stmt.consequent, reassigned_variables);
             if let Some(alternate) = &if_stmt.alternate {
                 check_for_reassignments(alternate, reassigned_variables);
             }
         }
         Statement::SwitchStatement(switch_stmt) => {
+            check_expression_for_reassignments(&switch_stmt.discriminant, reassigned_variables);
             for case in &switch_stmt.cases {
+                if let Some(test) = &case.test {
+                    check_expression_for_reassignments(test, reassigned_variables);
+                }
                 for stmt in &case.consequent {
                     check_for_reassignments(stmt, reassigned_variables);
                 }
             }
         }
         Statement::ForStatement(for_stmt) => {
+            if let Some(oxc_ast::ast::ForStatementInit::VariableDeclaration(decl)) = &for_stmt.init
+            {
+                for declarator in &decl.declarations {
+                    if let Some(init) = &declarator.init {
+                        check_expression_for_reassignments(init, reassigned_variables);
+                    }
+                }
+            } else if let Some(init) = &for_stmt.init
+                && let Some(expr) = init.as_expression()
+            {
+                check_expression_for_reassignments(expr, reassigned_variables);
+            }
+            if let Some(test) = &for_stmt.test {
+                check_expression_for_reassignments(test, reassigned_variables);
+            }
+            if let Some(update) = &for_stmt.update {
+                check_expression_for_reassignments(update, reassigned_variables);
+            }
             check_for_reassignments(&for_stmt.body, reassigned_variables);
         }
+        Statement::ForInStatement(for_in) => {
+            check_expression_for_reassignments(&for_in.right, reassigned_variables);
+            check_for_reassignments(&for_in.body, reassigned_variables);
+        }
+        Statement::ForOfStatement(for_of) => {
+            check_expression_for_reassignments(&for_of.right, reassigned_variables);
+            check_for_reassignments(&for_of.body, reassigned_variables);
+        }
         Statement::WhileStatement(while_stmt) => {
+            check_expression_for_reassignments(&while_stmt.test, reassigned_variables);
             check_for_reassignments(&while_stmt.body, reassigned_variables);
+        }
+        Statement::DoWhileStatement(do_while) => {
+            check_expression_for_reassignments(&do_while.test, reassigned_variables);
+            check_for_reassignments(&do_while.body, reassigned_variables);
+        }
+        Statement::TryStatement(try_stmt) => {
+            for stmt in &try_stmt.block.body {
+                check_for_reassignments(stmt, reassigned_variables);
+            }
+            if let Some(handler) = &try_stmt.handler {
+                for stmt in &handler.body.body {
+                    check_for_reassignments(stmt, reassigned_variables);
+                }
+            }
+            if let Some(finalizer) = &try_stmt.finalizer {
+                for stmt in &finalizer.body {
+                    check_for_reassignments(stmt, reassigned_variables);
+                }
+            }
+        }
+        Statement::LabeledStatement(labeled) => {
+            check_for_reassignments(&labeled.body, reassigned_variables);
+        }
+        Statement::WithStatement(with) => {
+            check_expression_for_reassignments(&with.object, reassigned_variables);
+            check_for_reassignments(&with.body, reassigned_variables);
         }
         Statement::FunctionDeclaration(func) => {
             if let Some(body) = &func.body {
@@ -1847,6 +1827,7 @@ fn check_expression_for_reassignments(
             if let AssignmentTarget::AssignmentTargetIdentifier(id) = &assign.left {
                 reassigned_variables.insert(id.name.to_string());
             }
+            check_expression_for_reassignments(&assign.right, reassigned_variables);
         }
         Expression::UpdateExpression(update) => {
             if let oxc_ast::ast::SimpleAssignmentTarget::AssignmentTargetIdentifier(id) =
@@ -1856,11 +1837,123 @@ fn check_expression_for_reassignments(
             }
         }
         Expression::CallExpression(call) => {
+            check_expression_for_reassignments(&call.callee, reassigned_variables);
             for arg in &call.arguments {
                 if let Some(expr) = arg.as_expression() {
                     check_expression_for_reassignments(expr, reassigned_variables);
                 }
             }
+        }
+        Expression::NewExpression(new_expr) => {
+            check_expression_for_reassignments(&new_expr.callee, reassigned_variables);
+            for arg in &new_expr.arguments {
+                if let Some(expr) = arg.as_expression() {
+                    check_expression_for_reassignments(expr, reassigned_variables);
+                }
+            }
+        }
+        Expression::ArrowFunctionExpression(arrow) => {
+            for stmt in &arrow.body.statements {
+                check_for_reassignments(stmt, reassigned_variables);
+            }
+        }
+        Expression::FunctionExpression(func) => {
+            if let Some(body) = &func.body {
+                for stmt in &body.statements {
+                    check_for_reassignments(stmt, reassigned_variables);
+                }
+            }
+        }
+        Expression::ParenthesizedExpression(paren) => {
+            check_expression_for_reassignments(&paren.expression, reassigned_variables);
+        }
+        Expression::ConditionalExpression(cond) => {
+            check_expression_for_reassignments(&cond.test, reassigned_variables);
+            check_expression_for_reassignments(&cond.consequent, reassigned_variables);
+            check_expression_for_reassignments(&cond.alternate, reassigned_variables);
+        }
+        Expression::BinaryExpression(bin) => {
+            check_expression_for_reassignments(&bin.left, reassigned_variables);
+            check_expression_for_reassignments(&bin.right, reassigned_variables);
+        }
+        Expression::LogicalExpression(logical) => {
+            check_expression_for_reassignments(&logical.left, reassigned_variables);
+            check_expression_for_reassignments(&logical.right, reassigned_variables);
+        }
+        Expression::UnaryExpression(unary) => {
+            check_expression_for_reassignments(&unary.argument, reassigned_variables);
+        }
+        Expression::AwaitExpression(await_expr) => {
+            check_expression_for_reassignments(&await_expr.argument, reassigned_variables);
+        }
+        Expression::YieldExpression(yield_expr) => {
+            if let Some(arg) = &yield_expr.argument {
+                check_expression_for_reassignments(arg, reassigned_variables);
+            }
+        }
+        Expression::SequenceExpression(seq) => {
+            for expr in &seq.expressions {
+                check_expression_for_reassignments(expr, reassigned_variables);
+            }
+        }
+        Expression::ArrayExpression(arr) => {
+            for element in &arr.elements {
+                if let Some(expr) = element.as_expression() {
+                    check_expression_for_reassignments(expr, reassigned_variables);
+                }
+            }
+        }
+        Expression::ObjectExpression(obj) => {
+            for prop in &obj.properties {
+                if let oxc_ast::ast::ObjectPropertyKind::ObjectProperty(p) = prop {
+                    check_expression_for_reassignments(&p.value, reassigned_variables);
+                }
+            }
+        }
+        Expression::TemplateLiteral(tpl) => {
+            for expr in &tpl.expressions {
+                check_expression_for_reassignments(expr, reassigned_variables);
+            }
+        }
+        Expression::TaggedTemplateExpression(tagged) => {
+            check_expression_for_reassignments(&tagged.tag, reassigned_variables);
+            for expr in &tagged.quasi.expressions {
+                check_expression_for_reassignments(expr, reassigned_variables);
+            }
+        }
+        Expression::ChainExpression(chain) => {
+            use oxc_ast::ast::ChainElement;
+            match &chain.expression {
+                ChainElement::CallExpression(call) => {
+                    check_expression_for_reassignments(&call.callee, reassigned_variables);
+                    for arg in &call.arguments {
+                        if let Some(expr) = arg.as_expression() {
+                            check_expression_for_reassignments(expr, reassigned_variables);
+                        }
+                    }
+                }
+                ChainElement::StaticMemberExpression(member) => {
+                    check_expression_for_reassignments(&member.object, reassigned_variables);
+                }
+                ChainElement::ComputedMemberExpression(member) => {
+                    check_expression_for_reassignments(&member.object, reassigned_variables);
+                    check_expression_for_reassignments(&member.expression, reassigned_variables);
+                }
+                ChainElement::PrivateFieldExpression(member) => {
+                    check_expression_for_reassignments(&member.object, reassigned_variables);
+                }
+                _ => {}
+            }
+        }
+        Expression::StaticMemberExpression(member) => {
+            check_expression_for_reassignments(&member.object, reassigned_variables);
+        }
+        Expression::ComputedMemberExpression(member) => {
+            check_expression_for_reassignments(&member.object, reassigned_variables);
+            check_expression_for_reassignments(&member.expression, reassigned_variables);
+        }
+        Expression::PrivateFieldExpression(member) => {
+            check_expression_for_reassignments(&member.object, reassigned_variables);
         }
         _ => {}
     }
@@ -1972,26 +2065,21 @@ fn report_prefer_const_violations(
     }
 }
 
-/// Lint a single JS/TS file with configuration
+/// Lint a single JS/TS file with configuration. Returns the number of issues displayed.
 #[allow(clippy::result_large_err)]
 #[hotpath::measure]
 pub fn lint_file_with_config(
     path: &PathBuf,
     config_override: Option<AndromedaConfig>,
-) -> CliResult<()> {
+) -> CliResult<usize> {
     let content =
         fs::read_to_string(path).map_err(|e| CliError::file_read_error(path.clone(), e))?;
 
-    // Load configuration
     let config = config_override.unwrap_or_else(|| ConfigManager::load_or_default(None));
 
-    match lint_file_content_with_config(path, &content, Some(config.clone())) {
-        Ok(lint_errors) => {
-            display_lint_results_with_config(path, &lint_errors, Some(&config));
-            Ok(())
-        }
-        Err(e) => Err(e),
-    }
+    let lint_errors = lint_file_content_with_config(path, &content, Some(config.clone()))?;
+    display_lint_results_with_config(&lint_errors, Some(&config));
+    Ok(lint_errors.len())
 }
 
 /// Lint file content directly with configuration (useful for LSP)
@@ -2198,77 +2286,32 @@ pub fn lint_file_content_with_config(
     Ok(lint_errors)
 }
 
-/// Display lint results to the console with configuration
+/// Display lint diagnostics. Silent when there are none.
 fn display_lint_results_with_config(
-    path: &Path,
     lint_errors: &[LintError],
     config_override: Option<&AndromedaConfig>,
 ) {
-    if !lint_errors.is_empty() {
-        // Load configuration to check max_warnings
-        let default_config = ConfigManager::load_or_default(None);
-        let config = config_override.unwrap_or(&default_config);
-        let max_warnings = config.lint.max_warnings.unwrap_or(0);
+    if lint_errors.is_empty() {
+        return;
+    }
 
-        // Limit displayed errors if max_warnings is set
-        let errors_to_show = if max_warnings > 0 && lint_errors.len() > max_warnings as usize {
-            &lint_errors[..max_warnings as usize]
-        } else {
-            lint_errors
-        };
+    let default_config = ConfigManager::load_or_default(None);
+    let config = config_override.unwrap_or(&default_config);
+    let max_warnings = config.lint.max_warnings.unwrap_or(0);
 
-        let truncated_msg = if errors_to_show.len() < lint_errors.len() {
-            format!(", showing first {}", errors_to_show.len())
-        } else {
-            String::new()
-        };
-
-        println!();
-        println!(
-            "{} {} ({} issue{} found{})",
-            "🔍".bright_yellow(),
-            "Lint Issues".bright_yellow().bold(),
-            lint_errors.len(),
-            if lint_errors.len() == 1 { "" } else { "s" },
-            truncated_msg.bright_yellow()
-        );
-        println!("{}", "─".repeat(60).yellow());
-
-        for (i, error) in errors_to_show.iter().enumerate() {
-            if errors_to_show.len() > 1 {
-                println!();
-                println!(
-                    "{} Issue {} of {}:",
-                    "📍".cyan(),
-                    (i + 1).to_string().bright_cyan(),
-                    errors_to_show.len().to_string().bright_cyan()
-                );
-                println!("{}", "─".repeat(30).cyan());
-            }
-            println!("{:?}", oxc_miette::Report::new(error.clone()));
-        }
-
-        if errors_to_show.len() < lint_errors.len() {
-            println!();
-            println!(
-                "{} {} more issue{} not shown (limited by max_warnings setting)",
-                "⚠️".bright_yellow(),
-                (lint_errors.len() - errors_to_show.len())
-                    .to_string()
-                    .bright_yellow(),
-                if lint_errors.len() - errors_to_show.len() == 1 {
-                    ""
-                } else {
-                    "s"
-                }
-            );
-        }
-
-        println!();
+    let errors_to_show = if max_warnings > 0 && lint_errors.len() > max_warnings as usize {
+        &lint_errors[..max_warnings as usize]
     } else {
-        let ok = Style::new().green().bold().apply_to("✔");
-        let file = Style::new().cyan().apply_to(path.display());
-        let msg = Style::new().white().dim().apply_to("No lint issues found.");
-        println!("{ok} {file}: {msg}");
+        lint_errors
+    };
+
+    for error in errors_to_show {
+        eprintln!("{:?}", oxc_miette::Report::new(error.clone()));
+    }
+
+    let remaining = lint_errors.len() - errors_to_show.len();
+    if remaining > 0 {
+        let plural = if remaining == 1 { "" } else { "s" };
+        eprintln!("... {remaining} more diagnostic{plural} not shown (max_warnings limit).");
     }
 }
