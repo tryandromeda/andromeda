@@ -34,16 +34,15 @@ enum InstallerCommand {
     ///   - compile: Compile JS/TS into standalone executables
     ///   - fmt:     Format JavaScript/TypeScript files
     ///   - lint:    Lint JavaScript/TypeScript files
-    ///   - check:   Type-check TypeScript files
     ///   - bundle:  Bundle and minify JS/TS files
     ///   - all:     Install all satellites
     ///
     /// Examples:
     ///   andromeda-installer satellite run
-    ///   andromeda-installer satellite fmt lint check
+    ///   andromeda-installer satellite fmt lint
     ///   andromeda-installer satellite all --force
     Satellite {
-        /// Satellites to install (run, compile, fmt, lint, check, bundle, or 'all')
+        /// Satellites to install (run, compile, fmt, lint, bundle, or 'all')
         #[arg(required = true)]
         satellites: Vec<String>,
 
@@ -93,7 +92,7 @@ struct GitHubAsset {
 const REPO_OWNER: &str = "tryandromeda";
 const REPO_NAME: &str = "andromeda";
 
-const AVAILABLE_SATELLITES: &[&str] = &["run", "compile", "fmt", "lint", "check", "bundle"];
+const AVAILABLE_SATELLITES: &[&str] = &["run", "compile", "fmt", "lint", "bundle"];
 
 fn main() -> CliResult<()> {
     let cli = Cli::parse();
@@ -563,7 +562,7 @@ fn print_satellite_header() {
     println!("══════════════════════════════════════════");
     println!();
     println!("Satellites are specialized, lightweight binaries for specific tasks.");
-    println!("Available: run, compile, fmt, lint, check, bundle");
+    println!("Available: run, compile, fmt, lint, bundle");
     println!();
 }
 

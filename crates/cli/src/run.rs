@@ -120,7 +120,7 @@ pub fn run_with_config(
     match runtime_output.result {
         Ok(result) => {
             if effective_verbose {
-                println!("✅ Execution completed successfully: {result:?}");
+                println!("Execution completed successfully: {result:?}");
             }
             Ok(())
         }
@@ -239,11 +239,7 @@ fn print_error_with_llm_suggestion(
     // Then try to get and print an LLM suggestion if initialized
     if is_llm_initialized() {
         eprintln!();
-        eprintln!(
-            "{} {}",
-            "🤖".bright_cyan(),
-            "Fetching AI suggestion...".dimmed()
-        );
+        eprintln!("{}", "Fetching AI suggestion...".dimmed());
 
         let mut context = ErrorContext::new(error_message);
 
@@ -273,8 +269,7 @@ fn print_error_with_llm_suggestion(
 
                 eprintln!();
                 eprintln!(
-                    "{} {} {}",
-                    "💡".bright_yellow(),
+                    "{} {}",
                     "AI Suggestion".bright_yellow().bold(),
                     format!("(via {})", suggestion.provider_name).dimmed()
                 );

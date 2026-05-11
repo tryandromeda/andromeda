@@ -101,7 +101,7 @@ pub fn run_repl_with_config(
                 }
             };
             if script_evaluation(agent, script.unbind(), gc.reborrow()).is_err() {
-                eprintln!("⚠️  Warning: Error loading builtin module");
+                eprintln!("Warning: Error loading builtin module");
                 handle_runtime_error_with_message("Script evaluation failed".to_string());
             }
         }
@@ -170,13 +170,13 @@ pub fn run_repl_with_config(
             }
             "gc" => {
                 let gc_style = Style::new().yellow();
-                println!("{}", gc_style.apply_to("🗑️  Running garbage collection..."));
+                println!("{}", gc_style.apply_to("Running garbage collection..."));
                 agent.gc();
                 println!(
                     "{}",
                     Style::new()
                         .green()
-                        .apply_to("✅ Garbage collection completed")
+                        .apply_to("✓ Garbage collection completed")
                 );
                 continue;
             }
@@ -298,7 +298,7 @@ fn initialize_global_object(agent: &mut Agent, global_object: Object, mut gc: Gc
                 .unbind()
                 .is_err()
             {
-                eprintln!("⚠️  Warning: Error loading extension {}", specifier);
+                eprintln!("Warning: Error loading extension {}", specifier);
                 handle_runtime_error_with_message("Module evaluation failed".to_string());
             }
         }

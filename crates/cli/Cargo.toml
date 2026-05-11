@@ -54,10 +54,6 @@ name = "andromeda-lint"
 path = "src/bin/satellite_lint.rs"
 
 [[bin]]
-name = "andromeda-check"
-path = "src/bin/satellite_check.rs"
-
-[[bin]]
 name = "andromeda-bundle"
 path = "src/bin/satellite_bundle.rs"
 

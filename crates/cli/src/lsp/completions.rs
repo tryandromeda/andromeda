@@ -1,5 +1,6 @@
-// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-// If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use std::collections::HashMap;
 use tower_lsp::lsp_types::*;
@@ -61,7 +62,6 @@ impl AndromedaCompletionProvider {
                 "readTextFileSync(path: string): string",
                 "Reads a text file from the file system synchronously.",
                 "readTextFileSync(${1:path})",
-                Some("🗎"),
             ),
             create_completion_item(
                 "writeTextFileSync",
@@ -69,7 +69,6 @@ impl AndromedaCompletionProvider {
                 "writeTextFileSync(path: string, data: string): void",
                 "Writes a text file to the file system synchronously.",
                 "writeTextFileSync(${1:path}, ${2:data})",
-                Some("💾"),
             ),
             create_completion_item(
                 "readFileSync",
@@ -77,7 +76,6 @@ impl AndromedaCompletionProvider {
                 "readFileSync(path: string): Uint8Array",
                 "Reads a binary file from the file system synchronously.",
                 "readFileSync(${1:path})",
-                Some("🗎"),
             ),
             create_completion_item(
                 "writeFileSync",
@@ -85,7 +83,6 @@ impl AndromedaCompletionProvider {
                 "writeFileSync(path: string, data: Uint8Array): void",
                 "Writes binary data to a file synchronously.",
                 "writeFileSync(${1:path}, ${2:data})",
-                Some("💾"),
             ),
             create_completion_item(
                 "existsSync",
@@ -93,7 +90,6 @@ impl AndromedaCompletionProvider {
                 "existsSync(path: string): boolean",
                 "Checks if a file or directory exists synchronously.",
                 "existsSync(${1:path})",
-                Some("🔍"),
             ),
             create_completion_item(
                 "removeSync",
@@ -101,7 +97,6 @@ impl AndromedaCompletionProvider {
                 "removeSync(path: string): void",
                 "Removes a file from the file system synchronously.",
                 "removeSync(${1:path})",
-                Some("🗑️"),
             ),
             create_completion_item(
                 "mkdirSync",
@@ -109,7 +104,6 @@ impl AndromedaCompletionProvider {
                 "mkdirSync(path: string): void",
                 "Creates a directory synchronously.",
                 "mkdirSync(${1:path})",
-                Some("📁"),
             ),
             // Environment operations
             create_completion_item(
@@ -118,7 +112,6 @@ impl AndromedaCompletionProvider {
                 "env: { get(key: string): string; set(key: string, value: string): void; ... }",
                 "Environment variable operations.",
                 "env",
-                Some("🌍"),
             ),
             // Process operations
             create_completion_item(
@@ -127,7 +120,6 @@ impl AndromedaCompletionProvider {
                 "args: string[]",
                 "Command-line arguments passed to the program.",
                 "args",
-                Some("📋"),
             ),
             create_completion_item(
                 "exit",
@@ -135,7 +127,6 @@ impl AndromedaCompletionProvider {
                 "exit(code?: number): void",
                 "Exits the program with an optional exit code.",
                 "exit(${1:0})",
-                Some("🚪"),
             ),
             create_completion_item(
                 "sleep",
@@ -143,7 +134,6 @@ impl AndromedaCompletionProvider {
                 "sleep(duration: number): Promise<void>",
                 "Returns a Promise that resolves after the specified duration in milliseconds.",
                 "sleep(${1:1000})",
-                Some("⏱️"),
             ),
             // I/O operations
             create_completion_item(
@@ -152,7 +142,6 @@ impl AndromedaCompletionProvider {
                 "stdin: { readLine(): string }",
                 "Standard input operations.",
                 "stdin",
-                Some("⌨️"),
             ),
             create_completion_item(
                 "stdout",
@@ -160,7 +149,6 @@ impl AndromedaCompletionProvider {
                 "stdout: { write(message: string): void }",
                 "Standard output operations.",
                 "stdout",
-                Some("🖥️"),
             ),
         ];
 
@@ -177,7 +165,6 @@ impl AndromedaCompletionProvider {
                 "console: Console",
                 "Console API for logging and debugging.",
                 "console",
-                Some("🖥️"),
             ),
             // Fetch API
             create_completion_item(
@@ -186,7 +173,6 @@ impl AndromedaCompletionProvider {
                 "fetch(input: RequestInfo, init?: RequestInit): Promise<Response>",
                 "Fetch API for making HTTP requests.",
                 "fetch(${1:url})",
-                Some("🌐"),
             ),
             // Text encoding/decoding
             create_completion_item(
@@ -195,7 +181,6 @@ impl AndromedaCompletionProvider {
                 "TextEncoder: new() => TextEncoder",
                 "Encodes strings to UTF-8 bytes.",
                 "new TextEncoder()",
-                Some("🔤"),
             ),
             create_completion_item(
                 "TextDecoder",
@@ -203,7 +188,6 @@ impl AndromedaCompletionProvider {
                 "TextDecoder: new(label?: string, options?: TextDecoderOptions) => TextDecoder",
                 "Decodes bytes to strings.",
                 "new TextDecoder(${1:'utf-8'})",
-                Some("🔤"),
             ),
             // URL API
             create_completion_item(
@@ -212,7 +196,6 @@ impl AndromedaCompletionProvider {
                 "URL: new(url: string, base?: string) => URL",
                 "URL parsing and manipulation.",
                 "new URL(${1:url})",
-                Some("🔗"),
             ),
             create_completion_item(
                 "URLSearchParams",
@@ -220,7 +203,6 @@ impl AndromedaCompletionProvider {
                 "URLSearchParams: new(init?: string | string[][] | Record<string, string>) => URLSearchParams",
                 "URL search parameters manipulation.",
                 "new URLSearchParams(${1:params})",
-                Some("🔍"),
             ),
             // Structured clone
             create_completion_item(
@@ -229,7 +211,6 @@ impl AndromedaCompletionProvider {
                 "structuredClone<T>(value: T, options?: StructuredSerializeOptions): T",
                 "Creates a deep clone using the structured clone algorithm.",
                 "structuredClone(${1:value})",
-                Some("📋"),
             ),
             // Navigator
             create_completion_item(
@@ -238,7 +219,6 @@ impl AndromedaCompletionProvider {
                 "navigator: Navigator",
                 "Navigator API with user agent and platform information.",
                 "navigator",
-                Some("🧭"),
             ),
             // Timers
             create_completion_item(
@@ -247,7 +227,6 @@ impl AndromedaCompletionProvider {
                 "setTimeout(callback: () => void, delay?: number): number",
                 "Executes a function after a delay.",
                 "setTimeout(${1:callback}, ${2:delay})",
-                Some("⏰"),
             ),
             create_completion_item(
                 "setInterval",
@@ -255,7 +234,6 @@ impl AndromedaCompletionProvider {
                 "setInterval(callback: () => void, delay?: number): number",
                 "Repeatedly executes a function at intervals.",
                 "setInterval(${1:callback}, ${2:delay})",
-                Some("🔄"),
             ),
             create_completion_item(
                 "clearTimeout",
@@ -263,7 +241,6 @@ impl AndromedaCompletionProvider {
                 "clearTimeout(id: number): void",
                 "Cancels a timeout.",
                 "clearTimeout(${1:id})",
-                Some("❌"),
             ),
             create_completion_item(
                 "clearInterval",
@@ -271,7 +248,6 @@ impl AndromedaCompletionProvider {
                 "clearInterval(id: number): void",
                 "Cancels an interval.",
                 "clearInterval(${1:id})",
-                Some("❌"),
             ),
             create_completion_item(
                 "queueMicrotask",
@@ -279,7 +255,6 @@ impl AndromedaCompletionProvider {
                 "queueMicrotask(callback: () => void): void",
                 "Queues a microtask for execution.",
                 "queueMicrotask(${1:callback})",
-                Some("⚡"),
             ),
         ];
 
@@ -295,7 +270,6 @@ impl AndromedaCompletionProvider {
                 "OffscreenCanvas: new(width: number, height: number) => OffscreenCanvas",
                 "GPU-accelerated off-screen canvas for graphics rendering.",
                 "new OffscreenCanvas(${1:width}, ${2:height})",
-                Some("🎨"),
             ),
             create_completion_item(
                 "CanvasRenderingContext2D",
@@ -303,7 +277,6 @@ impl AndromedaCompletionProvider {
                 "CanvasRenderingContext2D",
                 "2D rendering context for canvas operations.",
                 "CanvasRenderingContext2D",
-                Some("🖌️"),
             ),
             create_completion_item(
                 "createImageBitmap",
@@ -311,7 +284,6 @@ impl AndromedaCompletionProvider {
                 "createImageBitmap(path: string): Promise<ImageBitmap>",
                 "Creates an ImageBitmap from a file path or URL.",
                 "createImageBitmap(${1:path})",
-                Some("🖼️"),
             ),
         ];
 
@@ -327,7 +299,6 @@ impl AndromedaCompletionProvider {
                 "crypto: Crypto",
                 "Web Crypto API for cryptographic operations.",
                 "crypto",
-                Some("🔐"),
             ),
             // crypto.subtle methods would be added here
             create_completion_item(
@@ -336,7 +307,6 @@ impl AndromedaCompletionProvider {
                 "crypto.randomUUID(): string",
                 "Generates a cryptographically secure random UUID.",
                 "crypto.randomUUID()",
-                Some("🎲"),
             ),
             create_completion_item(
                 "getRandomValues",
@@ -344,7 +314,6 @@ impl AndromedaCompletionProvider {
                 "crypto.getRandomValues<T extends TypedArray>(array: T): T",
                 "Fills a typed array with cryptographically secure random values.",
                 "crypto.getRandomValues(${1:array})",
-                Some("🎲"),
             ),
         ];
 
@@ -360,7 +329,6 @@ impl AndromedaCompletionProvider {
                 "Database: new(filename: string, options?: DatabaseSyncOptions) => DatabaseSync",
                 "SQLite database connection.",
                 "new Database(${1:filename})",
-                Some("🗄️"),
             ),
             create_completion_item(
                 "DatabaseSync",
@@ -368,7 +336,6 @@ impl AndromedaCompletionProvider {
                 "DatabaseSync: SQLite database class",
                 "Synchronous SQLite database operations.",
                 "DatabaseSync",
-                Some("🗄️"),
             ),
         ];
 
@@ -384,7 +351,6 @@ impl AndromedaCompletionProvider {
                 "localStorage: Storage",
                 "Local storage for persistent data.",
                 "localStorage",
-                Some("💾"),
             ),
             create_completion_item(
                 "sessionStorage",
@@ -392,7 +358,6 @@ impl AndromedaCompletionProvider {
                 "sessionStorage: Storage",
                 "Session storage for temporary data.",
                 "sessionStorage",
-                Some("🗃️"),
             ),
         ];
 
@@ -407,7 +372,6 @@ impl AndromedaCompletionProvider {
             "performance: AndromedaPerformance",
             "High-resolution time measurements and performance monitoring.",
             "performance",
-            Some("⚡"),
         )];
 
         self.api_completions
@@ -506,7 +470,6 @@ pub fn create_completion_item(
     detail: &str,
     documentation: &str,
     insert_text: &str,
-    icon: Option<&str>,
 ) -> CompletionItem {
     let mut item = CompletionItem {
         label: label.to_string(),
@@ -514,11 +477,7 @@ pub fn create_completion_item(
         detail: Some(detail.to_string()),
         documentation: Some(Documentation::MarkupContent(MarkupContent {
             kind: MarkupKind::Markdown,
-            value: if let Some(icon) = icon {
-                format!("{icon} {documentation}")
-            } else {
-                documentation.to_string()
-            },
+            value: documentation.to_string(),
         })),
         insert_text: Some(insert_text.to_string()),
         insert_text_format: Some(InsertTextFormat::SNIPPET),
@@ -550,7 +509,6 @@ pub fn get_env_completions() -> Vec<CompletionItem> {
             "get(key: string): string",
             "Gets the value of an environment variable.",
             "get(${1:key})",
-            Some("🔑"),
         ),
         create_completion_item(
             "set",
@@ -558,7 +516,6 @@ pub fn get_env_completions() -> Vec<CompletionItem> {
             "set(key: string, value: string): void",
             "Sets the value of an environment variable.",
             "set(${1:key}, ${2:value})",
-            Some("✏️"),
         ),
         create_completion_item(
             "remove",
@@ -566,7 +523,6 @@ pub fn get_env_completions() -> Vec<CompletionItem> {
             "remove(key: string): void",
             "Removes an environment variable.",
             "remove(${1:key})",
-            Some("🗑️"),
         ),
         create_completion_item(
             "keys",
@@ -574,7 +530,6 @@ pub fn get_env_completions() -> Vec<CompletionItem> {
             "keys(): string[]",
             "Returns all environment variable keys.",
             "keys()",
-            Some("🗂️"),
         ),
     ]
 }
@@ -588,7 +543,6 @@ pub fn get_console_completions() -> Vec<CompletionItem> {
             "log(...data: any[]): void",
             "Logs messages to the console.",
             "log(${1:message})",
-            Some("📝"),
         ),
         create_completion_item(
             "error",
@@ -596,7 +550,6 @@ pub fn get_console_completions() -> Vec<CompletionItem> {
             "error(...data: any[]): void",
             "Logs error messages to the console.",
             "error(${1:message})",
-            Some("❌"),
         ),
         create_completion_item(
             "warn",
@@ -604,7 +557,6 @@ pub fn get_console_completions() -> Vec<CompletionItem> {
             "warn(...data: any[]): void",
             "Logs warning messages to the console.",
             "warn(${1:message})",
-            Some("⚠️"),
         ),
         create_completion_item(
             "info",
@@ -612,7 +564,6 @@ pub fn get_console_completions() -> Vec<CompletionItem> {
             "info(...data: any[]): void",
             "Logs info messages to the console.",
             "info(${1:message})",
-            Some("ℹ️"),
         ),
         create_completion_item(
             "debug",
@@ -620,7 +571,6 @@ pub fn get_console_completions() -> Vec<CompletionItem> {
             "debug(...data: any[]): void",
             "Logs debug messages to the console.",
             "debug(${1:message})",
-            Some("🐛"),
         ),
         create_completion_item(
             "table",
@@ -628,7 +578,6 @@ pub fn get_console_completions() -> Vec<CompletionItem> {
             "table(data: any): void",
             "Displays data in a table format.",
             "table(${1:data})",
-            Some("📋"),
         ),
         create_completion_item(
             "time",
@@ -636,7 +585,6 @@ pub fn get_console_completions() -> Vec<CompletionItem> {
             "time(label?: string): void",
             "Starts a timer for performance measurement.",
             "time(${1:label})",
-            Some("⏱️"),
         ),
         create_completion_item(
             "timeEnd",
@@ -644,7 +592,6 @@ pub fn get_console_completions() -> Vec<CompletionItem> {
             "timeEnd(label?: string): void",
             "Ends a timer and logs the elapsed time.",
             "timeEnd(${1:label})",
-            Some("⏹️"),
         ),
     ]
 }
