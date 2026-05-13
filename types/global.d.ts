@@ -509,7 +509,7 @@ declare namespace Andromeda {
   /**
    * CronScheduleExpression defines the different ways to specify a time component in a cron schedule.
    */
-  type CronScheduleExpression = number | { exact: number | number[]; } | {
+  type CronScheduleExpression = number | { exact: number | number[] } | {
     start?: number;
     end?: number;
     every?: number;
@@ -568,7 +568,7 @@ declare namespace Andromeda {
   function cron(
     name: string,
     schedule: string | CronSchedule,
-    options: { backoffSchedule?: number[]; signal?: AbortSignal; },
+    options: { backoffSchedule?: number[]; signal?: AbortSignal },
     handler: () => Promise<void> | void,
   ): Promise<void>;
 
@@ -686,6 +686,58 @@ declare namespace Andromeda {
     /** Spawns the command as a child process without waiting for completion. */
     spawn(): ChildProcess;
   }
+
+  // HTTP Server API
+
+  /**
+   * The handler function for incoming HTTP requests.
+   */
+  interface ServeHandler {
+    (request: Request): Response | Promise<Response>;
+  }
+
+  /**
+   * Options for the HTTP server.
+   */
+  interface ServeOptions {
+    /** The port to listen on. Default is 8080. */
+    port?: number;
+    /** The hostname to listen on. Default is "127.0.0.1". */
+    hostname?: string;
+    /** An AbortSignal to close the server. */
+    signal?: AbortSignal;
+    /** Whether to allow reusing the port. */
+    reusePort?: boolean;
+    /** TLS private key for HTTPS. */
+    key?: string;
+    /** TLS certificate for HTTPS. */
+    cert?: string;
+    /** Callback for when an error occurs during connection handling. */
+    onError?: (error: unknown) => Response | Promise<Response>;
+    /** Callback for when the server starts listening. */
+    onListen?: (params: { hostname: string; port: number }) => void;
+    /** The request handler. */
+    handler?: ServeHandler;
+  }
+
+  /**
+   * Starts an HTTP server.
+   *
+   * @example
+   * ```ts
+   * Andromeda.serve((req) => new Response("Hello World"));
+   * ```
+   *
+   * @example
+   * ```ts
+   * Andromeda.serve({
+   *   port: 3000,
+   *   handler: (req) => new Response("Hello World on port 3000")
+   * });
+   * ```
+   */
+  function serve(handler: ServeHandler, options?: ServeOptions): Promise<void>;
+  function serve(options: ServeOptions): Promise<void>;
 }
 /**
  * The `prompt` function prompts the user for input.
@@ -1506,7 +1558,7 @@ interface TextDecoderOptions {
  */
 // @ts-ignore Deno type issues
 declare const TextEncoder: {
-  new(): TextEncoder;
+  new (): TextEncoder;
 };
 
 /**
@@ -1514,7 +1566,7 @@ declare const TextEncoder: {
  */
 // @ts-ignore Deno type issues
 declare const TextDecoder: {
-  new(label?: string, options?: TextDecoderOptions): TextDecoder;
+  new (label?: string, options?: TextDecoderOptions): TextDecoder;
 };
 
 /**
@@ -2108,7 +2160,7 @@ interface AbortSignal {
 // @ts-ignore Deno type issues
 declare const AbortSignal: {
   prototype: AbortSignal;
-  new(): AbortSignal;
+  new (): AbortSignal;
 
   /** Creates an already aborted AbortSignal */
   abort(reason?: any): AbortSignal;
@@ -2136,7 +2188,7 @@ interface AbortController {
 // @ts-ignore Deno type issues
 declare const AbortController: {
   prototype: AbortController;
-  new(): AbortController;
+  new (): AbortController;
 };
 
 /**
@@ -2190,7 +2242,7 @@ interface NavigatorUAData {
   getHighEntropyValues(hints: string[]): Promise<UAHighEntropyValues>;
 
   /** Returns a JSON representation of the low entropy properties */
-  toJSON(): { brands: UADataValues[]; mobile: boolean; platform: string; };
+  toJSON(): { brands: UADataValues[]; mobile: boolean; platform: string };
 }
 
 /**
@@ -2463,7 +2515,7 @@ interface QueuingStrategy<T = any> {
  */
 declare class CountQueuingStrategy implements QueuingStrategy {
   readonly highWaterMark: number;
-  constructor(init: { highWaterMark: number; });
+  constructor(init: { highWaterMark: number });
   size(chunk?: any): number;
 }
 
@@ -2473,7 +2525,7 @@ declare class CountQueuingStrategy implements QueuingStrategy {
  */
 declare class ByteLengthQueuingStrategy implements QueuingStrategy {
   readonly highWaterMark: number;
-  constructor(init: { highWaterMark: number; });
+  constructor(init: { highWaterMark: number });
   size(chunk?: any): number;
 }
 
@@ -2538,7 +2590,7 @@ declare class ReadableStream<R = any> {
   cancel(reason?: any): Promise<void>;
   getReader(): ReadableStreamDefaultReader<R>;
   pipeThrough<T>(
-    transform: { readable: ReadableStream<T>; writable: WritableStream<R>; },
+    transform: { readable: ReadableStream<T>; writable: WritableStream<R> },
     options?: PipeOptions,
   ): ReadableStream<T>;
   pipeTo(destination: WritableStream<R>, options?: PipeOptions): Promise<void>;

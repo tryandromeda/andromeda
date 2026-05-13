@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Andromeda To-Do</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --bg-color: #050505;
+                --container-bg: rgba(20, 20, 25, 0.6);
+                --container-border: rgba(255, 255, 255, 0.08);
+                --text-main: #f3f4f6;
+                --text-muted: #9ca3af;
+                --accent-glow: rgba(99, 102, 241, 0.5);
+                --accent-primary: #6366f1;
+                --accent-secondary: #a855f7;
+                --danger: #ef4444;
+                --item-bg: rgba(255, 255, 255, 0.03);
+                --item-hover: rgba(255, 255, 255, 0.06);
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family:
+                    "Inter",
+                    -apple-system,
+                    sans-serif;
+                background-color: var(--bg-color);
+                color: var(--text-main);
+                min-height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: flex-start;
+                padding: 4rem 1rem;
+            }
+
+            .container {
+                width: 100%;
+                max-width: 540px;
+                background: var(--container-bg);
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+                padding: 2.5rem;
+                border-radius: 24px;
+                border: 1px solid var(--container-border);
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            }
+
+            h1 {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                margin-bottom: 2rem;
+                font-size: 2.2rem;
+                font-weight: 700;
+                letter-spacing: -0.025em;
+                background: linear-gradient(
+                    to right,
+                    var(--text-main),
+                    var(--text-muted)
+                );
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+
+            .emoji {
+                font-style: normal;
+                -webkit-text-fill-color: initial;
+                filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.2));
+            }
+
+            form {
+                display: flex;
+                gap: 0.75rem;
+                margin-bottom: 2.5rem;
+                position: relative;
+            }
+
+            input[type="text"] {
+                flex: 1;
+                padding: 1rem 1.25rem;
+                background: rgba(0, 0, 0, 0.2);
+                color: var(--text-main);
+                border: 1px solid var(--container-border);
+                border-radius: 12px;
+                font-size: 1rem;
+                font-family: inherit;
+                transition: all 0.3s ease;
+                box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+
+            input[type="text"]::placeholder {
+                color: var(--text-muted);
+            }
+
+            input[type="text"]:focus {
+                outline: none;
+                border-color: var(--accent-primary);
+                box-shadow:
+                    0 0 0 3px rgba(99, 102, 241, 0.2),
+                    inset 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+
+            button[type="submit"] {
+                padding: 0 1.5rem;
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-primary),
+                    var(--accent-secondary)
+                );
+                color: white;
+                border: none;
+                border-radius: 12px;
+                cursor: pointer;
+                font-size: 1rem;
+                font-weight: 600;
+                font-family: inherit;
+                transition: all 0.3s ease;
+            }
+
+            button[type="submit"]:hover {
+                filter: brightness(1.1);
+            }
+
+            button[type="submit"]:active {
+                filter: brightness(0.9);
+            }
+
+            ul {
+                list-style: none;
+                display: flex;
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+
+            li {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                padding: 1rem 1.25rem;
+                background: var(--item-bg);
+                border-radius: 12px;
+                border: 1px solid var(--container-border);
+                transition: all 0.2s ease;
+                animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                position: relative;
+                overflow: hidden;
+            }
+
+            @keyframes slideIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            li:hover {
+                background: var(--item-hover);
+                border-color: rgba(255, 255, 255, 0.1);
+            }
+
+            li::before {
+                content: "";
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 3px;
+                background: var(--accent-primary);
+                opacity: 0;
+                transition: opacity 0.2s;
+            }
+
+            li.completed::before {
+                opacity: 1;
+                background: #10b981;
+            }
+
+            .task-text {
+                flex: 1;
+                font-size: 1.05rem;
+                transition: all 0.3s ease;
+                font-weight: 500;
+            }
+
+            .completed .task-text {
+                text-decoration: line-through;
+                color: var(--text-muted);
+                opacity: 0.7;
+            }
+
+            .delete-btn {
+                background: transparent;
+                color: var(--text-muted);
+                border: none;
+                padding: 0.5rem;
+                border-radius: 8px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
+                opacity: 0.5;
+            }
+
+            li:hover .delete-btn {
+                opacity: 1;
+            }
+
+            .delete-btn:hover {
+                background: rgba(239, 68, 68, 0.1);
+                color: var(--danger);
+            }
+
+            .delete-btn svg {
+                width: 1.25rem;
+                height: 1.25rem;
+            }
+
+            /* Custom Animated Checkbox */
+            .checkbox-wrapper {
+                position: relative;
+                width: 1.5rem;
+                height: 1.5rem;
+                flex-shrink: 0;
+            }
+
+            input[type="checkbox"] {
+                appearance: none;
+                -webkit-appearance: none;
+                width: 100%;
+                height: 100%;
+                border: 2px solid var(--text-muted);
+                border-radius: 6px;
+                background: transparent;
+                cursor: pointer;
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                margin: 0;
+            }
+
+            input[type="checkbox"]:hover {
+                border-color: var(--accent-primary);
+                transform: scale(1.05);
+            }
+
+            input[type="checkbox"]:active {
+                transform: scale(0.85);
+            }
+
+            input[type="checkbox"]:checked {
+                background: #10b981;
+                border-color: #10b981;
+                transform: scale(1);
+            }
+
+            .check-icon {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%) scale(0);
+                width: 0.9rem;
+                height: 0.9rem;
+                pointer-events: none;
+                transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+                color: white;
+            }
+
+            input[type="checkbox"]:checked + .check-icon {
+                transform: translate(-50%, -50%) scale(1);
+            }
+
+            .empty-state {
+                text-align: center;
+                color: var(--text-muted);
+                padding: 3rem 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+            }
+
+            .empty-state svg {
+                width: 3rem;
+                height: 3rem;
+                opacity: 0.5;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Todo List</h1>
+
+            <form id="todo-form">
+                <input
+                    type="text"
+                    id="task-input"
+                    placeholder="What needs to be done?"
+                    required
+                    autocomplete="off"
+                />
+                <button type="submit">Add Task</button>
+            </form>
+
+            <ul id="todo-list"></ul>
+        </div>
+
+        <script>
+            const API_URL = "/todos";
+            const list = document.getElementById("todo-list");
+            const form = document.getElementById("todo-form");
+            const input = document.getElementById("task-input");
+
+            // SVG Icons
+            const checkSvg = `<svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>`;
+            const deleteSvg = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`;
+            const emptySvg = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>`;
+
+            async function fetchTodos() {
+                try {
+                    const res = await fetch(API_URL);
+                    if (!res.ok) throw new Error("Failed to fetch");
+                    const todos = await res.json();
+                    renderTodos(todos);
+                } catch (err) {
+                    console.error("Error fetching todos:", err);
+                }
+            }
+
+            function renderTodos(todos) {
+                list.innerHTML = "";
+
+                if (todos.length === 0) {
+                    list.innerHTML = `<div class="empty-state">${emptySvg}<span>All caught up! Add a new task above.</span></div>`;
+                    return;
+                }
+
+                todos.forEach((todo) => {
+                    const li = document.createElement("li");
+                    if (todo.completed === 1) li.classList.add("completed");
+
+                    const checkboxWrapper = document.createElement("div");
+                    checkboxWrapper.className = "checkbox-wrapper";
+
+                    const checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.checked = todo.completed === 1;
+                    checkbox.onchange = () =>
+                        toggleTodo(todo.id, checkbox.checked);
+
+                    checkboxWrapper.innerHTML = checkSvg;
+                    checkboxWrapper.prepend(checkbox);
+
+                    const span = document.createElement("span");
+                    span.className = "task-text";
+                    span.textContent = todo.task;
+
+                    const delBtn = document.createElement("button");
+                    delBtn.className = "delete-btn";
+                    delBtn.innerHTML = deleteSvg;
+                    delBtn.title = "Delete task";
+                    delBtn.onclick = () => deleteTodo(todo.id);
+
+                    li.appendChild(checkboxWrapper);
+                    li.appendChild(span);
+                    li.appendChild(delBtn);
+                    list.appendChild(li);
+                });
+            }
+
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+                const task = input.value.trim();
+                if (!task) return;
+
+                try {
+                    await fetch(API_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ task }),
+                    });
+                    input.value = "";
+                    fetchTodos();
+                } catch (err) {
+                    console.error("Error adding todo:", err);
+                }
+            };
+
+            async function toggleTodo(id, completed) {
+                try {
+                    await fetch(`${API_URL}/${id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ completed }),
+                    });
+                    fetchTodos();
+                } catch (err) {
+                    console.error("Error toggling todo:", err);
+                }
+            }
+
+            async function deleteTodo(id) {
+                try {
+                    await fetch(`${API_URL}/${id}`, {
+                        method: "DELETE",
+                    });
+                    fetchTodos();
+                } catch (err) {
+                    console.error("Error deleting todo:", err);
+                }
+            }
+
+            // Initial load
+            fetchTodos();
+        </script>
+    </body>
+</html>

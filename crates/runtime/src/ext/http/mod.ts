@@ -14,7 +14,7 @@ interface ServeOptions {
   key?: string;
   cert?: string;
   onError?: (error: unknown) => Response | Promise<Response>;
-  onListen?: (params: { hostname: string; port: number; }) => void;
+  onListen?: (params: { hostname: string; port: number }) => void;
   handler?: ServeHandler;
 }
 
@@ -161,8 +161,6 @@ async function serve(
 
   const hostname = options.hostname ?? DEFAULT_HOSTNAME;
   const port = options.port ?? DEFAULT_PORT;
-  console.info(`HTTP server running on http://${hostname}:${port}/`);
-
   const listenResult = __andromeda__.tcp_listen(hostname, port);
   const listenData = JSON.parse(listenResult);
   if (!listenData.success) {
@@ -180,14 +178,16 @@ async function serve(
         continue;
       }
 
-      // TODO: Handle connections concurrently instead of sequentially
+      // Handle connections concurrently
       handleConnection(result.resourceId, handler, {
         ...options,
         hostname,
         port,
-      });
+      }).catch(console.error);
     } catch (error) {
-      break;
+      // Don't break the loop if a single accept fails (e.g. browser disconnects before accept)
+      // Just log and continue to accept the next connection
+      console.error("Error accepting connection:", error);
     }
   }
 }
