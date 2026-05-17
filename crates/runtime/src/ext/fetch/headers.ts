@@ -103,6 +103,33 @@ class Headers {
     }
   }
 
+  // Order follows forEach (header list order).
+  // TODO: sort-and-combine
+  *entries(): IterableIterator<[string, string]> {
+    const pairs = this.#headerList;
+    for (let i = 0; i < pairs.length; i++) {
+      yield [pairs[i][0], pairs[i][1]];
+    }
+  }
+
+  *keys(): IterableIterator<string> {
+    const pairs = this.#headerList;
+    for (let i = 0; i < pairs.length; i++) {
+      yield pairs[i][0];
+    }
+  }
+
+  *values(): IterableIterator<string> {
+    const pairs = this.#headerList;
+    for (let i = 0; i < pairs.length; i++) {
+      yield pairs[i][1];
+    }
+  }
+
+  [Symbol.iterator](): IterableIterator<[string, string]> {
+    return this.entries();
+  }
+
   get headerList() {
     return this.#headerList;
   }

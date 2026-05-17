@@ -96,7 +96,9 @@ class Response extends BodyMixin {
    * Returns true if the response is the result of a redirect; otherwise false.
    */
   get redirected(): boolean {
-    return (this as any)[RESPONSE_INTERNAL].url.length > 1;
+    const internal = (this as any)[RESPONSE_INTERNAL];
+    const list = internal && internal.urlList;
+    return Array.isArray(list) && list.length > 1;
   }
 
   /**
