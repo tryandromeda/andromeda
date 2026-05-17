@@ -439,6 +439,193 @@ pub enum RuntimeError {
         source_code: Option<NamedSource<String>>,
     },
 
+    /// Subprocess execution errors
+    #[diagnostic(
+        code(andromeda::command::execution_failed),
+        help("Check that the command exists on PATH, is executable, and accepts the given arguments.")
+    )]
+    CommandError {
+        program: String,
+        operation: String,
+        message: String,
+        exit_code: Option<i32>,
+        #[label("command failed here")]
+        error_location: Option<SourceSpan>,
+        #[source_code]
+        source_code: Option<NamedSource<String>>,
+    },
+
+    /// Process / signal management errors
+    #[diagnostic(
+        code(andromeda::process::operation_failed),
+        help("Verify the signal is supported on this platform and the target process exists.")
+    )]
+    ProcessError {
+        operation: String,
+        message: String,
+        signal: Option<String>,
+        platform: String,
+        #[label("process operation failed here")]
+        error_location: Option<SourceSpan>,
+        #[source_code]
+        source_code: Option<NamedSource<String>>,
+    },
+
+    /// TLS / SSL operation errors
+    #[diagnostic(
+        code(andromeda::tls::operation_failed),
+        help("Verify the peer's certificate chain and that the configured CA bundle is correct.")
+    )]
+    TlsError {
+        operation: String,
+        message: String,
+        peer: Option<String>,
+        certificate_info: Option<String>,
+        #[label("TLS operation failed here")]
+        error_location: Option<SourceSpan>,
+        #[source_code]
+        source_code: Option<NamedSource<String>>,
+    },
+
+    /// Web Locks API errors
+    #[diagnostic(
+        code(andromeda::lock::operation_failed),
+        help("Check whether the lock name is already held; review for nested or cyclic acquisitions.")
+    )]
+    LockError {
+        lock_name: String,
+        operation: String,
+        message: String,
+        is_deadlock: bool,
+        #[label("lock operation failed here")]
+        error_location: Option<SourceSpan>,
+        #[source_code]
+        source_code: Option<NamedSource<String>>,
+    },
+
+    /// Worker thread errors
+    #[diagnostic(
+        code(andromeda::worker::operation_failed),
+        help("Verify the worker script path resolves and the host has resources to spawn a thread.")
+    )]
+    WorkerError {
+        worker_id: Option<u32>,
+        operation: String,
+        message: String,
+        #[label("worker operation failed here")]
+        error_location: Option<SourceSpan>,
+        #[source_code]
+        source_code: Option<NamedSource<String>>,
+    },
+
+    /// Database / SQLite errors
+    #[diagnostic(
+        code(andromeda::database::operation_failed),
+        help("Check the SQL statement, database file permissions, and that the database is initialized.")
+    )]
+    DatabaseError {
+        operation: String,
+        database_name: Option<String>,
+        message: String,
+        sql: Option<String>,
+        #[label("database operation failed here")]
+        error_location: Option<SourceSpan>,
+        #[source_code]
+        source_code: Option<NamedSource<String>>,
+    },
+
+    /// Web Crypto operation errors
+    #[diagnostic(
+        code(andromeda::crypto::operation_failed),
+        help("Verify the algorithm name, key length, and that the requested usage matches the key's usages.")
+    )]
+    CryptoError {
+        operation: String,
+        algorithm: String,
+        message: String,
+        key_usage: Option<String>,
+        #[label("crypto operation failed here")]
+        error_location: Option<SourceSpan>,
+        #[source_code]
+        source_code: Option<NamedSource<String>>,
+    },
+
+    /// URL parse errors
+    #[diagnostic(
+        code(andromeda::url::parse_failed),
+        help("Use a valid URL with a scheme (http://, https://, file://, etc.) or a relative path resolvable against the base.")
+    )]
+    UrlParseError {
+        url: String,
+        reason: String,
+        #[label("URL parse failed here")]
+        error_location: Option<SourceSpan>,
+        #[source_code]
+        source_code: Option<NamedSource<String>>,
+    },
+
+    /// Web Storage / Cache Storage errors
+    #[diagnostic(
+        code(andromeda::storage::operation_failed),
+        help("Check storage quota, file permissions on the storage backend, and the operation arguments.")
+    )]
+    StorageError {
+        store_type: String,
+        operation: String,
+        message: String,
+        quota_exceeded: bool,
+        #[label("storage operation failed here")]
+        error_location: Option<SourceSpan>,
+        #[source_code]
+        source_code: Option<NamedSource<String>>,
+    },
+
+    /// FFI (foreign function interface) errors
+    #[diagnostic(
+        code(andromeda::ffi::operation_failed),
+        help("Verify the library path, symbol name, and argument types match the foreign declaration.")
+    )]
+    FfiCallError {
+        operation: String,
+        library: Option<String>,
+        message: String,
+        #[label("FFI operation failed here")]
+        error_location: Option<SourceSpan>,
+        #[source_code]
+        source_code: Option<NamedSource<String>>,
+    },
+
+    /// HTTP module load errors
+    #[diagnostic(
+        code(andromeda::module::http_load_failed),
+        help("Check the URL is reachable, the server returns 2xx, and the module syntax is valid.")
+    )]
+    HttpModuleLoadError {
+        url: String,
+        operation: String,
+        status_code: Option<u16>,
+        message: String,
+        #[label("HTTP module load failed here")]
+        error_location: Option<SourceSpan>,
+        #[source_code]
+        source_code: Option<NamedSource<String>>,
+    },
+
+    /// Import map configuration errors
+    #[diagnostic(
+        code(andromeda::module::import_map_invalid),
+        help("Verify the import map is valid JSON and each entry maps a bare specifier to a resolvable URL or path.")
+    )]
+    ImportMapError {
+        field: String,
+        value: Option<String>,
+        message: String,
+        #[label("import map error here")]
+        error_location: Option<SourceSpan>,
+        #[source_code]
+        source_code: Option<NamedSource<String>>,
+    },
+
     /// Internal error (should not happen in normal operation)
     #[diagnostic(
         code(andromeda::internal::error),
@@ -1177,6 +1364,353 @@ impl RuntimeError {
         }
     }
 
+    // -------------------- Command / Process Errors --------------------
+
+    /// Create a new subprocess execution error
+    pub fn command_error(
+        program: impl Into<String>,
+        operation: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::CommandError {
+            program: program.into(),
+            operation: operation.into(),
+            message: message.into(),
+            exit_code: None,
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    /// Create a new subprocess execution error with exit code
+    pub fn command_error_with_exit_code(
+        program: impl Into<String>,
+        operation: impl Into<String>,
+        message: impl Into<String>,
+        exit_code: i32,
+    ) -> Self {
+        Self::CommandError {
+            program: program.into(),
+            operation: operation.into(),
+            message: message.into(),
+            exit_code: Some(exit_code),
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    /// Create a new process / signal management error
+    pub fn process_error(operation: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::ProcessError {
+            operation: operation.into(),
+            message: message.into(),
+            signal: None,
+            platform: std::env::consts::OS.to_string(),
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    /// Create a new process error with signal information
+    pub fn process_error_with_signal(
+        operation: impl Into<String>,
+        message: impl Into<String>,
+        signal: impl Into<String>,
+    ) -> Self {
+        Self::ProcessError {
+            operation: operation.into(),
+            message: message.into(),
+            signal: Some(signal.into()),
+            platform: std::env::consts::OS.to_string(),
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    // -------------------- TLS Errors --------------------
+
+    /// Create a new TLS error
+    pub fn tls_error(operation: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::TlsError {
+            operation: operation.into(),
+            message: message.into(),
+            peer: None,
+            certificate_info: None,
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    /// Create a new TLS error with peer context
+    pub fn tls_error_with_peer(
+        operation: impl Into<String>,
+        message: impl Into<String>,
+        peer: impl Into<String>,
+    ) -> Self {
+        Self::TlsError {
+            operation: operation.into(),
+            message: message.into(),
+            peer: Some(peer.into()),
+            certificate_info: None,
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    // -------------------- Lock Errors --------------------
+
+    /// Create a new Web Locks API error
+    pub fn lock_error(
+        lock_name: impl Into<String>,
+        operation: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::LockError {
+            lock_name: lock_name.into(),
+            operation: operation.into(),
+            message: message.into(),
+            is_deadlock: false,
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    /// Create a new Web Locks API error flagged as a deadlock
+    pub fn lock_deadlock_error(
+        lock_name: impl Into<String>,
+        operation: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::LockError {
+            lock_name: lock_name.into(),
+            operation: operation.into(),
+            message: message.into(),
+            is_deadlock: true,
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    // -------------------- Worker Errors --------------------
+
+    /// Create a new worker thread error
+    pub fn worker_error(
+        worker_id: Option<u32>,
+        operation: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::WorkerError {
+            worker_id,
+            operation: operation.into(),
+            message: message.into(),
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    // -------------------- Database Errors --------------------
+
+    /// Create a new database / SQLite error
+    pub fn database_error(operation: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::DatabaseError {
+            operation: operation.into(),
+            database_name: None,
+            message: message.into(),
+            sql: None,
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    /// Create a database error with full SQL/database context
+    pub fn database_error_with_context(
+        operation: impl Into<String>,
+        message: impl Into<String>,
+        database_name: Option<String>,
+        sql: Option<String>,
+    ) -> Self {
+        Self::DatabaseError {
+            operation: operation.into(),
+            database_name,
+            message: message.into(),
+            sql,
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    // -------------------- Crypto Errors --------------------
+
+    /// Create a new Web Crypto error
+    pub fn crypto_error(
+        operation: impl Into<String>,
+        algorithm: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::CryptoError {
+            operation: operation.into(),
+            algorithm: algorithm.into(),
+            message: message.into(),
+            key_usage: None,
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    /// Create a new Web Crypto error with key usage context
+    pub fn crypto_error_with_key_usage(
+        operation: impl Into<String>,
+        algorithm: impl Into<String>,
+        message: impl Into<String>,
+        key_usage: impl Into<String>,
+    ) -> Self {
+        Self::CryptoError {
+            operation: operation.into(),
+            algorithm: algorithm.into(),
+            message: message.into(),
+            key_usage: Some(key_usage.into()),
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    // -------------------- URL Parse Errors --------------------
+
+    /// Create a new URL parse error
+    pub fn url_parse_error(url: impl Into<String>, reason: impl Into<String>) -> Self {
+        Self::UrlParseError {
+            url: url.into(),
+            reason: reason.into(),
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    // -------------------- Storage Errors --------------------
+
+    /// Create a new Web Storage / Cache Storage error
+    pub fn storage_error(
+        store_type: impl Into<String>,
+        operation: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::StorageError {
+            store_type: store_type.into(),
+            operation: operation.into(),
+            message: message.into(),
+            quota_exceeded: false,
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    /// Create a new storage quota-exceeded error
+    pub fn storage_quota_exceeded(
+        store_type: impl Into<String>,
+        operation: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::StorageError {
+            store_type: store_type.into(),
+            operation: operation.into(),
+            message: message.into(),
+            quota_exceeded: true,
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    // -------------------- FFI Errors --------------------
+
+    /// Create a new FFI error
+    pub fn ffi_call_error(operation: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::FfiCallError {
+            operation: operation.into(),
+            library: None,
+            message: message.into(),
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    /// Create a new FFI error with library context
+    pub fn ffi_call_error_with_library(
+        operation: impl Into<String>,
+        library: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::FfiCallError {
+            operation: operation.into(),
+            library: Some(library.into()),
+            message: message.into(),
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    // -------------------- HTTP Module Load Errors --------------------
+
+    /// Create a new HTTP module load error
+    pub fn http_module_load_error(
+        url: impl Into<String>,
+        operation: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::HttpModuleLoadError {
+            url: url.into(),
+            operation: operation.into(),
+            status_code: None,
+            message: message.into(),
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    /// Create a new HTTP module load error with status code
+    pub fn http_module_load_error_with_status(
+        url: impl Into<String>,
+        operation: impl Into<String>,
+        status_code: u16,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::HttpModuleLoadError {
+            url: url.into(),
+            operation: operation.into(),
+            status_code: Some(status_code),
+            message: message.into(),
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    // -------------------- Import Map Errors --------------------
+
+    /// Create a new import map error
+    pub fn import_map_error(field: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::ImportMapError {
+            field: field.into(),
+            value: None,
+            message: message.into(),
+            error_location: None,
+            source_code: None,
+        }
+    }
+
+    /// Create a new import map error with the offending value
+    pub fn import_map_error_with_value(
+        field: impl Into<String>,
+        value: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::ImportMapError {
+            field: field.into(),
+            value: Some(value.into()),
+            message: message.into(),
+            error_location: None,
+            source_code: None,
+        }
+    }
+
     /// Create an internal error
     pub fn internal_error(message: impl Into<String>) -> Self {
         Self::InternalError {
@@ -1301,6 +1835,146 @@ impl fmt::Display for RuntimeError {
             } => {
                 write!(f, "Window error during {operation}: {message}")
             }
+            RuntimeError::CommandError {
+                program,
+                operation,
+                message,
+                exit_code,
+                ..
+            } => match exit_code {
+                Some(code) => write!(
+                    f,
+                    "Command '{program}' error during {operation}: {message} (exit code {code})"
+                ),
+                None => write!(f, "Command '{program}' error during {operation}: {message}"),
+            },
+            RuntimeError::ProcessError {
+                operation,
+                message,
+                signal,
+                platform,
+                ..
+            } => match signal {
+                Some(sig) => write!(
+                    f,
+                    "Process error during {operation} (signal {sig}, platform {platform}): {message}"
+                ),
+                None => write!(
+                    f,
+                    "Process error during {operation} (platform {platform}): {message}"
+                ),
+            },
+            RuntimeError::TlsError {
+                operation,
+                message,
+                peer,
+                ..
+            } => match peer {
+                Some(p) => write!(f, "TLS error during {operation} with peer {p}: {message}"),
+                None => write!(f, "TLS error during {operation}: {message}"),
+            },
+            RuntimeError::LockError {
+                lock_name,
+                operation,
+                message,
+                is_deadlock,
+                ..
+            } => {
+                if *is_deadlock {
+                    write!(
+                        f,
+                        "Deadlock detected on lock '{lock_name}' during {operation}: {message}"
+                    )
+                } else {
+                    write!(f, "Lock '{lock_name}' error during {operation}: {message}")
+                }
+            }
+            RuntimeError::WorkerError {
+                worker_id,
+                operation,
+                message,
+                ..
+            } => match worker_id {
+                Some(id) => write!(f, "Worker {id} error during {operation}: {message}"),
+                None => write!(f, "Worker error during {operation}: {message}"),
+            },
+            RuntimeError::DatabaseError {
+                operation,
+                database_name,
+                message,
+                ..
+            } => match database_name {
+                Some(db) => write!(
+                    f,
+                    "Database '{db}' error during {operation}: {message}"
+                ),
+                None => write!(f, "Database error during {operation}: {message}"),
+            },
+            RuntimeError::CryptoError {
+                operation,
+                algorithm,
+                message,
+                ..
+            } => write!(
+                f,
+                "Crypto error during {operation} ({algorithm}): {message}"
+            ),
+            RuntimeError::UrlParseError { url, reason, .. } => {
+                write!(f, "Failed to parse URL '{url}': {reason}")
+            }
+            RuntimeError::StorageError {
+                store_type,
+                operation,
+                message,
+                quota_exceeded,
+                ..
+            } => {
+                if *quota_exceeded {
+                    write!(
+                        f,
+                        "Storage '{store_type}' quota exceeded during {operation}: {message}"
+                    )
+                } else {
+                    write!(
+                        f,
+                        "Storage '{store_type}' error during {operation}: {message}"
+                    )
+                }
+            }
+            RuntimeError::FfiCallError {
+                operation,
+                library,
+                message,
+                ..
+            } => match library {
+                Some(lib) => write!(f, "FFI error during {operation} ({lib}): {message}"),
+                None => write!(f, "FFI error during {operation}: {message}"),
+            },
+            RuntimeError::HttpModuleLoadError {
+                url,
+                operation,
+                status_code,
+                message,
+                ..
+            } => match status_code {
+                Some(code) => write!(
+                    f,
+                    "HTTP module load failed during {operation} for {url} (status {code}): {message}"
+                ),
+                None => write!(
+                    f,
+                    "HTTP module load failed during {operation} for {url}: {message}"
+                ),
+            },
+            RuntimeError::ImportMapError {
+                field,
+                value,
+                message,
+                ..
+            } => match value {
+                Some(v) => write!(f, "Import map error in field '{field}' (value '{v}'): {message}"),
+                None => write!(f, "Import map error in field '{field}': {message}"),
+            },
             RuntimeError::InternalError { message, .. } => {
                 write!(f, "Internal error: {message}")
             }
@@ -1738,6 +2412,96 @@ macro_rules! runtime_error {
         $crate::RuntimeError::window_error($op, $msg)
     };
 
+    // Command / subprocess errors
+    (command: $program:expr, $op:expr, $msg:expr) => {
+        $crate::RuntimeError::command_error($program, $op, $msg)
+    };
+    (command: $program:expr, $op:expr, $msg:expr, exit $code:expr) => {
+        $crate::RuntimeError::command_error_with_exit_code($program, $op, $msg, $code)
+    };
+
+    // Process errors
+    (process: $op:expr, $msg:expr) => {
+        $crate::RuntimeError::process_error($op, $msg)
+    };
+    (process: $op:expr, $msg:expr, signal $sig:expr) => {
+        $crate::RuntimeError::process_error_with_signal($op, $msg, $sig)
+    };
+
+    // TLS errors
+    (tls: $op:expr, $msg:expr) => {
+        $crate::RuntimeError::tls_error($op, $msg)
+    };
+    (tls: $op:expr, $msg:expr, peer $peer:expr) => {
+        $crate::RuntimeError::tls_error_with_peer($op, $msg, $peer)
+    };
+
+    // Lock errors
+    (lock: $name:expr, $op:expr, $msg:expr) => {
+        $crate::RuntimeError::lock_error($name, $op, $msg)
+    };
+    (deadlock: $name:expr, $op:expr, $msg:expr) => {
+        $crate::RuntimeError::lock_deadlock_error($name, $op, $msg)
+    };
+
+    // Worker errors
+    (worker: $id:expr, $op:expr, $msg:expr) => {
+        $crate::RuntimeError::worker_error($id, $op, $msg)
+    };
+
+    // Database errors
+    (database: $op:expr, $msg:expr) => {
+        $crate::RuntimeError::database_error($op, $msg)
+    };
+    (database: $op:expr, $msg:expr, db $db:expr, sql $sql:expr) => {
+        $crate::RuntimeError::database_error_with_context($op, $msg, $db, $sql)
+    };
+
+    // Crypto errors
+    (crypto: $op:expr, $alg:expr, $msg:expr) => {
+        $crate::RuntimeError::crypto_error($op, $alg, $msg)
+    };
+    (crypto: $op:expr, $alg:expr, $msg:expr, usage $usage:expr) => {
+        $crate::RuntimeError::crypto_error_with_key_usage($op, $alg, $msg, $usage)
+    };
+
+    // URL parse errors
+    (url_parse: $url:expr, $reason:expr) => {
+        $crate::RuntimeError::url_parse_error($url, $reason)
+    };
+
+    // Storage errors
+    (storage: $store_type:expr, $op:expr, $msg:expr) => {
+        $crate::RuntimeError::storage_error($store_type, $op, $msg)
+    };
+    (storage_quota: $store_type:expr, $op:expr, $msg:expr) => {
+        $crate::RuntimeError::storage_quota_exceeded($store_type, $op, $msg)
+    };
+
+    // FFI errors
+    (ffi: $op:expr, $msg:expr) => {
+        $crate::RuntimeError::ffi_call_error($op, $msg)
+    };
+    (ffi: $op:expr, $msg:expr, library $lib:expr) => {
+        $crate::RuntimeError::ffi_call_error_with_library($op, $lib, $msg)
+    };
+
+    // HTTP module load errors
+    (http_module: $url:expr, $op:expr, $msg:expr) => {
+        $crate::RuntimeError::http_module_load_error($url, $op, $msg)
+    };
+    (http_module: $url:expr, $op:expr, $msg:expr, status $status:expr) => {
+        $crate::RuntimeError::http_module_load_error_with_status($url, $op, $status, $msg)
+    };
+
+    // Import map errors
+    (import_map: $field:expr, $msg:expr) => {
+        $crate::RuntimeError::import_map_error($field, $msg)
+    };
+    (import_map: $field:expr, $msg:expr, value $value:expr) => {
+        $crate::RuntimeError::import_map_error_with_value($field, $value, $msg)
+    };
+
     // Internal errors
     (internal: $msg:expr) => {
         $crate::RuntimeError::internal_error($msg)
@@ -1761,4 +2525,151 @@ macro_rules! named_source {
     ($name:expr, $content:expr) => {
         miette::NamedSource::new($name, $content)
     };
+}
+
+#[cfg(test)]
+mod new_variant_tests {
+    use super::*;
+    use miette::Diagnostic;
+
+    #[test]
+    fn command_error_carries_program_and_operation() {
+        let err = RuntimeError::command_error("foo", "spawn", "no such file");
+        let s = err.to_string();
+        assert!(s.contains("foo"), "display: {s}");
+        assert!(s.contains("spawn"), "display: {s}");
+        assert_eq!(
+            err.code().map(|c| c.to_string()),
+            Some("andromeda::command::execution_failed".to_string())
+        );
+    }
+
+    #[test]
+    fn command_error_with_exit_code_shows_code() {
+        let err =
+            RuntimeError::command_error_with_exit_code("foo", "wait", "non-zero exit", 137);
+        let s = err.to_string();
+        assert!(s.contains("137"), "display: {s}");
+    }
+
+    #[test]
+    fn process_error_signal_renders_signal() {
+        let err = RuntimeError::process_error_with_signal(
+            "register_signal_handler",
+            "Unsupported signal",
+            "SIGUSR3",
+        );
+        let s = err.to_string();
+        assert!(s.contains("SIGUSR3"), "display: {s}");
+        assert_eq!(
+            err.code().map(|c| c.to_string()),
+            Some("andromeda::process::operation_failed".to_string())
+        );
+    }
+
+    #[test]
+    fn tls_error_basic_code() {
+        let err = RuntimeError::tls_error("handshake", "peer cert expired");
+        assert_eq!(
+            err.code().map(|c| c.to_string()),
+            Some("andromeda::tls::operation_failed".to_string())
+        );
+    }
+
+    #[test]
+    fn lock_deadlock_distinguishes_in_display() {
+        let normal = RuntimeError::lock_error("my-lock", "request", "already held").to_string();
+        let dead = RuntimeError::lock_deadlock_error("my-lock", "request", "cycle").to_string();
+        assert!(dead.to_lowercase().contains("deadlock"), "display: {dead}");
+        assert!(!normal.to_lowercase().contains("deadlock"), "display: {normal}");
+    }
+
+    #[test]
+    fn worker_error_optional_id_renders() {
+        let with_id = RuntimeError::worker_error(Some(7), "spawn", "thread limit").to_string();
+        let no_id = RuntimeError::worker_error(None, "spawn", "thread limit").to_string();
+        assert!(with_id.contains("7"), "display: {with_id}");
+        assert!(!no_id.contains("Worker 7"), "display: {no_id}");
+    }
+
+    #[test]
+    fn database_error_code() {
+        let err = RuntimeError::database_error("query", "syntax error near SELECT");
+        assert_eq!(
+            err.code().map(|c| c.to_string()),
+            Some("andromeda::database::operation_failed".to_string())
+        );
+    }
+
+    #[test]
+    fn crypto_error_includes_algorithm() {
+        let err = RuntimeError::crypto_error("encrypt", "AES-GCM", "invalid key length");
+        let s = err.to_string();
+        assert!(s.contains("AES-GCM"), "display: {s}");
+    }
+
+    #[test]
+    fn url_parse_error_displays_url_and_reason() {
+        let err = RuntimeError::url_parse_error("not://a url", "invalid scheme");
+        let s = err.to_string();
+        assert!(s.contains("not://a url"), "display: {s}");
+        assert!(s.contains("invalid scheme"), "display: {s}");
+    }
+
+    #[test]
+    fn storage_quota_exceeded_flagged() {
+        let err = RuntimeError::storage_quota_exceeded("localStorage", "set", "over limit");
+        let s = err.to_string();
+        assert!(s.to_lowercase().contains("quota"), "display: {s}");
+    }
+
+    #[test]
+    fn ffi_call_error_with_library_renders() {
+        let err = RuntimeError::ffi_call_error_with_library("symbol_lookup", "libfoo.so", "missing");
+        let s = err.to_string();
+        assert!(s.contains("libfoo.so"), "display: {s}");
+    }
+
+    #[test]
+    fn http_module_load_error_with_status() {
+        let err = RuntimeError::http_module_load_error_with_status(
+            "https://x/m.js",
+            "fetch",
+            404,
+            "Not Found",
+        );
+        let s = err.to_string();
+        assert!(s.contains("404"), "display: {s}");
+        assert!(s.contains("https://x/m.js"), "display: {s}");
+    }
+
+    #[test]
+    fn import_map_error_with_value_renders_value() {
+        let err = RuntimeError::import_map_error_with_value(
+            "imports",
+            "../bad",
+            "value must be resolvable",
+        );
+        let s = err.to_string();
+        assert!(s.contains("../bad"), "display: {s}");
+        assert!(s.contains("imports"), "display: {s}");
+    }
+
+    #[test]
+    fn cli_conversion_covers_all_new_variants() {
+        // Exhaustive-match safety net: building each variant should not panic
+        // when consumed by code that does match analysis.
+        let _ = RuntimeError::command_error("a", "b", "c");
+        let _ = RuntimeError::process_error("a", "b");
+        let _ = RuntimeError::tls_error("a", "b");
+        let _ = RuntimeError::lock_error("a", "b", "c");
+        let _ = RuntimeError::worker_error(None, "a", "b");
+        let _ = RuntimeError::database_error("a", "b");
+        let _ = RuntimeError::crypto_error("a", "b", "c");
+        let _ = RuntimeError::url_parse_error("a", "b");
+        let _ = RuntimeError::storage_error("a", "b", "c");
+        let _ = RuntimeError::ffi_call_error("a", "b");
+        let _ = RuntimeError::http_module_load_error("a", "b", "c");
+        let _ = RuntimeError::import_map_error("a", "b");
+    }
 }

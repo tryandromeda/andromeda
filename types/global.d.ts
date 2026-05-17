@@ -706,7 +706,10 @@ declare namespace Andromeda {
     hostname?: string;
     /** An AbortSignal to close the server. */
     signal?: AbortSignal;
-    /** Whether to allow reusing the port. */
+    /**
+     * Whether to enable SO_REUSEPORT so multiple sockets can bind the
+     * same address. Implicitly enabled when `parallel` is set.
+     */
     reusePort?: boolean;
     /** TLS private key for HTTPS. */
     key?: string;
@@ -718,6 +721,19 @@ declare namespace Andromeda {
     onListen?: (params: { hostname: string; port: number }) => void;
     /** The request handler. */
     handler?: ServeHandler;
+    /**
+     * Number of OS threads to serve from. When >= 2, the runtime spawns
+     * `parallel - 1` additional Worker instances of `entry` and all
+     * instances bind the same port via SO_REUSEPORT; the kernel
+     * load-balances accepts across them.
+     */
+    parallel?: number;
+    /**
+     * The URL of the entry script to run in each parallel worker.
+     * Required when `parallel` >= 2 in the main thread; ignored inside
+     * workers.
+     */
+    entry?: string | URL;
   }
 
   /**
@@ -732,8 +748,16 @@ declare namespace Andromeda {
    * ```ts
    * Andromeda.serve({
    *   port: 3000,
-   *   handler: (req) => new Response("Hello World on port 3000")
+   *   handler: (req) => new Response("Hello World on port 3000"),
    * });
+   * ```
+   *
+   * @example Parallel server across multiple OS threads.
+   * ```ts
+   * Andromeda.serve(
+   *   (req) => new Response("hi"),
+   *   { parallel: 4, entry: import.meta.url },
+   * );
    * ```
    */
   function serve(handler: ServeHandler, options?: ServeOptions): Promise<void>;
@@ -2688,3 +2712,87 @@ declare class TransformStream<I = any, O = any> {
   readonly readable: ReadableStream<O>;
   readonly writable: WritableStream<I>;
 }
+
+interface WorkerOptions {
+  /** Andromeda supports only `"module"` workers. */
+  type?: "classic" | "module";
+  /** Name of the worker; available as `self.name` inside the worker. */
+  name?: string;
+  credentials?: "omit" | "same-origin" | "include";
+}
+
+/**
+ * A Worker runs a script on its own OS thread with its own JavaScript
+ * realm. Communication uses `postMessage` and structured cloning. See
+ * https://developer.mozilla.org/en-US/docs/Web/API/Worker for general
+ * usage; Andromeda supports module workers only (for now?).
+ */
+declare class Worker {
+  constructor(scriptURL: string | URL, options?: WorkerOptions);
+
+  /** Send a structured-clone of `message` to the worker. */
+  postMessage(message: unknown, transfer?: unknown[]): void;
+  postMessage(message: unknown, options?: { transfer?: unknown[] }): void;
+
+  /** Stop the worker immediately. Subsequent postMessage calls are no-ops. */
+  terminate(): void;
+
+  onmessage: ((event: MessageEvent) => void) | null;
+  onmessageerror: ((event: MessageEvent) => void) | null;
+  onerror: ((event: ErrorEvent) => void) | null;
+
+  addEventListener(
+    type: "message" | "messageerror" | "error" | string,
+    listener: ((event: any) => void) | null,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
+  removeEventListener(
+    type: "message" | "messageerror" | "error" | string,
+    listener: ((event: any) => void) | null,
+    options?: boolean | EventListenerOptions,
+  ): void;
+  dispatchEvent(event: Event): boolean;
+}
+
+/** Two entangled MessagePorts; messages on one are delivered on the other. */
+declare class MessageChannel {
+  constructor();
+  readonly port1: MessagePort;
+  readonly port2: MessagePort;
+}
+
+declare class MessagePort {
+  postMessage(message: unknown, transfer?: unknown[]): void;
+  postMessage(message: unknown, options?: { transfer?: unknown[] }): void;
+  start(): void;
+  close(): void;
+
+  onmessage: ((event: MessageEvent) => void) | null;
+  onmessageerror: ((event: MessageEvent) => void) | null;
+
+  addEventListener(
+    type: string,
+    listener: ((event: any) => void) | null,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
+  removeEventListener(
+    type: string,
+    listener: ((event: any) => void) | null,
+    options?: boolean | EventListenerOptions,
+  ): void;
+  dispatchEvent(event: Event): boolean;
+}
+
+declare const self: typeof globalThis;
+declare function postMessage(
+  message: unknown,
+  transfer?: unknown[],
+): void;
+declare function postMessage(
+  message: unknown,
+  options?: { transfer?: unknown[] },
+): void;
+declare function close(): void;
+declare const name: string;
+declare let onmessage: ((event: MessageEvent) => void) | null;
+declare let onmessageerror: ((event: MessageEvent) => void) | null;

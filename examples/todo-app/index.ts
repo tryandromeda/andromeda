@@ -8,6 +8,7 @@ db.prepare(`
   )
 `).run();
 
+
 const indexHtml = await Andromeda.readTextFile("examples/todo-app/index.html");
 
 Andromeda.serve(async (req) => {
@@ -105,6 +106,13 @@ Andromeda.serve(async (req) => {
     status: 404,
     headers: { "Content-Type": "application/json" },
   });
-});
-
-console.log("To-Do Server running on http://127.0.0.1:8080/");
+}, {
+  port: 8080,
+  hostname: "127.0.0.1",
+  parallel: 12,
+  entry: import.meta.url,
+  onListen: ({ hostname, port }) => {
+    // deno-lint-ignore no-explicit-any
+    console.log(`[${(globalThis as any).name || "main"}] listening on http://${hostname}:${port}`);
+  },
+},);

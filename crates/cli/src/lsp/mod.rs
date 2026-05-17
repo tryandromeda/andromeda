@@ -9,7 +9,7 @@ pub mod diagnostic_converter;
 pub mod options;
 pub mod server;
 
-use crate::error::{CliError, CliResult};
+use crate::error::CliResult;
 use server::run_server;
 
 /// Start the LSP server
@@ -18,5 +18,5 @@ pub fn run_lsp_server() -> CliResult<()> {
     env_logger::init();
     log::info!("Starting Andromeda Language Server");
 
-    run_server().map_err(|e| CliError::runtime_error_simple(format!("LSP server failed: {e}")))
+    run_server()
 }

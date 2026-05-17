@@ -163,21 +163,63 @@ impl TcpOps {
 
     /// Bind to a local address and listen for connections
     pub async fn listen(addr: &NetAddr) -> Result<TcpListenerWrapper, NetError> {
+        Self::listen_with_options(addr, false).await
+    }
+
+    /// Bind to a local address and listen for connections.
+    pub async fn listen_with_options(
+        addr: &NetAddr,
+        reuse_port: bool,
+    ) -> Result<TcpListenerWrapper, NetError> {
         let socket_addr = addr
             .to_socket_addr()
             .map_err(|_| NetError::invalid_address(&addr.to_string()))?;
 
-        let listener = TcpListener::bind(socket_addr)
-            .await
-            .map_err(|e| match e.kind() {
-                std::io::ErrorKind::AddrInUse => NetError::address_in_use(&addr.to_string()),
-                std::io::ErrorKind::AddrNotAvailable => {
-                    NetError::address_not_available(&addr.to_string())
-                }
-                std::io::ErrorKind::PermissionDenied => NetError::permission_denied("bind"),
-                _ => NetError::from(e),
-            })?;
+        if !reuse_port {
+            let listener = TcpListener::bind(socket_addr)
+                .await
+                .map_err(|e| Self::map_bind_err(addr, e))?;
+            return TcpListenerWrapper::new(listener);
+        }
 
+        // Custom socket setup to enable SO_REUSEPORT.
+        let domain = match socket_addr {
+            std::net::SocketAddr::V4(_) => socket2::Domain::IPV4,
+            std::net::SocketAddr::V6(_) => socket2::Domain::IPV6,
+        };
+        let socket = socket2::Socket::new(domain, socket2::Type::STREAM, Some(socket2::Protocol::TCP))
+            .map_err(|e| Self::map_bind_err(addr, e))?;
+        socket
+            .set_reuse_address(true)
+            .map_err(|e| Self::map_bind_err(addr, e))?;
+        #[cfg(unix)]
+        socket
+            .set_reuse_port(true)
+            .map_err(|e| Self::map_bind_err(addr, e))?;
+        socket
+            .set_nonblocking(true)
+            .map_err(|e| Self::map_bind_err(addr, e))?;
+        socket
+            .bind(&socket_addr.into())
+            .map_err(|e| Self::map_bind_err(addr, e))?;
+        socket
+            .listen(1024)
+            .map_err(|e| Self::map_bind_err(addr, e))?;
+
+        let std_listener: std::net::TcpListener = socket.into();
+        let listener = TcpListener::from_std(std_listener)
+            .map_err(|e| Self::map_bind_err(addr, e))?;
         TcpListenerWrapper::new(listener)
+    }
+
+    fn map_bind_err(addr: &NetAddr, e: std::io::Error) -> NetError {
+        match e.kind() {
+            std::io::ErrorKind::AddrInUse => NetError::address_in_use(&addr.to_string()),
+            std::io::ErrorKind::AddrNotAvailable => {
+                NetError::address_not_available(&addr.to_string())
+            }
+            std::io::ErrorKind::PermissionDenied => NetError::permission_denied("bind"),
+            _ => NetError::from(e),
+        }
     }
 }

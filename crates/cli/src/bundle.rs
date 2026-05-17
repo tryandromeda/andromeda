@@ -2,6 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+#![allow(clippy::result_large_err)]
+
+use crate::error::{BundleStage, CliError, CliResult};
 use oxc_allocator::Allocator;
 use oxc_mangler::MangleOptions;
 use oxc_minifier::{Minifier, MinifierOptions};
@@ -9,24 +12,30 @@ use oxc_parser::Parser;
 use oxc_semantic::SemanticBuilder;
 use oxc_span::SourceType;
 use oxc_transformer::{TransformOptions, Transformer, TypeScriptOptions};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Bundles, transforms, and minifies a JavaScript or TypeScript file.
-pub fn bundle(input: &str, output: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let source_text = std::fs::read_to_string(input)?;
-    let allocator = Allocator::default();
+pub fn bundle(input: &str, output: &str) -> CliResult<()> {
     let input_path = Path::new(input);
     let output_path = Path::new(output);
+    let source_text = crate::error::read_file_with_context(input_path)?;
+    let allocator = Allocator::default();
     let source_type = SourceType::from_path(input_path).unwrap_or_default();
 
     let ret = Parser::new(&allocator, &source_text, source_type).parse();
 
     if !ret.errors.is_empty() {
         eprintln!("Parser errors:");
-        for error in &ret.errors {
-            eprintln!("  {error}");
+        let diagnostics: Vec<String> = ret.errors.iter().map(|e| e.to_string()).collect();
+        for d in &diagnostics {
+            eprintln!("  {d}");
         }
-        return Err(format!("Failed to parse {input}").into());
+        return Err(CliError::bundle_error(
+            PathBuf::from(input),
+            BundleStage::Parse,
+            format!("Failed to parse {input}"),
+            diagnostics,
+        ));
     }
 
     let mut program = ret.program;
@@ -45,10 +54,17 @@ pub fn bundle(input: &str, output: &str) -> Result<(), Box<dyn std::error::Error
 
         if !semantic_ret.errors.is_empty() {
             eprintln!("Semantic analysis errors:");
-            for error in &semantic_ret.errors {
-                eprintln!("  {error}");
+            let diagnostics: Vec<String> =
+                semantic_ret.errors.iter().map(|e| e.to_string()).collect();
+            for d in &diagnostics {
+                eprintln!("  {d}");
             }
-            return Err("Failed semantic analysis".into());
+            return Err(CliError::bundle_error(
+                PathBuf::from(input),
+                BundleStage::Semantic,
+                "Failed semantic analysis",
+                diagnostics,
+            ));
         }
 
         let scoping = semantic_ret.semantic.into_scoping();
@@ -57,10 +73,20 @@ pub fn bundle(input: &str, output: &str) -> Result<(), Box<dyn std::error::Error
 
         if !transformer_ret.errors.is_empty() {
             eprintln!("Transform errors:");
-            for error in &transformer_ret.errors {
-                eprintln!("  {error}");
+            let diagnostics: Vec<String> = transformer_ret
+                .errors
+                .iter()
+                .map(|e| e.to_string())
+                .collect();
+            for d in &diagnostics {
+                eprintln!("  {d}");
             }
-            return Err("Failed to transform TypeScript".into());
+            return Err(CliError::bundle_error(
+                PathBuf::from(input),
+                BundleStage::Transform,
+                "Failed to transform TypeScript",
+                diagnostics,
+            ));
         }
     }
 
@@ -81,7 +107,7 @@ pub fn bundle(input: &str, output: &str) -> Result<(), Box<dyn std::error::Error
         .build(&program)
         .code;
 
-    std::fs::write(output, code)?;
+    std::fs::write(output, code).map_err(|e| CliError::file_read_error(PathBuf::from(output), e))?;
 
     Ok(())
 }

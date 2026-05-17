@@ -103,7 +103,7 @@ impl NetExt {
                     2,
                     true,
                 ),
-                ExtensionOp::new("tcp_listen", Self::internal_tcp_listen, 2, false),
+                ExtensionOp::new("tcp_listen", Self::internal_tcp_listen, 3, false),
                 ExtensionOp::new("tcp_accept", Self::internal_tcp_accept, 1, false),
                 ExtensionOp::new(
                     "tcp_accept_async",
@@ -321,7 +321,7 @@ impl NetExt {
         Ok(Value::Promise(promise_capability.promise()).unbind())
     }
 
-    /// TCP listen operation (synchronous)
+    /// TCP listen operation
     pub fn internal_tcp_listen<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -351,11 +351,21 @@ impl NetExt {
             }
         };
 
+        let reuse_port = {
+            let arg = args.get(2);
+            if arg.is_undefined() || arg.is_null() {
+                false
+            } else {
+                let s = arg.to_string(agent, gc.reborrow()).unbind()?;
+                s.as_str(agent).expect("String is not valid UTF-8") == "true"
+            }
+        };
+
         // Use block_in_place for synchronous TCP listen operation
         let addr = NetAddr::new(host, port);
         let result = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
-                match TcpOps::listen(&addr).await {
+                match TcpOps::listen_with_options(&addr, reuse_port).await {
                     Ok(listener_wrapper) => {
                         let local_addr = listener_wrapper.local_addr();
                         // Store listener in resource table and return resource ID

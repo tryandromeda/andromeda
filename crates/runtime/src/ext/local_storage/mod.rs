@@ -23,6 +23,33 @@ pub enum WebStorageError {
     StorageExceeded,
 }
 
+impl From<WebStorageError> for andromeda_core::RuntimeError {
+    fn from(err: WebStorageError) -> Self {
+        match &err {
+            WebStorageError::StorageExceeded => andromeda_core::RuntimeError::storage_quota_exceeded(
+                "localStorage",
+                "set",
+                err.to_string(),
+            ),
+            WebStorageError::ContextNotSupported => andromeda_core::RuntimeError::storage_error(
+                "localStorage",
+                "context_check",
+                err.to_string(),
+            ),
+            WebStorageError::Sqlite(_) => andromeda_core::RuntimeError::storage_error(
+                "localStorage",
+                "sqlite",
+                err.to_string(),
+            ),
+            WebStorageError::Io(_) => andromeda_core::RuntimeError::storage_error(
+                "localStorage",
+                "io",
+                err.to_string(),
+            ),
+        }
+    }
+}
+
 struct LocalStorage(Connection);
 struct SessionStorage(Connection);
 

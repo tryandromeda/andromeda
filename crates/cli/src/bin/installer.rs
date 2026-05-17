@@ -552,13 +552,13 @@ fn detect_rust_target() -> CliResult<String> {
 }
 
 fn print_header() {
-    println!("🚀 Andromeda Installation Tool");
+    println!("Andromeda Installation Tool");
     println!("════════════════════════════════");
     println!();
 }
 
 fn print_satellite_header() {
-    println!("🛰️  Andromeda Satellite Installation Tool");
+    println!("Andromeda Satellite Installation Tool");
     println!("══════════════════════════════════════════");
     println!();
     println!("Satellites are specialized, lightweight binaries for specific tasks.");
@@ -567,18 +567,18 @@ fn print_satellite_header() {
 }
 
 fn print_info(message: &str) {
-    println!("ℹ️  {message}");
+    println!("{message}");
 }
 
 fn print_success(message: &str) {
-    println!("✅ {message}");
+    println!("✓ {message}");
 }
 
 fn print_warning(message: &str) {
-    println!("⚠️  {message}");
+    println!("! {message}");
 }
 
 #[allow(dead_code)]
 fn print_error(message: &str) {
-    eprintln!("❌ {message}");
+    eprintln!("✗ {message}");
 }

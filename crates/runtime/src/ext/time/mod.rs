@@ -85,9 +85,13 @@ impl TimeExt {
                 let mut interval = interval(period);
                 loop {
                     interval.tick().await;
-                    macro_task_tx
+                    // Stop firing if the receiver is gone. Treat send failure as an implicit `clearInterval`.
+                    if macro_task_tx
                         .send(MacroTask::User(RuntimeMacroTask::RunInterval(interval_id)))
-                        .unwrap();
+                        .is_err()
+                    {
+                        break;
+                    }
                 }
             })
         });
@@ -111,12 +115,12 @@ impl TimeExt {
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
 
-        host_data
+        // Tolerate a dropped receiver: when the worker runtime has already torn down, this send is best effort.
+        let _ = host_data
             .macro_task_tx
             .send(MacroTask::User(RuntimeMacroTask::ClearInterval(
                 interval_id,
-            )))
-            .unwrap();
+            )));
 
         Ok(Value::Undefined)
     }
@@ -139,11 +143,10 @@ impl TimeExt {
         let timeout_id = Timeout::create(host_data, duration, root_callback, |timeout_id| {
             host_data.spawn_macro_task(async move {
                 tokio::time::sleep(duration).await;
-                macro_task_tx
-                    .send(MacroTask::User(RuntimeMacroTask::RunAndClearTimeout(
-                        timeout_id,
-                    )))
-                    .unwrap();
+                // Tolerate dropped receiver.
+                let _ = macro_task_tx.send(MacroTask::User(
+                    RuntimeMacroTask::RunAndClearTimeout(timeout_id),
+                ));
             })
         });
 
@@ -166,10 +169,9 @@ impl TimeExt {
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
 
-        host_data
+        let _ = host_data
             .macro_task_tx
-            .send(MacroTask::User(RuntimeMacroTask::ClearTimeout(timeout_id)))
-            .unwrap();
+            .send(MacroTask::User(RuntimeMacroTask::ClearTimeout(timeout_id)));
 
         Ok(Value::Undefined)
     }

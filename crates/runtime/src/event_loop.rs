@@ -41,4 +41,27 @@ pub enum RuntimeMacroTask {
     ReleaseLock { name: String, lock_id: u64 },
     /// Abort a pending lock request.
     AbortLockRequest { name: String, lock_id: u64 },
+    /// Deliver a structured-clone serialized message from a worker thread to
+    /// the parent's `Worker` instance. JS-side dispatches `message` event.
+    WorkerDeliverMessage { worker_id: u32, payload: String },
+    /// Deliver a `messageerror` event to the parent's `Worker` instance.
+    WorkerDeliverMessageError { worker_id: u32, reason: String },
+    /// Deliver an `error` (ErrorEvent) to the parent's `Worker` instance.
+    WorkerDeliverError {
+        worker_id: u32,
+        message: String,
+        filename: String,
+        lineno: u32,
+        colno: u32,
+    },
+    /// Deliver a parent-posted message into the worker realm; dispatches
+    /// `message` event on `self` (DedicatedWorkerGlobalScope).
+    WorkerSelfDeliverMessage { payload: String },
+    /// Worker-side close request: drives the runtime's event loop to exit.
+    WorkerSelfClose,
+    /// Posted by the parent-side forwarder thread when the worker has
+    /// fully exited. Wakes the parent runtime loop so it can re-check
+    /// `macro_task_count` (now decremented) and also lets the dispatcher
+    /// prune the worker from the parent's registry / JS-side map.
+    WorkerForwarderClosed { worker_id: u32 },
 }

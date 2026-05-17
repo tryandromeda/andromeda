@@ -16,6 +16,8 @@ interface ServeOptions {
   onError?: (error: unknown) => Response | Promise<Response>;
   onListen?: (params: { hostname: string; port: number }) => void;
   handler?: ServeHandler;
+  parallel?: number;
+  entry?: string | URL;
 }
 
 function parseHttpRequest(data: string): {
@@ -161,13 +163,54 @@ async function serve(
 
   const hostname = options.hostname ?? DEFAULT_HOSTNAME;
   const port = options.port ?? DEFAULT_PORT;
-  const listenResult = __andromeda__.tcp_listen(hostname, port);
+
+  const isWorker = __andromeda__.op_worker_is_worker() as unknown as boolean;
+  let parallel = options.parallel ?? 1;
+  if (!isWorker && parallel === 1) {
+    const fromEnv = Andromeda.env.get("ANDROMEDA_JOBS");
+    const parsed = fromEnv ? parseInt(fromEnv, 10) : NaN;
+    if (Number.isFinite(parsed) && parsed >= 2) {
+      parallel = parsed;
+    }
+  }
+
+  const useReusePort = parallel > 1 || options.reusePort === true;
+
+  if (!isWorker && parallel > 1) {
+    if (!options.entry) {
+      throw new Error(
+        "Andromeda.serve({ parallel }) requires an `entry` URL. " +
+          "Pass `entry: import.meta.url` so workers can re-run the script.",
+      );
+    }
+    const entryUrl = options.entry instanceof URL ?
+      options.entry :
+      new URL(String(options.entry));
+    for (let i = 1; i < parallel; i++) {
+      // @ts-ignore - Worker is global
+      new Worker(entryUrl, { type: "module", name: `serve-worker-${i}` });
+    }
+  }
+
+  const listenResult = __andromeda__.tcp_listen(
+    hostname,
+    String(port),
+    useReusePort ? "true" : "false",
+  );
   const listenData = JSON.parse(listenResult);
   if (!listenData.success) {
     console.error("Failed to create listener:", listenData.error);
     return;
   }
   const listenerId = listenData.resourceId;
+
+  if (typeof options.onListen === "function") {
+    try {
+      options.onListen({ hostname, port });
+    } catch (e) {
+      console.error("onListen callback threw:", e);
+    }
+  }
 
   while (true) {
     try {

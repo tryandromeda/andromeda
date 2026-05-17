@@ -1071,7 +1071,7 @@ impl AndromedaBackend {
         &self,
         content: &str,
         _options: &FormattingOptions,
-    ) -> anyhow::Result<String> {
+    ) -> crate::error::CliResult<String> {
         use dprint_core::configuration::{ConfigKeyValue, GlobalConfiguration, NewLineKind};
         use dprint_plugin_typescript::{
             FormatTextOptions as TsFormatTextOptions, configuration as ts_config,
@@ -1111,8 +1111,9 @@ impl AndromedaBackend {
                 .map(|d| format!("{d}"))
                 .collect::<Vec<_>>()
                 .join(", ");
-            return Err(anyhow::anyhow!(
-                "Failed to resolve dprint TS configuration: {error_msg}"
+            return Err(crate::error::CliError::format_error(
+                format!("Failed to resolve dprint TS configuration: {error_msg}"),
+                None::<std::io::Error>,
             ));
         }
 
@@ -1128,7 +1129,10 @@ impl AndromedaBackend {
         match ts_format(format_options) {
             Ok(Some(formatted)) => Ok(formatted),
             Ok(None) => Ok(content.to_string()), // No changes needed
-            Err(e) => Err(anyhow::anyhow!("Formatting error: {}", e)),
+            Err(e) => Err(crate::error::CliError::format_error(
+                format!("Formatting error: {e}"),
+                None::<std::io::Error>,
+            )),
         }
     }
 }

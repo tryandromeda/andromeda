@@ -396,9 +396,9 @@ fn get_non_skipped_suites(wpt_dir: &PathBuf) -> Vec<String> {
 
 fn handle_updates(update_expectations: bool, update_metrics: bool) {
     if update_expectations {
-        println!("✅ Expectations updated in expectation.json");
+        println!("✓ Expectations updated in expectation.json");
     }
     if update_metrics {
-        println!("📊 Metrics updated in metrics.json");
+        println!("Metrics updated in metrics.json");
     }
 }

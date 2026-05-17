@@ -414,3 +414,30 @@ function structuredClone<T = any>(
 
 // @ts-ignore globalThis is not readonly
 globalThis.structuredClone = structuredClone;
+
+
+(globalThis as any).__andromeda_structured_serialize = function(
+  value: any,
+  transfer: Transferable[] = [],
+): string {
+  for (const t of transfer) {
+    if (!isTransferable(t)) {
+      throw createDataCloneError("Value in transfer list is not transferable");
+    }
+  }
+  const transferSet = new Set(transfer);
+  if (transferSet.size !== transfer.length) {
+    throw createDataCloneError("Transfer list contains duplicate values");
+  }
+  return structuredSerialize(value, []);
+};
+
+(globalThis as any).__andromeda_structured_deserialize = function(
+  payload: string,
+  transferredValues: any[] = [],
+): any {
+  if (typeof payload !== "string" || payload.length === 0) {
+    return undefined;
+  }
+  return structuredDeserialize(payload, transferredValues);
+};

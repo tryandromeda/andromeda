@@ -11,7 +11,7 @@ use nova_vm::{
 use crate::{
     BroadcastChannelExt, CommandExt, ConsoleExt, CronExt, FetchExt, FfiExt, FileExt, NetExt,
     ProcessExt, RuntimeMacroTask, StreamsExt, TimeExt, TlsExt, URLExt, WebExt, WebIDLExt,
-    WebLocksExt,
+    WebLocksExt, WorkersExt,
 };
 
 #[cfg(not(feature = "virtualfs"))]
@@ -37,6 +37,7 @@ pub fn recommended_extensions() -> Vec<Extension> {
         WebLocksExt::new_extension(),
         FileExt::new_extension(),
         BroadcastChannelExt::new_extension(),
+        WorkersExt::new_extension(),
         FetchExt::new_extension(),
         NetExt::new_extension(),
         StreamsExt::new_extension(),
@@ -245,6 +246,80 @@ pub fn recommended_eventloop_handler(
             // Handle lock request abortion
             println!("Aborted lock request {} for '{}'", lock_id, name);
             // TODO: Implement actual abort logic that cancels the associated promise
+        }
+        RuntimeMacroTask::WorkerDeliverMessage { worker_id, payload } => {
+            crate::ext::workers::dispatch_parent_event(
+                agent,
+                realm_root,
+                worker_id,
+                "message",
+                vec![payload],
+            );
+        }
+        RuntimeMacroTask::WorkerDeliverMessageError { worker_id, reason } => {
+            crate::ext::workers::dispatch_parent_event(
+                agent,
+                realm_root,
+                worker_id,
+                "messageerror",
+                vec![reason],
+            );
+        }
+        RuntimeMacroTask::WorkerDeliverError {
+            worker_id,
+            message,
+            filename,
+            lineno,
+            colno,
+        } => {
+            crate::ext::workers::dispatch_parent_event(
+                agent,
+                realm_root,
+                worker_id,
+                "error",
+                vec![message, filename, lineno.to_string(), colno.to_string()],
+            );
+        }
+        RuntimeMacroTask::WorkerSelfDeliverMessage { payload } => {
+            crate::ext::workers::dispatch_self_event(
+                agent,
+                realm_root,
+                host_data,
+                "message",
+                vec![payload],
+            );
+        }
+        RuntimeMacroTask::WorkerForwarderClosed { worker_id } => {
+            // Worker has fully exited. Remove its record from the Rust
+            // map and let the JS side prune the workerRegistry entry.
+            {
+                let storage = host_data.storage.borrow();
+                if let Some(res) = storage.get::<crate::ext::workers::WorkersResources>() {
+                    let _ = res.workers.lock().unwrap().remove(&worker_id);
+                }
+            }
+            crate::ext::workers::dispatch_parent_event(
+                agent,
+                realm_root,
+                worker_id,
+                "__cleanup__",
+                vec![],
+            );
+        }
+        RuntimeMacroTask::WorkerSelfClose => {
+            // Worker runtime treats this as a close request: set the
+            // self_close flag, then forcibly drain the macro task count
+            // so the runtime's main loop exits even if `setInterval` /
+            // `setTimeout` callbacks are still pending. Per Web Workers
+            // spec, `terminate()` discards any queued tasks.
+            let storage = host_data.storage.borrow();
+            if let Some(res) = storage.get::<crate::ext::workers::WorkersResources>() {
+                res.self_close_flag
+                    .store(true, std::sync::atomic::Ordering::Release);
+            }
+            host_data
+                .macro_task_count
+                .store(0, std::sync::atomic::Ordering::Release);
         }
     }
 }

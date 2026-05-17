@@ -220,3 +220,30 @@ impl From<std::net::AddrParseError> for NetError {
         NetError::InvalidAddress(err.to_string())
     }
 }
+
+impl From<NetError> for andromeda_core::RuntimeError {
+    fn from(err: NetError) -> Self {
+        // Derive a network operation tag from the variant for clearer diagnostics.
+        let operation = match &err {
+            NetError::DnsResolutionFailed(_) => "dns_resolve",
+            NetError::ConnectionRefused(_) => "connect",
+            NetError::ConnectionTimeout(_) => "connect",
+            NetError::InvalidAddress(_) => "parse_address",
+            NetError::InvalidPort(_) => "parse_port",
+            NetError::SocketError(_) => "socket",
+            NetError::ResourceNotFound(_) => "resource_lookup",
+            NetError::PermissionDenied(_) => "permission_check",
+            NetError::NetworkUnreachable(_) => "connect",
+            NetError::HostUnreachable(_) => "connect",
+            NetError::ConnectionReset(_) => "read",
+            NetError::BrokenPipe(_) => "write",
+            NetError::AddressInUse(_) => "bind",
+            NetError::AddressNotAvailable(_) => "bind",
+            NetError::NotSupported(_) => "feature_check",
+            NetError::Interrupted(_) => "syscall",
+            NetError::WouldBlock(_) => "syscall",
+            NetError::IoError(_) => "io",
+        };
+        andromeda_core::RuntimeError::network_error_from_string(err.to_string(), "", operation)
+    }
+}

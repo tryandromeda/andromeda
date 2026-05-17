@@ -351,10 +351,7 @@ impl CommandExt {
                 Ok(Value::from_string(agent, json, gc.nogc()).unbind())
             }
             Err(e) => {
-                let error = RuntimeError::runtime_error(format!(
-                    "Failed to execute command '{}': {}",
-                    program, e
-                ));
+                let error = RuntimeError::command_error(program, "output", e.to_string());
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -408,10 +405,8 @@ impl CommandExt {
                         .unwrap();
                 }
                 Err(e) => {
-                    let error = RuntimeError::runtime_error(format!(
-                        "Failed to execute command '{}': {}",
-                        program, e
-                    ));
+                    let error =
+                        RuntimeError::command_error(program.clone(), "output", e.to_string());
                     let error_msg = ErrorReporter::format_error(&error);
                     macro_task_tx
                         .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
@@ -471,10 +466,7 @@ impl CommandExt {
                 Ok(Value::from_string(agent, json, gc.nogc()).unbind())
             }
             Err(e) => {
-                let error = RuntimeError::runtime_error(format!(
-                    "Failed to spawn command '{}': {}",
-                    program, e
-                ));
+                let error = RuntimeError::command_error(program, "spawn", e.to_string());
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }
@@ -496,7 +488,8 @@ impl CommandExt {
         let rid: u32 = match rid_str.parse() {
             Ok(p) => p,
             Err(_) => {
-                let error = RuntimeError::runtime_error("Invalid process ID");
+                let error =
+                    RuntimeError::process_error("kill", format!("Invalid process ID: {rid_str}"));
                 let error_msg = ErrorReporter::format_error(&error);
                 return Ok(
                     Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -527,7 +520,7 @@ impl CommandExt {
         match kill_result {
             Ok(()) => Ok(Value::Undefined),
             Err(e) => {
-                let error = RuntimeError::runtime_error(e);
+                let error = RuntimeError::process_error("kill", e);
                 let error_msg = ErrorReporter::format_error(&error);
                 Ok(Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind())
             }

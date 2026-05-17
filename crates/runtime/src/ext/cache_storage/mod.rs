@@ -32,6 +32,43 @@ pub enum CacheStorageError {
     SerializationError,
 }
 
+impl From<CacheStorageError> for andromeda_core::RuntimeError {
+    fn from(err: CacheStorageError) -> Self {
+        match &err {
+            CacheStorageError::CacheExceeded => andromeda_core::RuntimeError::storage_quota_exceeded(
+                "cacheStorage",
+                "put",
+                err.to_string(),
+            ),
+            CacheStorageError::ContextNotSupported => andromeda_core::RuntimeError::storage_error(
+                "cacheStorage",
+                "context_check",
+                err.to_string(),
+            ),
+            CacheStorageError::Sqlite(_) => andromeda_core::RuntimeError::storage_error(
+                "cacheStorage",
+                "sqlite",
+                err.to_string(),
+            ),
+            CacheStorageError::Io(_) => andromeda_core::RuntimeError::storage_error(
+                "cacheStorage",
+                "io",
+                err.to_string(),
+            ),
+            CacheStorageError::CacheNotFound => andromeda_core::RuntimeError::storage_error(
+                "cacheStorage",
+                "cache_lookup",
+                err.to_string(),
+            ),
+            CacheStorageError::SerializationError => andromeda_core::RuntimeError::storage_error(
+                "cacheStorage",
+                "serialize",
+                err.to_string(),
+            ),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct CachedResponse {
     status: u16,
