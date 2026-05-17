@@ -60,6 +60,14 @@ enum Command {
         #[arg(short, long)]
         no_strict: bool,
 
+        /// Run an HTTP-serving script in parallel across N OS threads.
+        /// When set, `Andromeda.serve(handler)` inside the script will
+        /// spawn (N - 1) additional Worker instances and all instances
+        /// bind the same port via SO_REUSEPORT. If passed without a
+        /// value, defaults to the number of available CPUs.
+        #[arg(long, value_name = "N", num_args = 0..=1, default_missing_value = "0")]
+        parallel: Option<usize>,
+
         /// The file to run
         #[arg(required = true)]
         path: String,
@@ -274,6 +282,7 @@ fn run_main() -> CliResult<()> {
             command: Command::Run {
                 verbose: false,
                 no_strict: false,
+                parallel: None,
                 path,
                 args,
             },
@@ -300,9 +309,26 @@ fn run_main() -> CliResult<()> {
             Command::Run {
                 verbose,
                 no_strict,
+                parallel,
                 path,
                 args: _,
             } => {
+                if let Some(n) = parallel {
+                    let resolved = if n == 0 {
+                        std::thread::available_parallelism()
+                            .map(|p| p.get())
+                            .unwrap_or(1)
+                    } else {
+                        n
+                    };
+                    // Surface to JS via env. `Andromeda.serve(...)` reads
+                    // this as a default for the `parallel` option.
+                    // SAFETY: only set before the runtime starts; no
+                    // other thread reads env at this point.
+                    unsafe {
+                        std::env::set_var("ANDROMEDA_JOBS", resolved.to_string());
+                    }
+                }
                 let runtime_file = RuntimeFile::Local { path };
                 run::run(verbose, no_strict, vec![runtime_file])
             }
@@ -391,25 +417,9 @@ fn run_main() -> CliResult<()> {
                 force,
                 version,
                 dry_run,
-            } => upgrade::run_upgrade(force, version, dry_run).map_err(|e| {
-                error::CliError::runtime_error(
-                    format!("Upgrade failed: {e}"),
-                    None,
-                    None,
-                    None,
-                    None,
-                )
-            }),
+            } => upgrade::run_upgrade(force, version, dry_run),
             Command::Bundle { input, output } => {
-                bundle(input.to_str().unwrap(), output.to_str().unwrap()).map_err(|e| {
-                    error::CliError::runtime_error(
-                        format!("Bundle failed: {e}"),
-                        None,
-                        None,
-                        None,
-                        None,
-                    )
-                })?;
+                bundle(input.to_str().unwrap(), output.to_str().unwrap())?;
                 println!("Bundled and minified to {output:?}");
                 Ok(())
             }

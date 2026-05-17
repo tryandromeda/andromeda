@@ -60,7 +60,7 @@ fn main() -> CliResult<()> {
     };
 
     println!(
-        "✅ Successfully created the output binary at {:?}{}",
+        "✓ Successfully created the output binary at {:?}{}",
         cli.out, config_str
     );
 

@@ -154,6 +154,60 @@ pub enum CliError {
         message: String,
         task_name: Option<String>,
     },
+
+    #[error("Bundle failed at {stage} stage for {}", input_path.display())]
+    #[diagnostic(
+        code(andromeda::cli::bundle_failed),
+        help("Check the source file for the reported diagnostics and re-run the bundle command.")
+    )]
+    BundleError {
+        input_path: PathBuf,
+        stage: BundleStage,
+        message: String,
+        diagnostics: Vec<String>,
+    },
+
+    #[error("Upgrade failed during {operation}: {message}")]
+    #[diagnostic(
+        code(andromeda::cli::upgrade_failed),
+        help("Check network connectivity to github.com and that the release exists.")
+    )]
+    UpgradeError {
+        operation: String,
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
+
+    #[error("LSP error in {component}: {message}")]
+    #[diagnostic(
+        code(andromeda::cli::lsp_failed),
+        help("Try restarting the editor's LSP client and check the andromeda LSP logs.")
+    )]
+    LspError {
+        component: String,
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
+}
+
+/// Stage of bundling at which a `BundleError` occurred.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BundleStage {
+    Parse,
+    Semantic,
+    Transform,
+}
+
+impl std::fmt::Display for BundleStage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BundleStage::Parse => f.write_str("parse"),
+            BundleStage::Semantic => f.write_str("semantic"),
+            BundleStage::Transform => f.write_str("transform"),
+        }
+    }
 }
 
 impl CliError {
@@ -229,7 +283,8 @@ impl CliError {
         }
     }
 
-    /// Create a simple runtime error with just a message
+    /// Create a simple runtime error with just a message. (used in the satellites)
+    #[allow(dead_code)]
     pub fn runtime_error_simple(message: impl Into<String>) -> Self {
         Self::RuntimeError {
             message: message.into(),
@@ -321,6 +376,47 @@ impl CliError {
     /// Create a task error
     pub fn task_error(message: String, task_name: Option<String>) -> Self {
         Self::TaskError { message, task_name }
+    }
+
+    /// Create a bundle error
+    pub fn bundle_error(
+        input_path: PathBuf,
+        stage: BundleStage,
+        message: impl Into<String>,
+        diagnostics: Vec<String>,
+    ) -> Self {
+        Self::BundleError {
+            input_path,
+            stage,
+            message: message.into(),
+            diagnostics,
+        }
+    }
+
+    /// Create an upgrade error
+    pub fn upgrade_error(
+        operation: impl Into<String>,
+        message: impl Into<String>,
+        source: Option<impl std::error::Error + Send + Sync + 'static>,
+    ) -> Self {
+        Self::UpgradeError {
+            operation: operation.into(),
+            message: message.into(),
+            source: source.map(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Create an LSP error
+    pub fn lsp_error(
+        component: impl Into<String>,
+        message: impl Into<String>,
+        source: Option<impl std::error::Error + Send + Sync + 'static>,
+    ) -> Self {
+        Self::LspError {
+            component: component.into(),
+            message: message.into(),
+            source: source.map(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>),
+        }
     }
 }
 
@@ -578,6 +674,219 @@ impl From<RuntimeError> for CliError {
                 column: None,
                 source_code: None,
                 error_span: None,
+            },
+            RuntimeError::CommandError {
+                program,
+                operation,
+                message,
+                exit_code,
+                ..
+            } => CliError::RuntimeError {
+                message: match exit_code {
+                    Some(code) => format!(
+                        "Command '{}' error during {}: {} (exit code {})",
+                        program, operation, message, code
+                    ),
+                    None => format!(
+                        "Command '{}' error during {}: {}",
+                        program, operation, message
+                    ),
+                },
+                file_path: None,
+                line: None,
+                column: None,
+                source_code: None,
+                error_span: None,
+            },
+            RuntimeError::ProcessError {
+                operation,
+                message,
+                signal,
+                ..
+            } => CliError::RuntimeError {
+                message: match signal {
+                    Some(sig) => format!(
+                        "Process error during {} (signal {}): {}",
+                        operation, sig, message
+                    ),
+                    None => format!("Process error during {}: {}", operation, message),
+                },
+                file_path: None,
+                line: None,
+                column: None,
+                source_code: None,
+                error_span: None,
+            },
+            RuntimeError::TlsError {
+                operation, message, ..
+            } => CliError::RuntimeError {
+                message: format!("TLS error during {}: {}", operation, message),
+                file_path: None,
+                line: None,
+                column: None,
+                source_code: None,
+                error_span: None,
+            },
+            RuntimeError::LockError {
+                lock_name,
+                operation,
+                message,
+                is_deadlock,
+                ..
+            } => CliError::RuntimeError {
+                message: if is_deadlock {
+                    format!(
+                        "Deadlock detected on lock '{}' during {}: {}",
+                        lock_name, operation, message
+                    )
+                } else {
+                    format!(
+                        "Lock '{}' error during {}: {}",
+                        lock_name, operation, message
+                    )
+                },
+                file_path: None,
+                line: None,
+                column: None,
+                source_code: None,
+                error_span: None,
+            },
+            RuntimeError::WorkerError {
+                worker_id,
+                operation,
+                message,
+                ..
+            } => CliError::RuntimeError {
+                message: match worker_id {
+                    Some(id) => format!("Worker {} error during {}: {}", id, operation, message),
+                    None => format!("Worker error during {}: {}", operation, message),
+                },
+                file_path: None,
+                line: None,
+                column: None,
+                source_code: None,
+                error_span: None,
+            },
+            RuntimeError::DatabaseError {
+                operation,
+                database_name,
+                message,
+                ..
+            } => CliError::RuntimeError {
+                message: match database_name {
+                    Some(db) => {
+                        format!("Database '{}' error during {}: {}", db, operation, message)
+                    }
+                    None => format!("Database error during {}: {}", operation, message),
+                },
+                file_path: None,
+                line: None,
+                column: None,
+                source_code: None,
+                error_span: None,
+            },
+            RuntimeError::CryptoError {
+                operation,
+                algorithm,
+                message,
+                ..
+            } => CliError::RuntimeError {
+                message: format!(
+                    "Crypto error during {} ({}): {}",
+                    operation, algorithm, message
+                ),
+                file_path: None,
+                line: None,
+                column: None,
+                source_code: None,
+                error_span: None,
+            },
+            RuntimeError::UrlParseError { url, reason, .. } => CliError::RuntimeError {
+                message: format!("Failed to parse URL '{}': {}", url, reason),
+                file_path: None,
+                line: None,
+                column: None,
+                source_code: None,
+                error_span: None,
+            },
+            RuntimeError::StorageError {
+                store_type,
+                operation,
+                message,
+                quota_exceeded,
+                ..
+            } => CliError::RuntimeError {
+                message: if quota_exceeded {
+                    format!(
+                        "Storage '{}' quota exceeded during {}: {}",
+                        store_type, operation, message
+                    )
+                } else {
+                    format!(
+                        "Storage '{}' error during {}: {}",
+                        store_type, operation, message
+                    )
+                },
+                file_path: None,
+                line: None,
+                column: None,
+                source_code: None,
+                error_span: None,
+            },
+            RuntimeError::FfiCallError {
+                operation,
+                library,
+                message,
+                ..
+            } => CliError::RuntimeError {
+                message: match library {
+                    Some(lib) => format!("FFI error during {} ({}): {}", operation, lib, message),
+                    None => format!("FFI error during {}: {}", operation, message),
+                },
+                file_path: None,
+                line: None,
+                column: None,
+                source_code: None,
+                error_span: None,
+            },
+            RuntimeError::HttpModuleLoadError {
+                url,
+                operation,
+                status_code,
+                message,
+                ..
+            } => CliError::RuntimeError {
+                message: match status_code {
+                    Some(code) => format!(
+                        "HTTP module load failed during {} for {} (status {}): {}",
+                        operation, url, code, message
+                    ),
+                    None => format!(
+                        "HTTP module load failed during {} for {}: {}",
+                        operation, url, message
+                    ),
+                },
+                file_path: Some(url),
+                line: None,
+                column: None,
+                source_code: None,
+                error_span: None,
+            },
+            RuntimeError::ImportMapError {
+                field,
+                value,
+                message,
+                ..
+            } => CliError::ConfigError {
+                message: match value {
+                    Some(v) => format!(
+                        "Import map error in field '{}' (value '{}'): {}",
+                        field, v, message
+                    ),
+                    None => format!("Import map error in field '{}': {}", field, message),
+                },
+                config_path: None,
+                source: None,
             },
             RuntimeError::InternalError { message, .. } => CliError::RuntimeError {
                 message: format!("Internal error: {}", message),

@@ -558,7 +558,8 @@ impl ImportMap {
         })?;
 
         let import_map: ImportMap = serde_json::from_str(&content).map_err(|e| {
-            RuntimeError::module_parse_error(
+            RuntimeError::import_map_error_with_value(
+                "imports",
                 path.as_ref().to_string_lossy().to_string(),
                 format!("Invalid import map JSON: {e}"),
             )

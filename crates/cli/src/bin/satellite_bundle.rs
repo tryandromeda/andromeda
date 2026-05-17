@@ -7,7 +7,7 @@
 ///
 /// A minimal executable focused solely on bundling and minifying JavaScript/TypeScript files.
 /// Designed for container instances where only bundling capability is needed.
-use andromeda::{CliError, CliResult};
+use andromeda::CliResult;
 use clap::Parser as ClapParser;
 use std::path::PathBuf;
 
@@ -30,10 +30,9 @@ fn main() -> CliResult<()> {
 
     let cli = Cli::parse();
 
-    andromeda::bundle::bundle(cli.input.to_str().unwrap(), cli.output.to_str().unwrap())
-        .map_err(|e| CliError::runtime_error_simple(format!("Bundle failed: {e}")))?;
+    andromeda::bundle::bundle(cli.input.to_str().unwrap(), cli.output.to_str().unwrap())?;
 
-    println!("✅ Successfully bundled and minified to {:?}", cli.output);
+    println!("Successfully bundled and minified to {:?}", cli.output);
 
     Ok(())
 }

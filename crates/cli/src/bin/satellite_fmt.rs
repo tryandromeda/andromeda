@@ -34,11 +34,10 @@ fn main() -> CliResult<()> {
             .map_err(|e| CliError::runtime_error_simple(format!("{e}")))?;
 
     if files_to_format.is_empty() {
-        let warning = Style::new().yellow().bold().apply_to("⚠️");
         let msg = Style::new()
             .yellow()
             .apply_to("No formattable files found.");
-        println!("{warning} {msg}");
+        println!("{msg}");
         return Ok(());
     }
 
@@ -59,12 +58,12 @@ fn main() -> CliResult<()> {
     }
 
     println!();
-    let success = Style::new().green().bold().apply_to("✅");
+    let success = Style::new().green().bold().apply_to("✓");
     let complete_msg = Style::new().green().bold().apply_to("Formatting complete");
     println!("{success} {complete_msg}:");
 
     if formatted_count > 0 {
-        let formatted_icon = Style::new().green().apply_to("📄");
+        let formatted_icon = Style::new().green().apply_to("-");
         let formatted_num = Style::new().green().bold().apply_to(formatted_count);
         let formatted_text = if formatted_count == 1 {
             "file"
@@ -75,7 +74,7 @@ fn main() -> CliResult<()> {
     }
 
     if already_formatted_count > 0 {
-        let already_icon = Style::new().cyan().apply_to("✨");
+        let already_icon = Style::new().cyan().apply_to("*");
         let already_num = Style::new().cyan().bold().apply_to(already_formatted_count);
         let already_text = if already_formatted_count == 1 {
             "file"

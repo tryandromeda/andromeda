@@ -2,7 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{Context, Result, anyhow};
+#![allow(clippy::result_large_err)]
+
+use crate::error::{CliError, CliResult};
 use serde::Deserialize;
 use std::env;
 use std::fs;
@@ -41,8 +43,16 @@ struct PlatformInfo {
     asset_name: String,
 }
 
+fn upgrade_err(
+    operation: &str,
+    message: impl Into<String>,
+    source: Option<impl std::error::Error + Send + Sync + 'static>,
+) -> CliError {
+    CliError::upgrade_error(operation, message, source)
+}
+
 /// Run the upgrade process
-pub fn run_upgrade(force: bool, target_version: Option<String>, dry_run: bool) -> Result<()> {
+pub fn run_upgrade(force: bool, target_version: Option<String>, dry_run: bool) -> CliResult<()> {
     println!("Andromeda Upgrade Tool");
     println!("Current version: {CURRENT_VERSION}");
     println!();
@@ -73,9 +83,13 @@ pub fn run_upgrade(force: bool, target_version: Option<String>, dry_run: bool) -
         .iter()
         .find(|asset| asset.name == platform.asset_name)
         .ok_or_else(|| {
-            anyhow!(
-                "No release asset found for platform: {}",
-                platform.asset_name
+            upgrade_err(
+                "select_asset",
+                format!(
+                    "No release asset found for platform: {}",
+                    platform.asset_name
+                ),
+                None::<std::io::Error>,
             )
         })?;
 
@@ -95,10 +109,14 @@ pub fn run_upgrade(force: bool, target_version: Option<String>, dry_run: bool) -
             "Do you want to upgrade from {} to {}? [y/N]: ",
             CURRENT_VERSION, release.tag_name
         );
-        std::io::stdout().flush()?;
+        std::io::stdout()
+            .flush()
+            .map_err(|e| upgrade_err("prompt_flush", e.to_string(), Some(e)))?;
 
         let mut input = String::new();
-        std::io::stdin().read_line(&mut input)?;
+        std::io::stdin()
+            .read_line(&mut input)
+            .map_err(|e| upgrade_err("prompt_read", e.to_string(), Some(e)))?;
         let input = input.trim().to_lowercase();
 
         if input != "y" && input != "yes" {
@@ -120,7 +138,7 @@ pub fn run_upgrade(force: bool, target_version: Option<String>, dry_run: bool) -
 }
 
 /// Detect the current platform and return appropriate asset information
-fn detect_platform() -> Result<PlatformInfo> {
+fn detect_platform() -> CliResult<PlatformInfo> {
     let os = if cfg!(target_os = "linux") {
         "linux"
     } else if cfg!(target_os = "macos") {
@@ -128,7 +146,9 @@ fn detect_platform() -> Result<PlatformInfo> {
     } else if cfg!(target_os = "windows") {
         "windows"
     } else {
-        return Err(anyhow!("Unsupported operating system"));
+        return Err(CliError::unsupported_platform(
+            std::env::consts::OS.to_string(),
+        ));
     };
 
     let arch = if cfg!(target_arch = "x86_64") {
@@ -136,7 +156,10 @@ fn detect_platform() -> Result<PlatformInfo> {
     } else if cfg!(target_arch = "aarch64") {
         "arm64"
     } else {
-        return Err(anyhow!("Unsupported architecture"));
+        return Err(CliError::unsupported_platform(format!(
+            "unsupported architecture: {}",
+            std::env::consts::ARCH
+        )));
     };
 
     let asset_name = if os == "windows" {
@@ -153,7 +176,7 @@ fn detect_platform() -> Result<PlatformInfo> {
 }
 
 /// Get the latest release from GitHub
-fn get_latest_release() -> Result<GitHubRelease> {
+fn get_latest_release() -> CliResult<GitHubRelease> {
     let url = format!("https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/latest");
 
     let response = ureq::get(&url)
@@ -162,10 +185,13 @@ fn get_latest_release() -> Result<GitHubRelease> {
 
     match response {
         Ok(mut response) => {
-            let release: GitHubRelease = response
-                .body_mut()
-                .read_json()
-                .context("Failed to parse release information")?;
+            let release: GitHubRelease = response.body_mut().read_json().map_err(|e| {
+                upgrade_err(
+                    "parse_release",
+                    format!("Failed to parse release information: {e}"),
+                    None::<std::io::Error>,
+                )
+            })?;
             Ok(release)
         }
         Err(_) => {
@@ -176,68 +202,101 @@ fn get_latest_release() -> Result<GitHubRelease> {
 }
 
 /// Get the most recent release (including drafts and prereleases)
-fn get_most_recent_release() -> Result<GitHubRelease> {
+fn get_most_recent_release() -> CliResult<GitHubRelease> {
     let url = format!("https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases");
 
     let mut response = ureq::get(&url)
         .header("User-Agent", &format!("andromeda-cli/{CURRENT_VERSION}"))
         .call()
-        .context("Failed to fetch releases")?;
+        .map_err(|e| {
+            upgrade_err(
+                "fetch_releases",
+                format!("Failed to fetch releases: {e}"),
+                None::<std::io::Error>,
+            )
+        })?;
 
-    let releases: Vec<GitHubRelease> = response
-        .body_mut()
-        .read_json()
-        .context("Failed to parse releases information")?;
+    let releases: Vec<GitHubRelease> = response.body_mut().read_json().map_err(|e| {
+        upgrade_err(
+            "parse_releases",
+            format!("Failed to parse releases information: {e}"),
+            None::<std::io::Error>,
+        )
+    })?;
 
     releases
         .into_iter()
         .find(|release| !release.assets.is_empty())
-        .ok_or_else(|| anyhow!("No releases with assets found"))
+        .ok_or_else(|| {
+            upgrade_err(
+                "select_release",
+                "No releases with assets found",
+                None::<std::io::Error>,
+            )
+        })
 }
 
 /// Get a specific release by tag
-fn get_release_by_tag(tag: &str) -> Result<GitHubRelease> {
+fn get_release_by_tag(tag: &str) -> CliResult<GitHubRelease> {
     let url = format!("https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/tags/{tag}");
 
     let mut response = ureq::get(&url)
         .header("User-Agent", &format!("andromeda-cli/{CURRENT_VERSION}"))
         .call()
-        .context("Failed to fetch release information")?;
+        .map_err(|e| {
+            upgrade_err(
+                "fetch_release",
+                format!("Failed to fetch release information: {e}"),
+                None::<std::io::Error>,
+            )
+        })?;
 
-    let release: GitHubRelease = response
-        .body_mut()
-        .read_json()
-        .context("Failed to parse release information")?;
+    let release: GitHubRelease = response.body_mut().read_json().map_err(|e| {
+        upgrade_err(
+            "parse_release",
+            format!("Failed to parse release information: {e}"),
+            None::<std::io::Error>,
+        )
+    })?;
 
     Ok(release)
 }
 
 /// Download an asset from the given URL
-fn download_asset(url: &str) -> Result<Vec<u8>> {
+fn download_asset(url: &str) -> CliResult<Vec<u8>> {
     let mut response = ureq::get(url)
         .header("User-Agent", &format!("andromeda-cli/{CURRENT_VERSION}"))
         .call()
-        .context("Failed to download asset")?;
+        .map_err(|e| {
+            upgrade_err(
+                "download",
+                format!("Failed to download asset: {e}"),
+                None::<std::io::Error>,
+            )
+        })?;
 
     let mut buffer = Vec::new();
     response
         .body_mut()
         .as_reader()
         .read_to_end(&mut buffer)
-        .context("Failed to read downloaded asset")?;
+        .map_err(|e| upgrade_err("download_read", e.to_string(), Some(e)))?;
 
     Ok(buffer)
 }
 
 /// Install the new binary, replacing the current one
-fn install_binary(binary_data: &[u8], _platform: &PlatformInfo) -> Result<()> {
-    let current_exe = env::current_exe().context("Failed to get current executable path")?;
+fn install_binary(binary_data: &[u8], _platform: &PlatformInfo) -> CliResult<()> {
+    let current_exe =
+        env::current_exe().map_err(|e| upgrade_err("locate_exe", e.to_string(), Some(e)))?;
 
     let backup_path = current_exe.with_extension("bak");
     if backup_path.exists() {
-        fs::remove_file(&backup_path)?;
+        fs::remove_file(&backup_path)
+            .map_err(|e| upgrade_err("remove_old_backup", e.to_string(), Some(e)))?;
     }
-    fs::copy(&current_exe, &backup_path).context("Failed to create backup of current binary")?;
+    fs::copy(&current_exe, &backup_path)
+        .map_err(|e| upgrade_err("create_backup", e.to_string(), Some(e)))?;
     if cfg!(windows) {
         install_binary_windows(binary_data, &current_exe, &backup_path)
     } else {
@@ -249,11 +308,11 @@ fn install_binary_windows(
     binary_data: &[u8],
     current_exe: &Path,
     backup_path: &Path,
-) -> Result<()> {
+) -> CliResult<()> {
     let temp_dir = env::temp_dir();
     let temp_binary = temp_dir.join("andromeda_new.exe");
     fs::write(&temp_binary, binary_data)
-        .context("Failed to write new binary to temporary location")?;
+        .map_err(|e| upgrade_err("write_temp_binary", e.to_string(), Some(e)))?;
 
     let batch_script = format!(
         r#"@echo off
@@ -275,7 +334,8 @@ echo Upgrade completed successfully!
     );
 
     let batch_path = temp_dir.join("andromeda_upgrade.bat");
-    fs::write(&batch_path, batch_script).context("Failed to create upgrade script")?;
+    fs::write(&batch_path, batch_script)
+        .map_err(|e| upgrade_err("create_upgrade_script", e.to_string(), Some(e)))?;
 
     #[cfg(windows)]
     {
@@ -286,7 +346,7 @@ echo Upgrade completed successfully!
             .args(["/C", &batch_path.to_string_lossy()])
             .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .spawn()
-            .context("Failed to start upgrade process")?;
+            .map_err(|e| upgrade_err("start_upgrade_process", e.to_string(), Some(e)))?;
 
         println!("The upgrade will complete after this process exits.");
         Ok(())
@@ -294,22 +354,31 @@ echo Upgrade completed successfully!
 
     #[cfg(not(windows))]
     {
-        // This should never be called on non-Windows, but just in case
-        Err(anyhow!(
-            "Windows-specific function called on non-Windows platform"
-        ))
+        let _ = (binary_data, current_exe, backup_path);
+        Err(CliError::unsupported_platform(format!(
+            "Windows-specific function called on {}",
+            std::env::consts::OS
+        )))
     }
 }
 
-fn install_binary_unix(binary_data: &[u8], current_exe: &Path, backup_path: &Path) -> Result<()> {
-    fs::write(current_exe, binary_data).context("Failed to write new binary")?;
+fn install_binary_unix(
+    binary_data: &[u8],
+    current_exe: &Path,
+    backup_path: &Path,
+) -> CliResult<()> {
+    fs::write(current_exe, binary_data)
+        .map_err(|e| upgrade_err("write_binary", e.to_string(), Some(e)))?;
 
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(current_exe)?.permissions();
+        let mut perms = fs::metadata(current_exe)
+            .map_err(|e| upgrade_err("read_perms", e.to_string(), Some(e)))?
+            .permissions();
         perms.set_mode(0o755);
-        fs::set_permissions(current_exe, perms)?;
+        fs::set_permissions(current_exe, perms)
+            .map_err(|e| upgrade_err("set_perms", e.to_string(), Some(e)))?;
     }
 
     fs::remove_file(backup_path).ok();

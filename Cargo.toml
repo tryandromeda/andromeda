@@ -7,7 +7,7 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.10"
+version = "0.1.12"
 
 [workspace.dependencies]
 andromeda-core = { path = "crates/core" }
@@ -22,19 +22,19 @@ anymap = "0.12.1"
 async-trait = "0.1.89"
 base64-simd = "0.8.0"
 chrono = { version = "0.4.44", features = ["serde"] }
-clap = { version = "4.6.0", features = ["derive"] }
-clap_complete = "4.6.0"
+clap = { version = "4.6.1", features = ["derive"] }
+clap_complete = "4.6.5"
 console = "0.16.3"
 toml = "1.1.2"
 copilot-client = "0.1.0"
-cosmic-text = "0.18.2"
+cosmic-text = "0.19.0"
 dprint-core = "0.67.4"
-dprint-plugin-typescript = "0.95.15"
+dprint-plugin-typescript = "0.96.0"
 dprint-plugin-json = "0.21.3"
 env_logger = "0.11.10"
 futures = "0.3.32"
 glob = "0.3.3"
-hotpath = { version = "0.15" }
+hotpath = { version = "0.16" }
 indexmap = "2.14.0"
 image = "0.25.10"
 lazy_static = "1.5.0"
@@ -42,7 +42,7 @@ libloading = "0.9.0"
 libffi = "5.1.0"
 libsui = "0.14.0"
 log = "0.4.29"
-lru = "0.17.0"
+lru = "0.18.0"
 lsp-types = "0.97.0"
 nova_vm = { git = "https://github.com/trynova/nova", rev = "a82b0408533bc93f857aa2ee5daee4f39f62dc6f" }
 nu-ansi-term = "0.50.3"
@@ -61,9 +61,9 @@ oxc_transformer = "0.122.0"
 rand = "0.10.1"
 reedline = "0.46.0"
 regex = "1.12.3"
-rustls = "0.23.38"
+rustls = "0.23.40"
 rustls-pemfile = "2.2.0"
-rustls-pki-types = "1.14.0"
+rustls-pki-types = "1.14.1"
 ring = "0.17.14"
 rusqlite = { version = "0.39.0", features = [
     "bundled",
@@ -76,12 +76,12 @@ serde_json = "1.0.149"
 serde_yaml = "0.9.34-deprecated"
 socket2 = "0.6.3"
 
-swash = "0.2.6"
+swash = "0.2.7"
 trust-dns-resolver = "0.23.2"
 signal-hook = "0.4.4"
 thiserror = "2.0.18"
 tempfile = "3.27.0"
-tokio = { version = "1.52.1", features = ["rt", "sync", "time", "fs"] }
+tokio = { version = "1.52.3", features = ["rt", "sync", "time", "fs"] }
 tokio-rustls = "0.26.4"
 tokio-test = "0.4.5"
 tower-lsp = "0.20.0"

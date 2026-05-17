@@ -18,6 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+
       - uses: actions/download-artifact@v4
         with:
           name: profile-metrics
@@ -25,20 +26,19 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Install hotpath CLI
-        run: cargo install hotpath --bin hotpath-ci --features=ci
+      - name: Install hotpath-utils CLI
+        run: cargo install hotpath --version ^0.16 --bin hotpath-utils --features=utils
 
-      - name: Post PR comment - timing mode
+      - name: Post PR comment - timing
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          HEAD_METRICS=$(cat /tmp/metrics/head_timing.json)
-          BASE_METRICS=$(cat /tmp/metrics/base_timing.json)
-          PR_NUMBER=$(cat /tmp/metrics/pr_number.txt)
-          hotpath-ci profile-pr \
-            --head-metrics "$HEAD_METRICS" \
-            --base-metrics "$BASE_METRICS" \
+          export GITHUB_BASE_REF=$(cat /tmp/metrics/base_ref.txt)
+          export GITHUB_HEAD_REF=$(cat /tmp/metrics/head_ref.txt)
+          hotpath-utils profile-pr \
+            --head-metrics /tmp/metrics/head_timing.json \
+            --base-metrics /tmp/metrics/base_timing.json \
             --github-token "$GH_TOKEN" \
-            --pr-number "$PR_NUMBER"
-
+            --pr-number "$(cat /tmp/metrics/pr_number.txt)" \
+            --benchmark-id "timing"

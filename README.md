@@ -212,6 +212,42 @@ performance.mark("operation-end");
 performance.measure("total-time", "operation-start", "operation-end");
 ```
 
+### Web Workers
+
+Run JavaScript or TypeScript on a separate OS thread. Andromeda implements
+the [WHATWG dedicated Worker API](https://html.spec.whatwg.org/multipage/workers.html)
+with module workers, structured-clone messaging, and `MessageChannel`/`MessagePort`.
+
+```ts
+// worker.ts
+self.onmessage = (event) => {
+  self.postMessage({ doubled: (event.data as number) * 2 });
+};
+```
+
+```ts
+// main.ts
+const worker = new Worker(
+  new URL("./worker.ts", import.meta.url),
+  { type: "module" },
+);
+
+worker.onmessage = (event) => {
+  console.log(event.data); // { doubled: 84 }
+  worker.terminate();
+};
+
+worker.postMessage(42);
+```
+
+In-realm message passing with `MessageChannel`:
+
+```ts
+const channel = new MessageChannel();
+channel.port1.onmessage = (e) => console.log("port1 got:", e.data);
+channel.port2.postMessage("hello");
+```
+
 ### Database Operations
 
 ```ts
@@ -386,6 +422,7 @@ or disabled as needed:
 | **Time**          | Timing utilities              | `performance.now()`, `setTimeout()`, `setInterval()`, `Andromeda.sleep()`      |
 | **URL**           | URL parsing and manipulation  | `URL`, `URLSearchParams`                                                       |
 | **Web**           | Web standards                 | `TextEncoder`, `TextDecoder`, `navigator`, `queueMicrotask()`                  |
+| **Workers**       | Off-thread JS execution       | `Worker`, `DedicatedWorkerGlobalScope` (`self.postMessage`/`close`), `MessageChannel`, `MessagePort` |
 | **Window** *(optional)* | Native OS windowing (winit) | `Andromeda.Window`, `Andromeda.createWindow()`, DOM-style events, `rawHandle()` |
 
 ### Window extension (optional, behind `window` feature)

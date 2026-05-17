@@ -60,7 +60,7 @@ impl Ord for TimedJob {
 pub struct RuntimeHostHooks<UserMacroTask> {
     pub(crate) promise_job_queue: RefCell<VecDeque<Job>>,
     pub(crate) timeout_job_queue: RefCell<BinaryHeap<TimedJob>>,
-    pub(crate) host_data: HostData<UserMacroTask>,
+    pub host_data: HostData<UserMacroTask>,
     pub(crate) base_path: PathBuf,
     pub(crate) import_map: Option<ImportMap>,
 }
@@ -397,57 +397,21 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
         let is_json = final_specifier.ends_with(".json");
 
         // Read the module source - handle both file system and HTTP URLs
-        let source_text =
-            if final_specifier.starts_with("http://") || final_specifier.starts_with("https://") {
-                // HTTP import - fetch from network
-                match ureq::get(&final_specifier).call() {
-                    Ok(mut response) => match response.body_mut().read_to_string() {
-                        Ok(content) => content,
-                        Err(error) => {
-                            let error = agent.throw_exception(
-                                ExceptionType::TypeError,
-                                format!("Failed to read HTTP module {final_specifier}: {error}"),
-                                gc,
-                            );
-                            finish_loading_imported_module(
-                                agent,
-                                referrer,
-                                module_request,
-                                payload,
-                                Err(error),
-                                gc,
-                            );
-                            return;
-                        }
-                    },
-                    Err(error) => {
-                        let error = agent.throw_exception(
-                            ExceptionType::TypeError,
-                            format!("Failed to fetch HTTP module {final_specifier}: {error}"),
-                            gc,
-                        );
-                        finish_loading_imported_module(
-                            agent,
-                            referrer,
-                            module_request,
-                            payload,
-                            Err(error),
-                            gc,
-                        );
-                        return;
-                    }
-                }
-            } else {
-                // File system import - read from local file
-                let file_path = PathBuf::from(&final_specifier);
-                match std::fs::read_to_string(&file_path) {
+        let source_text = if final_specifier.starts_with("http://")
+            || final_specifier.starts_with("https://")
+        {
+            // HTTP import - fetch from network
+            match ureq::get(&final_specifier).call() {
+                Ok(mut response) => match response.body_mut().read_to_string() {
                     Ok(content) => content,
                     Err(error) => {
-                        let error = agent.throw_exception(
-                            ExceptionType::TypeError,
-                            format!("Failed to read module {}: {}", file_path.display(), error),
-                            gc,
+                        let rt_err = crate::error::RuntimeError::http_module_load_error(
+                            final_specifier.clone(),
+                            "read_body",
+                            error.to_string(),
                         );
+                        let error =
+                            agent.throw_exception(ExceptionType::TypeError, rt_err.to_string(), gc);
                         finish_loading_imported_module(
                             agent,
                             referrer,
@@ -458,8 +422,49 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
                         );
                         return;
                     }
+                },
+                Err(error) => {
+                    let rt_err = crate::error::RuntimeError::http_module_load_error(
+                        final_specifier.clone(),
+                        "fetch",
+                        error.to_string(),
+                    );
+                    let error =
+                        agent.throw_exception(ExceptionType::TypeError, rt_err.to_string(), gc);
+                    finish_loading_imported_module(
+                        agent,
+                        referrer,
+                        module_request,
+                        payload,
+                        Err(error),
+                        gc,
+                    );
+                    return;
                 }
-            };
+            }
+        } else {
+            // File system import - read from local file
+            let file_path = PathBuf::from(&final_specifier);
+            match std::fs::read_to_string(&file_path) {
+                Ok(content) => content,
+                Err(error) => {
+                    let error = agent.throw_exception(
+                        ExceptionType::TypeError,
+                        format!("Failed to read module {}: {}", file_path.display(), error),
+                        gc,
+                    );
+                    finish_loading_imported_module(
+                        agent,
+                        referrer,
+                        module_request,
+                        payload,
+                        Err(error),
+                        gc,
+                    );
+                    return;
+                }
+            }
+        };
 
         // Handle JSON modules specially
         let final_source = if is_json {
@@ -805,11 +810,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
         // Validate all files before execution
         for file in &self.config.files {
             if let Err(error) = file.validate() {
-                eprintln!(
-                    "🚨 File validation error for {}: {}",
-                    file.get_path(),
-                    error
-                );
+                eprintln!("File validation error for {}: {}", file.get_path(), error);
                 std::process::exit(1);
             }
         }
@@ -819,13 +820,13 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
             let file_content = match file.read() {
                 Ok(content) => content,
                 Err(error) => {
-                    eprintln!("🚨 Failed to read file {}: {}", file.get_path(), error);
+                    eprintln!("Failed to read file {}: {}", file.get_path(), error);
                     std::process::exit(1);
                 }
             };
 
             if file_content.trim().is_empty() {
-                eprintln!("⚠️  Warning: File {} is empty", file.get_path());
+                eprintln!("Warning: File {} is empty", file.get_path());
                 continue;
             }
             result = self.agent.run_in_realm(&self.realm_root, |agent, mut gc| {

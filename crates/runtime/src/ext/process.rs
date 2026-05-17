@@ -186,7 +186,8 @@ impl ProcessExt {
             .expect("String is not valid UTF-8");
         let callback = args.get(1);
         if !callback.is_function() {
-            let error = RuntimeError::runtime_error("Callback must be a function");
+            let error =
+                RuntimeError::type_error("Callback must be a function", "function", "non-function");
             let error_msg = ErrorReporter::format_error(&error);
             return Ok(
                 Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),
@@ -213,10 +214,11 @@ impl ProcessExt {
             _ => {
                 #[cfg(windows)]
                 {
-                    let error_msg = format!(
-                        "Signal '{signal_name_str}' is not supported on Windows. Only SIGINT and SIGBREAK are supported."
+                    let error = RuntimeError::process_error_with_signal(
+                        "register_signal_handler",
+                        "Only SIGINT and SIGBREAK are supported on Windows.",
+                        signal_name_str,
                     );
-                    let error = RuntimeError::runtime_error(error_msg);
                     let error_formatted = ErrorReporter::format_error(&error);
                     return Ok(Value::from_string(
                         agent,
@@ -227,8 +229,11 @@ impl ProcessExt {
                 }
                 #[cfg(unix)]
                 {
-                    let error_msg = format!("Unsupported signal: {signal_name_str}");
-                    let error = RuntimeError::runtime_error(error_msg);
+                    let error = RuntimeError::process_error_with_signal(
+                        "register_signal_handler",
+                        format!("Unsupported signal: {signal_name_str}"),
+                        signal_name_str,
+                    );
                     let error_formatted = ErrorReporter::format_error(&error);
                     return Ok(Value::from_string(
                         agent,

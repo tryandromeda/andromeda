@@ -103,7 +103,7 @@ impl NetExt {
                     2,
                     true,
                 ),
-                ExtensionOp::new("tcp_listen", Self::internal_tcp_listen, 2, false),
+                ExtensionOp::new("tcp_listen", Self::internal_tcp_listen, 3, false),
                 ExtensionOp::new("tcp_accept", Self::internal_tcp_accept, 1, false),
                 ExtensionOp::new(
                     "tcp_accept_async",
@@ -116,6 +116,12 @@ impl NetExt {
                 ExtensionOp::new("tcp_write", Self::internal_tcp_write, 2, false),
                 ExtensionOp::new("tcp_write_async", Self::internal_tcp_write_async, 2, false),
                 ExtensionOp::new("tcp_close", Self::internal_tcp_close, 1, false),
+                ExtensionOp::new(
+                    "tcp_listener_close",
+                    Self::internal_tcp_listener_close,
+                    1,
+                    false,
+                ),
                 ExtensionOp::new("tcp_set_nodelay", Self::internal_tcp_set_nodelay, 2, false),
                 ExtensionOp::new(
                     "tcp_set_keepalive",
@@ -315,7 +321,7 @@ impl NetExt {
         Ok(Value::Promise(promise_capability.promise()).unbind())
     }
 
-    /// TCP listen operation (synchronous)
+    /// TCP listen operation
     pub fn internal_tcp_listen<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -345,11 +351,21 @@ impl NetExt {
             }
         };
 
+        let reuse_port = {
+            let arg = args.get(2);
+            if arg.is_undefined() || arg.is_null() {
+                false
+            } else {
+                let s = arg.to_string(agent, gc.reborrow()).unbind()?;
+                s.as_str(agent).expect("String is not valid UTF-8") == "true"
+            }
+        };
+
         // Use block_in_place for synchronous TCP listen operation
         let addr = NetAddr::new(host, port);
         let result = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
-                match TcpOps::listen(&addr).await {
+                match TcpOps::listen_with_options(&addr, reuse_port).await {
                     Ok(listener_wrapper) => {
                         let local_addr = listener_wrapper.local_addr();
                         // Store listener in resource table and return resource ID
@@ -741,9 +757,48 @@ impl NetExt {
 
             let resources = Self::get_net_resources_mut(agent).unwrap();
             let removed_stream = resources.tcp_streams.remove(rid);
+
+            if removed_stream.is_some() {
+                format!("{{\"success\":true,\"resourceId\":{}}}", resource_id)
+            } else {
+                "Error: Resource not found".to_string()
+            }
+        };
+
+        Ok(Value::from_string(agent, result, gc.nogc()).unbind())
+    }
+
+    /// TCP listener close operation
+    pub fn internal_tcp_listener_close<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let resource_id_binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let resource_id_str = resource_id_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8");
+
+        let resource_id: u32 = match resource_id_str.parse() {
+            Ok(id) => id,
+            Err(_) => {
+                return Ok(Value::from_string(
+                    agent,
+                    "Error: Invalid resource ID".to_string(),
+                    gc.nogc(),
+                )
+                .unbind());
+            }
+        };
+
+        let result = {
+            let rid = Rid::from_index(resource_id);
+
+            let resources = Self::get_net_resources_mut(agent).unwrap();
             let removed_listener = resources.tcp_listeners.remove(rid);
 
-            if removed_stream.is_some() || removed_listener.is_some() {
+            if removed_listener.is_some() {
                 format!("{{\"success\":true,\"resourceId\":{}}}", resource_id)
             } else {
                 "Error: Resource not found".to_string()

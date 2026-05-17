@@ -113,13 +113,7 @@ impl TextRenderer {
             .stretch(font_descriptor.stretch)
             .style(font_descriptor.style);
 
-        buffer.set_text(
-            &mut self.font_manager.font_system,
-            text,
-            &attrs,
-            cosmic_text::Shaping::Advanced,
-            None,
-        );
+        buffer.set_text(text, &attrs, cosmic_text::Shaping::Advanced, None);
 
         buffer.shape_until_scroll(&mut self.font_manager.font_system, false);
 
