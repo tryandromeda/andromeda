@@ -63,13 +63,23 @@ function hasRequestHeader(request: any, name: string): boolean {
   return false;
 }
 
-const networkError = () => ({
+function hexToUtf8(hex: string) {
+  if (!hex) return "";
+  const bytes = new Uint8Array(
+    hex.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)),
+  );
+  return new TextDecoder().decode(bytes);
+}
+
+const networkError = (opts?: { cause?: unknown }) => ({
   type: "error",
   status: 0,
   statusText: "",
   headersList: [],
   body: null,
   urlList: [],
+  // Forwarded as `cause` on the TypeError the caller sees.
+  cause: opts?.cause,
 });
 
 const createDeferredPromise = () => {
@@ -265,7 +275,10 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
       }
 
       if (response?.type === "error") {
-        p.reject(new TypeError("Network error"));
+        const err = response.cause !== undefined ?
+          new TypeError("Network error", { cause: response.cause } as any) :
+          new TypeError("Network error");
+        p.reject(err);
         return;
       }
 
@@ -302,14 +315,33 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
         }
       }
 
+      // Use the internal `headersList` init field instead of `headers:`,
+      // since fillHeaders does not iterate Headers instances.
+      // Shallow-copy each pair so later mutation of the internal response
+      // does not bleed into the already-delivered Response.
+      const responseHeadersList: [string, string][] =
+        Array.isArray(response.headersList) ?
+          response.headersList.map(([k, v]: [string, string]) =>
+            [k, v] as [string, string]
+          ) :
+          [];
       responseObject = new Response(bodyData, {
         status: response.status,
         statusText: response.statusText,
+        headersList: responseHeadersList,
       } as any);
 
-      // Add additional properties that might be needed
+      // response.url is the last URL in the chain, not the first.
+      const lastUrl = response.urlList && response.urlList.length > 0 ?
+        response.urlList[response.urlList.length - 1] :
+        null;
+      const lastUrlString = lastUrl ?
+        (typeof lastUrl === "string" ?
+          lastUrl :
+          (lastUrl.href || lastUrl.serialized || String(lastUrl))) :
+        request.url;
       Object.defineProperty(responseObject, "url", {
-        value: response.urlList?.[0]?.href || request.url,
+        value: lastUrlString,
         writable: false,
         enumerable: true,
         configurable: true,
@@ -342,7 +374,11 @@ globalThis.fetch = andromedaFetch;
  * @see https://fetch.spec.whatwg.org/#fetch-response-handover
  */
 const fetchResponseHandover = (fetchParams: any, response: any) => {
-  // Run processResponse if available
+  // Fire processResponse at most once: the outer .catch in fetching() also
+  // calls us on rejection, and a throw after a successful handover would
+  // otherwise deliver a second response.
+  if (fetchParams.handedOff) return;
+  fetchParams.handedOff = true;
   if (fetchParams.processResponse) {
     fetchParams.processResponse(response);
   }
@@ -498,7 +534,12 @@ const fetching = ({
   //  2. Append record to request’s client’s fetch group list of fetch records.
 
   // 15. Run main fetch given fetchParams.
-  mainFetch(fetchParams);
+  // Main fetch runs in parallel per spec, but we still need a catch so a
+  // throw inside the async chain surfaces as a network error instead of
+  // leaving the promise hanging forever.
+  mainFetch(fetchParams).catch((err: unknown) => {
+    fetchResponseHandover(fetchParams, networkError({ cause: err }));
+  });
 
   // 16. Return fetchParams’s controller.
   return fetchParams.controller;
@@ -925,12 +966,20 @@ const mainFetch = async (fetchParams: any, recursive = false) => {
     }
 
     // 22. If request's integrity metadata is not the empty string, then:
-    if (request.integrityMetadata && request.integrityMetadata !== "") {
+    //
+    // Only enter when the SRI hook is wired. Otherwise processBody falls
+    // through and replaces the response body with an empty Uint8Array.
+    const sriHook = (globalThis as any).__doesResponseMatchIntegrityMetadata;
+    if (
+      request.integrity && request.integrity !== "" &&
+      typeof sriHook === "function"
+    ) {
       //  1. Let processBodyError be this step: run fetch response handover given fetchParams and a network error.
-      const processBodyError = () => {
-        if (fetchParams.processResponse) {
-          fetchParams.processResponse(networkError());
-        }
+      const processBodyError = (err?: unknown) => {
+        fetchResponseHandover(
+          fetchParams,
+          networkError(err !== undefined ? { cause: err } : undefined),
+        );
       };
 
       //  2. If response's body is null, then run processBodyError and abort these steps.
@@ -947,7 +996,7 @@ const mainFetch = async (fetchParams: any, recursive = false) => {
         if (doesMatch) {
           const integrityValid = await doesMatch(
             {
-              integrity: request.integrityMetadata,
+              integrity: request.integrity,
               origin: request.origin,
               mode: request.mode,
             },
@@ -961,25 +1010,22 @@ const mainFetch = async (fetchParams: any, recursive = false) => {
         //    2. Set response's body to bytes as a body.
         response.body = bytes;
         //    3. Run fetch response handover given fetchParams and response.
-        if (fetchParams.processResponse) {
-          fetchParams.processResponse(response);
-        }
+        fetchResponseHandover(fetchParams, response);
       };
 
       //  4. Fully read response's body given processBody and processBodyError.
-      processBody(new Uint8Array());
+      //     processBody is async, so route rejections to processBodyError.
+      processBody(new Uint8Array()).catch((err: unknown) => {
+        processBodyError(err);
+      });
     } else {
       // 23. Otherwise, run fetch response handover given fetchParams and response.
       fetchResponseHandover(fetchParams, response);
     }
   };
 
-  if (!recursive) {
-    runRemainingSteps();
-    // Don't return anything - the response will be handled via processResponse callback
-  } else {
-    return await runRemainingSteps();
-  }
+  // Always await: the chain has to stay live until processResponse fires.
+  return await runRemainingSteps();
 };
 
 /**
@@ -1474,7 +1520,7 @@ const httpFetch = async (fetchParams: any, makeCORSPreflight = false) => {
       // ↪︎ "follow"
       case "follow":
         // 1. Set response to the result of running HTTP-redirect fetch given fetchParams and response.
-        response = response;
+        response = await httpRedirectFetch(fetchParams, response);
         break;
     }
   }
@@ -1602,10 +1648,27 @@ const httpNetworkFetch = async (
         let httpRequest = `${method} ${path} HTTP/1.1\r\n`;
         httpRequest += `Host: ${host}\r\n`;
 
-        // Add headers
+        // Track user-supplied header names so defaults below only fill gaps.
+        const userHeaderNames = new Set<string>();
         if (headers && Array.isArray(headers)) {
           for (const [name, value] of headers) {
+            userHeaderNames.add(name.toLowerCase());
             httpRequest += `${name}: ${value}\r\n`;
+          }
+        }
+
+        // Defaults only fire when the caller did not supply them, and also
+        // land on request.headersList so a redirect carries them through.
+        if (!userHeaderNames.has("accept")) {
+          httpRequest += `Accept: */*\r\n`;
+          if (Array.isArray(request.headersList)) {
+            request.headersList.push(["Accept", "*/*"]);
+          }
+        }
+        if (!userHeaderNames.has("user-agent")) {
+          httpRequest += `User-Agent: Andromeda/0.1\r\n`;
+          if (Array.isArray(request.headersList)) {
+            request.headersList.push(["User-Agent", "Andromeda/0.1"]);
           }
         }
 
@@ -1630,10 +1693,12 @@ const httpNetworkFetch = async (
         // Send request
         await __andromeda__.internal_tls_write(rid, httpRequest);
 
-        // Read response
+        // Read response. The 10_000 chunk cap (~40 MB at 4096 B/chunk)
+        // bounds runaway streams; the loop exits earlier on EOF.
         let responseHex = "";
-        const maxRetries = 100;
+        const maxRetries = 10_000;
         let retries = 0;
+        let readError: unknown = null;
 
         while (retries < maxRetries) {
           try {
@@ -1641,24 +1706,19 @@ const httpNetworkFetch = async (
             if (!chunk || chunk.length === 0) break;
             responseHex += chunk;
           } catch (e) {
-            console.error("TLS read error:", e);
+            readError = e;
             break;
           }
           retries++;
         }
 
-        // Close connection
         await __andromeda__.internal_tls_close(rid);
 
-        // Convert hex to bytes
-        function hexToUtf8(hex: string) {
-          if (!hex) return "";
-          const bytes = new Uint8Array(
-            hex.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)),
-          );
-          return new TextDecoder().decode(bytes);
+        if (readError !== null) {
+          return networkError({ cause: readError });
         }
 
+        // Convert hex to bytes
         // Parse response
         const responseText = hexToUtf8(responseHex);
         const [headerPart, ...bodyParts] = responseText.split("\r\n\r\n");
@@ -1672,9 +1732,17 @@ const httpNetworkFetch = async (
         if (statusMatch) {
           status = parseInt(statusMatch[1]);
           statusText = statusMatch[2];
+        } else {
+          // Empty or non-HTTP buffer: don't fall through to a defaulted 200.
+          return networkError({
+            cause: new Error(
+              "Invalid or empty HTTP response (no status line)",
+            ),
+          });
         }
 
         // Parse headers
+        let isChunked = false;
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i];
           const colonIndex = line.indexOf(":");
@@ -1682,15 +1750,75 @@ const httpNetworkFetch = async (
             const name = line.substring(0, colonIndex).trim();
             const value = line.substring(colonIndex + 1).trim();
             responseHeaders.push([name, value]);
+            if (
+              name.toLowerCase() === "transfer-encoding" &&
+              value.toLowerCase().split(",").map((s) => s.trim()).includes(
+                "chunked",
+              )
+            ) {
+              isChunked = true;
+            }
+          }
+        }
+
+        // Strip HTTP/1.1 chunked framing from the body.
+        let decodedBody = bodyText;
+        if (isChunked && bodyText) {
+          decodedBody = "";
+          let p = 0;
+          while (p < bodyText.length) {
+            const crlf = bodyText.indexOf("\r\n", p);
+            if (crlf < 0) break;
+            const sizeHex = bodyText.slice(p, crlf).split(";")[0].trim();
+            if (sizeHex === "") {
+              p = crlf + 2;
+              continue;
+            }
+            const size = parseInt(sizeHex, 16);
+            if (!Number.isFinite(size) || size < 0) break;
+            if (size === 0) break; // last-chunk (trailers ignored)
+            const dataStart = crlf + 2;
+            decodedBody += bodyText.slice(dataStart, dataStart + size);
+            p = dataStart + size + 2; // skip data + trailing CRLF
           }
         }
 
         // Set response body
-        if (bodyText) {
-          responseBody = new TextEncoder().encode(bodyText);
+        if (decodedBody) {
+          responseBody = new TextEncoder().encode(decodedBody);
+        }
+
+        // Drop the chunked token from Transfer-Encoding (other codings like
+        // gzip stay; if it was the only token, drop the header entirely).
+        // Then set Content-Length to the decoded byte length.
+        if (isChunked) {
+          const decodedLen = responseBody ? responseBody.length : 0;
+          const rewritten: [string, string][] = [];
+          for (const [name, value] of responseHeaders) {
+            if (name.toLowerCase() !== "transfer-encoding") {
+              rewritten.push([name, value]);
+              continue;
+            }
+            const remaining = value
+              .split(",")
+              .map((s) => s.trim())
+              .filter((s) => s.toLowerCase() !== "chunked");
+            if (remaining.length > 0) {
+              rewritten.push([name, remaining.join(", ")]);
+            }
+          }
+          responseHeaders = rewritten;
+          const clIndex = responseHeaders.findIndex(([name]) =>
+            name.toLowerCase() === "content-length"
+          );
+          if (clIndex >= 0) {
+            responseHeaders[clIndex] = ["Content-Length", String(decodedLen)];
+          } else {
+            responseHeaders.push(["Content-Length", String(decodedLen)]);
+          }
         }
       } catch (error) {
-        return networkError();
+        return networkError({ cause: error });
       }
     } else {
       // For HTTP (non-TLS), return a simple mock response for now
@@ -1736,7 +1864,7 @@ const httpNetworkFetch = async (
       timingAllowPassedFlag: true,
     };
   } catch (error) {
-    return networkError();
+    return networkError({ cause: error });
   }
 
   // Handle TLS client certificate dialog
@@ -1970,6 +2098,25 @@ const httpRedirectFetch = async (fetchParams: any, response: any) => {
   // 8. Increase request's redirect count by 1.
   request.redirectCount++;
 
+  // Clone before the redirect-specific deletes below. The internal request
+  // shares headers with the user's Request object, so mutating in place
+  // would leak Authorization / body-header drops back to the caller.
+  if (request.headers instanceof Headers) {
+    const originalGuard = (request.headers as any).guard;
+    const cloned = new Headers();
+    request.headers.forEach((value: string, name: string) => {
+      cloned.append(name, value);
+    });
+    // Carry the guard over; new Headers() starts at "none".
+    if (originalGuard && (globalThis as any).setHeadersGuard) {
+      (globalThis as any).setHeadersGuard(cloned, originalGuard);
+    }
+    request.headers = cloned;
+  }
+  if (Array.isArray(request.headersList)) {
+    request.headersList = [...request.headersList];
+  }
+
   // 9. If request's mode is "cors", locationURL includes credentials, and request's origin is not same origin with locationURL's origin, then return a network error.
   if (
     request.mode === "cors" &&
@@ -2117,7 +2264,19 @@ const httpRedirectFetch = async (fetchParams: any, response: any) => {
   // 22. Return the result of running main fetch given fetchParams and recursive.
   //     Note: This has to invoke main fetch to get request's response tainting correct.
   request.currentURL = locationURL;
-  return await mainFetch(fetchParams, recursive);
+  const redirectedResponse = await mainFetch(fetchParams, recursive);
+  // Flag the response as redirected and carry the full URL list, so
+  // Response.url ends up as the final URL rather than the original.
+  if (redirectedResponse && redirectedResponse.type !== "error") {
+    redirectedResponse.redirected = true;
+    const internal = redirectedResponse.internalResponse || redirectedResponse;
+    internal.redirected = true;
+    internal.urlList = [...request.urlList];
+    if (redirectedResponse !== internal) {
+      redirectedResponse.urlList = [...request.urlList];
+    }
+  }
+  return redirectedResponse;
 };
 
 /**
@@ -2162,9 +2321,21 @@ const httpNetworkOrCacheFetch = async (
     //  2. Otherwise:
     //     1. Set httpRequest to a clone of request.
     httpRequest = { ...request };
-    // Properly clone headers if they're a Headers object
+    // `new Headers(req)` would yield an empty Headers here (fillHeaders does
+    // not iterate Headers instances), so clone via forEach + append.
     if (request.headers instanceof Headers) {
-      httpRequest.headers = new Headers(request.headers);
+      const originalGuard = (request.headers as any).guard;
+      const cloned = new Headers();
+      request.headers.forEach((value: string, name: string) => {
+        cloned.append(name, value);
+      });
+      if (originalGuard && (globalThis as any).setHeadersGuard) {
+        (globalThis as any).setHeadersGuard(cloned, originalGuard);
+      }
+      httpRequest.headers = cloned;
+    }
+    if (Array.isArray(request.headersList)) {
+      httpRequest.headersList = [...request.headersList];
     }
     //     2. Set httpFetchParams to a copy of fetchParams.
     httpFetchParams = { ...fetchParams };

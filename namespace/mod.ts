@@ -658,7 +658,8 @@ const Andromeda = {
    * ```
    */
   existsSync(path: string): boolean {
-    return __andromeda__.internal_exists(path);
+    const v = __andromeda__.internal_exists(path) as unknown;
+    return v === true || v === "true";
   },
 
   /**
@@ -672,7 +673,8 @@ const Andromeda = {
    * ```
    */
   async exists(path: string): Promise<boolean> {
-    return await __andromeda__.internal_exists_async(path);
+    const v = (await __andromeda__.internal_exists_async(path)) as unknown;
+    return v === true || v === "true";
   },
 
   /**
