@@ -35,11 +35,13 @@ pub enum CacheStorageError {
 impl From<CacheStorageError> for andromeda_core::RuntimeError {
     fn from(err: CacheStorageError) -> Self {
         match &err {
-            CacheStorageError::CacheExceeded => andromeda_core::RuntimeError::storage_quota_exceeded(
-                "cacheStorage",
-                "put",
-                err.to_string(),
-            ),
+            CacheStorageError::CacheExceeded => {
+                andromeda_core::RuntimeError::storage_quota_exceeded(
+                    "cacheStorage",
+                    "put",
+                    err.to_string(),
+                )
+            }
             CacheStorageError::ContextNotSupported => andromeda_core::RuntimeError::storage_error(
                 "cacheStorage",
                 "context_check",
@@ -50,11 +52,9 @@ impl From<CacheStorageError> for andromeda_core::RuntimeError {
                 "sqlite",
                 err.to_string(),
             ),
-            CacheStorageError::Io(_) => andromeda_core::RuntimeError::storage_error(
-                "cacheStorage",
-                "io",
-                err.to_string(),
-            ),
+            CacheStorageError::Io(_) => {
+                andromeda_core::RuntimeError::storage_error("cacheStorage", "io", err.to_string())
+            }
             CacheStorageError::CacheNotFound => andromeda_core::RuntimeError::storage_error(
                 "cacheStorage",
                 "cache_lookup",

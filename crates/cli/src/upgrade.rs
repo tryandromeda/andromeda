@@ -287,8 +287,8 @@ fn download_asset(url: &str) -> CliResult<Vec<u8>> {
 
 /// Install the new binary, replacing the current one
 fn install_binary(binary_data: &[u8], _platform: &PlatformInfo) -> CliResult<()> {
-    let current_exe = env::current_exe()
-        .map_err(|e| upgrade_err("locate_exe", e.to_string(), Some(e)))?;
+    let current_exe =
+        env::current_exe().map_err(|e| upgrade_err("locate_exe", e.to_string(), Some(e)))?;
 
     let backup_path = current_exe.with_extension("bak");
     if backup_path.exists() {

@@ -187,8 +187,9 @@ impl TcpOps {
             std::net::SocketAddr::V4(_) => socket2::Domain::IPV4,
             std::net::SocketAddr::V6(_) => socket2::Domain::IPV6,
         };
-        let socket = socket2::Socket::new(domain, socket2::Type::STREAM, Some(socket2::Protocol::TCP))
-            .map_err(|e| Self::map_bind_err(addr, e))?;
+        let socket =
+            socket2::Socket::new(domain, socket2::Type::STREAM, Some(socket2::Protocol::TCP))
+                .map_err(|e| Self::map_bind_err(addr, e))?;
         socket
             .set_reuse_address(true)
             .map_err(|e| Self::map_bind_err(addr, e))?;
@@ -207,8 +208,8 @@ impl TcpOps {
             .map_err(|e| Self::map_bind_err(addr, e))?;
 
         let std_listener: std::net::TcpListener = socket.into();
-        let listener = TcpListener::from_std(std_listener)
-            .map_err(|e| Self::map_bind_err(addr, e))?;
+        let listener =
+            TcpListener::from_std(std_listener).map_err(|e| Self::map_bind_err(addr, e))?;
         TcpListenerWrapper::new(listener)
     }
 

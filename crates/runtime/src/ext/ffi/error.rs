@@ -25,9 +25,11 @@ impl From<FfiError> for andromeda_core::RuntimeError {
             FfiError::MemoryAccess(_) => ("memory_access", None),
         };
         match library {
-            Some(lib) => {
-                andromeda_core::RuntimeError::ffi_call_error_with_library(operation, lib, err.to_string())
-            }
+            Some(lib) => andromeda_core::RuntimeError::ffi_call_error_with_library(
+                operation,
+                lib,
+                err.to_string(),
+            ),
             None => andromeda_core::RuntimeError::ffi_call_error(operation, err.to_string()),
         }
     }

@@ -723,7 +723,6 @@ pub fn dispatch_parent_event(
     );
 }
 
-
 pub fn dispatch_self_event(
     agent: &mut nova_vm::ecmascript::GcAgent,
     realm_root: &nova_vm::ecmascript::RealmRoot,

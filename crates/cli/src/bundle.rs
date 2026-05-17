@@ -107,7 +107,8 @@ pub fn bundle(input: &str, output: &str) -> CliResult<()> {
         .build(&program)
         .code;
 
-    std::fs::write(output, code).map_err(|e| CliError::file_read_error(PathBuf::from(output), e))?;
+    std::fs::write(output, code)
+        .map_err(|e| CliError::file_read_error(PathBuf::from(output), e))?;
 
     Ok(())
 }

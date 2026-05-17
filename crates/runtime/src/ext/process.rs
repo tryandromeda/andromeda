@@ -186,11 +186,8 @@ impl ProcessExt {
             .expect("String is not valid UTF-8");
         let callback = args.get(1);
         if !callback.is_function() {
-            let error = RuntimeError::type_error(
-                "Callback must be a function",
-                "function",
-                "non-function",
-            );
+            let error =
+                RuntimeError::type_error("Callback must be a function", "function", "non-function");
             let error_msg = ErrorReporter::format_error(&error);
             return Ok(
                 Value::from_string(agent, format!("Error: {error_msg}"), gc.nogc()).unbind(),

@@ -144,9 +144,9 @@ impl TimeExt {
             host_data.spawn_macro_task(async move {
                 tokio::time::sleep(duration).await;
                 // Tolerate dropped receiver.
-                let _ = macro_task_tx.send(MacroTask::User(
-                    RuntimeMacroTask::RunAndClearTimeout(timeout_id),
-                ));
+                let _ = macro_task_tx.send(MacroTask::User(RuntimeMacroTask::RunAndClearTimeout(
+                    timeout_id,
+                )));
             })
         });
 

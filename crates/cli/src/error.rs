@@ -774,10 +774,9 @@ impl From<RuntimeError> for CliError {
                 ..
             } => CliError::RuntimeError {
                 message: match database_name {
-                    Some(db) => format!(
-                        "Database '{}' error during {}: {}",
-                        db, operation, message
-                    ),
+                    Some(db) => {
+                        format!("Database '{}' error during {}: {}", db, operation, message)
+                    }
                     None => format!("Database error during {}: {}", operation, message),
                 },
                 file_path: None,

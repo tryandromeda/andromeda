@@ -442,7 +442,9 @@ pub enum RuntimeError {
     /// Subprocess execution errors
     #[diagnostic(
         code(andromeda::command::execution_failed),
-        help("Check that the command exists on PATH, is executable, and accepts the given arguments.")
+        help(
+            "Check that the command exists on PATH, is executable, and accepts the given arguments."
+        )
     )]
     CommandError {
         program: String,
@@ -490,7 +492,9 @@ pub enum RuntimeError {
     /// Web Locks API errors
     #[diagnostic(
         code(andromeda::lock::operation_failed),
-        help("Check whether the lock name is already held; review for nested or cyclic acquisitions.")
+        help(
+            "Check whether the lock name is already held; review for nested or cyclic acquisitions."
+        )
     )]
     LockError {
         lock_name: String,
@@ -506,7 +510,9 @@ pub enum RuntimeError {
     /// Worker thread errors
     #[diagnostic(
         code(andromeda::worker::operation_failed),
-        help("Verify the worker script path resolves and the host has resources to spawn a thread.")
+        help(
+            "Verify the worker script path resolves and the host has resources to spawn a thread."
+        )
     )]
     WorkerError {
         worker_id: Option<u32>,
@@ -521,7 +527,9 @@ pub enum RuntimeError {
     /// Database / SQLite errors
     #[diagnostic(
         code(andromeda::database::operation_failed),
-        help("Check the SQL statement, database file permissions, and that the database is initialized.")
+        help(
+            "Check the SQL statement, database file permissions, and that the database is initialized."
+        )
     )]
     DatabaseError {
         operation: String,
@@ -537,7 +545,9 @@ pub enum RuntimeError {
     /// Web Crypto operation errors
     #[diagnostic(
         code(andromeda::crypto::operation_failed),
-        help("Verify the algorithm name, key length, and that the requested usage matches the key's usages.")
+        help(
+            "Verify the algorithm name, key length, and that the requested usage matches the key's usages."
+        )
     )]
     CryptoError {
         operation: String,
@@ -553,7 +563,9 @@ pub enum RuntimeError {
     /// URL parse errors
     #[diagnostic(
         code(andromeda::url::parse_failed),
-        help("Use a valid URL with a scheme (http://, https://, file://, etc.) or a relative path resolvable against the base.")
+        help(
+            "Use a valid URL with a scheme (http://, https://, file://, etc.) or a relative path resolvable against the base."
+        )
     )]
     UrlParseError {
         url: String,
@@ -567,7 +579,9 @@ pub enum RuntimeError {
     /// Web Storage / Cache Storage errors
     #[diagnostic(
         code(andromeda::storage::operation_failed),
-        help("Check storage quota, file permissions on the storage backend, and the operation arguments.")
+        help(
+            "Check storage quota, file permissions on the storage backend, and the operation arguments."
+        )
     )]
     StorageError {
         store_type: String,
@@ -583,7 +597,9 @@ pub enum RuntimeError {
     /// FFI (foreign function interface) errors
     #[diagnostic(
         code(andromeda::ffi::operation_failed),
-        help("Verify the library path, symbol name, and argument types match the foreign declaration.")
+        help(
+            "Verify the library path, symbol name, and argument types match the foreign declaration."
+        )
     )]
     FfiCallError {
         operation: String,
@@ -598,7 +614,9 @@ pub enum RuntimeError {
     /// HTTP module load errors
     #[diagnostic(
         code(andromeda::module::http_load_failed),
-        help("Check the URL is reachable, the server returns 2xx, and the module syntax is valid.")
+        help(
+            "Check the URL is reachable, the server returns 2xx, and the module syntax is valid."
+        )
     )]
     HttpModuleLoadError {
         url: String,
@@ -614,7 +632,9 @@ pub enum RuntimeError {
     /// Import map configuration errors
     #[diagnostic(
         code(andromeda::module::import_map_invalid),
-        help("Verify the import map is valid JSON and each entry maps a bare specifier to a resolvable URL or path.")
+        help(
+            "Verify the import map is valid JSON and each entry maps a bare specifier to a resolvable URL or path."
+        )
     )]
     ImportMapError {
         field: String,
@@ -1904,10 +1924,7 @@ impl fmt::Display for RuntimeError {
                 message,
                 ..
             } => match database_name {
-                Some(db) => write!(
-                    f,
-                    "Database '{db}' error during {operation}: {message}"
-                ),
+                Some(db) => write!(f, "Database '{db}' error during {operation}: {message}"),
                 None => write!(f, "Database error during {operation}: {message}"),
             },
             RuntimeError::CryptoError {
@@ -1972,7 +1989,10 @@ impl fmt::Display for RuntimeError {
                 message,
                 ..
             } => match value {
-                Some(v) => write!(f, "Import map error in field '{field}' (value '{v}'): {message}"),
+                Some(v) => write!(
+                    f,
+                    "Import map error in field '{field}' (value '{v}'): {message}"
+                ),
                 None => write!(f, "Import map error in field '{field}': {message}"),
             },
             RuntimeError::InternalError { message, .. } => {
@@ -2546,8 +2566,7 @@ mod new_variant_tests {
 
     #[test]
     fn command_error_with_exit_code_shows_code() {
-        let err =
-            RuntimeError::command_error_with_exit_code("foo", "wait", "non-zero exit", 137);
+        let err = RuntimeError::command_error_with_exit_code("foo", "wait", "non-zero exit", 137);
         let s = err.to_string();
         assert!(s.contains("137"), "display: {s}");
     }
@@ -2581,7 +2600,10 @@ mod new_variant_tests {
         let normal = RuntimeError::lock_error("my-lock", "request", "already held").to_string();
         let dead = RuntimeError::lock_deadlock_error("my-lock", "request", "cycle").to_string();
         assert!(dead.to_lowercase().contains("deadlock"), "display: {dead}");
-        assert!(!normal.to_lowercase().contains("deadlock"), "display: {normal}");
+        assert!(
+            !normal.to_lowercase().contains("deadlock"),
+            "display: {normal}"
+        );
     }
 
     #[test]
@@ -2625,7 +2647,8 @@ mod new_variant_tests {
 
     #[test]
     fn ffi_call_error_with_library_renders() {
-        let err = RuntimeError::ffi_call_error_with_library("symbol_lookup", "libfoo.so", "missing");
+        let err =
+            RuntimeError::ffi_call_error_with_library("symbol_lookup", "libfoo.so", "missing");
         let s = err.to_string();
         assert!(s.contains("libfoo.so"), "display: {s}");
     }

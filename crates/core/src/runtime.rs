@@ -397,45 +397,21 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
         let is_json = final_specifier.ends_with(".json");
 
         // Read the module source - handle both file system and HTTP URLs
-        let source_text =
-            if final_specifier.starts_with("http://") || final_specifier.starts_with("https://") {
-                // HTTP import - fetch from network
-                match ureq::get(&final_specifier).call() {
-                    Ok(mut response) => match response.body_mut().read_to_string() {
-                        Ok(content) => content,
-                        Err(error) => {
-                            let rt_err = crate::error::RuntimeError::http_module_load_error(
-                                final_specifier.clone(),
-                                "read_body",
-                                error.to_string(),
-                            );
-                            let error = agent.throw_exception(
-                                ExceptionType::TypeError,
-                                rt_err.to_string(),
-                                gc,
-                            );
-                            finish_loading_imported_module(
-                                agent,
-                                referrer,
-                                module_request,
-                                payload,
-                                Err(error),
-                                gc,
-                            );
-                            return;
-                        }
-                    },
+        let source_text = if final_specifier.starts_with("http://")
+            || final_specifier.starts_with("https://")
+        {
+            // HTTP import - fetch from network
+            match ureq::get(&final_specifier).call() {
+                Ok(mut response) => match response.body_mut().read_to_string() {
+                    Ok(content) => content,
                     Err(error) => {
                         let rt_err = crate::error::RuntimeError::http_module_load_error(
                             final_specifier.clone(),
-                            "fetch",
+                            "read_body",
                             error.to_string(),
                         );
-                        let error = agent.throw_exception(
-                            ExceptionType::TypeError,
-                            rt_err.to_string(),
-                            gc,
-                        );
+                        let error =
+                            agent.throw_exception(ExceptionType::TypeError, rt_err.to_string(), gc);
                         finish_loading_imported_module(
                             agent,
                             referrer,
@@ -446,30 +422,49 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
                         );
                         return;
                     }
+                },
+                Err(error) => {
+                    let rt_err = crate::error::RuntimeError::http_module_load_error(
+                        final_specifier.clone(),
+                        "fetch",
+                        error.to_string(),
+                    );
+                    let error =
+                        agent.throw_exception(ExceptionType::TypeError, rt_err.to_string(), gc);
+                    finish_loading_imported_module(
+                        agent,
+                        referrer,
+                        module_request,
+                        payload,
+                        Err(error),
+                        gc,
+                    );
+                    return;
                 }
-            } else {
-                // File system import - read from local file
-                let file_path = PathBuf::from(&final_specifier);
-                match std::fs::read_to_string(&file_path) {
-                    Ok(content) => content,
-                    Err(error) => {
-                        let error = agent.throw_exception(
-                            ExceptionType::TypeError,
-                            format!("Failed to read module {}: {}", file_path.display(), error),
-                            gc,
-                        );
-                        finish_loading_imported_module(
-                            agent,
-                            referrer,
-                            module_request,
-                            payload,
-                            Err(error),
-                            gc,
-                        );
-                        return;
-                    }
+            }
+        } else {
+            // File system import - read from local file
+            let file_path = PathBuf::from(&final_specifier);
+            match std::fs::read_to_string(&file_path) {
+                Ok(content) => content,
+                Err(error) => {
+                    let error = agent.throw_exception(
+                        ExceptionType::TypeError,
+                        format!("Failed to read module {}: {}", file_path.display(), error),
+                        gc,
+                    );
+                    finish_loading_imported_module(
+                        agent,
+                        referrer,
+                        module_request,
+                        payload,
+                        Err(error),
+                        gc,
+                    );
+                    return;
                 }
-            };
+            }
+        };
 
         // Handle JSON modules specially
         let final_source = if is_json {
@@ -815,11 +810,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
         // Validate all files before execution
         for file in &self.config.files {
             if let Err(error) = file.validate() {
-                eprintln!(
-                    "File validation error for {}: {}",
-                    file.get_path(),
-                    error
-                );
+                eprintln!("File validation error for {}: {}", file.get_path(), error);
                 std::process::exit(1);
             }
         }
