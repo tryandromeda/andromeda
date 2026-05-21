@@ -419,15 +419,22 @@ const subtle = {
     // Normalize algorithm
     const normalizedAlgorithm = normalizeAlgorithm(algorithm, "importKey");
 
-    const result = __andromeda__.internal_subtle_importKey(
+    const handleJson: string = __andromeda__.internal_subtle_importKey(
       format,
       keyData,
-      normalizedAlgorithm,
+      JSON.stringify(normalizedAlgorithm),
       extractable,
       keyUsages,
     );
 
-    return result;
+    const meta = JSON.parse(handleJson);
+    const cryptoKey = webidl.createBranded(CryptoKey) as unknown as CryptoKey;
+    (cryptoKey as any)[_type] = meta.type;
+    (cryptoKey as any)[_extractable] = meta.extractable;
+    (cryptoKey as any)[_algorithm] = normalizedAlgorithm;
+    (cryptoKey as any)[_usages] = keyUsages;
+    (cryptoKey as any)[_handle] = handleJson;
+    return cryptoKey;
   },
 
   /**
@@ -586,8 +593,8 @@ const subtle = {
     const normalizedAlgorithm = normalizeAlgorithm(algorithm, "sign");
 
     const result = __andromeda__.internal_subtle_sign(
-      normalizedAlgorithm,
-      key,
+      JSON.stringify(normalizedAlgorithm),
+      (key as any)[_handle],
       data,
     );
 
@@ -636,8 +643,8 @@ const subtle = {
     const normalizedAlgorithm = normalizeAlgorithm(algorithm, "verify");
 
     const result = __andromeda__.internal_subtle_verify(
-      normalizedAlgorithm,
-      key,
+      JSON.stringify(normalizedAlgorithm),
+      (key as any)[_handle],
       signature,
       data,
     );

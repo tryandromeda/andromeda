@@ -172,10 +172,31 @@ impl SubtleCrypto {
         value: Value,
         gc: GcScope<'_, '_>,
     ) -> Result<Vec<u8>, String> {
-        // Try to convert to string first as a fallback
         if let Ok(str_value) = value.to_string(agent, gc) {
             let string_data = str_value.as_str(agent).ok_or("Invalid string")?;
-            // If it looks like hex data, try to decode it
+
+            if string_data.contains(',') {
+                let tokens: Vec<&str> = string_data.split(',').collect();
+                let mut all_bytes = true;
+                let mut out = Vec::with_capacity(tokens.len());
+                for token in &tokens {
+                    let t = token.trim();
+                    if t.is_empty() {
+                        continue;
+                    }
+                    match t.parse::<u8>() {
+                        Ok(b) => out.push(b),
+                        Err(_) => {
+                            all_bytes = false;
+                            break;
+                        }
+                    }
+                }
+                if all_bytes && !out.is_empty() {
+                    return Ok(out);
+                }
+            }
+
             if string_data.chars().all(|c| c.is_ascii_hexdigit()) && string_data.len() % 2 == 0 {
                 let mut bytes = Vec::new();
                 for chunk in string_data.as_bytes().chunks(2) {
@@ -189,12 +210,10 @@ impl SubtleCrypto {
                     return Ok(bytes);
                 }
             }
-            // Otherwise treat as UTF-8 string
             Ok(string_data.as_bytes().to_vec())
         } else {
-            // For now, return a test message when we can't extract properly
-            // TODO: Implement proper TypedArray extraction when Nova VM supports it
-            Ok("Secret message!".as_bytes().to_vec())
+            // TODO: TypedArray extraction once Nova VM supports it.
+            Err("could not coerce key/data to string for byte extraction".to_string())
         }
     }
 
@@ -204,41 +223,67 @@ impl SubtleCrypto {
         algo_value: Value,
         gc: GcScope<'_, '_>,
     ) -> Result<CryptoAlgorithm, String> {
-        if let Ok(algorithm_str) = algo_value.to_string(agent, gc) {
-            let algorithm_name = algorithm_str
-                .as_str(agent)
-                .expect("String is not valid UTF-8");
+        let algorithm_str = algo_value
+            .to_string(agent, gc)
+            .map_err(|_| "Algorithm value could not be coerced to string".to_string())?;
+        let raw = algorithm_str
+            .as_str(agent)
+            .ok_or_else(|| "Algorithm string is not valid UTF-8".to_string())?;
 
-            match algorithm_name {
-                "SHA-1" => Ok(CryptoAlgorithm::Sha1),
-                "SHA-256" => Ok(CryptoAlgorithm::Sha256),
-                "SHA-384" => Ok(CryptoAlgorithm::Sha384),
-                "SHA-512" => Ok(CryptoAlgorithm::Sha512),
-                "HMAC" => Ok(CryptoAlgorithm::Hmac {
-                    hash: "SHA-256".to_string(),
-                    length: None,
-                }),
-                "AES-GCM" => Ok(CryptoAlgorithm::AesGcm {
-                    length: 256,
-                    iv: vec![0u8; 12], // Placeholder IV
-                    iv_length: Some(12),
-                    additional_data: None,
-                    tag_length: Some(16),
-                }),
-                "AES-CBC" => Ok(CryptoAlgorithm::AesCbc {
-                    length: 256,
-                    iv: vec![0u8; 16], // Placeholder IV
-                }),
-                "AES-CTR" => Ok(CryptoAlgorithm::AesCtr {
-                    length: 256,
-                    counter: vec![0u8; 16], // Placeholder counter
-                    counter_length: 64,
-                }),
-                _ => Err(format!("Unsupported algorithm: {algorithm_name}")),
-            }
-        } else {
-            // TODO: Handle algorithm objects (e.g., { name: "SHA-256" })
-            Err("Algorithm must be a string or object with name property".to_string())
+        // String name, or `{ name, hash }` object.
+        let (name, hash_opt): (String, Option<String>) =
+            if raw.starts_with('{') && raw.ends_with('}') {
+                let json: serde_json::Value = serde_json::from_str(raw)
+                    .map_err(|e| format!("Algorithm is not valid JSON: {e}"))?;
+                let name = json
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| "Algorithm object missing 'name'".to_string())?
+                    .to_string();
+                let hash = match json.get("hash") {
+                    Some(serde_json::Value::String(s)) => Some(s.clone()),
+                    Some(serde_json::Value::Object(_)) => json["hash"]
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    _ => None,
+                };
+                (name, hash)
+            } else {
+                (raw.to_string(), None)
+            };
+
+        match name.as_str() {
+            "SHA-1" => Ok(CryptoAlgorithm::Sha1),
+            "SHA-256" => Ok(CryptoAlgorithm::Sha256),
+            "SHA-384" => Ok(CryptoAlgorithm::Sha384),
+            "SHA-512" => Ok(CryptoAlgorithm::Sha512),
+            "HMAC" => Ok(CryptoAlgorithm::Hmac {
+                hash: hash_opt.unwrap_or_else(|| "SHA-256".to_string()),
+                length: None,
+            }),
+            "RSASSA-PKCS1-v1_5" => Ok(CryptoAlgorithm::RsaPkcs1v15 {
+                modulus_length: 2048,
+                public_exponent: vec![0x01, 0x00, 0x01],
+                hash: hash_opt.unwrap_or_else(|| "SHA-256".to_string()),
+            }),
+            "AES-GCM" => Ok(CryptoAlgorithm::AesGcm {
+                length: 256,
+                iv: vec![0u8; 12], // Placeholder IV
+                iv_length: Some(12),
+                additional_data: None,
+                tag_length: Some(16),
+            }),
+            "AES-CBC" => Ok(CryptoAlgorithm::AesCbc {
+                length: 256,
+                iv: vec![0u8; 16], // Placeholder IV
+            }),
+            "AES-CTR" => Ok(CryptoAlgorithm::AesCtr {
+                length: 256,
+                counter: vec![0u8; 16], // Placeholder counter
+                counter_length: 64,
+            }),
+            _ => Err(format!("Unsupported algorithm: {name}")),
         }
     }
     pub fn digest<'gc>(
@@ -573,10 +618,8 @@ impl SubtleCrypto {
             }
         };
 
-        // For now, support "raw" format for symmetric keys
         match format.as_str() {
-            "raw" => {
-                // Extract key data
+            "raw" | "pkcs8" | "spki" => {
                 let key_data =
                     match Self::extract_bytes_from_value(agent, key_data_value, gc.reborrow()) {
                         Ok(bytes) => bytes,
@@ -591,12 +634,14 @@ impl SubtleCrypto {
                         }
                     };
 
-                // Create CryptoKey based on algorithm
-                let key_type = match &algorithm {
-                    CryptoAlgorithm::Hmac { .. } => "secret",
-                    CryptoAlgorithm::AesGcm { .. }
-                    | CryptoAlgorithm::AesCbc { .. }
-                    | CryptoAlgorithm::AesCtr { .. } => "secret",
+                let key_type = match (&algorithm, format.as_str()) {
+                    (CryptoAlgorithm::Hmac { .. }, _) => "secret",
+                    (CryptoAlgorithm::AesGcm { .. }, _)
+                    | (CryptoAlgorithm::AesCbc { .. }, _)
+                    | (CryptoAlgorithm::AesCtr { .. }, _) => "secret",
+                    (CryptoAlgorithm::RsaPkcs1v15 { .. }, "pkcs8") => "private",
+                    (CryptoAlgorithm::RsaPkcs1v15 { .. }, "spki") => "public",
+                    (CryptoAlgorithm::RsaPkcs1v15 { .. }, "raw") => "public",
                     _ => "secret",
                 };
 
@@ -627,7 +672,7 @@ impl SubtleCrypto {
                 )
             }
             _ => {
-                // TODO: Implement other formats (spki, pkcs8, jwk)
+                // TODO: Implement jwk format.
                 Err(agent
                     .throw_exception_with_static_message(
                         nova_vm::ecmascript::ExceptionType::Error,
@@ -1066,6 +1111,19 @@ impl SubtleCrypto {
         Err("AES-CTR decryption not yet implemented".to_string())
     }
 
+    /// Extract the stored key bytes for a CryptoKey Value
+    fn key_bytes_from_value(
+        agent: &mut Agent,
+        key_value: Value,
+        gc: GcScope<'_, '_>,
+    ) -> Option<Vec<u8>> {
+        let key_str = key_value.to_string(agent, gc).ok()?;
+        let key_string = key_str.as_str(agent)?;
+        let key_json: serde_json::Value = serde_json::from_str(key_string).ok()?;
+        let key_id = key_json.get("keyId").and_then(|v| v.as_u64())?;
+        Self::get_crypto_key(agent, key_id).map(|k| k.key_data)
+    }
+
     pub fn sign<'gc>(
         agent: &mut Agent,
         args: ArgumentsList,
@@ -1164,8 +1222,73 @@ impl SubtleCrypto {
                         .into(),
                 )
             }
+            CryptoAlgorithm::RsaPkcs1v15 { ref hash, .. } => {
+                let key_bytes = match Self::key_bytes_from_value(
+                    agent,
+                    _key_value,
+                    gc.reborrow(),
+                ) {
+                    Some(b) => b,
+                    None => {
+                        return Ok(nova_vm::ecmascript::String::from_string(
+                            agent,
+                            "error_invalid_key".to_string(),
+                            gc.nogc(),
+                        )
+                        .unbind()
+                        .into());
+                    }
+                };
+
+                let key_pair = match ring::signature::RsaKeyPair::from_pkcs8(&key_bytes) {
+                    Ok(k) => k,
+                    Err(_) => {
+                        return Ok(nova_vm::ecmascript::String::from_string(
+                            agent,
+                            "error_invalid_pkcs8_key".to_string(),
+                            gc.nogc(),
+                        )
+                        .unbind()
+                        .into());
+                    }
+                };
+
+                let scheme: &'static dyn ring::signature::RsaEncoding = match hash.as_str() {
+                    "SHA-256" => &ring::signature::RSA_PKCS1_SHA256,
+                    "SHA-384" => &ring::signature::RSA_PKCS1_SHA384,
+                    "SHA-512" => &ring::signature::RSA_PKCS1_SHA512,
+                    _ => {
+                        return Ok(nova_vm::ecmascript::String::from_string(
+                            agent,
+                            "error_unsupported_hash".to_string(),
+                            gc.nogc(),
+                        )
+                        .unbind()
+                        .into());
+                    }
+                };
+
+                let mut signature = vec![0u8; key_pair.public().modulus_len()];
+                let rng = ring::rand::SystemRandom::new();
+                if key_pair.sign(scheme, &rng, &data, &mut signature).is_err() {
+                    return Ok(nova_vm::ecmascript::String::from_string(
+                        agent,
+                        "error_signing_failed".to_string(),
+                        gc.nogc(),
+                    )
+                    .unbind()
+                    .into());
+                }
+
+                let signature_base64 = base64_simd::STANDARD.encode_to_string(&signature);
+                Ok(
+                    nova_vm::ecmascript::String::from_string(agent, signature_base64, gc.nogc())
+                        .unbind()
+                        .into(),
+                )
+            }
             _ => {
-                // TODO: Implement RSA signatures and ECDSA
+                // TODO: Implement ECDSA, RSA-PSS, EdDSA.
                 Ok(nova_vm::ecmascript::String::from_string(
                     agent,
                     "error_algorithm_not_implemented".to_string(),
@@ -1233,8 +1356,29 @@ impl SubtleCrypto {
 
                 Ok(Value::Boolean(verification_result.is_ok()))
             }
+            CryptoAlgorithm::RsaPkcs1v15 { ref hash, .. } => {
+                let pub_key_bytes = match Self::key_bytes_from_value(
+                    agent,
+                    _key_value,
+                    gc.reborrow(),
+                ) {
+                    Some(b) => b,
+                    None => return Ok(Value::Boolean(false)),
+                };
+
+                let scheme: &'static ring::signature::RsaParameters = match hash.as_str() {
+                    "SHA-1" => &ring::signature::RSA_PKCS1_2048_8192_SHA1_FOR_LEGACY_USE_ONLY,
+                    "SHA-256" => &ring::signature::RSA_PKCS1_2048_8192_SHA256,
+                    "SHA-384" => &ring::signature::RSA_PKCS1_2048_8192_SHA384,
+                    "SHA-512" => &ring::signature::RSA_PKCS1_2048_8192_SHA512,
+                    _ => return Ok(Value::Boolean(false)),
+                };
+
+                let pub_key = ring::signature::UnparsedPublicKey::new(scheme, &pub_key_bytes);
+                Ok(Value::Boolean(pub_key.verify(&data, &signature).is_ok()))
+            }
             _ => {
-                // TODO: Implement RSA and ECDSA verification
+                // TODO: Implement ECDSA, RSA-PSS, EdDSA verification.
                 Ok(Value::Boolean(false))
             }
         }

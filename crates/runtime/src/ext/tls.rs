@@ -46,6 +46,12 @@ impl TlsExt {
                 ExtensionOp::new("internal_tls_read", Self::internal_tls_read, 2, false),
                 ExtensionOp::new("internal_tls_write", Self::internal_tls_write, 2, false),
                 ExtensionOp::new(
+                    "internal_tls_write_bytes",
+                    Self::internal_tls_write_bytes,
+                    3,
+                    false,
+                ),
+                ExtensionOp::new(
                     "internal_tls_get_peer_certificate",
                     Self::internal_tls_get_peer_certificate,
                     1,
@@ -336,6 +342,132 @@ impl TlsExt {
                 host_data.spawn_macro_task(async move {
                     let mut guard = stream_arc.lock().await;
                     match guard.write_all(data_str.as_bytes()).await {
+                        Ok(_) => {
+                            macro_task_tx
+                                .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(
+                                    root_value,
+                                    "Success".to_string(),
+                                )))
+                                .unwrap();
+                        }
+                        Err(e) => {
+                            macro_task_tx
+                                .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                                    root_value,
+                                    format!("TLS write error: {e}"),
+                                )))
+                                .unwrap();
+                        }
+                    }
+                });
+            }
+            None => {
+                macro_task_tx
+                    .send(MacroTask::User(RuntimeMacroTask::RejectPromise(
+                        root_value,
+                        "Resource not found or invalid type".to_string(),
+                    )))
+                    .unwrap();
+            }
+        }
+
+        Ok(Value::Promise(promise_capability.promise()).unbind())
+    }
+
+    fn internal_tls_write_bytes<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        mut gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let rid_binding = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
+        let header_binding = args.get(1).to_string(agent, gc.reborrow()).unbind()?;
+        let body_binding = args.get(2).to_string(agent, gc.reborrow()).unbind()?;
+
+        let rid_str = rid_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+        let header_str = header_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+        let body_str = body_binding
+            .as_str(agent)
+            .expect("String is not valid UTF-8")
+            .to_string();
+
+        let rid_val: u32 = match rid_str.parse() {
+            Ok(v) => v,
+            Err(_) => {
+                return Err(agent
+                    .throw_exception_with_static_message(
+                        ExceptionType::Error,
+                        "Invalid RID",
+                        gc.nogc(),
+                    )
+                    .unbind());
+            }
+        };
+        let rid = Rid::from_index(rid_val);
+
+        // Decode body bytes (comma-separated decimals).
+        let body_bytes: Vec<u8> = if body_str.is_empty() {
+            Vec::new()
+        } else {
+            let mut out = Vec::new();
+            for token in body_str.split(',') {
+                let token = token.trim();
+                if token.is_empty() {
+                    continue;
+                }
+                match token.parse::<u8>() {
+                    Ok(b) => out.push(b),
+                    Err(_) => {
+                        return Err(agent
+                            .throw_exception(
+                                ExceptionType::Error,
+                                format!(
+                                    "internal_tls_write_bytes: malformed byte token '{token}' (expected 0..=255 decimal)"
+                                ),
+                                gc.nogc(),
+                            )
+                            .unbind());
+                    }
+                }
+            }
+            out
+        };
+
+        let promise_capability = nova_vm::ecmascript::PromiseCapability::new(agent, gc.nogc());
+        let root_value = Global::new(agent, Value::from(promise_capability.promise()).unbind());
+
+        let host_data = agent.get_host_data();
+        let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
+        let macro_task_tx = host_data.macro_task_tx();
+
+        let storage = host_data.storage.borrow();
+        let resources: &TlsResources = storage.get().unwrap();
+        let stream_arc_opt = resources.streams.get_mut(rid).map(|r| {
+            let TlsResource::Client(ref tls_stream_arc) = *r;
+            tls_stream_arc.clone()
+        });
+        drop(storage);
+
+        match stream_arc_opt {
+            Some(stream_arc) => {
+                let macro_task_tx = macro_task_tx.clone();
+                host_data.spawn_macro_task(async move {
+                    let mut guard = stream_arc.lock().await;
+                    let write_res: std::io::Result<()> = async {
+                        guard.write_all(header_str.as_bytes()).await?;
+                        if !body_bytes.is_empty() {
+                            guard.write_all(&body_bytes).await?;
+                        }
+                        Ok(())
+                    }
+                    .await;
+                    match write_res {
                         Ok(_) => {
                             macro_task_tx
                                 .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithString(

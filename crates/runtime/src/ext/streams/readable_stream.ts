@@ -39,6 +39,21 @@ interface ReadableStreamReadResult<T> {
 
 const symbolForSetReader = Symbol("[[setReader]]");
 
+
+function decodeBytesString(s: string): Uint8Array {
+  if (s.length === 0) return new Uint8Array(0);
+  const parts = s.split(",");
+  const out = new Uint8Array(parts.length);
+  let written = 0;
+  for (let i = 0; i < parts.length; i++) {
+    const n = parseInt(parts[i], 10);
+    if (Number.isFinite(n) && n >= 0 && n <= 255) {
+      out[written++] = n;
+    }
+  }
+  return written === out.length ? out : out.slice(0, written);
+}
+
 /**
  * ReadableStreamDefaultController
  */
@@ -153,20 +168,7 @@ class ReadableStreamDefaultReader<R = unknown> {
       return { done: true, value: undefined as unknown as R };
     }
 
-    // Convert bytes string back to appropriate type
-    const bytes = result.split(",").map((b: string) => parseInt(b, 10))
-      .filter((b: number) => !isNaN(b));
-    const uint8Array = new Uint8Array(bytes);
-
-    // Try to decode as text first
-    try {
-      const decoder = new TextDecoder();
-      const text = decoder.decode(uint8Array);
-      return { done: false, value: text as unknown as R };
-    } catch {
-      // If decoding fails, return the raw bytes
-      return { done: false, value: uint8Array as unknown as R };
-    }
+    return { done: false, value: decodeBytesString(result) as unknown as R };
   }
 
   // Synchronous read method for testing
@@ -182,20 +184,7 @@ class ReadableStreamDefaultReader<R = unknown> {
       return { done: true, value: undefined as unknown as R };
     }
 
-    // Convert bytes string back to appropriate type
-    const bytes = result.split(",").map((b: string) => parseInt(b, 10))
-      .filter((b: number) => !isNaN(b));
-    const uint8Array = new Uint8Array(bytes);
-
-    // Try to decode as text first
-    try {
-      const decoder = new TextDecoder();
-      const text = decoder.decode(uint8Array);
-      return { done: false, value: text as unknown as R };
-    } catch {
-      // If decoding fails, return the raw bytes
-      return { done: false, value: uint8Array as unknown as R };
-    }
+    return { done: false, value: decodeBytesString(result) as unknown as R };
   }
 
   releaseLock(): void {

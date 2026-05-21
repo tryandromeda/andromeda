@@ -12,6 +12,8 @@ const filterResponse = (globalThis as any).filterResponse;
 const createOpaqueRedirectFilteredResponse =
   (globalThis as any).createOpaqueRedirectFilteredResponse;
 
+const BODY_SYMBOL = (globalThis as any).BODY_SYMBOL;
+
 function getHeadersAsList(headers: any): [string, string][] {
   const headersList: [string, string][] = [];
 
@@ -166,6 +168,10 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
     signal = requestObject.signal || null;
     destination = requestObject.destination || "";
 
+    const innerBody = BODY_SYMBOL ?
+      ((requestObject as any)[BODY_SYMBOL] || null) :
+      null;
+
     request = {
       url: urlString,
       method: requestObject.method || "GET",
@@ -207,6 +213,7 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
       useCORSPreflightFlag: false,
       credentialsMode: credentials,
       CORSExposedHeaderNameList: [],
+      _innerBody: innerBody,
     };
   } catch (e) {
     const errorToReject = e instanceof Error ?
@@ -1591,14 +1598,8 @@ const httpNetworkFetch = async (
     timingInfo.finalConnectionTimingInfo = Date.now();
   }
 
-  //  3. If connection is an HTTP/1.x connection, request's body is non-null, and request's body's source is null, then return a network error.
-  if (
-    connection.type === "http" &&
-    request.body !== null &&
-    request.body?.source === null
-  ) {
-    return networkError();
-  }
+  //  3. Source-null bodies are handled via chunked Transfer-Encoding below
+  //  rather than rejected, so the §4.4 step 3 hard-reject is skipped.
 
   //  4. Set timingInfo's final network-request start time to the coarsened shared current time given fetchParams's cross-origin isolated capability.
   if (timingInfo) {
@@ -1630,6 +1631,28 @@ const httpNetworkFetch = async (
     let statusText = "OK";
     let responseBody: Uint8Array | null = null;
     let responseHeaders: [string, string][] = [];
+
+    // §5.1.2 body-transmission callbacks; fire inline as bytes hit the wire.
+    const processBodyChunk = (bytes: Uint8Array) => {
+      if (fetchParams.controller?.state === "aborted") return;
+      if (fetchParams.processRequestBodyChunkLength) {
+        fetchParams.processRequestBodyChunkLength(bytes.byteLength);
+      }
+    };
+    const processEndOfBody = () => {
+      if (fetchParams.controller?.state === "aborted") return;
+      if (fetchParams.processRequestEndOfBody) {
+        fetchParams.processRequestEndOfBody();
+      }
+    };
+    const processBodyError = (e: any) => {
+      if (fetchParams.controller?.state === "aborted") return;
+      if (e?.name === "AbortError") {
+        fetchParams.controller?.abort?.();
+      } else {
+        fetchParams.controller?.terminate?.();
+      }
+    };
 
     // Use TLS for HTTPS connections
     if (request.currentURL.protocol === "https:") {
@@ -1672,26 +1695,148 @@ const httpNetworkFetch = async (
           }
         }
 
-        // Add body if present
-        let bodyData = "";
-        if (request.body) {
-          if (request.body instanceof Uint8Array) {
-            bodyData = new TextDecoder().decode(request.body);
-          } else if (typeof request.body === "string") {
-            bodyData = request.body;
-          }
+        // §4.4 step 11. Known length → Content-Length; unknown → chunked TE.
+        const innerBody = request._innerBody;
+        const useChunkedTE = innerBody != null
+          && innerBody.length === null
+          && innerBody.source === null;
 
-          if (!hasRequestHeader(request, "Content-Length")) {
-            httpRequest += `Content-Length: ${bodyData.length}\r\n`;
+        let bodyBytes: Uint8Array | null = null;
+        if (
+          request.body !== null && request.body !== undefined && !useChunkedTE
+        ) {
+          if (
+            request._innerBody &&
+            typeof request._innerBody.consume === "function"
+          ) {
+            // InnerBody.consume() — same path the Body mixin uses.
+            try {
+              const consumed = await request._innerBody.consume();
+              if (consumed instanceof Uint8Array) {
+                bodyBytes = consumed;
+              } else if (typeof consumed === "string") {
+                bodyBytes = new TextEncoder().encode(consumed);
+              }
+            } catch (err) {
+              processBodyError(err);
+              return networkError({ cause: err });
+            }
+          } else if (request.body instanceof Uint8Array) {
+            // Raw bytes stored on request.body, bypassing InnerBody.
+            bodyBytes = request.body;
+          } else if (typeof request.body === "string") {
+            bodyBytes = new TextEncoder().encode(request.body);
+          } else if (
+            typeof request.body === "object" &&
+            typeof request.body.getReader === "function"
+          ) {
+            // Fallback ReadableStream consumer.
+            const reader = request.body.getReader();
+            const parts: Uint8Array[] = [];
+            let total = 0;
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const part = value instanceof Uint8Array
+                  ? value
+                  : new TextEncoder().encode(String(value));
+                parts.push(part);
+                total += part.byteLength;
+              }
+            } catch (err) {
+              processBodyError(err);
+              return networkError({ cause: err });
+            } finally {
+              try { reader.releaseLock(); } catch { /* ignore */ }
+            }
+            const merged = new Uint8Array(total);
+            let offset = 0;
+            for (const p of parts) {
+              merged.set(p, offset);
+              offset += p.byteLength;
+            }
+            bodyBytes = merged;
           }
+        }
+
+        if (useChunkedTE) {
+          if (!hasRequestHeader(request, "Transfer-Encoding")) {
+            httpRequest += `Transfer-Encoding: chunked\r\n`;
+          }
+        } else if (
+          bodyBytes !== null && !hasRequestHeader(request, "Content-Length")
+        ) {
+          httpRequest += `Content-Length: ${bodyBytes.byteLength}\r\n`;
         }
 
         httpRequest += `Connection: close\r\n`;
         httpRequest += `\r\n`;
-        httpRequest += bodyData;
 
-        // Send request
-        await __andromeda__.internal_tls_write(rid, httpRequest);
+        // Headers as ASCII, body bytes via the binary-safe write op.
+        if (useChunkedTE) {
+          // RFC 7230 §4.1 chunked framing: <hex>\r\n<bytes>\r\n, then 0\r\n\r\n.
+          try {
+            await __andromeda__.internal_tls_write_bytes(rid, httpRequest, "");
+          } catch (err) {
+            processBodyError(err);
+            return networkError({ cause: err });
+          }
+
+          const reader = innerBody!.stream.getReader();
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              const chunk: Uint8Array = value instanceof Uint8Array
+                ? value
+                : new TextEncoder().encode(String(value));
+              if (chunk.byteLength === 0) continue;
+
+              const hexLen = chunk.byteLength.toString(16);
+              const chunkBytesStr = Array.from(chunk).join(",");
+              await __andromeda__.internal_tls_write_bytes(
+                rid,
+                `${hexLen}\r\n`,
+                chunkBytesStr,
+              );
+              await __andromeda__.internal_tls_write_bytes(rid, `\r\n`, "");
+              processBodyChunk(chunk);
+            }
+            // Last-chunk + empty trailers.
+            await __andromeda__.internal_tls_write_bytes(rid, `0\r\n\r\n`, "");
+          } catch (err) {
+            // Best-effort terminator so the server doesn't hang.
+            try {
+              await __andromeda__.internal_tls_write_bytes(rid, `0\r\n\r\n`, "");
+            } catch {
+              /* ignore */
+            }
+            processBodyError(err);
+            return networkError({ cause: err });
+          } finally {
+            try { reader.releaseLock(); } catch { /* ignore */ }
+          }
+          processEndOfBody();
+        } else {
+          if (bodyBytes !== null && bodyBytes.byteLength > 0) {
+            processBodyChunk(bodyBytes);
+          }
+          const bodyBytesStr = bodyBytes !== null && bodyBytes.byteLength > 0
+            ? Array.from(bodyBytes).join(",")
+            : "";
+          try {
+            await __andromeda__.internal_tls_write_bytes(
+              rid,
+              httpRequest,
+              bodyBytesStr,
+            );
+          } catch (err) {
+            processBodyError(err);
+            return networkError({ cause: err });
+          }
+          processEndOfBody();
+        }
 
         // Read response. The 10_000 chunk cap (~40 MB at 4096 B/chunk)
         // bounds runaway streams; the loop exits earlier on EOF.
@@ -1714,8 +1859,15 @@ const httpNetworkFetch = async (
 
         await __andromeda__.internal_tls_close(rid);
 
+        // Treat missing close_notify as graceful EOF if we already read
+        // the full response — many HTTP/1.1 servers skip it.
         if (readError !== null) {
-          return networkError({ cause: readError });
+          const msg = (readError as { message?: string })?.message ?? String(readError);
+          const isUnexpectedEof =
+            msg.includes("close_notify") || msg.includes("UnexpectedEof");
+          if (!(isUnexpectedEof && responseHex.length > 0)) {
+            return networkError({ cause: readError });
+          }
         }
 
         // Convert hex to bytes
@@ -1867,83 +2019,17 @@ const httpNetworkFetch = async (
     return networkError({ cause: error });
   }
 
-  // Handle TLS client certificate dialog
-  // (Simplified - in real implementation this would handle certificate dialogs)
-
-  // To transmit request's body, run these steps:
-  try {
-    //  1. If body is null and fetchParams's process request end-of-body is non-null, then queue a fetch task
-    if (request.body === null && fetchParams.processRequestEndOfBody) {
-      // Queue task to run processRequestEndOfBody
-      setTimeout(() => {
-        if (
-          fetchParams.processRequestEndOfBody &&
-          !fetchParams.controller?.aborted
-        ) {
-          fetchParams.processRequestEndOfBody();
-        }
-      }, 0);
-    } //  2. Otherwise, if body is non-null:
-    else if (request.body !== null) {
-      //    1. Let processBodyChunk given bytes be these steps:
-      const processBodyChunk = (bytes: Uint8Array) => {
-        //      1. If fetchParams is canceled, then abort these steps.
-        if (fetchParams.controller?.state === "aborted") {
-          return;
-        }
-        //      2. Run this step in parallel: transmit bytes.
-        // (Simplified - would actually transmit bytes over network)
-        //      3. If fetchParams's process request body chunk length is non-null, then run it
-        if (fetchParams.processRequestBodyChunkLength) {
-          fetchParams.processRequestBodyChunkLength(bytes.length);
-        }
-      };
-
-      //    2. Let processEndOfBody be these steps:
-      const processEndOfBody = () => {
-        //      1. If fetchParams is canceled, then abort these steps.
-        if (fetchParams.controller?.state === "aborted") {
-          return;
-        }
-        //      2. If fetchParams's process request end-of-body is non-null, then run it
-        if (fetchParams.processRequestEndOfBody) {
-          fetchParams.processRequestEndOfBody();
-        }
-      };
-
-      //    3. Let processBodyError given e be these steps:
-      const processBodyError = (e: any) => {
-        //      1. If fetchParams is canceled, then abort these steps.
-        if (fetchParams.controller?.state === "aborted") {
-          return;
-        }
-        //      2. If e is an "AbortError" DOMException, then abort fetchParams's controller.
-        if (e?.name === "AbortError") {
-          if (fetchParams.controller?.abort) {
-            fetchParams.controller.abort();
-          }
-        } else {
-          //      3. Otherwise, terminate fetchParams's controller.
-          if (fetchParams.controller?.terminate) {
-            fetchParams.controller.terminate();
-          }
-        }
-      };
-
-      //    4. Incrementally read request's body (simplified implementation)
-      try {
-        if (request.body instanceof Uint8Array) {
-          processBodyChunk(request.body);
-        } else if (typeof request.body === "string") {
-          processBodyChunk(new TextEncoder().encode(request.body));
-        }
-        processEndOfBody();
-      } catch (error) {
-        processBodyError(error);
+  // §5.1.2 step 1: signal end-of-body when there's no body to transmit.
+  // Non-null bodies fire the callbacks inline in the TLS path above.
+  if (request.body === null && fetchParams.processRequestEndOfBody) {
+    setTimeout(() => {
+      if (
+        fetchParams.processRequestEndOfBody &&
+        !fetchParams.controller?.aborted
+      ) {
+        fetchParams.processRequestEndOfBody();
       }
-    }
-  } catch (error) {
-    return networkError();
+    }, 0);
   }
 
   // 8. If aborted, then:
