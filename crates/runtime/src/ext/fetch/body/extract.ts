@@ -125,6 +125,28 @@ function generateBoundary(): string {
 }
 
 /**
+ * Synchronous read of a Blob's bytes. Uses the existing comma-decimal
+ * `internal_blob_get_data` op; will be replaced when Unit 3 of the fetch
+ * fill-in plan migrates blob storage off comma-decimal.
+ */
+// deno-lint-ignore no-explicit-any
+function readBlobBytesSync(blob: any): Uint8Array {
+  const blobId = blob?._blobId;
+  if (!blobId) return new Uint8Array(0);
+  // deno-lint-ignore no-explicit-any
+  const data = (globalThis as any).__andromeda__.internal_blob_get_data(blobId);
+  if (typeof data !== "string" || data.length === 0) return new Uint8Array(0);
+  const parts = data.split(",");
+  const out = new Uint8Array(parts.length);
+  let written = 0;
+  for (let i = 0; i < parts.length; i++) {
+    const n = parseInt(parts[i], 10);
+    if (Number.isFinite(n) && n >= 0 && n <= 255) out[written++] = n;
+  }
+  return written === out.length ? out : out.slice(0, written);
+}
+
+/**
  * Encodes FormData as multipart/form-data.
  * @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#multipart-form-data
  */
@@ -148,9 +170,10 @@ function encodeFormData(formData: FormData, boundary: string): Uint8Array {
       parts.push(encoder.encode(value));
       parts.push(encoder.encode("\r\n"));
     } else {
-      // File field
-      const filename = value.name || "blob";
-      const contentType = value.type || "application/octet-stream";
+      // Blob / File field
+      const blob = value as Blob & { _blobId?: string; name?: string };
+      const filename = blob.name || "blob";
+      const contentType = blob.type || "application/octet-stream";
 
       parts.push(
         encoder.encode(
@@ -161,11 +184,9 @@ function encodeFormData(formData: FormData, boundary: string): Uint8Array {
       );
       parts.push(encoder.encode(`Content-Type: ${contentType}\r\n\r\n`));
 
-      // Note: This is synchronous for simplicity
-      // In a real implementation, we might want to handle this asynchronously
-      // For now, we'll need to add a sync way to read the blob
-      // This is a limitation that will need to be addressed
-      throw new Error("File upload in FormData not yet supported");
+      const blobBytes = readBlobBytesSync(blob);
+      if (blobBytes.byteLength > 0) parts.push(blobBytes);
+      parts.push(encoder.encode("\r\n"));
     }
   }
 

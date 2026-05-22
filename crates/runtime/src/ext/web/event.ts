@@ -1299,20 +1299,20 @@ class AbortSignal extends EventTarget {
 }
 
 // AbortController implementation
-class AbortController {
-  #signal: AbortSignal;
+const _controllerSignal = Symbol("[[signal]]");
 
+class AbortController {
   constructor() {
-    this.#signal = new AbortSignal();
+    (this as any)[_controllerSignal] = new AbortSignal();
   }
 
   get signal(): AbortSignal {
-    return this.#signal;
+    return (this as any)[_controllerSignal];
   }
 
   abort(reason?: any): void {
     signalAbort(
-      this.#signal,
+      (this as any)[_controllerSignal],
       reason !== undefined ?
         reason :
         new DOMException("signal is aborted without reason", "AbortError"),

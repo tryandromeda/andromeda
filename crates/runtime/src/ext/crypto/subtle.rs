@@ -7,6 +7,8 @@ use nova_vm::{
     ecmascript::{Agent, ArgumentsList, JsResult, Value},
     engine::{Bindable, GcScope},
 };
+
+use crate::ext::web::bytes::bytes_from_value;
 use rand::SecureRandom;
 use ring::{aead, digest, hmac, rand};
 use std::collections::HashMap;
@@ -166,57 +168,6 @@ impl SubtleCrypto {
         }
     }
 
-    /// Helper function to extract bytes from a Value (Uint8Array or similar)
-    fn extract_bytes_from_value(
-        agent: &mut Agent,
-        value: Value,
-        gc: GcScope<'_, '_>,
-    ) -> Result<Vec<u8>, String> {
-        if let Ok(str_value) = value.to_string(agent, gc) {
-            let string_data = str_value.as_str(agent).ok_or("Invalid string")?;
-
-            if string_data.contains(',') {
-                let tokens: Vec<&str> = string_data.split(',').collect();
-                let mut all_bytes = true;
-                let mut out = Vec::with_capacity(tokens.len());
-                for token in &tokens {
-                    let t = token.trim();
-                    if t.is_empty() {
-                        continue;
-                    }
-                    match t.parse::<u8>() {
-                        Ok(b) => out.push(b),
-                        Err(_) => {
-                            all_bytes = false;
-                            break;
-                        }
-                    }
-                }
-                if all_bytes && !out.is_empty() {
-                    return Ok(out);
-                }
-            }
-
-            if string_data.chars().all(|c| c.is_ascii_hexdigit()) && string_data.len() % 2 == 0 {
-                let mut bytes = Vec::new();
-                for chunk in string_data.as_bytes().chunks(2) {
-                    if let Ok(byte_str) = std::str::from_utf8(chunk)
-                        && let Ok(byte_val) = u8::from_str_radix(byte_str, 16)
-                    {
-                        bytes.push(byte_val);
-                    }
-                }
-                if !bytes.is_empty() {
-                    return Ok(bytes);
-                }
-            }
-            Ok(string_data.as_bytes().to_vec())
-        } else {
-            // TODO: TypedArray extraction once Nova VM supports it.
-            Err("could not coerce key/data to string for byte extraction".to_string())
-        }
-    }
-
     /// Helper function to parse algorithm from JS value
     fn parse_algorithm(
         agent: &mut Agent,
@@ -309,7 +260,7 @@ impl SubtleCrypto {
         };
 
         // Extract data (placeholder for now)
-        let data = match Self::extract_bytes_from_value(agent, data_value, gc.reborrow()) {
+        let data = match bytes_from_value(agent, data_value, gc.reborrow()) {
             Ok(bytes) => bytes,
             Err(_) => {
                 let gc = gc.into_nogc();
@@ -621,7 +572,7 @@ impl SubtleCrypto {
         match format.as_str() {
             "raw" | "pkcs8" | "spki" => {
                 let key_data =
-                    match Self::extract_bytes_from_value(agent, key_data_value, gc.reborrow()) {
+                    match bytes_from_value(agent, key_data_value, gc.reborrow()) {
                         Ok(bytes) => bytes,
                         Err(_) => {
                             return Err(agent
@@ -852,7 +803,7 @@ impl SubtleCrypto {
         };
 
         // Extract plaintext data
-        let plaintext = match Self::extract_bytes_from_value(agent, data_value, gc.reborrow()) {
+        let plaintext = match bytes_from_value(agent, data_value, gc.reborrow()) {
             Ok(bytes) => bytes,
             Err(_) => {
                 let gc = gc.into_nogc();
@@ -1015,7 +966,7 @@ impl SubtleCrypto {
         };
 
         // Extract ciphertext data
-        let ciphertext = match Self::extract_bytes_from_value(agent, data_value, gc.reborrow()) {
+        let ciphertext = match bytes_from_value(agent, data_value, gc.reborrow()) {
             Ok(bytes) => bytes,
             Err(_) => {
                 let gc = gc.into_nogc();
@@ -1148,7 +1099,7 @@ impl SubtleCrypto {
         };
 
         // Extract data
-        let data = match Self::extract_bytes_from_value(agent, data_value, gc.reborrow()) {
+        let data = match bytes_from_value(agent, data_value, gc.reborrow()) {
             Ok(bytes) => bytes,
             Err(_) => {
                 return Ok(nova_vm::ecmascript::String::from_string(
@@ -1317,13 +1268,13 @@ impl SubtleCrypto {
         };
 
         // Extract data
-        let data = match Self::extract_bytes_from_value(agent, data_value, gc.reborrow()) {
+        let data = match bytes_from_value(agent, data_value, gc.reborrow()) {
             Ok(bytes) => bytes,
             Err(_) => return Ok(Value::Boolean(false)),
         };
 
         // Extract signature
-        let signature = match Self::extract_bytes_from_value(agent, signature_value, gc.reborrow())
+        let signature = match bytes_from_value(agent, signature_value, gc.reborrow())
         {
             Ok(bytes) => bytes,
             Err(_) => return Ok(Value::Boolean(false)),

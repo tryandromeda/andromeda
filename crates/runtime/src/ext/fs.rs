@@ -1308,7 +1308,7 @@ impl FsExt {
             match result {
                 Ok(content) => {
                     macro_task_tx
-                        .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithBytes(
+                        .send(MacroTask::User(RuntimeMacroTask::ResolvePromiseWithHexBytes(
                             root_value, content,
                         )))
                         .unwrap();

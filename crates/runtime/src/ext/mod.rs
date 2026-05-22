@@ -12,7 +12,7 @@ mod console;
 pub mod cron;
 #[cfg(feature = "crypto")]
 mod crypto;
-mod fetch;
+pub mod fetch;
 mod ffi;
 mod file;
 #[cfg(not(feature = "virtualfs"))]
@@ -26,6 +26,7 @@ mod process;
 mod sqlite;
 mod streams;
 mod time;
+pub mod tcp;
 pub mod tls;
 mod url;
 #[cfg(feature = "virtualfs")]
@@ -60,6 +61,7 @@ pub use process::*;
 pub use sqlite::*;
 pub use streams::*;
 pub use time::*;
+pub use tcp::*;
 pub use tls::*;
 pub use url::*;
 #[cfg(feature = "virtualfs")]

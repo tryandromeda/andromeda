@@ -103,6 +103,10 @@ class File {
   get [Symbol.toStringTag]() {
     return "File";
   }
+
+  get _blobId(): string {
+    return (this.#blob as Blob & { _blobId: string })._blobId;
+  }
 }
 
 // @ts-ignore globalThis is not readonly

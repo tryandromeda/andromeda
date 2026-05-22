@@ -3,7 +3,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // deno-lint-ignore-file no-explicit-any prefer-const no-unused-vars
 
-// CORS and response filtering helpers (loaded from cors.ts and response_filter.ts)
 const corsCheck = (globalThis as any).corsCheck;
 const corsPreflightCheck = (globalThis as any).corsPreflightCheck;
 const createCORSPreflightRequest =
@@ -65,12 +64,47 @@ function hasRequestHeader(request: any, name: string): boolean {
   return false;
 }
 
-function hexToUtf8(hex: string) {
-  if (!hex) return "";
-  const bytes = new Uint8Array(
-    hex.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)),
-  );
-  return new TextDecoder().decode(bytes);
+function findCRLFCRLF(buf) {
+  for (let i = 0; i + 3 < buf.byteLength; i++) {
+    if (
+      buf[i] === 0x0d && buf[i + 1] === 0x0a &&
+      buf[i + 2] === 0x0d && buf[i + 3] === 0x0a
+    ) return i;
+  }
+  return -1;
+}
+
+function findCRLF(buf, from) {
+  for (let i = from; i + 1 < buf.byteLength; i++) {
+    if (buf[i] === 0x0d && buf[i + 1] === 0x0a) return i;
+  }
+  return -1;
+}
+
+function dechunkBytes(buf) {
+  const out = [];
+  let outLen = 0;
+  let p = 0;
+  const dec = new TextDecoder("latin1");
+  while (p < buf.byteLength) {
+    const crlf = findCRLF(buf, p);
+    if (crlf < 0) break;
+    const sizeLine = dec.decode(buf.subarray(p, crlf));
+    const sizeHex = sizeLine.split(";")[0].trim();
+    if (sizeHex.length === 0) { p = crlf + 2; continue; }
+    const size = parseInt(sizeHex, 16);
+    if (!Number.isFinite(size) || size < 0) break;
+    if (size === 0) break;
+    const dataStart = crlf + 2;
+    if (dataStart + size > buf.byteLength) break;
+    out.push(buf.subarray(dataStart, dataStart + size));
+    outLen += size;
+    p = dataStart + size + 2;
+  }
+  const result = new Uint8Array(outLen);
+  let off = 0;
+  for (const c of out) { result.set(c, off); off += c.byteLength; }
+  return result;
 }
 
 const networkError = (opts?: { cause?: unknown }) => ({
@@ -96,12 +130,57 @@ const createDeferredPromise = () => {
 };
 
 class Fetch {
-  // TODO: Event
   constructor() {
     (this as any).dispatcher = {};
     (this as any).connection = null;
     (this as any).dump = false;
     (this as any).state = "ongoing";
+    (this as any).abortReason = null;
+    (this as any).openRids = new Set<number>();
+    (this as any).onAbortHandlers = new Set<(reason: any) => void>();
+  }
+
+  get aborted() {
+    return (this as any).state === "aborted";
+  }
+
+  abort(reason?: any) {
+    if ((this as any).state === "aborted" || (this as any).state === "terminated") return;
+    (this as any).state = "aborted";
+    (this as any).abortReason = reason ??
+      new DOMException("The operation was aborted.", "AbortError");
+    this._cleanup();
+  }
+
+  terminate(reason?: any) {
+    if ((this as any).state === "aborted" || (this as any).state === "terminated") return;
+    (this as any).state = "terminated";
+    (this as any).abortReason = reason ?? new TypeError("Fetch terminated");
+    this._cleanup();
+  }
+
+  trackRid(rid: number) {
+    (this as any).openRids.add(rid);
+  }
+
+  releaseRid(rid: number) {
+    (this as any).openRids.delete(rid);
+  }
+
+  onAbort(fn: (reason: any) => void) {
+    (this as any).onAbortHandlers.add(fn);
+  }
+
+  _cleanup() {
+    const reason = (this as any).abortReason;
+    for (const fn of (this as any).onAbortHandlers) {
+      try { fn(reason); } catch { /* swallow */ }
+    }
+    (this as any).onAbortHandlers.clear();
+    for (const rid of (this as any).openRids) {
+      try { __andromeda__.internal_tls_close(rid); } catch { /* socket may be gone */ }
+    }
+    (this as any).openRids.clear();
   }
 }
 
@@ -223,46 +302,31 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
     return p.promise;
   }
 
-  // 4. If requestObject’s signal is aborted, then:
-  // if (request.signal.aborted) {
-  // 1. Abort the fetch() call with p, request, null, and
-  // requestObject’s signal’s abort reason.
-  //
-  // TODO: abortFetch
-  //
-  // 2. Return p.
-  // return p.promise;
-  // }
+  // 4. If signal is already aborted, reject before any network work.
+  const reqSignal = requestObject.signal as (AbortSignal | null);
+  if (reqSignal?.aborted) {
+    p.reject(
+      reqSignal.reason ??
+        new DOMException("The operation was aborted.", "AbortError"),
+    );
+    return p.promise;
+  }
 
-  // 5. Let globalObject be request’s client’s global object.
-  // const globalObject = request.client.globalObject;
-
-  // 6. If globalObject is a ServiceWorkerGlobalScope object,
-  // then set request’s service-workers mode to "none".
-  // if (globalObject?.constructor?.name === "ServiceWorkerGlobalScope") {
-  //   request.serviceWorkers = "none";
-  // }
-
-  // 7. Let responseObject be null.
   let responseObject = null;
-
-  // 8. Let relevantRealm be this’s relevant realm.
-  // 9. Let locallyAborted be false.
-  // NOTE: This lets us reject promises with predictable timing,
-  // when the request to abort comes from the same thread as
-  // the call to fetch.
   let locallyAborted = false;
+  let controller: any = null;
 
-  // 10. Let controller be null.
-  let controller = null;
-
-  // TODO: abort controller
-  // 11. Add the following abort steps to requestObject’s signal:
-  //  1. Set locallyAborted to true.
-  //  2. Assert: controller is non-null.
-  //  3. Abort controller with requestObject’s signal’s abort reason.
-  //  4. Abort the fetch() call with p, request, responseObject,
-  //     and requestObject’s signal’s abort reason.
+  // 11. Abort the in-flight fetch when the signal fires.
+  const onSignalAbort = () => {
+    locallyAborted = true;
+    const reason = reqSignal?.reason ??
+      new DOMException("The operation was aborted.", "AbortError");
+    if (controller && !controller.aborted) controller.abort(reason);
+    p.reject(reason);
+  };
+  if (reqSignal) {
+    reqSignal.addEventListener("abort", onSignalAbort, { once: true });
+  }
 
   // 12. Set controller to the result of calling fetch given request
   //     and processResponse given response being these steps:
@@ -274,26 +338,39 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
   //  3. If response is a network error, then reject p with a TypeError and abort these steps.
   //  4. Set responseObject to the result of creating a Response object, given response, "immutable", and relevantRealm.
   //  5. Resolve p with responseObject.
+  const detach = () => {
+    if (reqSignal) reqSignal.removeEventListener("abort", onSignalAbort);
+  };
+
   controller = fetching({
     request,
     processResponse: (response: any) => {
       if (locallyAborted) {
+        detach();
         return;
       }
 
       if (response?.type === "error") {
-        const err = response.cause !== undefined ?
-          new TypeError("Network error", { cause: response.cause } as any) :
-          new TypeError("Network error");
+        const cause = response.cause;
+        const isAbortCause = cause instanceof DOMException &&
+          (cause as any).name === "AbortError";
+        const err = isAbortCause ?
+          cause :
+          (cause !== undefined ?
+            new TypeError("Network error", { cause } as any) :
+            new TypeError("Network error"));
         p.reject(err);
+        detach();
         return;
       }
 
-      // Create a Response object using the Response class
-      // Convert body object to Uint8Array if needed
-      let bodyData = null;
+      // Body is now either a ReadableStream (Unit 6 streaming path), a
+      // Uint8Array, or null. Forward streams as-is; convert legacy shapes.
+      let bodyData: any = null;
       if (response.body) {
-        if (response.body instanceof Uint8Array) {
+        if (response.body instanceof ReadableStream) {
+          bodyData = response.body;
+        } else if (response.body instanceof Uint8Array) {
           bodyData = response.body;
         } else if (
           typeof response.body === "object" &&
@@ -301,23 +378,10 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
           typeof response.body.length === "number" &&
           isFinite(response.body.length)
         ) {
-          // Convert object with numeric keys to Uint8Array
           const length = response.body.length;
           bodyData = new Uint8Array(length);
           for (let i = 0; i < length; i++) {
             bodyData[i] = response.body[i] || 0;
-          }
-        } else if (typeof response.body === "object") {
-          // Try to get keys if length is not available or invalid
-          const keys = Object.keys(response.body).filter(k =>
-            !isNaN(Number(k))
-          );
-          if (keys.length > 0) {
-            const length = keys.length;
-            bodyData = new Uint8Array(length);
-            for (let i = 0; i < length; i++) {
-              bodyData[i] = response.body[i] || 0;
-            }
           }
         }
       }
@@ -369,6 +433,7 @@ const andromedaFetch = (input: RequestInfo, init = undefined) => {
       });
 
       p.resolve(responseObject);
+      detach();
     },
   });
 
@@ -1629,7 +1694,7 @@ const httpNetworkFetch = async (
 
     let status = 200;
     let statusText = "OK";
-    let responseBody: Uint8Array | null = null;
+    let responseBody: any = null;
     let responseHeaders: [string, string][] = [];
 
     // §5.1.2 body-transmission callbacks; fire inline as bytes hit the wire.
@@ -1654,14 +1719,37 @@ const httpNetworkFetch = async (
       }
     };
 
-    // Use TLS for HTTPS connections
-    if (request.currentURL.protocol === "https:") {
-      try {
-        const host = request.currentURL.hostname;
-        const port = request.currentURL.port || 443;
+    // HTTPS uses TLS ops; plaintext HTTP uses TCP ops with the same shape.
+    const isHttps = request.currentURL.protocol === "https:";
+    const isHttp = request.currentURL.protocol === "http:";
+    const sockOps = isHttps
+      ? {
+        connect: __andromeda__.internal_tls_connect,
+        write: __andromeda__.internal_tls_write_bytes,
+        read: __andromeda__.internal_tls_read,
+        close: __andromeda__.internal_tls_close,
+        defaultPort: 443,
+      }
+      : {
+        connect: __andromeda__.internal_tcp_connect,
+        write: __andromeda__.internal_tcp_write_bytes,
+        read: __andromeda__.internal_tcp_read,
+        close: __andromeda__.internal_tcp_close,
+        defaultPort: 80,
+      };
 
-        // Connect with TLS
-        const rid = await __andromeda__.internal_tls_connect(host, port);
+    if (isHttps || isHttp) {
+      let rid: number | null = null;
+      try {
+        if (fetchParams.controller?.aborted) {
+          return networkError({ cause: fetchParams.controller.abortReason });
+        }
+
+        const host = request.currentURL.hostname;
+        const port = request.currentURL.port || sockOps.defaultPort;
+
+        rid = await sockOps.connect(host, port);
+        fetchParams.controller?.trackRid?.(rid);
 
         // Format HTTP request
         const method = request.method || "GET";
@@ -1686,6 +1774,12 @@ const httpNetworkFetch = async (
           httpRequest += `Accept: */*\r\n`;
           if (Array.isArray(request.headersList)) {
             request.headersList.push(["Accept", "*/*"]);
+          }
+        }
+        if (!userHeaderNames.has("accept-encoding")) {
+          httpRequest += `Accept-Encoding: gzip, deflate, br\r\n`;
+          if (Array.isArray(request.headersList)) {
+            request.headersList.push(["Accept-Encoding", "gzip, deflate, br"]);
           }
         }
         if (!userHeaderNames.has("user-agent")) {
@@ -1777,7 +1871,7 @@ const httpNetworkFetch = async (
         if (useChunkedTE) {
           // RFC 7230 §4.1 chunked framing: <hex>\r\n<bytes>\r\n, then 0\r\n\r\n.
           try {
-            await __andromeda__.internal_tls_write_bytes(rid, httpRequest, "");
+            await sockOps.write(rid, httpRequest, "");
           } catch (err) {
             processBodyError(err);
             return networkError({ cause: err });
@@ -1794,21 +1888,20 @@ const httpNetworkFetch = async (
               if (chunk.byteLength === 0) continue;
 
               const hexLen = chunk.byteLength.toString(16);
-              const chunkBytesStr = Array.from(chunk).join(",");
-              await __andromeda__.internal_tls_write_bytes(
+              await sockOps.write(
                 rid,
                 `${hexLen}\r\n`,
-                chunkBytesStr,
+                chunk,
               );
-              await __andromeda__.internal_tls_write_bytes(rid, `\r\n`, "");
+              await sockOps.write(rid, `\r\n`, "");
               processBodyChunk(chunk);
             }
             // Last-chunk + empty trailers.
-            await __andromeda__.internal_tls_write_bytes(rid, `0\r\n\r\n`, "");
+            await sockOps.write(rid, `0\r\n\r\n`, "");
           } catch (err) {
             // Best-effort terminator so the server doesn't hang.
             try {
-              await __andromeda__.internal_tls_write_bytes(rid, `0\r\n\r\n`, "");
+              await sockOps.write(rid, `0\r\n\r\n`, "");
             } catch {
               /* ignore */
             }
@@ -1822,14 +1915,11 @@ const httpNetworkFetch = async (
           if (bodyBytes !== null && bodyBytes.byteLength > 0) {
             processBodyChunk(bodyBytes);
           }
-          const bodyBytesStr = bodyBytes !== null && bodyBytes.byteLength > 0
-            ? Array.from(bodyBytes).join(",")
-            : "";
           try {
-            await __andromeda__.internal_tls_write_bytes(
+            await sockOps.write(
               rid,
               httpRequest,
-              bodyBytesStr,
+              bodyBytes ?? new Uint8Array(0),
             );
           } catch (err) {
             processBodyError(err);
@@ -1838,63 +1928,72 @@ const httpNetworkFetch = async (
           processEndOfBody();
         }
 
-        // Read response. The 10_000 chunk cap (~40 MB at 4096 B/chunk)
-        // bounds runaway streams; the loop exits earlier on EOF.
-        let responseHex = "";
-        const maxRetries = 10_000;
-        let retries = 0;
-        let readError: unknown = null;
-
-        while (retries < maxRetries) {
-          try {
-            const chunk = await __andromeda__.internal_tls_read(rid, 4096);
-            if (!chunk || chunk.length === 0) break;
-            responseHex += chunk;
-          } catch (e) {
-            readError = e;
+        // PHASE 1: read until CRLFCRLF observed (status line + headers).
+        let headerBuffer = new Uint8Array(0);
+        let headerEnd = -1;
+        let earlyReadError: unknown = null;
+        const maxHeaderBytes = 64 * 1024; // 64 KiB is more than enough for any sane header block
+        while (headerBuffer.byteLength < maxHeaderBytes) {
+          if (fetchParams.controller?.aborted) {
+            earlyReadError = fetchParams.controller.abortReason;
             break;
           }
-          retries++;
-        }
-
-        await __andromeda__.internal_tls_close(rid);
-
-        // Treat missing close_notify as graceful EOF if we already read
-        // the full response — many HTTP/1.1 servers skip it.
-        if (readError !== null) {
-          const msg = (readError as { message?: string })?.message ?? String(readError);
-          const isUnexpectedEof =
-            msg.includes("close_notify") || msg.includes("UnexpectedEof");
-          if (!(isUnexpectedEof && responseHex.length > 0)) {
-            return networkError({ cause: readError });
+          let chunkBuf: any;
+          try {
+            chunkBuf = await sockOps.read(rid, 4096);
+          } catch (e) {
+            earlyReadError = e;
+            break;
           }
+          if (!chunkBuf) break;
+          const u8: Uint8Array = chunkBuf instanceof Uint8Array
+            ? chunkBuf
+            : new Uint8Array(chunkBuf);
+          if (u8.byteLength === 0) break;
+          const merged = new Uint8Array(headerBuffer.byteLength + u8.byteLength);
+          merged.set(headerBuffer, 0);
+          merged.set(u8, headerBuffer.byteLength);
+          headerBuffer = merged;
+          headerEnd = findCRLFCRLF(headerBuffer);
+          if (headerEnd >= 0) break;
         }
 
-        // Convert hex to bytes
-        // Parse response
-        const responseText = hexToUtf8(responseHex);
-        const [headerPart, ...bodyParts] = responseText.split("\r\n\r\n");
-        const bodyText = bodyParts.join("\r\n\r\n");
+        if (earlyReadError !== null && headerEnd < 0) {
+          try { await sockOps.close(rid); } catch { /* ignore */ }
+          if (rid !== null) fetchParams.controller?.releaseRid?.(rid);
+          if (fetchParams.controller?.aborted) {
+            return networkError({ cause: fetchParams.controller.abortReason });
+          }
+          return networkError({ cause: earlyReadError });
+        }
+        if (headerEnd < 0) {
+          try { await sockOps.close(rid); } catch { /* ignore */ }
+          if (rid !== null) fetchParams.controller?.releaseRid?.(rid);
+          return networkError({
+            cause: new Error("Invalid HTTP response (no header terminator)"),
+          });
+        }
 
-        // Parse status line
-        const lines = headerPart.split("\r\n");
+        const headerBytes = headerBuffer.subarray(0, headerEnd);
+        const leftover = headerBuffer.subarray(headerEnd + 4);
+        const headerText = new TextDecoder("latin1").decode(headerBytes);
+
+        const lines = headerText.split("\r\n");
         const statusLine = lines[0];
-        const statusMatch = statusLine.match(/HTTP\/\d\.\d (\d+) (.+)/);
-
+        const statusMatch = statusLine.match(/HTTP\/\d\.\d (\d+) (.*)/);
         if (statusMatch) {
           status = parseInt(statusMatch[1]);
           statusText = statusMatch[2];
         } else {
-          // Empty or non-HTTP buffer: don't fall through to a defaulted 200.
+          try { await sockOps.close(rid); } catch { /* ignore */ }
+          if (rid !== null) fetchParams.controller?.releaseRid?.(rid);
           return networkError({
-            cause: new Error(
-              "Invalid or empty HTTP response (no status line)",
-            ),
+            cause: new Error("Invalid HTTP response (no status line)"),
           });
         }
 
-        // Parse headers
         let isChunked = false;
+        let contentEncoding = "";
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i];
           const colonIndex = line.indexOf(":");
@@ -1902,52 +2001,43 @@ const httpNetworkFetch = async (
             const name = line.substring(0, colonIndex).trim();
             const value = line.substring(colonIndex + 1).trim();
             responseHeaders.push([name, value]);
+            const lname = name.toLowerCase();
             if (
-              name.toLowerCase() === "transfer-encoding" &&
-              value.toLowerCase().split(",").map((s) => s.trim()).includes(
-                "chunked",
-              )
+              lname === "transfer-encoding" &&
+              value.toLowerCase().split(",").map((s) => s.trim()).includes("chunked")
             ) {
               isChunked = true;
             }
-          }
-        }
-
-        // Strip HTTP/1.1 chunked framing from the body.
-        let decodedBody = bodyText;
-        if (isChunked && bodyText) {
-          decodedBody = "";
-          let p = 0;
-          while (p < bodyText.length) {
-            const crlf = bodyText.indexOf("\r\n", p);
-            if (crlf < 0) break;
-            const sizeHex = bodyText.slice(p, crlf).split(";")[0].trim();
-            if (sizeHex === "") {
-              p = crlf + 2;
-              continue;
+            if (lname === "content-encoding") {
+              contentEncoding = value.toLowerCase().trim();
             }
-            const size = parseInt(sizeHex, 16);
-            if (!Number.isFinite(size) || size < 0) break;
-            if (size === 0) break; // last-chunk (trailers ignored)
-            const dataStart = crlf + 2;
-            decodedBody += bodyText.slice(dataStart, dataStart + size);
-            p = dataStart + size + 2; // skip data + trailing CRLF
           }
         }
 
-        // Set response body
-        if (decodedBody) {
-          responseBody = new TextEncoder().encode(decodedBody);
+        // Register a response decoder if the server picked an encoding we
+        // support. Unknown encodings (zstd, identity, missing) pass through.
+        const knownEncodings = ["gzip", "x-gzip", "deflate", "br"];
+        const willDecode = knownEncodings.includes(contentEncoding);
+        if (willDecode && rid !== null) {
+          __andromeda__.internal_set_response_decoder(rid, contentEncoding);
+        }
+        if (willDecode) {
+          // Strip Content-Encoding and Content-Length per whatwg/fetch#1729.
+          responseHeaders = responseHeaders.filter(([name]) => {
+            const lname = name.toLowerCase();
+            return lname !== "content-encoding" && lname !== "content-length";
+          });
         }
 
-        // Drop the chunked token from Transfer-Encoding (other codings like
-        // gzip stay; if it was the only token, drop the header entirely).
-        // Then set Content-Length to the decoded byte length.
+        // Drop the chunked token from Transfer-Encoding; decoded length is
+        // unknown when streaming, so also drop any Content-Length the server
+        // may have lied about.
         if (isChunked) {
-          const decodedLen = responseBody ? responseBody.length : 0;
           const rewritten: [string, string][] = [];
           for (const [name, value] of responseHeaders) {
-            if (name.toLowerCase() !== "transfer-encoding") {
+            const lname = name.toLowerCase();
+            if (lname === "content-length") continue;
+            if (lname !== "transfer-encoding") {
               rewritten.push([name, value]);
               continue;
             }
@@ -1960,28 +2050,197 @@ const httpNetworkFetch = async (
             }
           }
           responseHeaders = rewritten;
-          const clIndex = responseHeaders.findIndex(([name]) =>
-            name.toLowerCase() === "content-length"
-          );
-          if (clIndex >= 0) {
-            responseHeaders[clIndex] = ["Content-Length", String(decodedLen)];
-          } else {
-            responseHeaders.push(["Content-Length", String(decodedLen)]);
-          }
         }
+
+        // PHASE 2: build a streaming body backed by the still-open rid. EOF /
+        // error / cancel all route through the same close + release path.
+        // Capture the socket ops for the stream closure (rid may be reused if
+        // we later redirect, but at this point the rid is exclusive to us).
+        const streamRid = rid;
+        const streamSockOps = sockOps;
+        const streamController = fetchParams.controller;
+        let closed = false;
+        const closeOnce = async () => {
+          if (closed) return;
+          closed = true;
+          try { await streamSockOps.close(streamRid); } catch { /* already closed */ }
+          if (streamRid !== null) streamController?.releaseRid?.(streamRid);
+        };
+
+        const chunkedState = isChunked
+          ? { buf: leftover, state: "size" as "size" | "data" | "done", pendingSize: 0 }
+          : null;
+        let nonChunkedLeftoverSent = false;
+        const isDecoded = willDecode;
+        const decodeRid = streamRid;
+        // Run a (post-dechunk) chunk through the response decoder if one is
+        // registered. Empty result is normal — caller loops until non-empty.
+        const decodeIfNeeded = (buf: Uint8Array): Uint8Array => {
+          if (!isDecoded) return buf;
+          const out = __andromeda__.internal_decompress_chunk(decodeRid, buf);
+          return out instanceof Uint8Array ? out : new Uint8Array(out as ArrayBuffer);
+        };
+        const finishDecode = (): Uint8Array => {
+          if (!isDecoded) return new Uint8Array(0);
+          const tail = __andromeda__.internal_decompress_finish(decodeRid);
+          return tail instanceof Uint8Array ? tail : new Uint8Array(tail as ArrayBuffer);
+        };
+
+        const drainChunked = (controller: any): boolean => {
+          // Drain as much decoded data from chunkedState.buf as possible.
+          // Returns true if the stream is fully done (last-chunk seen).
+          const s = chunkedState!;
+          const dec = new TextDecoder("latin1");
+          while (true) {
+            if (s.state === "done") {
+              const tail = finishDecode();
+              if (tail.byteLength > 0) controller.enqueue(tail);
+              controller.close();
+              return true;
+            }
+            if (s.state === "size") {
+              const crlf = findCRLF(s.buf, 0);
+              if (crlf < 0) return false;
+              const sizeLine = dec.decode(s.buf.subarray(0, crlf));
+              const sizeHex = sizeLine.split(";")[0].trim();
+              s.buf = s.buf.subarray(crlf + 2);
+              if (sizeHex.length === 0) continue;
+              const size = parseInt(sizeHex, 16);
+              if (!Number.isFinite(size) || size < 0) {
+                controller.error(new Error("malformed chunk size"));
+                s.state = "done";
+                return true;
+              }
+              if (size === 0) {
+                s.state = "done";
+                const tail = finishDecode();
+                if (tail.byteLength > 0) controller.enqueue(tail);
+                controller.close();
+                return true;
+              }
+              s.pendingSize = size;
+              s.state = "data";
+            }
+            if (s.state === "data") {
+              if (s.buf.byteLength < s.pendingSize + 2) return false;
+              const chunk = s.buf.subarray(0, s.pendingSize);
+              if (chunk.byteLength > 0) {
+                const decoded = decodeIfNeeded(new Uint8Array(chunk));
+                if (decoded.byteLength > 0) controller.enqueue(decoded);
+              }
+              s.buf = s.buf.subarray(s.pendingSize + 2);
+              s.state = "size";
+            }
+          }
+        };
+
+        const bodyStream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            if (chunkedState) {
+              if (drainChunked(controller)) {
+                closeOnce();
+              }
+            } else if (leftover.byteLength > 0) {
+              const decoded = decodeIfNeeded(new Uint8Array(leftover));
+              if (decoded.byteLength > 0) controller.enqueue(decoded);
+              nonChunkedLeftoverSent = true;
+            }
+          },
+          async pull(controller) {
+            if (closed) {
+              controller.close();
+              return;
+            }
+            // When a decoder is active an empty resolve may just mean
+            // "decoder needs more input"; loop a bounded number of times.
+            const maxAttempts = isDecoded ? 64 : 1;
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+              if (streamController?.aborted) {
+                await closeOnce();
+                controller.error(streamController.abortReason ?? new Error("aborted"));
+                return;
+              }
+              let chunkBuf: any;
+              try {
+                chunkBuf = await streamSockOps.read(streamRid, 4096);
+              } catch (e) {
+                const msg = (e as { message?: string })?.message ?? String(e);
+                const isUnexpectedEof =
+                  msg.includes("close_notify") || msg.includes("UnexpectedEof");
+                if (isUnexpectedEof) {
+                  if (chunkedState && chunkedState.state !== "done") {
+                    controller.error(new Error("server closed before chunked-TE end"));
+                  } else {
+                    controller.close();
+                  }
+                  await closeOnce();
+                  return;
+                }
+                await closeOnce();
+                controller.error(e);
+                return;
+              }
+              if (!chunkBuf) {
+                if (chunkedState && chunkedState.state !== "done") {
+                  controller.error(new Error("server closed before chunked-TE end"));
+                } else {
+                  if (!chunkedState) {
+                    const tail = finishDecode();
+                    if (tail.byteLength > 0) controller.enqueue(tail);
+                  }
+                  controller.close();
+                }
+                await closeOnce();
+                return;
+              }
+              const u8: Uint8Array = chunkBuf instanceof Uint8Array
+                ? chunkBuf
+                : new Uint8Array(chunkBuf);
+              if (u8.byteLength === 0) {
+                if (chunkedState && chunkedState.state !== "done") {
+                  controller.error(new Error("server closed before chunked-TE end"));
+                } else {
+                  if (!chunkedState) {
+                    const tail = finishDecode();
+                    if (tail.byteLength > 0) controller.enqueue(tail);
+                  }
+                  controller.close();
+                }
+                await closeOnce();
+                return;
+              }
+              if (chunkedState) {
+                const merged = new Uint8Array(
+                  chunkedState.buf.byteLength + u8.byteLength,
+                );
+                merged.set(chunkedState.buf, 0);
+                merged.set(u8, chunkedState.buf.byteLength);
+                chunkedState.buf = merged;
+                if (drainChunked(controller)) {
+                  await closeOnce();
+                }
+              } else {
+                const decoded = decodeIfNeeded(u8);
+                if (decoded.byteLength > 0) {
+                  controller.enqueue(decoded);
+                } else if (isDecoded) {
+                  // Decoder consumed but didn't emit; loop again.
+                  continue;
+                }
+                void nonChunkedLeftoverSent;
+              }
+              return;
+            }
+          },
+          async cancel() {
+            await closeOnce();
+          },
+        });
+
+        responseBody = bodyStream as any;
       } catch (error) {
         return networkError({ cause: error });
       }
-    } else {
-      // For HTTP (non-TLS), return a simple mock response for now
-      responseBody = new TextEncoder().encode(
-        '{"message": "HTTP not implemented yet"}',
-      );
-      responseHeaders = [
-        ["Content-Type", "application/json"],
-        ["Content-Length", String(responseBody.length)],
-        ["Date", new Date().toUTCString()],
-      ];
     }
 
     // Handle interim responses (100-199 range)
@@ -2265,19 +2524,21 @@ const httpRedirectFetch = async (fetchParams: any, response: any) => {
     }
   }
 
-  // 13. If request's current URL's origin is not same origin with locationURL's origin, then for each headerName of CORS non-wildcard request-header name, delete headerName from request's header list.
-  //     Note: I.e., the moment another origin is seen after the initial request, the `Authorization` header is removed.
-  if (request.currentURL.origin !== locationURL.origin) {
-    // CORS non-wildcard request-header names include at minimum "authorization"
-    const corsNonWildcardHeaders = ["authorization"];
+  // 13. Drop credentials-bearing headers when the redirect crosses origins
+  //     or downgrades the scheme (https → http). Matches Deno's
+  //     httpRedirectFetch and the spec's strip-on-cross-origin rule.
+  const crossOrigin = request.currentURL.origin !== locationURL.origin;
+  const protocolDowngrade = request.currentURL.protocol === "https:" &&
+    locationURL.protocol === "http:";
+  if (crossOrigin || protocolDowngrade) {
+    const stripHeaders = ["authorization", "proxy-authorization", "cookie"];
     if (request.headers instanceof Headers) {
-      for (const header of corsNonWildcardHeaders) {
+      for (const header of stripHeaders) {
         request.headers.delete(header);
       }
     } else if (request.headersList && Array.isArray(request.headersList)) {
       request.headersList = request.headersList.filter(
-        ([name]: [string, string]) =>
-          !corsNonWildcardHeaders.includes(name.toLowerCase()),
+        ([name]: [string, string]) => !stripHeaders.includes(name.toLowerCase()),
       );
     }
   }

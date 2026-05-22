@@ -24,12 +24,17 @@ pub enum RuntimeMacroTask {
     ResolvePromiseWithValue(Global<Value<'static>>, Global<Value<'static>>),
     /// Resolve a promise with a string value.
     ResolvePromiseWithString(Global<Value<'static>>, String),
-    /// Resolve a promise with bytes as Uint8Array.
+    /// Resolve a promise with bytes as ArrayBuffer (JS wraps with `new Uint8Array(buf)`).
     ResolvePromiseWithBytes(Global<Value<'static>>, Vec<u8>),
+    /// Resolve a promise with bytes hex-encoded into a string. Kept for
+    /// callers (e.g. `Andromeda.readFile`) whose public API still returns hex.
+    ResolvePromiseWithHexBytes(Global<Value<'static>>, Vec<u8>),
     /// Reject a promise with an error message.
     RejectPromise(Global<Value<'static>>, String),
     /// Register a TLS stream into the runtime resource table and resolve a promise with its rid.
     RegisterTlsStream(Global<Value<'static>>, Box<TlsStream<TcpStream>>),
+    /// Register a plaintext TCP stream into the runtime resource table and resolve a promise with its rid.
+    RegisterTcpStream(Global<Value<'static>>, Box<TcpStream>),
     /// Acquire a lock and resolve the promise with the lock result.
     AcquireLock {
         promise: Global<Value<'static>>,

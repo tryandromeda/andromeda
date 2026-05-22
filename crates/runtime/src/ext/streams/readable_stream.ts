@@ -156,19 +156,21 @@ class ReadableStreamDefaultReader<R = unknown> {
   }
 
   async read(): Promise<ReadableStreamReadResult<R>> {
-    const result = __andromeda__.internal_readable_stream_read(this.#streamId);
-
-    if (result === "done") {
-      return { done: true, value: undefined as unknown as R };
+    // Drive pull when the internal queue is empty so the underlying source
+    // gets a chance to enqueue (or close) before we report done.
+    for (let i = 0; i < 4096; i++) {
+      const result = __andromeda__.internal_readable_stream_read(this.#streamId);
+      if (result === "done") {
+        return { done: true, value: undefined as unknown as R };
+      }
+      if (result !== "") {
+        return { done: false, value: decodeBytesString(result) as unknown as R };
+      }
+      // Queue empty: ask the underlying source to produce more.
+      await this.#stream._drivePull();
+      // If pull closed/errored the stream, the next read returns "done".
     }
-
-    if (result === "") {
-      // No data available yet - for now return done
-      // TODO: Implement waiting for data
-      return { done: true, value: undefined as unknown as R };
-    }
-
-    return { done: false, value: decodeBytesString(result) as unknown as R };
+    return { done: true, value: undefined as unknown as R };
   }
 
   // Synchronous read method for testing
@@ -206,6 +208,10 @@ class ReadableStream<R = unknown> {
   #streamId: string;
   #controller: ReadableStreamDefaultController<R> | null = null;
   #reader: ReadableStreamDefaultReader<R> | null = null;
+  // deno-lint-ignore no-explicit-any
+  #pullFn: ((controller: any) => unknown) | null = null;
+  #pullInFlight: Promise<void> | null = null;
+  #pullDone = false;
 
   constructor(
     underlyingSource?:
@@ -252,6 +258,14 @@ class ReadableStream<R = unknown> {
       );
     }
 
+    // Save pull for later invocation from read() when the queue empties.
+    if (
+      underlyingSource && "pull" in underlyingSource &&
+      typeof (underlyingSource as any).pull === "function"
+    ) {
+      this.#pullFn = (underlyingSource as any).pull.bind(underlyingSource);
+    }
+
     if (underlyingSource?.start) {
       try {
         const controller = isByteStream ?
@@ -282,6 +296,32 @@ class ReadableStream<R = unknown> {
 
   [symbolForSetReader](reader: ReadableStreamDefaultReader<R> | null): void {
     this.#reader = reader;
+  }
+
+  async _drivePull(): Promise<void> {
+    if (this.#pullDone || !this.#pullFn || !this.#controller) return;
+    if (this.#pullInFlight) {
+      await this.#pullInFlight;
+      return;
+    }
+    const ctrl = this.#controller;
+    const p = (async () => {
+      try {
+        await this.#pullFn!(ctrl);
+      } catch (e) {
+        ctrl.error(e);
+        this.#pullDone = true;
+      } finally {
+        this.#pullInFlight = null;
+      }
+    })();
+    this.#pullInFlight = p;
+    await p;
+  }
+
+  // Internal: stop calling pull once the stream is closed/errored.
+  _markPullDone(): void {
+    this.#pullDone = true;
   }
 
   get locked(): boolean {

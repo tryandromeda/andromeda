@@ -10,7 +10,7 @@ use nova_vm::{
 
 use crate::{
     BroadcastChannelExt, CommandExt, ConsoleExt, CronExt, FetchExt, FfiExt, FileExt, NetExt,
-    ProcessExt, RuntimeMacroTask, StreamsExt, TimeExt, TlsExt, URLExt, WebExt, WebIDLExt,
+    ProcessExt, RuntimeMacroTask, StreamsExt, TcpExt, TimeExt, TlsExt, URLExt, WebExt, WebIDLExt,
     WebLocksExt, WorkersExt,
 };
 
@@ -42,6 +42,7 @@ pub fn recommended_extensions() -> Vec<Extension> {
         NetExt::new_extension(),
         StreamsExt::new_extension(),
         TlsExt::new_extension(),
+        TcpExt::new_extension(),
         FfiExt::new_extension(),
         #[cfg(feature = "serve")]
         crate::ServeExt::new_extension(),
@@ -147,7 +148,7 @@ pub fn recommended_eventloop_handler(
                 }
             });
         }
-        RuntimeMacroTask::ResolvePromiseWithBytes(root_value, bytes_value) => {
+        RuntimeMacroTask::ResolvePromiseWithHexBytes(root_value, bytes_value) => {
             let hex_string_global = agent
                 .run_in_realm(realm_root, |agent, gc| {
                     let mut hex_content = String::new();
@@ -166,8 +167,58 @@ pub fn recommended_eventloop_handler(
                 if let Value::Promise(promise) = promise_value {
                     let promise_capability = PromiseCapability::from_promise(promise, false);
                     promise_capability.resolve(agent, string_value, gc);
+                }
+            });
+        }
+        RuntimeMacroTask::ResolvePromiseWithBytes(root_value, bytes_value) => {
+            let buffer_global = agent
+                .run_in_realm(realm_root, |agent, gc| {
+                    use nova_vm::ecmascript::ArrayBuffer;
+                    let ab = ArrayBuffer::new(agent, bytes_value.len(), gc.nogc())
+                        .expect("ArrayBuffer allocation failed");
+                    if !bytes_value.is_empty() {
+                        ab.as_mut_slice(agent).copy_from_slice(&bytes_value);
+                    }
+                    let value: Value = ab.unbind().into();
+                    Some(Global::new(agent, value))
+                })
+                .unwrap();
+
+            agent.run_in_realm(realm_root, |agent, gc| {
+                let promise_value = root_value.take(agent);
+                let buffer_value = buffer_global.take(agent);
+                if let Value::Promise(promise) = promise_value {
+                    let promise_capability = PromiseCapability::from_promise(promise, false);
+                    promise_capability.resolve(agent, buffer_value, gc);
                 } else {
                     eprintln!("ResolvePromiseWithBytes: expected a Promise, got {promise_value:?}");
+                }
+            });
+        }
+        RuntimeMacroTask::RegisterTcpStream(root_value, tcp_stream) => {
+            let rid = {
+                let storage = host_data.storage.borrow();
+                let resources: &crate::ext::tcp::TcpResources = storage.get().unwrap();
+                let boxed = std::sync::Arc::new(tokio::sync::Mutex::new(*tcp_stream));
+                resources
+                    .streams
+                    .push(crate::ext::tcp::TcpResource::Client(boxed))
+            };
+
+            let string_global = agent
+                .run_in_realm(realm_root, |agent, gc| {
+                    let rid_str = rid.index().to_string();
+                    let string_val = Value::from_string(agent, rid_str, gc.nogc());
+                    Some(Global::new(agent, string_val.unbind()))
+                })
+                .unwrap();
+
+            agent.run_in_realm(realm_root, |agent, gc| {
+                let promise_value = root_value.take(agent);
+                let string_value = string_global.take(agent);
+                if let Value::Promise(promise) = promise_value {
+                    let promise_capability = PromiseCapability::from_promise(promise, false);
+                    promise_capability.resolve(agent, string_value, gc);
                 }
             });
         }

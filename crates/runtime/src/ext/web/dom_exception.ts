@@ -50,9 +50,14 @@ const DOMExceptionCode: Record<DOMExceptionName, number> = {
   InvalidNodeTypeError: 24,
   DataCloneError: 25,
 };
-class DOMException extends Error {
-  override readonly name: DOMExceptionName;
+// Nova VM doesn't currently support subclassing Error via `super(message)` —
+// `this` ends up uninitialized in the derived ctor. Implement DOMException as a
+// plain class that mimics Error's shape (name, message, stack-ish) instead.
+class DOMException {
+  readonly name: DOMExceptionName;
+  readonly message: string;
   readonly code: number;
+  readonly stack: string;
   static readonly INDEX_SIZE_ERR = 1;
   static readonly HIERARCHY_REQUEST_ERR = 3;
   static readonly WRONG_DOCUMENT_ERR = 4;
@@ -80,10 +85,14 @@ class DOMException extends Error {
     message?: string,
     name: DOMExceptionName = "InvalidStateError",
   ) {
-    super(message);
+    this.message = message ?? "";
     this.name = name;
     this.code = DOMExceptionCode[name] || 0;
-    Object.setPrototypeOf(this, new.target.prototype);
+    this.stack = `${name}: ${this.message}`;
+  }
+
+  toString(): string {
+    return `${this.name}: ${this.message}`;
   }
 }
 
