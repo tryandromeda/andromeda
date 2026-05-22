@@ -44,8 +44,8 @@ serde.workspace = true
 serde_json.workspace = true
 url.workspace = true
 base64-simd.workspace = true
-flate2 = "1"
-brotli = "8"
+flate2.workspace = true
+brotli.workspace = true
 image = { workspace = true, optional = true }
 lru = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
