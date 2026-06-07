@@ -222,6 +222,58 @@ pub fn recommended_eventloop_handler(
                 }
             });
         }
+        RuntimeMacroTask::RegisterHttpResponse(root_value, response) => {
+            let (rid, metadata_json) = {
+                let storage = host_data.storage.borrow();
+                let resources: &crate::ext::fetch::http_client::HttpClientResources =
+                    storage.get().unwrap();
+                let status = response.status().as_u16();
+                let status_text = response
+                    .status()
+                    .canonical_reason()
+                    .unwrap_or("")
+                    .to_string();
+                let headers: Vec<[String; 2]> = response
+                    .headers()
+                    .iter()
+                    .map(|(k, v)| {
+                        [
+                            k.as_str().to_string(),
+                            v.to_str().unwrap_or("").to_string(),
+                        ]
+                    })
+                    .collect();
+                let arc = std::sync::Arc::new(tokio::sync::Mutex::new(*response));
+                let rid = resources.bodies.push(arc);
+                let json = format!(
+                    "{{\"status\":{},\"statusText\":{},\"headers\":{},\"bodyRid\":\"{}\"}}",
+                    status,
+                    serde_json::to_string(&status_text).unwrap_or_else(|_| "\"\"".to_string()),
+                    serde_json::to_string(&headers).unwrap_or_else(|_| "[]".to_string()),
+                    rid.index()
+                );
+                (rid, json)
+            };
+            let _ = rid; // rid embedded in json
+
+            let string_global = agent
+                .run_in_realm(realm_root, |agent, gc| {
+                    let string_val = Value::from_string(agent, metadata_json, gc.nogc());
+                    Some(Global::new(agent, string_val.unbind()))
+                })
+                .unwrap();
+
+            agent.run_in_realm(realm_root, |agent, gc| {
+                let promise_value = root_value.take(agent);
+                let string_value = string_global.take(agent);
+                if let Value::Promise(promise) = promise_value {
+                    let promise_capability = PromiseCapability::from_promise(promise, false);
+                    promise_capability.resolve(agent, string_value, gc);
+                } else {
+                    eprintln!("RegisterHttpResponse: expected a Promise, got {promise_value:?}");
+                }
+            });
+        }
         RuntimeMacroTask::RegisterTlsStream(root_value, tls_stream) => {
             // Insert the tls stream into the runtime storage resources and resolve the promise
             let rid = {

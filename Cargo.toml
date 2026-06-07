@@ -62,6 +62,7 @@ oxc_transformer = "0.122.0"
 rand = "0.10.1"
 reedline = "0.46.0"
 regex = "1.12.3"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "http2", "stream"] }
 rustls = "0.23.40"
 rustls-pemfile = "2.2.0"
 rustls-pki-types = "1.14.1"

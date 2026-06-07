@@ -69,6 +69,7 @@ uuid.workspace = true
 wgpu = { workspace = true, optional = true }
 winit = { workspace = true, optional = true }
 raw-window-handle = { workspace = true, optional = true }
+reqwest.workspace = true
 rustls.workspace = true
 tokio-rustls.workspace = true
 webpki-roots.workspace = true

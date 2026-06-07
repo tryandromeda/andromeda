@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 pub(crate) mod decompress;
+pub(crate) mod http_client;
 
 use andromeda_core::{Extension, ExtensionOp, HostData, OpsStorage, Rid};
 use nova_vm::{
@@ -12,6 +13,7 @@ use nova_vm::{
 
 use crate::RuntimeMacroTask;
 use decompress::{Decompressor, DecompressionResources};
+use http_client::HttpClientResources;
 
 #[derive(Default)]
 pub struct FetchExt;
@@ -40,9 +42,28 @@ impl FetchExt {
                     1,
                     false,
                 ),
+                ExtensionOp::new(
+                    "internal_http_request",
+                    http_client::internal_http_request,
+                    4,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_http_response_read",
+                    http_client::internal_http_response_read,
+                    1,
+                    false,
+                ),
+                ExtensionOp::new(
+                    "internal_http_response_close",
+                    http_client::internal_http_response_close,
+                    1,
+                    false,
+                ),
             ],
             storage: Some(Box::new(|storage: &mut OpsStorage| {
                 storage.insert(DecompressionResources::new());
+                storage.insert(HttpClientResources::new());
             })),
             files: vec![
                 include_str!("./body/inner_body.ts"),

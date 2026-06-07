@@ -35,6 +35,9 @@ pub enum RuntimeMacroTask {
     RegisterTlsStream(Global<Value<'static>>, Box<TlsStream<TcpStream>>),
     /// Register a plaintext TCP stream into the runtime resource table and resolve a promise with its rid.
     RegisterTcpStream(Global<Value<'static>>, Box<TcpStream>),
+    /// Complete an HTTP request and register the response body for streaming; resolves a promise
+    /// with JSON metadata {status, statusText, headers, bodyRid}.
+    RegisterHttpResponse(Global<Value<'static>>, Box<reqwest::Response>),
     /// Acquire a lock and resolve the promise with the lock result.
     AcquireLock {
         promise: Global<Value<'static>>,

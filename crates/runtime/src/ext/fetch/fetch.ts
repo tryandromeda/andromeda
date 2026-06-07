@@ -1719,27 +1719,11 @@ const httpNetworkFetch = async (
       }
     };
 
-    // HTTPS uses TLS ops; plaintext HTTP uses TCP ops with the same shape.
-    const isHttps = request.currentURL.protocol === "https:";
-    const isHttp = request.currentURL.protocol === "http:";
-    const sockOps = isHttps
-      ? {
-        connect: __andromeda__.internal_tls_connect,
-        write: __andromeda__.internal_tls_write_bytes,
-        read: __andromeda__.internal_tls_read,
-        close: __andromeda__.internal_tls_close,
-        defaultPort: 443,
-      }
-      : {
-        connect: __andromeda__.internal_tcp_connect,
-        write: __andromeda__.internal_tcp_write_bytes,
-        read: __andromeda__.internal_tcp_read,
-        close: __andromeda__.internal_tcp_close,
-        defaultPort: 80,
-      };
-
-    if (isHttps || isHttp) {
-      let rid: number | null = null;
+    if (
+      request.currentURL.protocol === "https:" ||
+      request.currentURL.protocol === "http:"
+    ) {
+      let bodyRid: string | null = null;
       try {
         if (fetchParams.controller?.aborted) {
           return networkError({ cause: fetchParams.controller.abortReason });
