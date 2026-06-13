@@ -41,13 +41,47 @@ function isTransferable(value: any): value is Transferable {
 }
 
 /**
- * Serialize a value to JSON representation for structured cloning
+ * Check if a value is a SharedArrayBuffer.
+ */
+function isSharedArrayBuffer(value: any): value is SharedArrayBuffer {
+  return value instanceof SharedArrayBuffer;
+}
+
+/**
+ * Check if a value is a typed array or DataView backed by a
+ * SharedArrayBuffer.
+ */
+function isSharedArrayBufferView(value: any): boolean {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    isSharedArrayBuffer(value.buffer) &&
+    typeof value.byteOffset === "number" &&
+    typeof value.byteLength === "number" &&
+    (typeof value.BYTES_PER_ELEMENT === "number" ||
+      typeof value.getInt8 === "function")
+  );
+}
+
+/**
+ * Check if a view value is a DataView. Only called on values already
+ * known to be views
+ */
+function isDataViewLike(value: any): boolean {
+  return (
+    value instanceof DataView || typeof value.BYTES_PER_ELEMENT !== "number"
+  );
+}
+
+/**
+ * Serialize a value to JSON representation for structured cloning.
  */
 function structuredSerialize(
   value: any,
   transferList: Transferable[] = [],
-): string {
+): { json: string; sharedValues: any[] } {
   const memory = new Map();
+  const sharedValues: any[] = [];
   const transferSet = new Set(transferList);
 
   function serializeInternal(val: any): any {
@@ -123,9 +157,15 @@ function structuredSerialize(
       }
     }
 
-    if (ArrayBuffer.isView(val)) {
+    if (isSharedArrayBuffer(val)) {
+      const sharedIndex = sharedValues.length;
+      sharedValues.push(val);
+      return { type: "SharedArrayBuffer", id, sharedIndex };
+    }
+
+    if (ArrayBuffer.isView(val) || isSharedArrayBufferView(val)) {
       const buffer = serializeInternal(val.buffer);
-      if (val instanceof DataView) {
+      if (isDataViewLike(val)) {
         return {
           type: "DataView",
           id,
@@ -198,10 +238,13 @@ function structuredSerialize(
 
   try {
     const serialized = serializeInternal(value);
-    return JSON.stringify({
-      root: serialized,
-      transferList: transferList.length,
-    });
+    return {
+      json: JSON.stringify({
+        root: serialized,
+        transferList: transferList.length,
+      }),
+      sharedValues,
+    };
   } catch (error) {
     if (error instanceof Error && error.name === "DataCloneError") {
       throw error;
@@ -211,11 +254,12 @@ function structuredSerialize(
 }
 
 /**
- * Deserialize a JSON representation back to JavaScript values
+ * Deserialize a JSON representation back to JavaScript values.
  */
 function structuredDeserialize(
   serializedData: string,
   transferredValues: any[] = [],
+  sharedValues: any[] = [],
 ): any {
   const data = JSON.parse(serializedData);
   const memory = new Map();
@@ -284,6 +328,20 @@ function structuredDeserialize(
             }
           }
           break;
+        case "SharedArrayBuffer": {
+          const sharedIndex = serialized.sharedIndex;
+          if (
+            typeof sharedIndex !== "number" ||
+            sharedIndex < 0 ||
+            sharedIndex >= sharedValues.length
+          ) {
+            throw createDataCloneError("Missing shared SharedArrayBuffer");
+          }
+          result = __andromeda__.op_structured_clone_new_sab(
+            sharedValues[sharedIndex],
+          );
+          break;
+        }
         case "DataView": {
           const buffer = deserializeInternal(serialized.buffer);
           result = new DataView(
@@ -370,6 +428,11 @@ function structuredClone<T = any>(
   const transferList = options.transfer || [];
 
   for (const transferable of transferList) {
+    if (isSharedArrayBuffer(transferable)) {
+      throw createDataCloneError(
+        "SharedArrayBuffer objects cannot be transferred",
+      );
+    }
     if (!isTransferable(transferable)) {
       throw createDataCloneError("Value in transfer list is not transferable");
     }
@@ -381,7 +444,7 @@ function structuredClone<T = any>(
   }
   try {
     if (transferList.length > 0) {
-      const serialized = structuredSerialize(value, transferList);
+      const { json, sharedValues } = structuredSerialize(value, transferList);
 
       const transferredValues: any[] = [];
       for (let i = 0; i < transferList.length; i++) {
@@ -399,10 +462,10 @@ function structuredClone<T = any>(
         }
       }
 
-      return structuredDeserialize(serialized, transferredValues) as T;
+      return structuredDeserialize(json, transferredValues, sharedValues) as T;
     } else {
-      const serialized = structuredSerialize(value);
-      return structuredDeserialize(serialized) as T;
+      const { json, sharedValues } = structuredSerialize(value);
+      return structuredDeserialize(json, [], sharedValues) as T;
     }
   } catch (error) {
     if (error instanceof Error && error.name === "DataCloneError") {
@@ -419,8 +482,13 @@ globalThis.structuredClone = structuredClone;
 (globalThis as any).__andromeda_structured_serialize = function(
   value: any,
   transfer: Transferable[] = [],
-): string {
+): { json: string; sharedValues: any[] } {
   for (const t of transfer) {
+    if (isSharedArrayBuffer(t)) {
+      throw createDataCloneError(
+        "SharedArrayBuffer objects cannot be transferred",
+      );
+    }
     if (!isTransferable(t)) {
       throw createDataCloneError("Value in transfer list is not transferable");
     }
@@ -429,15 +497,18 @@ globalThis.structuredClone = structuredClone;
   if (transferSet.size !== transfer.length) {
     throw createDataCloneError("Transfer list contains duplicate values");
   }
+  // NOTE: ArrayBuffer transfer is currently a copy (the validated list is
+  // not forwarded); SharedArrayBuffers are still collected and shared.
   return structuredSerialize(value, []);
 };
 
 (globalThis as any).__andromeda_structured_deserialize = function(
   payload: string,
   transferredValues: any[] = [],
+  sharedValues: any[] = [],
 ): any {
   if (typeof payload !== "string" || payload.length === 0) {
     return undefined;
   }
-  return structuredDeserialize(payload, transferredValues);
+  return structuredDeserialize(payload, transferredValues, sharedValues);
 };

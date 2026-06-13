@@ -144,6 +144,7 @@ pub fn run_repl_with_config(
             Ok(Signal::CtrlD) | Ok(Signal::CtrlC) => {
                 std::process::exit(0);
             }
+            Ok(_) => continue,
             Err(err) => {
                 println!("Error reading input: {err}");
                 continue;

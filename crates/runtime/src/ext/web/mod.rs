@@ -4,7 +4,7 @@
 
 use andromeda_core::{Extension, ExtensionOp};
 use nova_vm::{
-    ecmascript::{Agent, ArgumentsList, ExceptionType, JsResult, Value},
+    ecmascript::{Agent, ArgumentsList, ExceptionType, JsResult, SharedArrayBuffer, Value},
     engine::{Bindable, GcScope, NoGcScope},
 };
 
@@ -58,6 +58,12 @@ impl WebExt {
                     0,
                     false,
                 ),
+                ExtensionOp::new(
+                    "op_structured_clone_new_sab",
+                    Self::op_structured_clone_new_sab,
+                    1,
+                    false,
+                ),
             ],
             storage: None,
             files: vec![
@@ -70,6 +76,31 @@ impl WebExt {
                 include_str!("./navigator.ts"),
                 include_str!("./battery.ts"),
             ],
+        }
+    }
+
+    /// Mint a new SharedArrayBuffer object sharing the data block of the
+    /// SharedArrayBuffer passed as the first argument.
+    pub fn op_structured_clone_new_sab<'gc>(
+        agent: &mut Agent,
+        _this: Value,
+        args: ArgumentsList,
+        gc: GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Value<'gc>> {
+        let gc = gc.into_nogc();
+        match args.get(0) {
+            Value::SharedArrayBuffer(sab) => {
+                let block = sab.get_data_block(agent).clone();
+                let new_sab = SharedArrayBuffer::new_from_data_block(agent, block, gc);
+                Ok(Value::SharedArrayBuffer(new_sab).unbind())
+            }
+            _ => Err(agent
+                .throw_exception(
+                    ExceptionType::TypeError,
+                    "op_structured_clone_new_sab expects a SharedArrayBuffer".to_string(),
+                    gc,
+                )
+                .unbind()),
         }
     }
 

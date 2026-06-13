@@ -230,6 +230,12 @@ class BroadcastChannel {
     queueMicrotask(() => {
       if (!this._closed && rid !== null) {
         try {
+          // NOTE: op_broadcast_send is currently a same-process placeholder.
+          // When it is actually implemented, SharedArrayBuffers in the
+          // message must either be carried as a shared-data-block side
+          // payload (legal within the in-process agent cluster — see
+          // ext/workers for the pattern) or rejected with a DataCloneError.
+          // Passing only the cloned value silently drops SAB sharing.
           __andromeda__.op_broadcast_send(
             rid,
             this.name,

@@ -9,11 +9,16 @@ const selfEventTarget = new EventTarget();
 (globalThis as any).__andromeda_dispatch_self_event = function(
   kind: string,
   arg1?: string,
+  arg2?: unknown,
 ): void {
   if (kind === "message") {
     let data: unknown;
     try {
-      data = (globalThis as any).__andromeda_structured_deserialize(arg1 ?? "");
+      data = (globalThis as any).__andromeda_structured_deserialize(
+        arg1 ?? "",
+        [],
+        (arg2 as unknown[]) ?? [],
+      );
     } catch (_e) {
       selfEventTarget.dispatchEvent((globalThis as any).__andromeda_make_message_event("messageerror", null));
       return;
@@ -21,7 +26,7 @@ const selfEventTarget = new EventTarget();
     selfEventTarget.dispatchEvent((globalThis as any).__andromeda_make_message_event("message", data));
   } else if (kind === "messageerror") {
     selfEventTarget.dispatchEvent(
-      (globalThis as any).__andromeda_make_message_event("messageerror", arg1 ?? ""),
+      (globalThis as any).__andromeda_make_message_event("messageerror", null),
     );
   }
 };
@@ -43,11 +48,9 @@ const selfEventTarget = new EventTarget();
     ) {
       transfer = transferOrOptions.transfer;
     }
-    const serialized = (globalThis as any).__andromeda_structured_serialize(
-      message,
-      transfer,
-    );
-    __andromeda__.op_worker_post_to_parent(serialized);
+    const { json, sharedValues } = (globalThis as any)
+      .__andromeda_structured_serialize(message, transfer);
+    __andromeda__.op_worker_post_to_parent(json, ...sharedValues);
   }
 
   function workerClose(): void {

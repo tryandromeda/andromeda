@@ -16,8 +16,9 @@ use andromeda_core::{
 };
 use nova_vm::{
     ecmascript::{
-        Agent, ArgumentsList, ExceptionType, Function, HostDefined, InternalMethods, JsResult,
-        PropertyKey, String as NovaString, Value, parse_module, parse_script, script_evaluation,
+        Agent, ArgumentsList, Array, ExceptionType, Function, HostDefined, InternalMethods,
+        JsResult, PropertyKey, SharedArrayBuffer, SharedDataBlock, String as NovaString, Value,
+        parse_module, parse_script, script_evaluation,
     },
     engine::{Bindable, GcScope},
 };
@@ -36,15 +37,27 @@ struct WorkerInitData {
 
 use crate::RuntimeMacroTask;
 
-#[derive(Debug)]
 pub(crate) enum WorkerInbound {
-    Message(String),
+    Message(String, Vec<SharedDataBlock>),
     Terminate,
 }
 
-#[derive(Debug)]
+// Manual impl: `SharedDataBlock` is not `Debug`.
+impl std::fmt::Debug for WorkerInbound {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Message(payload, blocks) => f
+                .debug_tuple("Message")
+                .field(payload)
+                .field(&format_args!("{} shared block(s)", blocks.len()))
+                .finish(),
+            Self::Terminate => f.write_str("Terminate"),
+        }
+    }
+}
+
 pub(crate) enum WorkerOutbound {
-    Message(String),
+    Message(String, Vec<SharedDataBlock>),
     MessageError(String),
     UncaughtError {
         message: String,
@@ -52,6 +65,31 @@ pub(crate) enum WorkerOutbound {
         lineno: u32,
         colno: u32,
     },
+}
+
+impl std::fmt::Debug for WorkerOutbound {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Message(payload, blocks) => f
+                .debug_tuple("Message")
+                .field(payload)
+                .field(&format_args!("{} shared block(s)", blocks.len()))
+                .finish(),
+            Self::MessageError(reason) => f.debug_tuple("MessageError").field(reason).finish(),
+            Self::UncaughtError {
+                message,
+                filename,
+                lineno,
+                colno,
+            } => f
+                .debug_struct("UncaughtError")
+                .field("message", message)
+                .field("filename", filename)
+                .field("lineno", lineno)
+                .field("colno", colno)
+                .finish(),
+        }
+    }
 }
 
 pub struct WorkerRecord {
@@ -234,8 +272,12 @@ impl WorkersExt {
         std::thread::spawn(move || {
             while let Ok(msg) = rx_outbound.recv() {
                 let task = match msg {
-                    WorkerOutbound::Message(payload) => {
-                        RuntimeMacroTask::WorkerDeliverMessage { worker_id, payload }
+                    WorkerOutbound::Message(payload, blocks) => {
+                        RuntimeMacroTask::WorkerDeliverMessage {
+                            worker_id,
+                            payload,
+                            blocks,
+                        }
                     }
                     WorkerOutbound::MessageError(reason) => {
                         RuntimeMacroTask::WorkerDeliverMessageError { worker_id, reason }
@@ -292,6 +334,34 @@ impl WorkersExt {
         Ok(Value::from_f64(agent, worker_id as f64, gc).unbind())
     }
 
+    /// Collect the SharedDataBlocks of the SharedArrayBuffer arguments a
+    fn collect_shared_blocks<'gc>(
+        agent: &mut Agent,
+        args: &ArgumentsList,
+        start: usize,
+        gc: &GcScope<'gc, '_>,
+    ) -> JsResult<'gc, Vec<SharedDataBlock>> {
+        let mut blocks = Vec::with_capacity(args.as_slice().len().saturating_sub(start));
+        for value in &args.as_slice()[start.min(args.as_slice().len())..] {
+            match value {
+                Value::SharedArrayBuffer(sab) => {
+                    blocks.push(sab.get_data_block(agent).clone());
+                }
+                _ => {
+                    return Err(agent
+                        .throw_exception(
+                            ExceptionType::TypeError,
+                            "worker postMessage shared values must be SharedArrayBuffers"
+                                .to_string(),
+                            gc.nogc(),
+                        )
+                        .unbind());
+                }
+            }
+        }
+        Ok(blocks)
+    }
+
     pub fn op_worker_post_to_worker<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -304,13 +374,16 @@ impl WorkersExt {
             .as_str(agent)
             .expect("worker payload is not valid UTF-8")
             .to_string();
+        let blocks = Self::collect_shared_blocks(agent, &args, 2, &gc)?;
 
         Self::with_resources(agent, |res| {
             let workers = res.workers.lock().unwrap();
             if let Some(record) = workers.get(&id)
                 && !record.terminate_flag.load(Ordering::Acquire)
             {
-                let _ = record.tx_inbound.send(WorkerInbound::Message(payload));
+                let _ = record
+                    .tx_inbound
+                    .send(WorkerInbound::Message(payload, blocks));
             }
         });
 
@@ -328,10 +401,11 @@ impl WorkersExt {
             .as_str(agent)
             .expect("worker payload is not valid UTF-8")
             .to_string();
+        let blocks = Self::collect_shared_blocks(agent, &args, 1, &gc)?;
 
         Self::with_resources(agent, |res| {
             if let Some(tx) = res.outbound_to_parent.lock().unwrap().as_ref() {
-                let _ = tx.send(WorkerOutbound::Message(payload));
+                let _ = tx.send(WorkerOutbound::Message(payload, blocks));
             }
         });
 
@@ -440,8 +514,8 @@ fn run_worker_thread(
             let mut sent_close = false;
             while let Ok(msg) = rx_inbound.recv() {
                 let (task, is_close) = match msg {
-                    WorkerInbound::Message(payload) => (
-                        RuntimeMacroTask::WorkerSelfDeliverMessage { payload },
+                    WorkerInbound::Message(payload, blocks) => (
+                        RuntimeMacroTask::WorkerSelfDeliverMessage { payload, blocks },
                         false,
                     ),
                     WorkerInbound::Terminate => (RuntimeMacroTask::WorkerSelfClose, true),
@@ -643,6 +717,11 @@ pub fn worker_recommended_extensions() -> Vec<Extension> {
 
 /// Resolve a function stashed on `globalThis` by property name and call
 /// it with the given string arguments. Errors are silently dropped.
+///
+/// `shared_blocks` carries the SharedDataBlocks of any SharedArrayBuffers
+/// in the message; new SharedArrayBuffer objects are minted from them
+/// inside the realm (Values cannot be created outside `run_in_realm`) and
+/// appended as a trailing JS Array argument.
 fn call_global_function(
     agent: &mut nova_vm::ecmascript::GcAgent,
     realm_root: &nova_vm::ecmascript::RealmRoot,
@@ -650,6 +729,7 @@ fn call_global_function(
     prefix_args_f64: &[f64],
     prefix_args_str: &[&str],
     payload_args: Vec<String>,
+    shared_blocks: Vec<SharedDataBlock>,
 ) {
     let _ = call_global_function_capturing_err(
         agent,
@@ -658,6 +738,7 @@ fn call_global_function(
         prefix_args_f64,
         prefix_args_str,
         payload_args,
+        shared_blocks,
     );
 }
 
@@ -668,6 +749,7 @@ fn call_global_function_capturing_err(
     prefix_args_f64: &[f64],
     prefix_args_str: &[&str],
     payload_args: Vec<String>,
+    shared_blocks: Vec<SharedDataBlock>,
 ) -> Option<String> {
     agent.run_in_realm(realm_root, |agent, mut gc| -> Option<String> {
         let global_obj = agent.current_realm(gc.nogc()).global_object(agent).unbind();
@@ -687,6 +769,26 @@ fn call_global_function_capturing_err(
         }
         for s in payload_args.into_iter() {
             js_args.push(Value::from_string(agent, s, gc.nogc()).unbind());
+        }
+        if !shared_blocks.is_empty() {
+            // Mint a new SharedArrayBuffer per block in this agent — same
+            // backing memory, fresh wrapper objects — and pass them as one
+            // trailing Array argument. If the JS call throws, the wrappers
+            // are ordinary garbage-collectable objects; the blocks free
+            // with them. The deserializer rewraps each element again via
+            // op_structured_clone_new_sab (spec requires a fresh object
+            // per deserialization); these intermediates are short-lived
+            // holders, which is intentional.
+            let sab_values: Vec<Value> = shared_blocks
+                .into_iter()
+                .map(|block| {
+                    Value::SharedArrayBuffer(
+                        SharedArrayBuffer::new_from_data_block(agent, block, gc.nogc()).unbind(),
+                    )
+                })
+                .collect();
+            let sab_array = Array::from_slice(agent, sab_values.as_slice(), gc.nogc());
+            js_args.push(Value::from(sab_array).unbind());
         }
 
         let call_result = func
@@ -712,6 +814,7 @@ pub fn dispatch_parent_event(
     worker_id: u32,
     kind: &'static str,
     payload_args: Vec<String>,
+    shared_blocks: Vec<SharedDataBlock>,
 ) {
     call_global_function(
         agent,
@@ -720,6 +823,7 @@ pub fn dispatch_parent_event(
         &[worker_id as f64],
         &[kind],
         payload_args,
+        shared_blocks,
     );
 }
 
@@ -729,6 +833,7 @@ pub fn dispatch_self_event(
     host_data: &HostData<RuntimeMacroTask>,
     kind: &'static str,
     payload_args: Vec<String>,
+    shared_blocks: Vec<SharedDataBlock>,
 ) {
     let err_msg = call_global_function_capturing_err(
         agent,
@@ -737,6 +842,7 @@ pub fn dispatch_self_event(
         &[],
         &[kind],
         payload_args,
+        shared_blocks,
     );
     if let Some(msg) = err_msg {
         // We are inside the worker — forward to the parent as ErrorEvent.
