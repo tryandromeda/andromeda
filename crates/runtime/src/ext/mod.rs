@@ -1,8 +1,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-// mod broadcast_channel;
-mod broadcast_channel;
 #[cfg(feature = "storage")]
 mod cache_storage;
 #[cfg(feature = "canvas")]
@@ -36,7 +34,6 @@ mod webidl;
 #[cfg(feature = "window")]
 pub mod window;
 pub mod workers;
-pub use broadcast_channel::*;
 #[cfg(feature = "storage")]
 pub use cache_storage::*;
 #[cfg(feature = "canvas")]

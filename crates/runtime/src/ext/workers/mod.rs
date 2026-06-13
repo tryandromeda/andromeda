@@ -598,8 +598,8 @@ pub fn worker_recommended_extensions() -> Vec<Extension> {
     #[cfg(feature = "virtualfs")]
     use crate::VirtualFsExt;
     use crate::{
-        BroadcastChannelExt, CommandExt, ConsoleExt, CronExt, FetchExt, FfiExt, FileExt, NetExt,
-        ProcessExt, StreamsExt, TimeExt, TlsExt, URLExt, WebExt, WebIDLExt, WebLocksExt,
+        CommandExt, ConsoleExt, CronExt, FetchExt, FfiExt, FileExt, NetExt, ProcessExt, StreamsExt,
+        TimeExt, TlsExt, URLExt, WebExt, WebIDLExt, WebLocksExt,
     };
 
     vec![
@@ -617,7 +617,6 @@ pub fn worker_recommended_extensions() -> Vec<Extension> {
         WebExt::new_extension(),
         WebLocksExt::new_extension(),
         FileExt::new_extension(),
-        BroadcastChannelExt::new_extension(),
         FetchExt::new_extension(),
         NetExt::new_extension(),
         StreamsExt::new_extension(),
