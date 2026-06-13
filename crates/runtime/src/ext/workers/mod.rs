@@ -370,7 +370,6 @@ impl WorkersExt {
             if let Some(record) = workers.remove(&id) {
                 record.terminate_flag.store(true, Ordering::Release);
                 let _ = record.tx_inbound.send(WorkerInbound::Terminate);
-                drop(record);
             }
         });
 
@@ -568,7 +567,6 @@ fn run_worker_thread(
         });
         terminate_flag.store(true, Ordering::Release);
     }
-    drop(tx_outbound);
 
     if entry_failed {
         clear_leaked_outbound(leaked_host_hooks);
