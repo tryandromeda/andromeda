@@ -7,7 +7,7 @@ authors = ["the Andromeda team"]
 edition = "2024"
 license = "Mozilla Public License 2.0"
 repository = "https://github.com/tryandromeda/andromeda"
-version = "0.1.13"
+version = "0.1.14"
 
 [workspace.dependencies]
 andromeda-core = { path = "crates/core" }
@@ -44,22 +44,22 @@ libsui = "0.14.0"
 log = "0.4.29"
 lru = "0.18.0"
 lsp-types = "0.97.0"
-nova_vm = { git = "https://github.com/trynova/nova", rev = "a82b0408533bc93f857aa2ee5daee4f39f62dc6f" }
+nova_vm = { git = "https://github.com/trynova/nova", rev = "bece61acd71a8a980d83cad2a0c3cd3e56614229" }
 nu-ansi-term = "0.50.3"
 owo-colors = "4.3.0"
-oxc_codegen = "0.122.0"
-oxc_ast = "0.122.0"
-oxc_minifier = "0.122.0"
-oxc_mangler = "0.122.0"
-oxc_allocator = "0.122.0"
-oxc_diagnostics = "0.122.0"
-oxc-miette = { version = "2.7.0", features = ["fancy"] }
-oxc_parser = "0.122.0"
-oxc_semantic = "0.122.0"
-oxc_span = "0.122.0"
-oxc_transformer = "0.122.0"
+oxc_codegen = "0.124.0"
+oxc_ast = "0.124.0"
+oxc_minifier = "0.124.0"
+oxc_mangler = "0.124.0"
+oxc_allocator = "0.124.0"
+oxc_diagnostics = "0.124.0"
+oxc-miette = { version = "2.7.1", features = ["fancy"] }
+oxc_parser = "0.124.0"
+oxc_semantic = "0.124.0"
+oxc_span = "0.124.0"
+oxc_transformer = "0.124.0"
 rand = "0.10.1"
-reedline = "0.46.0"
+reedline = "0.48.0"
 regex = "1.12.3"
 rustls = "0.23.40"
 rustls-pemfile = "2.2.0"
@@ -72,11 +72,11 @@ rusqlite = { version = "0.39.0", features = [
 ] }
 saffron = "0.1.0"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
+serde_json = "1.0.150"
 serde_yaml = "0.9.34-deprecated"
 socket2 = "0.6.3"
 
-swash = "0.2.7"
+swash = "0.2.8"
 trust-dns-resolver = "0.23.2"
 signal-hook = "0.4.4"
 thiserror = "2.0.18"
