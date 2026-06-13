@@ -230,6 +230,19 @@ fn main() {
 #[allow(clippy::result_large_err)]
 #[hotpath::measure]
 fn run_main() -> CliResult<()> {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_time()
+        .enable_io()
+        .build()
+        .map_err(|e| {
+            error::CliError::config_error(
+                "Failed to initialize async runtime".to_string(),
+                None,
+                Some(Box::new(e)),
+            )
+        })?;
+    let _tokio_guard = rt.enter();
+
     // Check if this is currently a single-file executable
     if let Ok(Some(js)) = find_section(ANDROMEDA_JS_CODE_SECTION) {
         // Try to load embedded config, fall back to defaults if not found
@@ -290,19 +303,6 @@ fn run_main() -> CliResult<()> {
     } else {
         Cli::parse()
     };
-
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_time()
-        .enable_io()
-        .build()
-        .map_err(|e| {
-            error::CliError::config_error(
-                "Failed to initialize async runtime".to_string(),
-                None,
-                Some(Box::new(e)),
-            )
-        })?;
-    let _tokio_guard = rt.enter();
 
     let nova_result: CliResult<()> = (move || -> CliResult<()> {
         match args.command {

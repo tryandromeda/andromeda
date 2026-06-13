@@ -45,6 +45,15 @@ fn main() -> CliResult<()> {
         .map(|path| RuntimeFile::Local { path })
         .collect();
 
+    let tokio_runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_time()
+        .enable_io()
+        .build()
+        .map_err(|e| {
+            CliError::runtime_error_simple(format!("Failed to initialize async runtime: {e}"))
+        })?;
+    let _tokio_guard = tokio_runtime.enter();
+
     andromeda::run::run(cli.verbose, cli.no_strict, runtime_files)
         .map_err(|e| CliError::runtime_error_simple(format!("{e}")))?;
 
