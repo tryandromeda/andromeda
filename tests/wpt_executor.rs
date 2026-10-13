@@ -166,6 +166,7 @@ impl WptTestExecutor {
         } else {
             test_content
         };
+        let processed_content = inline_meta_scripts(test_path, &processed_content)?;
 
         let test_script = self.harness_builder.build_test_wrapper(&processed_content);
         let result = self.execute_with_timeout_stdin(&test_script, test_path)?;
@@ -390,6 +391,66 @@ impl Default for WptTestExecutor {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn inline_meta_scripts(
+    test_path: &Path,
+    content: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let mut out = String::new();
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if let Some(meta) = trimmed.strip_prefix("// META:") {
+            let mut inlined = false;
+            for token in meta.split_whitespace() {
+                let Some(script) = token.strip_prefix("script=") else {
+                    continue;
+                };
+                let script_path = resolve_meta_script(test_path, script)?;
+                let script_content = fs::read_to_string(&script_path).map_err(|error| {
+                    format!(
+                        "Failed to read META script {} for {}: {error}",
+                        script,
+                        test_path.display()
+                    )
+                })?;
+                out.push_str(&script_content);
+                out.push('\n');
+                inlined = true;
+            }
+            if inlined {
+                continue;
+            }
+        }
+        out.push_str(line);
+        out.push('\n');
+    }
+    Ok(out)
+}
+
+fn resolve_meta_script(
+    test_path: &Path,
+    script: &str,
+) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    if let Some(absolute) = script.strip_prefix('/') {
+        let root = wpt_root(test_path).ok_or_else(|| {
+            format!(
+                "Could not find WPT root for META script /{absolute} from {}",
+                test_path.display()
+            )
+        })?;
+        return Ok(root.join(absolute));
+    }
+    let base = test_path
+        .parent()
+        .ok_or_else(|| format!("Test path {} has no parent directory", test_path.display()))?;
+    Ok(base.join(script))
+}
+
+fn wpt_root(test_path: &Path) -> Option<&Path> {
+    test_path
+        .ancestors()
+        .find(|dir| dir.join("resources").join("testharness.js").is_file())
 }
 
 fn extract_script_from_html(html_content: &str) -> Result<String, Box<dyn std::error::Error>> {
