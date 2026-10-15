@@ -295,8 +295,10 @@ impl WebExt {
                     }
                 } else {
                     let utf16_pairs: Vec<u16> = bytes
-                        .chunks_exact(2)
-                        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+                        .as_chunks::<2>()
+                        .0
+                        .iter()
+                        .map(|chunk| u16::from_le_bytes(*chunk))
                         .collect();
 
                     if fatal {
@@ -332,8 +334,10 @@ impl WebExt {
                     }
                 } else {
                     let utf16_pairs: Vec<u16> = bytes
-                        .chunks_exact(2)
-                        .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]))
+                        .as_chunks::<2>()
+                        .0
+                        .iter()
+                        .map(|chunk| u16::from_be_bytes(*chunk))
                         .collect();
 
                     if fatal {

@@ -243,8 +243,8 @@ pub struct WindowingState {
 impl WindowingState {
     /// Lazily initialize the shared GPU context.
     pub fn ensure_gpu(&mut self) -> Result<&WindowingGpu, String> {
-        if self.gpu.is_some() {
-            return Ok(self.gpu.as_ref().unwrap());
+        if let Some(gpu) = self.gpu.as_ref() {
+            return Ok(gpu);
         }
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
