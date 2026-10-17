@@ -20,7 +20,6 @@ pub struct AndromedaCompletionData {
 // /// Completion item kinds specific to Andromeda
 // pub struct AndromedaCompletionKind;
 
-
 /// Core completion provider for Andromeda APIs
 pub struct AndromedaCompletionProvider {
     /// Built-in API completions

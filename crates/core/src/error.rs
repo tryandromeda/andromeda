@@ -2255,7 +2255,6 @@ macro_rules! runtime_error {
         $crate::RuntimeError::module_io_error_with_path($msg, $path)
     };
 
-
     // Window errors
     (window: $op:expr, $msg:expr) => {
         $crate::RuntimeError::window_error($op, $msg)

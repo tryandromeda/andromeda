@@ -768,9 +768,7 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn snapshot_as_image(
-        &mut self,
-    ) -> Result<image::RgbaImage, Box<dyn std::error::Error>> {
+    pub fn snapshot_as_image(&mut self) -> Result<image::RgbaImage, Box<dyn std::error::Error>> {
         let pixel_data = self.create_bitmap();
         // wgpu typically produces BGRA on swapchain textures; convert to
         // RGBA and unpremultiply in the same pass.
@@ -817,10 +815,7 @@ impl Renderer {
 
     /// Encode the current framebuffer as a JPEG into an in-memory buffer.
     /// `quality` is in [1..=100]; caller clamps before passing.
-    pub fn encode_as_jpeg(
-        &mut self,
-        quality: u8,
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub fn encode_as_jpeg(&mut self, quality: u8) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         let img = self.snapshot_as_image()?;
         let mut rgb = Vec::with_capacity((img.width() * img.height() * 3) as usize);
         for pixel in img.pixels() {

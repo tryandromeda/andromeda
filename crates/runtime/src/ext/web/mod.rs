@@ -352,9 +352,7 @@ impl WebExt {
                     }
                 }
             }
-            "iso-8859-1" | "latin1" | "windows-1252" => {
-                bytes.iter().map(|&b| b as char).collect()
-            }
+            "iso-8859-1" | "latin1" | "windows-1252" => bytes.iter().map(|&b| b as char).collect(),
             _ => {
                 if fatal {
                     return Err(agent
