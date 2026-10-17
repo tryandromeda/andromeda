@@ -1309,6 +1309,38 @@ declare namespace __andromeda__ {
   export function internal_battery_info(): string;
 
   /**
+   * The `op_structured_clone_new_sab` function mints a new SharedArrayBuffer
+   * object sharing the data block of the given SharedArrayBuffer. Used by
+   * structured deserialization (a serialized SAB deserializes to a NEW
+   * object backed by the SAME shared memory).
+   */
+  export function op_structured_clone_new_sab(
+    sab: SharedArrayBuffer,
+  ): SharedArrayBuffer;
+
+  /**
+   * The `op_worker_post_to_worker` function delivers a structured-clone
+   * JSON payload to a worker. SharedArrayBuffers collected by the
+   * serializer are spread as trailing arguments (in sharedIndex order).
+   */
+  export function op_worker_post_to_worker(
+    workerId: number,
+    payload: string,
+    ...sharedValues: SharedArrayBuffer[]
+  ): void;
+
+  /**
+   * The `op_worker_post_to_parent` function delivers a structured-clone
+   * JSON payload from a worker to its parent. SharedArrayBuffers collected
+   * by the serializer are spread as trailing arguments (in sharedIndex
+   * order).
+   */
+  export function op_worker_post_to_parent(
+    payload: string,
+    ...sharedValues: SharedArrayBuffer[]
+  ): void;
+
+  /**
    * The `internal_add_signal_listener` function adds a signal listener for the specified signal.
    * The signal can be a string like "SIGINT", "SIGTERM", etc.
    */

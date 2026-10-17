@@ -3,7 +3,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::ext::{LockMode, cron::CronId, interval::IntervalId, timeout::TimeoutId};
-use nova_vm::{ecmascript::Value, engine::Global};
+use nova_vm::{
+    ecmascript::{SharedDataBlock, Value},
+    engine::Global,
+};
 use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;
 
@@ -43,7 +46,14 @@ pub enum RuntimeMacroTask {
     AbortLockRequest { name: String, lock_id: u64 },
     /// Deliver a structured-clone serialized message from a worker thread to
     /// the parent's `Worker` instance. JS-side dispatches `message` event.
-    WorkerDeliverMessage { worker_id: u32, payload: String },
+    /// `blocks` carries the SharedDataBlocks of any SharedArrayBuffers in
+    /// the message (in `sharedIndex` order); the receiving agent mints new
+    /// SharedArrayBuffer objects from them at dispatch time.
+    WorkerDeliverMessage {
+        worker_id: u32,
+        payload: String,
+        blocks: Vec<SharedDataBlock>,
+    },
     /// Deliver a `messageerror` event to the parent's `Worker` instance.
     WorkerDeliverMessageError { worker_id: u32, reason: String },
     /// Deliver an `error` (ErrorEvent) to the parent's `Worker` instance.
@@ -55,8 +65,12 @@ pub enum RuntimeMacroTask {
         colno: u32,
     },
     /// Deliver a parent-posted message into the worker realm; dispatches
-    /// `message` event on `self` (DedicatedWorkerGlobalScope).
-    WorkerSelfDeliverMessage { payload: String },
+    /// `message` event on `self` (DedicatedWorkerGlobalScope). See
+    /// [`RuntimeMacroTask::WorkerDeliverMessage`] for `blocks`.
+    WorkerSelfDeliverMessage {
+        payload: String,
+        blocks: Vec<SharedDataBlock>,
+    },
     /// Worker-side close request: drives the runtime's event loop to exit.
     WorkerSelfClose,
     /// Posted by the parent-side forwarder thread when the worker has

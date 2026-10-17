@@ -474,7 +474,6 @@ fn run_main() -> CliResult<()> {
             Command::Config { action } => handle_config_command(action),
         }
     })();
-    drop(_tokio_guard);
     nova_result
 }
 

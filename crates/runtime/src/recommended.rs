@@ -246,13 +246,18 @@ pub fn recommended_eventloop_handler(
             println!("Aborted lock request {} for '{}'", lock_id, name);
             // TODO: Implement actual abort logic that cancels the associated promise
         }
-        RuntimeMacroTask::WorkerDeliverMessage { worker_id, payload } => {
+        RuntimeMacroTask::WorkerDeliverMessage {
+            worker_id,
+            payload,
+            blocks,
+        } => {
             crate::ext::workers::dispatch_parent_event(
                 agent,
                 realm_root,
                 worker_id,
                 "message",
                 vec![payload],
+                blocks,
             );
         }
         RuntimeMacroTask::WorkerDeliverMessageError { worker_id, reason } => {
@@ -262,6 +267,7 @@ pub fn recommended_eventloop_handler(
                 worker_id,
                 "messageerror",
                 vec![reason],
+                vec![],
             );
         }
         RuntimeMacroTask::WorkerDeliverError {
@@ -277,15 +283,17 @@ pub fn recommended_eventloop_handler(
                 worker_id,
                 "error",
                 vec![message, filename, lineno.to_string(), colno.to_string()],
+                vec![],
             );
         }
-        RuntimeMacroTask::WorkerSelfDeliverMessage { payload } => {
+        RuntimeMacroTask::WorkerSelfDeliverMessage { payload, blocks } => {
             crate::ext::workers::dispatch_self_event(
                 agent,
                 realm_root,
                 host_data,
                 "message",
                 vec![payload],
+                blocks,
             );
         }
         RuntimeMacroTask::WorkerForwarderClosed { worker_id } => {
@@ -302,6 +310,7 @@ pub fn recommended_eventloop_handler(
                 realm_root,
                 worker_id,
                 "__cleanup__",
+                vec![],
                 vec![],
             );
         }

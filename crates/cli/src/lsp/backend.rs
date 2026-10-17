@@ -1067,6 +1067,7 @@ impl AndromedaBackend {
     }
 
     /// Format document using dprint
+    #[allow(clippy::result_large_err)]
     async fn format_document(
         &self,
         content: &str,

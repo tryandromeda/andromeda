@@ -617,10 +617,8 @@ impl ConsoleExt {
                             ansi.push_str("\x1b[3m");
                         }
                     }
-                    "text-decoration" => {
-                        if value.contains("underline") {
-                            ansi.push_str("\x1b[4m");
-                        }
+                    "text-decoration" if value.contains("underline") => {
+                        ansi.push_str("\x1b[4m");
                     }
                     _ => {} // Ignore unsupported properties
                 }

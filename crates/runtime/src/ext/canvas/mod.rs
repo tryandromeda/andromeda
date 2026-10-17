@@ -2255,7 +2255,6 @@ impl CanvasExt {
             .filter(|s| s.points.len() >= 3)
             .map(|s| s.points.clone())
             .collect();
-        drop(path);
 
         if let Some(mut renderer) = res.renderers.get_mut(canvas_rid) {
             let data = res.canvases.get(canvas_rid).unwrap();
@@ -2318,7 +2317,6 @@ impl CanvasExt {
                 pts
             })
             .collect();
-        drop(path);
 
         if let Some(mut renderer) = res.renderers.get_mut(canvas_rid) {
             let data = res.canvases.get(canvas_rid).unwrap();
@@ -2389,7 +2387,6 @@ impl CanvasExt {
             .iter()
             .find(|s| s.points.len() >= 3)
             .map(|s| s.points.clone());
-        drop(path);
 
         if let Some(points) = first
             && let Some(mut renderer) = res.renderers.get_mut(canvas_rid)
@@ -2423,7 +2420,6 @@ impl CanvasExt {
             .into_iter()
             .map(|(s, e)| data.current_path[s..e].to_vec())
             .find(|s| s.len() >= 3);
-        drop(data);
         if let Some(points) = first_subpath
             && let Some(mut renderer) = res.renderers.get_mut(rid)
         {
@@ -3798,7 +3794,6 @@ impl CanvasExt {
             drop(storage); // Drop the borrow before creating the string
             return Ok(Value::from_string(agent, json, gc.nogc()).unbind());
         }
-        drop(storage); // Drop the borrow
 
         Ok(Value::Undefined)
     }

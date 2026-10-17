@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+// deno-lint-ignore-file no-explicit-any
+
 type DOMExceptionName =
   | "IndexSizeError"
   | "HierarchyRequestError"
@@ -51,8 +53,6 @@ const DOMExceptionCode: Record<DOMExceptionName, number> = {
   DataCloneError: 25,
 };
 class DOMException extends Error {
-  override readonly name: DOMExceptionName;
-  readonly code: number;
   static readonly INDEX_SIZE_ERR = 1;
   static readonly HIERARCHY_REQUEST_ERR = 3;
   static readonly WRONG_DOCUMENT_ERR = 4;
@@ -82,7 +82,7 @@ class DOMException extends Error {
   ) {
     super(message);
     this.name = name;
-    this.code = DOMExceptionCode[name] || 0;
+    (this as any).code = DOMExceptionCode[name] || 0;
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }

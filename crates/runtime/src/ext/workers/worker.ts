@@ -126,11 +126,9 @@ class Worker {
       transfer = transferOrOptions.transfer;
     }
 
-    const serialized = (globalThis as any).__andromeda_structured_serialize(
-      message,
-      transfer,
-    );
-    __andromeda__.op_worker_post_to_worker(this.#id, serialized);
+    const { json, sharedValues } = (globalThis as any)
+      .__andromeda_structured_serialize(message, transfer);
+    __andromeda__.op_worker_post_to_worker(this.#id, json, ...sharedValues);
   }
 
   terminate(): void {
@@ -218,7 +216,7 @@ class Worker {
   worker_id: number,
   kind: string,
   arg1?: string,
-  arg2?: string,
+  arg2?: unknown,
   arg3?: string,
   arg4?: string,
 ): void {
@@ -232,19 +230,23 @@ class Worker {
   if (kind === "message") {
     let data: unknown;
     try {
-      data = (globalThis as any).__andromeda_structured_deserialize(arg1 ?? "");
+      data = (globalThis as any).__andromeda_structured_deserialize(
+        arg1 ?? "",
+        [],
+        (arg2 as unknown[]) ?? [],
+      );
     } catch (_e) {
       worker.dispatchEvent((globalThis as any).__andromeda_make_message_event("messageerror", null));
       return;
     }
     worker.dispatchEvent((globalThis as any).__andromeda_make_message_event("message", data));
   } else if (kind === "messageerror") {
-    worker.dispatchEvent((globalThis as any).__andromeda_make_message_event("messageerror", arg1 ?? ""));
+    worker.dispatchEvent((globalThis as any).__andromeda_make_message_event("messageerror", null));
   } else if (kind === "error") {
     worker.dispatchEvent(
       (globalThis as any).__andromeda_make_error_event(
         arg1 ?? "",
-        arg2 ?? "",
+        (arg2 as string) ?? "",
         Number(arg3 ?? 0) | 0,
         Number(arg4 ?? 0) | 0,
       ),

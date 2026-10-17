@@ -8,7 +8,7 @@ publish = true
 readme = "../../README.md"
 
 [features]
-default = []
+default = ["typescript"]
 canvas = ["dep:wgpu", "dep:image", "dep:lru", "dep:cosmic-text", "dep:swash"]
 crypto = ["dep:ring", "dep:rand"]
 storage = ["dep:rusqlite"]
