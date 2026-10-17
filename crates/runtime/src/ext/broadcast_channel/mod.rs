@@ -60,7 +60,6 @@ impl BroadcastChannelExt {
         let mut next_rid = NEXT_RID.lock().unwrap();
         let rid = *next_rid;
         *next_rid += 1;
-        drop(next_rid);
 
         Ok(Value::from_f64(agent, rid as f64, gc.nogc()).unbind())
     }
