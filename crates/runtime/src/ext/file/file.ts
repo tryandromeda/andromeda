@@ -4,8 +4,8 @@
 
 /**
  * Implementation of the File API File interface
- * Based on: https://w3c.github.io/FileAPI/#file-section
- * WinterTC Compliance: https://min-common-api.proposal.wintertc.org/
+ * https://w3c.github.io/FileAPI/#file-section
+ * https://min-common-api.proposal.wintertc.org/
  */
 
 interface FilePropertyBag extends BlobPropertyBag {

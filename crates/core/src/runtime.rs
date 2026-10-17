@@ -258,7 +258,7 @@ impl<UserMacroTask> RuntimeHostHooks<UserMacroTask> {
     fn resolve_extensions(&self, path: PathBuf) -> Option<PathBuf> {
         let path_str = path.to_string_lossy();
 
-        // Handle HTTP URLs - they don't need file system extension resolution
+        // HTTP URLs do not need filesystem extension resolution.
         if path_str.starts_with("http://") || path_str.starts_with("https://") {
             return Some(path);
         }
@@ -396,11 +396,9 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
         // Check if this is a JSON module
         let is_json = final_specifier.ends_with(".json");
 
-        // Read the module source - handle both file system and HTTP URLs
         let source_text = if final_specifier.starts_with("http://")
             || final_specifier.starts_with("https://")
         {
-            // HTTP import - fetch from network
             match ureq::get(&final_specifier).call() {
                 Ok(mut response) => match response.body_mut().read_to_string() {
                     Ok(content) => content,
@@ -443,7 +441,6 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
                 }
             }
         } else {
-            // File system import - read from local file
             let file_path = PathBuf::from(&final_specifier);
             match std::fs::read_to_string(&file_path) {
                 Ok(content) => content,
@@ -528,7 +525,6 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
             // Try to get the module specifier from host_defined
             if let Some(specifier_rc) = host_defined.downcast_ref::<std::rc::Rc<String>>() {
                 let specifier = specifier_rc.as_str();
-                // If it's already a full URL, use it as-is; otherwise make it a file:// URL
                 if specifier.starts_with("http://") || specifier.starts_with("https://") {
                     specifier.to_string()
                 } else {
@@ -540,7 +536,6 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
                     )
                 }
             } else if let Some(specifier_string) = host_defined.downcast_ref::<String>() {
-                // If it's already a full URL, use it as-is; otherwise make it a file:// URL
                 if specifier_string.starts_with("http://")
                     || specifier_string.starts_with("https://")
                 {
@@ -582,7 +577,6 @@ impl<UserMacroTask: 'static> HostHooks for RuntimeHostHooks<UserMacroTask> {
         _module_record: SourceTextModule<'gc>,
         _gc: NoGcScope<'gc, '_>,
     ) {
-        // Default implementation - no additional processing needed
     }
 }
 
@@ -902,7 +896,7 @@ impl<UserMacroTask> Runtime<UserMacroTask> {
                     self.handle_macro_task();
                 }
             } else if !has_macro_task && has_pending_timeouts {
-                // No macro tasks pending, but timeout jobs are waiting — sleep until the nearest deadline
+                // Avoid busy-waiting while timers are the only pending work.
                 if let Some(wait_duration) = self.host_hooks.time_until_next_timeout()
                     && !wait_duration.is_zero()
                 {

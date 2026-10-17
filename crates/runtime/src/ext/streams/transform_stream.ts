@@ -9,8 +9,8 @@ interface QueuingStrategy<T = unknown> {
 
 /**
  * Implementation of the Streams API TransformStream interface
- * Based on: https://streams.spec.whatwg.org/#transformstream
- * WinterTC Compliance: https://min-common-api.proposal.wintertc.org/
+ * https://streams.spec.whatwg.org/#transformstream
+ * https://min-common-api.proposal.wintertc.org/
  */
 
 interface Transformer<I = unknown, O = unknown> {

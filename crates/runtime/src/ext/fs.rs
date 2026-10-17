@@ -28,9 +28,7 @@ struct FsExtResources {
 #[derive(Default)]
 pub struct FsExt;
 
-/// Helper function to resolve paths relative to current working directory
-/// This ensures behavior consistent with Deno - all paths are resolved from
-/// where the user invokes the command, not from the binary location
+/// Resolve paths from the caller's working directory for Deno compatibility.
 fn resolve_path(path: &str) -> std::io::Result<std::path::PathBuf> {
     let path_buf = std::path::Path::new(path);
 
@@ -467,7 +465,7 @@ impl FsExt {
             }
         };
 
-        // TODO: when nova supports it, accept an actual Uint8Array and write those bytes directly
+        // TODO when nova supports it, accept an actual Uint8Array and write those bytes directly
         let content: Vec<u8> = content_str.chars().map(|c| c as u8).collect();
 
         match std::fs::write(&resolved_path, &content) {
@@ -1361,9 +1359,7 @@ impl FsExt {
         let macro_task_tx = host_data.macro_task_tx();
 
         host_data.spawn_macro_task(async move {
-            // Mirror the sync path: the TS wrapper passes a binary string
-            // where each code unit carries one byte. Map every code point
-            // back to its low 8 bits before writing.
+            // The TS wrapper uses a binary string, so UTF-8 encoding would corrupt non-ASCII bytes.
             let content: Vec<u8> = content_string.chars().map(|c| c as u8).collect();
             let result = tokio::fs::write(&path_string, &content).await;
             match result {

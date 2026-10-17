@@ -1097,7 +1097,6 @@ fn tessellate_quadratic_bezier(
         let t = i as f64 / segments as f64;
         let t_inv = 1.0 - t;
 
-        // Quadratic Bezier formula: B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
         let x = t_inv * t_inv * start.x + 2.0 * t_inv * t * control.x + t * t * end.x;
         let y = t_inv * t_inv * start.y + 2.0 * t_inv * t * control.y + t * t * end.y;
 
@@ -1121,7 +1120,6 @@ fn tessellate_cubic_bezier(
         let t = i as f64 / segments as f64;
         let t_inv = 1.0 - t;
 
-        // Cubic Bezier formula: B(t) = (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
         let t_inv_sq = t_inv * t_inv;
         let t_sq = t * t;
 
@@ -1699,7 +1697,7 @@ fn svg_arc_to_center_params(
     let cos_phi = x_axis_rotation.cos();
     let sin_phi = x_axis_rotation.sin();
 
-    // Step 1: Compute (x1', y1')
+    // Step 1. Compute (x1', y1')
     let dx = (start.x - end.x) / 2.0;
     let dy = (start.y - end.y) / 2.0;
 
@@ -1713,7 +1711,7 @@ fn svg_arc_to_center_params(
         ry *= lambda.sqrt();
     }
 
-    // Step 2: Compute (cx', cy')
+    // Step 2. Compute (cx', cy')
     let sign = if large_arc_flag == sweep_flag {
         -1.0
     } else {
@@ -1728,11 +1726,11 @@ fn svg_arc_to_center_params(
     let cx_prime = coeff * rx * y1_prime / ry;
     let cy_prime = -coeff * ry * x1_prime / rx;
 
-    // Step 3: Compute (cx, cy)
+    // Step 3. Compute (cx, cy)
     let cx = cos_phi * cx_prime - sin_phi * cy_prime + (start.x + end.x) / 2.0;
     let cy = sin_phi * cx_prime + cos_phi * cy_prime + (start.y + end.y) / 2.0;
 
-    // Step 4: Compute angles
+    // Step 4. Compute angles
     let ux = (x1_prime - cx_prime) / rx;
     let uy = (y1_prime - cy_prime) / ry;
     let vx = (-x1_prime - cx_prime) / rx;
@@ -1776,7 +1774,6 @@ fn normalize_rect_params(
         actual_x = x + width;
         actual_width = -width;
 
-        // Flip radii horizontally: [TL, TR, BR, BL] -> [TR, TL, BL, BR]
         if radii.len() >= 4 {
             flipped_radii = vec![radii[1], radii[0], radii[3], radii[2]];
         } else if radii.len() == 2 {
@@ -1790,7 +1787,6 @@ fn normalize_rect_params(
         actual_y = y + height;
         actual_height = -height;
 
-        // Flip radii vertically: [TL, TR, BR, BL] -> [BL, BR, TR, TL]
         if flipped_radii.len() >= 4 {
             flipped_radii = vec![
                 flipped_radii[3],

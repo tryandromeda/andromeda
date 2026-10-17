@@ -421,7 +421,7 @@ impl CommandExt {
         Ok(Value::Promise(promise_capability.promise()).unbind())
     }
 
-    /// Spawns a child process. Returns JSON: {"rid":number,"pid":number|null}
+    /// Spawns a child process for the command API.
     /// args[0] = program, args[1] = options JSON
     fn internal_command_spawn<'gc>(
         agent: &mut Agent,

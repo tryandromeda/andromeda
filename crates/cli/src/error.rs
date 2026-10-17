@@ -617,54 +617,6 @@ impl From<RuntimeError> for CliError {
                 source_code: None,
                 error_span: None,
             },
-            RuntimeError::LlmNotInitialized => CliError::RuntimeError {
-                message: "LLM provider not initialized".to_string(),
-                file_path: None,
-                line: None,
-                column: None,
-                source_code: None,
-                error_span: None,
-            },
-            RuntimeError::LlmProviderError { message, .. } => CliError::RuntimeError {
-                message: format!("LLM provider error: {}", message),
-                file_path: None,
-                line: None,
-                column: None,
-                source_code: None,
-                error_span: None,
-            },
-            RuntimeError::LlmTimeout { timeout_ms, .. } => CliError::RuntimeError {
-                message: format!("LLM request timed out after {}ms", timeout_ms),
-                file_path: None,
-                line: None,
-                column: None,
-                source_code: None,
-                error_span: None,
-            },
-            RuntimeError::LlmDisabled => CliError::RuntimeError {
-                message: "LLM suggestions are disabled".to_string(),
-                file_path: None,
-                line: None,
-                column: None,
-                source_code: None,
-                error_span: None,
-            },
-            RuntimeError::LlmAuthenticationError { message, .. } => CliError::RuntimeError {
-                message: format!("LLM authentication error: {}", message),
-                file_path: None,
-                line: None,
-                column: None,
-                source_code: None,
-                error_span: None,
-            },
-            RuntimeError::LlmNetworkError { message, .. } => CliError::RuntimeError {
-                message: format!("LLM network error: {}", message),
-                file_path: None,
-                line: None,
-                column: None,
-                source_code: None,
-                error_span: None,
-            },
             RuntimeError::WindowError {
                 operation, message, ..
             } => CliError::RuntimeError {
@@ -935,7 +887,7 @@ impl<T> IntoCliResult<T> for andromeda_core::RuntimeResult<T> {
 /// Initialize error reporting with miette.
 ///
 /// This delegates to the shared error reporting module in `andromeda_core`.
-/// It's safe to call this multiple times - only the first call has effect.
+/// Shared initialization lets independent CLI entry points use the same reporter.
 pub fn init_error_reporting() {
     andromeda_core::init_error_reporting_default();
 }

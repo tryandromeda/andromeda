@@ -20,14 +20,14 @@ interface DOMMatrix2DInit {
 }
 
 /**
- * DOMMatrix (2D subset) — the affine 2D transform class used by Canvas
+ * Affine transforms for the Canvas 2D API.
  * and exposed on `globalThis` per the DOMMatrix spec. Only the 2D fields
  * (a, b, c, d, e, f) are modeled; 3D matrix math is not implemented
  * because canvas 2D never uses it.
  *
  * Mutable. See `DOMMatrixReadOnly` for the immutable variant.
  *
- * Reference: https://drafts.fxtf.org/geometry/#dommatrix
+ * https://drafts.fxtf.org/geometry/#dommatrix
  */
 class DOMMatrixReadOnly {
   a: number = 1;
@@ -132,8 +132,6 @@ class DOMMatrixReadOnly {
   }
 
   toFloat32Array(): Float32Array {
-    // Canvas 2D uses only the 2D subset — expose the 6 meaningful entries
-    // padded into a Float32Array of length 6.
     return new Float32Array([this.a, this.b, this.c, this.d, this.e, this.f]);
   }
 
@@ -217,8 +215,6 @@ function parseMatrixInit(
     );
   }
   if (typeof init === "string") {
-    // Minimal parser for `matrix(a,b,c,d,e,f)` — other CSS transform forms
-    // fall back to identity.
     const m = init.match(
       /matrix\(\s*([-+.eE0-9]+)\s*,\s*([-+.eE0-9]+)\s*,\s*([-+.eE0-9]+)\s*,\s*([-+.eE0-9]+)\s*,\s*([-+.eE0-9]+)\s*,\s*([-+.eE0-9]+)\s*\)/,
     );
@@ -234,8 +230,6 @@ function parseMatrixInit(
     }
     return identity;
   }
-  // DOMMatrix2DInit or existing DOMMatrix instance — read a..f with fallbacks
-  // through the m11..m42 aliases.
   const obj = init as DOMMatrix2DInit;
   return {
     a: obj.a ?? obj.m11 ?? 1,
@@ -307,8 +301,6 @@ function normalizeRoundRectRadii(
     );
   }
   const c = radii.map(coerce);
-  // Spec distribution rules: 1 → all four; 2 → (tl/br, tr/bl);
-  // 3 → (tl, tr/bl, br); 4 → (tl, tr, br, bl).
   switch (c.length) {
     case 1:
       return [c[0], c[0], c[0], c[0]];
@@ -539,9 +531,7 @@ class OffscreenCanvas {
   }
 
   /**
-   * Internal resource id — exposed so extensions like `Andromeda.Window`
-   * can bridge this canvas's rendered texture to another surface. Not
-   * part of the web OffscreenCanvas spec; treat as implementation detail.
+   * Exposed internally so window extensions can present the canvas texture.
    */
   get rid(): number {
     return this.#rid;
@@ -591,9 +581,6 @@ class OffscreenCanvas {
 
   /**
    * Encode the canvas as a `Uint8Array` of image bytes.
-   *
-   * Supported types: `"image/png"` (default) and `"image/jpeg"`.
-   * `quality` is in [0, 1] and only applies to JPEG (default 0.92).
    */
   toBuffer(type: string = "image/png", quality: number = 0.92): Uint8Array {
     this.render();
@@ -615,10 +602,7 @@ class OffscreenCanvas {
   }
 
   /**
-   * Encode the canvas as a `data:<mime>;base64,<payload>` URL string.
-   *
-   * Per the HTML spec, unsupported MIME types silently fall back to PNG.
-   * `quality` in [0, 1] applies only to JPEG; default 0.92.
+   * Image encoding for embedding canvas output in a data URL.
    */
   toDataURL(type: string = "image/png", quality: number = 0.92): string {
     this.render();
@@ -631,7 +615,7 @@ class OffscreenCanvas {
 
   /**
    * Encode the canvas as a Blob of image bytes.
-   * Spec: returns a Promise even though encoding is synchronous here.
+   * The Promise interface keeps this compatible with the web API.
    */
   convertToBlob(options?: { type?: string; quality?: number }): Promise<Blob> {
     const type = options?.type ?? "image/png";
@@ -684,12 +668,7 @@ class CanvasRenderingContext2D {
   #imageSmoothingEnabled: boolean = true;
   #imageSmoothingQuality: ImageSmoothingQuality = "low";
   #filter: string = "none";
-  // Per-context bookkeeping so `fillStyle = grad; fillStyle === grad` is
-  // true for both `CanvasGradient` and `CanvasPattern`. The Rust side
-  // stores gradients and patterns as opaque numeric rids — without this
-  // cache, the TS getter has no way to distinguish a gradient rid from a
-  // pattern rid (the source of the collision bug at the old `mod.ts:300`
-  // TODO). Keyed by `rid`, value is the JS instance that was set.
+  // Keep JS instances because native resource IDs cannot preserve object identity or distinguish style types.
   #fillStyleInstances: Map<number, CanvasGradient | CanvasPattern> = new Map();
   #strokeStyleInstances: Map<number, CanvasGradient | CanvasPattern> =
     new Map();
@@ -711,12 +690,6 @@ class CanvasRenderingContext2D {
 
   /**
    * Gets or sets the type of compositing operation to apply when drawing new shapes.
-   * Valid values include: 'source-over', 'source-in', 'source-out', 'source-atop',
-   * 'destination-over', 'destination-in', 'destination-out', 'destination-atop',
-   * 'lighter', 'copy', 'xor', 'multiply', 'screen', 'overlay', 'darken', 'lighten',
-   * 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion',
-   * 'hue', 'saturation', 'color', 'luminosity'.
-   * Default is 'source-over'.
    */
   get globalCompositeOperation(): string {
     return __andromeda__.internal_canvas_get_global_composite_operation(
@@ -739,10 +712,6 @@ class CanvasRenderingContext2D {
   get fillStyle(): string | CanvasGradient | CanvasPattern {
     const fillStyle = __andromeda__.internal_canvas_get_fill_style(this.#rid);
     if (typeof fillStyle === "number") {
-      // Resolve to the JS instance that was set via the setter. Falls
-      // back to a fresh CanvasGradient only if the rid has no recorded
-      // owner — preserves referential equality per the HTML spec and
-      // avoids the old gradient-vs-pattern collision.
       const cached = this.#fillStyleInstances.get(fillStyle);
       if (cached !== undefined) return cached;
       return new CanvasGradient(fillStyle);
@@ -783,7 +752,7 @@ class CanvasRenderingContext2D {
     }
     const rid = value[_fillId];
     this.#strokeStyleInstances.set(rid, value);
-    // @ts-ignore - internal_canvas_set_stroke_style accepts numbers for gradients/patterns
+    // @ts-ignore internal_canvas_set_stroke_style accepts numbers for gradients/patterns
     __andromeda__.internal_canvas_set_stroke_style(this.#rid, rid);
   }
   /**
@@ -843,11 +812,7 @@ class CanvasRenderingContext2D {
   }
 
   /**
-   * Sets the line dash pattern per the HTML Canvas spec: a single sequence
-   * of non-negative, finite numbers. If an odd number of segments is given,
-   * the sequence is duplicated per spec.
-   *
-   * `lineDashOffset` is preserved across calls.
+   * Configures the dash pattern for subsequent strokes.
    */
   setLineDash(segments: number[]): void {
     if (!Array.isArray(segments)) return;
@@ -1119,9 +1084,6 @@ class CanvasRenderingContext2D {
    * Creates a pattern using the specified image and repetition.
    * @param image An ImageBitmap to use as the pattern's image.
    * @param repetition A string indicating how to repeat the pattern's image.
-   *   Possible values: "repeat" (both directions), "repeat-x" (horizontal only),
-   *   "repeat-y" (vertical only), "no-repeat" (neither direction).
-   *   If null or empty string, defaults to "repeat".
    * @returns A CanvasPattern object, or null if the image is not valid.
    */
   createPattern(
@@ -1657,7 +1619,7 @@ class CanvasRenderingContext2D {
 
   /**
    * Draws an image onto the canvas.
-   * Supports three overload patterns:
+   * Supports three overload patterns
    * - drawImage(image, dx, dy)
    * - drawImage(image, dx, dy, dWidth, dHeight)
    * - drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
@@ -1788,7 +1750,6 @@ class CanvasRenderingContext2D {
       imageData as unknown as { __syncAndGetRid(): number }
     ).__syncAndGetRid();
     if (dirtyX !== undefined) {
-      // Normalize: negative widths flip and reanchor per spec.
       let dx0 = dirtyX;
       let dy0 = dirtyY ?? 0;
       let dw = dirtyWidth ?? imageData.width;
@@ -2033,7 +1994,7 @@ class ImageData {
   }
 }
 
-// TODO: implement into nova's JS API a more efficient way to transfer large binary data buffers into Rust, to avoid this O(n) stringification step on every sync.
+// TODO implement into nova's JS API a more efficient way to transfer large binary data buffers into Rust, to avoid this O(n) stringification step on every sync.
 function syncImageDataToRust(rid: number, data: Uint8ClampedArray): void {
   const parts = new Array<string>(data.length);
   for (let i = 0; i < data.length; i++) parts[i] = data[i].toString();

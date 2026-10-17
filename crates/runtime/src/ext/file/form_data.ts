@@ -16,8 +16,7 @@ class FormData {
   #entries: Map<string, FormDataEntryValue[]>;
 
   constructor(form?: HTMLFormElement) {
-    // For WinterTC compliance, we ignore the form parameter as there's no DOM
-    // Per the spec: Node.js and Deno throw if the first parameter is not undefined
+    // There is no DOM from which to construct form entries.
     if (form !== undefined) {
       throw new TypeError(
         "FormData constructor: form parameter is not supported in non-DOM environments",

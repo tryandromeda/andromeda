@@ -50,7 +50,6 @@ interface SRIResponse {
 /**
  * Parse integrity metadata from an integrity attribute string
  *
- * Format: "sha256-hash1 sha384-hash2 sha512-hash3"
  * Multiple hashes can be specified, separated by whitespace
  */
 function parseIntegrityMetadata(integrity: string): SRIMetadata[] {
@@ -107,9 +106,8 @@ function parseIntegrityMetadata(integrity: string): SRIMetadata[] {
 /**
  * Get the strongest metadata from a set
  *
- * Priority: sha512 > sha384 > sha256
  *
- * @param metadataList - Array of metadata objects
+ * @param metadataList Array of metadata objects
  * @returns Array of metadata using the strongest algorithm
  */
 function getStrongestMetadata(metadataList: SRIMetadata[]): SRIMetadata[] {
@@ -137,14 +135,14 @@ function getStrongestMetadata(metadataList: SRIMetadata[]): SRIMetadata[] {
 /**
  * Check if a resource is eligible for integrity validation
  *
- * Per spec, resources are only eligible if they are:
+ * Per spec, resources are only eligible if they are
  * - Same-origin, OR
  * - Explicitly granted access via CORS (response type is "cors")
  *
  * This prevents attackers from brute-forcing hashes to read cross-origin data.
  *
- * @param request - The request
- * @param response - The response
+ * @param request The request
+ * @param response The response
  * @returns true if eligible, false otherwise
  */
 function isResourceEligibleForIntegrityValidation(
@@ -181,8 +179,8 @@ function isResourceEligibleForIntegrityValidation(
 /**
  * Compute cryptographic hash of data
  *
- * @param algorithm - Hash algorithm (sha256, sha384, sha512)
- * @param data - Data to hash
+ * @param algorithm Hash algorithm (sha256, sha384, sha512)
+ * @param data Data to hash
  * @returns Base64-encoded hash, or null if algorithm not supported
  */
 async function computeHash(
@@ -238,9 +236,9 @@ async function computeHash(
  *
  * This is the main SRI validation algorithm.
  *
- * @param request - The request with integrity metadata
- * @param response - The response to validate
- * @returns Promise<boolean> - true if valid, false if invalid
+ * @param request The request with integrity metadata
+ * @param response The response to validate
+ * @returns Promise<boolean> true if valid, false if invalid
  */
 export async function doesResponseMatchIntegrityMetadata(
   request: SRIRequest,
@@ -261,8 +259,7 @@ export async function doesResponseMatchIntegrityMetadata(
 
   // Check if resource is eligible for integrity validation
   if (!isResourceEligibleForIntegrityValidation(request, response)) {
-    // Per spec: "This algorithm returns false if the response is not eligible
-    // for integrity validation since Subresource Integrity requires CORS"
+    // Subresource integrity requires CORS eligibility.
     console.warn(
       "SRI: Resource not eligible for integrity validation (CORS required for cross-origin resources)",
     );
@@ -271,7 +268,6 @@ export async function doesResponseMatchIntegrityMetadata(
 
   // Get response body
   if (!response.body || response.body.length === 0) {
-    // Empty body - check if any hash matches empty data
     const emptyData = new Uint8Array(0);
     const strongest = getStrongestMetadata(metadataList);
 
@@ -305,7 +301,6 @@ export async function doesResponseMatchIntegrityMetadata(
     }
   }
 
-  // No matching hash found - integrity validation failed
   console.error(
     "SRI: Integrity validation failed. Expected hash does not match computed hash.",
   );

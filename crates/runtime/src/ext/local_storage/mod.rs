@@ -105,7 +105,7 @@ where
         let local_storage = storage.get::<LocalStorage>().unwrap();
         operation(&local_storage.0)
     } else {
-        // sessionStorage - in-memory SQLite database
+        // Session storage must not persist across processes.
         if host_data.storage.borrow().get::<SessionStorage>().is_none() {
             let conn = Connection::open_in_memory()?;
             conn.execute(

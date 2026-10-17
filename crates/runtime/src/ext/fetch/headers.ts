@@ -94,7 +94,7 @@ class Headers {
     }
   }
 
-  // TODO: move to webidl
+  // TODO move to webidl
   forEach(callback) {
     const pairs = this.#headerList;
     for (let i = 0; i < pairs.length; i++) {
@@ -104,7 +104,7 @@ class Headers {
   }
 
   // Order follows forEach (header list order).
-  // TODO: sort-and-combine
+  // TODO sort-and-combine
   *entries(): IterableIterator<[string, string]> {
     const pairs = this.#headerList;
     for (let i = 0; i < pairs.length; i++) {
@@ -181,8 +181,8 @@ function fillHeaders(headers: Headers, object: any) {
 }
 
 function byteLowerCase(s: string): string {
-  // NOTE: correct since all callers convert to ByteString first
-  // TODO: Header implementation should be imported from standard library when available
+  // correct since all callers convert to ByteString first
+  // TODO Header implementation should be imported from standard library when available
   return s.toLowerCase();
 }
 
@@ -191,13 +191,6 @@ function appendHeader(headers: Headers, name: string, value: string) {
   // 1.
   value = normalizeHeaderValue(value);
 
-  // 2. TODO
-  // if (!checkHeaderNameForHttpTokenCodePoint(name)) {
-  //   throw new TypeError(`Invalid header name: "${name}"`);
-  // }
-  // if (!checkForInvalidValueChars(value)) {
-  //   throw new TypeError(`Invalid header value: "${value}"`);
-  // }
 
   // 3
   if (headers.guard == "immutable") {
@@ -220,7 +213,7 @@ function normalizeHeaderValue(potentialValue: string): string {
   return httpTrim(potentialValue);
 }
 
-// TODO: move to web
+// TODO move to web
 function isHttpWhitespace(char: string): boolean {
   switch (char) {
     case "\u0009":
@@ -236,13 +229,13 @@ function isHttpWhitespace(char: string): boolean {
 // const HTTP_BETWEEN_WHITESPACE = new SafeRegExp(
 //   `^[${HTTP_WHITESPACE_MATCHER}]*(.*?)[${HTTP_WHITESPACE_MATCHER}]*$`,
 // );
-// TODO: move to web
+// TODO move to web
 function httpTrim(s: string): string {
   if (!isHttpWhitespace(s[0]) && !isHttpWhitespace(s[s.length - 1])) {
     return s;
   }
   // return String.prototype.match(s, HTTP_BETWEEN_WHITESPACE)?.[1] ?? "";
-  // TODO: implement to nova RegExp
+  // TODO implement to nova RegExp
   return s;
 }
 

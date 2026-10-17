@@ -12,7 +12,6 @@ use std::{
 
 use crate::{Rid, RuntimeError, RuntimeResult};
 
-// Allow retrieving resources; requires T: Clone
 impl<T: Clone> SyncResourceTable<T> {
     /// Get a clone of the resource by Rid.
     pub fn get(&self, rid: Rid) -> Option<T> {

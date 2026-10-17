@@ -65,8 +65,7 @@ pub struct WindowData {
     pub surface_config: Option<wgpu::SurfaceConfiguration>,
 }
 
-/// Shared GPU context — one instance/adapter/device/queue for all windows.
-/// Lazily initialized on first `present()`.
+/// Shared GPU resources keep canvas and window textures compatible.
 pub struct WindowingGpu {
     pub instance: wgpu::Instance,
     pub adapter: wgpu::Adapter,
@@ -77,9 +76,7 @@ pub struct WindowingGpu {
     pub blit: Option<BlitResources>,
 }
 
-/// Shader module, bind-group layout, sampler, and cached render pipelines
-/// for the canvas → window surface blit. One entry per destination format
-/// (typically just one in practice — the window's swapchain format).
+/// Reusable resources for presenting canvas textures on window surfaces.
 pub struct BlitResources {
     pub shader: wgpu::ShaderModule,
     pub sampler: wgpu::Sampler,
@@ -369,8 +366,7 @@ impl ApplicationHandler<()> for WindowingApp {
                     .get(&rid)
                     .map(|w| w.window.scale_factor())
                     .unwrap_or(1.0);
-                // Report logical (CSS) pixels so JS-side canvas coordinates
-                // line up 1:1 with the values users pass to createWindow.
+                // Logical pixels keep window dimensions consistent with JS canvas coordinates.
                 let logical_w = (size.width as f64 / scale).round() as u32;
                 let logical_h = (size.height as f64 / scale).round() as u32;
                 self.pending_events.push_back(SerializedWindowEvent::resize(

@@ -484,7 +484,7 @@ await Andromeda.Window.mainloop(() => {
   if (frameCount % 300 === 0) {
     const elapsed = (Date.now() - fpsStart) / 1000;
     console.log(
-      `snake: frame ${frameCount} — avg fps ${(frameCount / elapsed).toFixed(1)}`,
+      `snake: frame ${frameCount} - avg fps ${(frameCount / elapsed).toFixed(1)}`,
     );
   }
 });

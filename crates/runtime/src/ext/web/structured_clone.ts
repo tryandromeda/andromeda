@@ -497,7 +497,7 @@ globalThis.structuredClone = structuredClone;
   if (transferSet.size !== transfer.length) {
     throw createDataCloneError("Transfer list contains duplicate values");
   }
-  // NOTE: ArrayBuffer transfer is currently a copy (the validated list is
+  // ArrayBuffer transfer is currently a copy (the validated list is
   // not forwarded); SharedArrayBuffers are still collected and shared.
   return structuredSerialize(value, []);
 };

@@ -303,7 +303,6 @@ impl ModuleLoader for FileSystemModuleLoader {
             // Absolute path
             PathBuf::from(specifier)
         } else {
-            // Bare specifier - resolve relative to base_path
             self.base_path.join(specifier)
         };
 
@@ -753,7 +752,7 @@ impl DependencyGraph {
         self.version += 1;
     }
 
-    /// Check for circular dependencies using Tarjan's algorithm - more efficient
+    /// Detect circular dependencies with Tarjan's algorithm.
     pub fn check_circular(&mut self, _module: &str) -> ModuleResult<()> {
         let sccs = self.strongly_connected_components();
 
@@ -889,7 +888,7 @@ impl DependencyGraph {
         }
     }
 
-    /// Use Tarjan's algorithm for better cycle detection - O(V + E) complexity
+    /// Find strongly connected components in the module graph.
     pub fn strongly_connected_components(&mut self) -> Vec<Vec<String>> {
         // Return cached result if available
         if let Some(ref cached_sccs) = self.scc_cache {
@@ -1419,15 +1418,12 @@ impl ModuleVisitor {
             for spec in specifiers {
                 match spec {
                     ast::ImportDeclarationSpecifier::ImportSpecifier(spec) => {
-                        // Named import: import { name } from 'module'
                         named_imports.push(spec.local.name.as_str().to_owned());
                     }
                     ast::ImportDeclarationSpecifier::ImportDefaultSpecifier(spec) => {
-                        // Default import: import name from 'module'
                         import.default_import = Some(spec.local.name.as_str().to_owned());
                     }
                     ast::ImportDeclarationSpecifier::ImportNamespaceSpecifier(spec) => {
-                        // Namespace import: import * as name from 'module'
                         import.namespace_import = Some(spec.local.name.as_str().to_owned());
                     }
                 }
@@ -1464,7 +1460,6 @@ impl ModuleVisitor {
 
     fn handle_export_named_declaration(&mut self, decl: &ast::ExportNamedDeclaration) {
         if let Some(source) = &decl.source {
-            // Re-export from another module: export { name } from 'module'
             if !decl.specifiers.is_empty() {
                 // Pre-allocate exports capacity
                 self.exports.reserve(decl.specifiers.len());
@@ -1482,7 +1477,6 @@ impl ModuleVisitor {
                 }
             }
         } else {
-            // Direct export: export { name } or export const name = ...
             if !decl.specifiers.is_empty() {
                 // Pre-allocate exports capacity
                 self.exports.reserve(decl.specifiers.len());
@@ -1519,13 +1513,11 @@ impl ModuleVisitor {
     fn extract_declaration_names(&mut self, declaration: &ast::Declaration) {
         match declaration {
             ast::Declaration::VariableDeclaration(var_decl) => {
-                // Handle: export const x = 1, y = 2;
                 for declarator in &var_decl.declarations {
                     self.extract_binding_names(&declarator.id);
                 }
             }
             ast::Declaration::FunctionDeclaration(func) => {
-                // Handle: export function foo() {}
                 if let Some(id) = &func.id {
                     self.exports.push(ModuleExport {
                         name: Some(id.name.as_str().to_owned()),
@@ -1536,7 +1528,6 @@ impl ModuleVisitor {
                 }
             }
             ast::Declaration::ClassDeclaration(class) => {
-                // Handle: export class Foo {}
                 if let Some(id) = &class.id {
                     self.exports.push(ModuleExport {
                         name: Some(id.name.as_str().to_owned()),
@@ -1547,7 +1538,6 @@ impl ModuleVisitor {
                 }
             }
             ast::Declaration::TSTypeAliasDeclaration(type_alias) => {
-                // Handle: export type Foo = string;
                 self.exports.push(ModuleExport {
                     name: Some(type_alias.id.name.as_str().to_owned()),
                     is_reexport: false,
@@ -1556,7 +1546,6 @@ impl ModuleVisitor {
                 });
             }
             ast::Declaration::TSInterfaceDeclaration(interface) => {
-                // Handle: export interface Foo {}
                 self.exports.push(ModuleExport {
                     name: Some(interface.id.name.as_str().to_owned()),
                     is_reexport: false,
@@ -1565,7 +1554,6 @@ impl ModuleVisitor {
                 });
             }
             ast::Declaration::TSEnumDeclaration(enum_decl) => {
-                // Handle: export enum Foo {}
                 self.exports.push(ModuleExport {
                     name: Some(enum_decl.id.name.as_str().to_owned()),
                     is_reexport: false,
@@ -1574,7 +1562,6 @@ impl ModuleVisitor {
                 });
             }
             ast::Declaration::TSModuleDeclaration(module_decl) => {
-                // Handle: export namespace Foo {} or export module Foo {}
                 if let ast::TSModuleDeclarationName::Identifier(id) = &module_decl.id {
                     self.exports.push(ModuleExport {
                         name: Some(id.name.as_str().to_owned()),
@@ -1585,7 +1572,6 @@ impl ModuleVisitor {
                 }
             }
             ast::Declaration::TSImportEqualsDeclaration(import_equals) => {
-                // Handle: export import Foo = require('foo');
                 self.exports.push(ModuleExport {
                     name: Some(import_equals.id.name.as_str().to_owned()),
                     is_reexport: false,
@@ -1594,8 +1580,7 @@ impl ModuleVisitor {
                 });
             }
             ast::Declaration::TSGlobalDeclaration(_) => {
-                // Handle: declare global { ... }
-                // Global declarations don't create named exports
+                // Global declarations do not introduce named exports.
             }
         }
     }
@@ -1604,7 +1589,6 @@ impl ModuleVisitor {
     fn extract_binding_names(&mut self, binding: &ast::BindingPattern) {
         match binding {
             ast::BindingPattern::BindingIdentifier(id) => {
-                // Simple binding: const x = 1
                 self.exports.push(ModuleExport {
                     name: Some(id.name.as_str().to_owned()),
                     is_reexport: false,
@@ -1613,27 +1597,22 @@ impl ModuleVisitor {
                 });
             }
             ast::BindingPattern::ObjectPattern(obj_pattern) => {
-                // Object destructuring: const { x, y } = obj
                 for property in &obj_pattern.properties {
                     self.extract_binding_names(&property.value);
                 }
-                // Handle rest: const { ...rest } = obj
                 if let Some(rest) = &obj_pattern.rest {
                     self.extract_binding_names(&rest.argument);
                 }
             }
             ast::BindingPattern::ArrayPattern(arr_pattern) => {
-                // Array destructuring: const [x, y] = arr
                 for element in arr_pattern.elements.iter().flatten() {
                     self.extract_binding_names(element);
                 }
-                // Handle rest: const [...rest] = arr
                 if let Some(rest) = &arr_pattern.rest {
                     self.extract_binding_names(&rest.argument);
                 }
             }
             ast::BindingPattern::AssignmentPattern(assignment) => {
-                // Default values: const { x = 5 } = obj
                 self.extract_binding_names(&assignment.left);
             }
         }

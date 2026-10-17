@@ -319,7 +319,6 @@ function update() {
     }
   }
 
-  // Cleared field — next level.
   if (state.rocks.length === 0) {
     state = fresh(state.best, state.score, state.lives, state.level + 1);
   }

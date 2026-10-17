@@ -90,14 +90,12 @@ class Event {
   [_path]: any[] = [];
 
   constructor(type: string, eventInitDict: EventInit = {}) {
-    // Per spec: If invoked without arguments, throw TypeError
     if (type === undefined) {
       throw new TypeError(
         "Failed to construct 'Event': 1 argument required, but only 0 present.",
       );
     }
 
-    // Per spec: Convert type to DOMString
     type = String(type);
 
     this[_canceledFlag] = false;
@@ -819,7 +817,6 @@ class EventTarget {
     callback: EventListenerOrEventListenerObject | null,
     options?: boolean | AddEventListenerOptions,
   ): void {
-    // Per spec: Validate arguments
     if (type === undefined) {
       throw new TypeError(
         "Failed to execute 'addEventListener' on 'EventTarget': 1 argument required, but only 0 present.",
@@ -831,7 +828,6 @@ class EventTarget {
       );
     }
 
-    // Per spec: Convert type to DOMString
     type = String(type);
 
     const prefix = "Failed to execute 'addEventListener' on 'EventTarget'";
@@ -893,7 +889,6 @@ class EventTarget {
     callback: EventListenerOrEventListenerObject | null,
     options?: boolean | EventListenerOptions,
   ): void {
-    // Per spec: Validate arguments
     if (type === undefined) {
       throw new TypeError(
         "Failed to execute 'removeEventListener' on 'EventTarget': 1 argument required, but only 0 present.",
@@ -905,7 +900,6 @@ class EventTarget {
       );
     }
 
-    // Per spec: Convert type to DOMString
     type = String(type);
 
     const { listeners } = this[eventTargetData];
@@ -930,14 +924,12 @@ class EventTarget {
     }
   }
   dispatchEvent(event: Event): boolean {
-    // Per spec: Validate arguments
     if (event === undefined) {
       throw new TypeError(
         "Failed to execute 'dispatchEvent' on 'EventTarget': 1 argument required, but only 0 present.",
       );
     }
 
-    // Per spec: Check if event is currently being dispatched
     if (getDispatched(event)) {
       throw new DOMException(
         "Failed to execute 'dispatchEvent' on 'EventTarget': The event is already being dispatched.",
@@ -945,7 +937,6 @@ class EventTarget {
       );
     }
 
-    // Per spec: Check if event's initialized flag is not set
     if (event.eventPhase !== Event.NONE) {
       throw new DOMException(
         "Failed to execute 'dispatchEvent' on 'EventTarget': The event's phase is not NONE.",

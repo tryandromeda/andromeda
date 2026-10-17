@@ -155,7 +155,6 @@ impl FileExt {
         args: ArgumentsList,
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // args: [parts_array, options]
         let parts_arg = args.get(0);
         let options_arg = args.get(1);
 
@@ -171,7 +170,6 @@ impl FileExt {
                 .to_string()
         };
 
-        // Parse parts - expect comma-separated byte values
         let mut blob_data = Vec::new();
         if !parts_arg.is_undefined() && !parts_arg.is_null() {
             let parts_str = parts_arg.to_string(agent, gc.reborrow()).unbind()?;
@@ -208,7 +206,6 @@ impl FileExt {
         args: ArgumentsList,
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // args: [blob_id, start, end, content_type]
         let blob_id_arg = args.get(0);
         let start_arg = args.get(1);
         let end_arg = args.get(2);
@@ -398,7 +395,7 @@ impl FileExt {
 
         if let Some(blob) = storage.get(blob_id) {
             // Return the blob data as comma-separated bytes for now
-            // TODO: return a ReadableStream
+            // TODO return a ReadableStream
             let bytes_str = blob
                 .data
                 .iter()
@@ -493,7 +490,6 @@ impl FileExt {
         args: ArgumentsList,
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // args: [parts_array, name, options, last_modified]
         let parts_arg = args.get(0);
         let name_arg = args.get(1);
         let options_arg = args.get(2);
@@ -528,7 +524,6 @@ impl FileExt {
                 .to_string()
         };
 
-        // Parse parts - expect comma-separated byte values
         let mut blob_data = Vec::new();
         if !parts_arg.is_undefined() && !parts_arg.is_null() {
             let parts_str = parts_arg.to_string(agent, gc.reborrow()).unbind()?;
@@ -555,7 +550,6 @@ impl FileExt {
         storage.insert(blob_id.clone(), blob);
         drop(storage);
 
-        // Return combined data: blob_id:name:last_modified
         let result = format!("{blob_id}:{name}:{last_modified}");
         Ok(Value::from_string(agent, result, gc.nogc()).unbind())
     }
@@ -577,7 +571,7 @@ impl FileExt {
         _args: ArgumentsList,
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // For now, return success - full implementation would store in a FormData resource table
+        // TODO Persist FormData entries in the resource table.
         Ok(Value::from_string(agent, "success".to_string(), gc.nogc()).unbind())
     }
 

@@ -307,7 +307,7 @@ impl Highlighter for JsHighlighter {
 
                 let is_union_type = match (prev_non_space, next_non_space) {
                     (Some(prev_idx), Some(next_idx)) => {
-                        // Simple heuristic: if surrounded by alphanumeric characters or angle brackets, likely a union type
+                        // Nearby type syntax helps distinguish union types from bitwise operators.
                         (chars[prev_idx].is_alphanumeric()
                             || chars[prev_idx] == '>'
                             || chars[prev_idx] == ']')

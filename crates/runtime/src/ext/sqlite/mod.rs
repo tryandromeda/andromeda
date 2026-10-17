@@ -523,7 +523,7 @@ impl SqliteExt {
         };
 
         // Extract parameters from the third argument
-        //TODO: add more sophisticated array handling later.
+        //TODO add more sophisticated array handling later.
         let mut params = Vec::new();
         for i in 2..args.len() {
             params.push(args.get(i));

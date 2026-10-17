@@ -28,18 +28,3 @@ const test2 = () => {
   console.log("bodyUsed", bodyUsed);
 };
 test2();
-
-// https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options
-// TODO: comment in nova support module
-// function test3() {
-//   const oldRequest = new Request(
-//     "https://github.com/mdn/content/issues/12959",
-//     { headers: { From: "webmaster@example.org" } },
-//   );
-//   console.log(oldRequest.headers.get("From")); // "webmaster@example.org"
-//   const newRequest = new Request(oldRequest, {
-//     headers: { From: "developer@example.org" },
-//   });
-//   console.log(newRequest.headers.get("From")); // "developer@example.org"
-// }
-// test3();

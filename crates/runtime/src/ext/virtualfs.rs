@@ -1475,7 +1475,6 @@ impl VirtualFsExt {
                     }
 
                     if new_size == 0 {
-                        // Truncate to zero - delete all content
                         conn.execute(
                             "DELETE FROM vfs_file_content WHERE node_id = ?",
                             params![node_id],
@@ -1731,7 +1730,6 @@ impl VirtualFsExt {
                                     let target_path = if target.starts_with('/') {
                                         target
                                     } else {
-                                        // Relative path - resolve relative to link's parent
                                         let link_parent = Path::new(&normalized)
                                             .parent()
                                             .and_then(|p| p.to_str())

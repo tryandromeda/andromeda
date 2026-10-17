@@ -16,7 +16,6 @@ hotpath = [
     "andromeda-runtime/hotpath",
 ]
 hotpath-alloc = ["hotpath/hotpath-alloc"]
-llm = ["andromeda-core/llm"]
 window = ["andromeda-runtime/window"]
 
 [lib]
@@ -36,7 +35,7 @@ path = "src/bin/wpt.rs"
 name = "andromeda-installer"
 path = "src/bin/installer.rs"
 
-# Andromeda Satellites - Minimal executables for specific tasks
+# Satellite executables provide task-specific entry points.
 [[bin]]
 name = "andromeda-run"
 path = "src/bin/satellite_run.rs"

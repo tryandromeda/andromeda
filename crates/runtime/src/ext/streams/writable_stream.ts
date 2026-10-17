@@ -33,7 +33,6 @@ class WritableStreamDefaultController {
   }
 
   error(e?: unknown): void {
-    // According to WHATWG spec: "error a WritableStream"
     const errorMessage = e instanceof Error ?
       e.message :
       String(e || "Stream error");
@@ -53,7 +52,7 @@ class WritableStreamDefaultWriter<W = unknown> {
     this.#streamId = streamId;
     this.#stream = stream;
     this.#closed = new Promise((resolve) => {
-      // TODO: Properly handle closed promise resolution
+      // TODO Properly handle closed promise resolution
       setTimeout(() => resolve(undefined), 0);
     });
   }
@@ -96,7 +95,7 @@ class WritableStreamDefaultWriter<W = unknown> {
         if (isNaN(desiredSize) || desiredSize > 0) {
           resolve(undefined);
         } else {
-          // TODO: Implement backpressure handling
+          // TODO Implement backpressure handling
           setTimeout(() => resolve(undefined), 0);
         }
       } catch {

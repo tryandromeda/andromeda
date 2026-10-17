@@ -210,8 +210,6 @@ pub fn recommended_eventloop_handler(
             name,
             mode,
         } => {
-            // Handle lock acquisition - resolve the promise with the lock result
-            // First, create the result string in a separate realm call
             let lock_info = format!(
                 "{{\"lockId\":{},\"name\":\"{}\",\"mode\":\"{}\"}}",
                 lock_id, name, mode
@@ -236,15 +234,13 @@ pub fn recommended_eventloop_handler(
             });
         }
         RuntimeMacroTask::ReleaseLock { name, lock_id } => {
-            // Handle lock release - trigger processing of pending requests
-            // This would typically wake up any waiting tasks
             println!("Released lock {} for '{}'", lock_id, name);
-            // TODO: Implement actual lock release logic that wakes pending tasks
+            // TODO Implement actual lock release logic that wakes pending tasks
         }
         RuntimeMacroTask::AbortLockRequest { name, lock_id } => {
             // Handle lock request abortion
             println!("Aborted lock request {} for '{}'", lock_id, name);
-            // TODO: Implement actual abort logic that cancels the associated promise
+            // TODO Implement actual abort logic that cancels the associated promise
         }
         RuntimeMacroTask::WorkerDeliverMessage {
             worker_id,
@@ -315,11 +311,7 @@ pub fn recommended_eventloop_handler(
             );
         }
         RuntimeMacroTask::WorkerSelfClose => {
-            // Worker runtime treats this as a close request: set the
-            // self_close flag, then forcibly drain the macro task count
-            // so the runtime's main loop exits even if `setInterval` /
-            // `setTimeout` callbacks are still pending. Per Web Workers
-            // spec, `terminate()` discards any queued tasks.
+            // Pending timers must not keep a terminated worker alive.
             let storage = host_data.storage.borrow();
             if let Some(res) = storage.get::<crate::ext::workers::WorkersResources>() {
                 res.self_close_flag

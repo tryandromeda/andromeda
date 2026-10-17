@@ -1,4 +1,4 @@
-// Parent side: spawn a worker, exchange a message, exit when done.
+// Demonstrates a parent exchanging messages with a worker.
 const worker = new Worker(
   new URL("./hello.worker.ts", import.meta.url),
   { type: "module" },

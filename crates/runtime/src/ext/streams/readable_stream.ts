@@ -107,7 +107,6 @@ class ReadableStreamDefaultController<R = unknown> {
   }
 
   error(e?: unknown): void {
-    // According to WHATWG spec: "error a ReadableStream"
     const errorMessage = e instanceof Error ?
       e.message :
       String(e || "Stream error");
@@ -127,7 +126,7 @@ class ReadableStreamDefaultReader<R = unknown> {
     this.#streamId = streamId;
     this.#stream = stream;
     this.#closed = new Promise((resolve) => {
-      // TODO: Properly handle closed promise resolution
+      // TODO Properly handle closed promise resolution
       setTimeout(() => resolve(undefined), 0);
     });
   }
@@ -148,8 +147,7 @@ class ReadableStreamDefaultReader<R = unknown> {
     }
 
     if (result === "") {
-      // No data available yet - for now return done
-      // TODO: Implement waiting for data
+      // TODO Wait for data instead of reporting completion immediately.
       return { done: true, value: undefined as unknown as R };
     }
 
@@ -199,7 +197,6 @@ class ReadableStreamDefaultReader<R = unknown> {
   }
 
   releaseLock(): void {
-    // According to WHATWG spec: "release a readable stream reader"
     try {
       __andromeda__.internal_readable_stream_unlock(this.#streamId);
       // Clear the reader reference in the stream
@@ -296,7 +293,6 @@ class ReadableStream<R = unknown> {
   }
 
   get locked(): boolean {
-    // According to WHATWG spec: A ReadableStream is locked if it has a reader
     try {
       const state = __andromeda__.internal_stream_get_state(this.#streamId);
       const [, , locked] = state.split(":");
@@ -316,7 +312,6 @@ class ReadableStream<R = unknown> {
   getReader(
     options?: { mode?: "byob"; },
   ): ReadableStreamDefaultReader<R> | ReadableStreamBYOBReader {
-    // According to WHATWG spec: "acquire a readable stream reader"
     if (this.locked) {
       throw new TypeError("ReadableStream is already locked");
     }
@@ -479,7 +474,6 @@ class ReadableStream<R = unknown> {
   }
 
   tee(): [ReadableStream<R>, ReadableStream<R>] {
-    // According to WHATWG spec: "tee a ReadableStream"
     if (this.locked) {
       throw new TypeError("ReadableStream is already locked");
     }
@@ -510,7 +504,6 @@ class ReadableStream<R = unknown> {
 
       return [stream1 as ReadableStream<R>, stream2 as ReadableStream<R>];
     } catch {
-      // Fallback: create empty streams
       const stream1 = new ReadableStream<R>();
       const stream2 = new ReadableStream<R>();
       return [stream1, stream2];
@@ -721,7 +714,7 @@ class ReadableStreamBYOBReader {
     this.#streamId = streamId;
     this.#stream = stream;
     this.#closed = new Promise((resolve) => {
-      // TODO: Properly handle closed promise resolution
+      // TODO Properly handle closed promise resolution
       setTimeout(() => resolve(undefined), 0);
     });
   }

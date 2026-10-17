@@ -30,7 +30,6 @@ const KeyUsage = webidl.createEnumConverter("KeyUsage", [
   "unwrapKey",
 ]);
 
-// AlgorithmIdentifier union converter - can be string or object
 const AlgorithmIdentifierConverter = webidl.createUnionConverter([
   {
     test: (V: any) => typeof V === "object" && V !== null,
@@ -202,7 +201,6 @@ const CryptoKeyConverter = webidl.createInterfaceConverter(
   CryptoKeyPrototype,
 );
 
-// Helper: Normalize algorithm identifier to algorithm object
 function normalizeAlgorithm(
   algorithm: AlgorithmIdentifier,
   operation: string,
@@ -227,7 +225,6 @@ function normalizeAlgorithm(
   throw new TypeError("Algorithm: AlgorithmIdentifier: not a string or object");
 }
 
-// Helper: Validate key usages
 function validateKeyUsages(
   usages: KeyUsage[],
   validUsages: KeyUsage[],
@@ -242,7 +239,6 @@ function validateKeyUsages(
   }
 }
 
-// Helper: Get usage intersection
 function usageIntersection(
   a: KeyUsage[],
   b: KeyUsage[],
@@ -362,7 +358,6 @@ const subtle = {
       keyUsages,
     );
 
-    // Parse the result - Rust returns a JSON string
     if (typeof result === "string") {
       const keyData = JSON.parse(result);
       return keyData; // Return the plain object for now

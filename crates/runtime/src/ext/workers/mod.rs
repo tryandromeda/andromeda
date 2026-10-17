@@ -42,7 +42,7 @@ pub(crate) enum WorkerInbound {
     Terminate,
 }
 
-// Manual impl: `SharedDataBlock` is not `Debug`.
+// `SharedDataBlock` does not implement Debug.
 impl std::fmt::Debug for WorkerInbound {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -210,13 +210,13 @@ impl WorkersExt {
                 .unbind());
         }
 
-        // HTTP/HTTPS worker scripts are not supported — the worker entry module loader uses local filesystem reads.
+        // Worker entry modules currently depend on local filesystem loading.
         if specifier.starts_with("http://") || specifier.starts_with("https://") {
             let gc = gc.into_nogc();
             return Err(agent
                 .throw_exception(
                     ExceptionType::TypeError,
-                    "Andromeda workers do not support HTTP(S) script URLs yet — \
+                    "Andromeda workers do not support HTTP(S) script URLs yet - \
                      use a local file path or file:// URL"
                         .to_string(),
                     gc,
@@ -694,7 +694,7 @@ pub fn worker_recommended_extensions() -> Vec<Extension> {
         StreamsExt::new_extension(),
         TlsExt::new_extension(),
         FfiExt::new_extension(),
-        // Workers also serve HTTP — required for `Andromeda.serve({ parallel })`.
+        // Parallel HTTP serving needs the same server support inside workers.
         #[cfg(feature = "serve")]
         crate::ServeExt::new_extension(),
         #[cfg(feature = "canvas")]
@@ -768,14 +768,7 @@ fn call_global_function_capturing_err(
             js_args.push(Value::from_string(agent, s, gc.nogc()).unbind());
         }
         if !shared_blocks.is_empty() {
-            // Mint a new SharedArrayBuffer per block in this agent — same
-            // backing memory, fresh wrapper objects — and pass them as one
-            // trailing Array argument. If the JS call throws, the wrappers
-            // are ordinary garbage-collectable objects; the blocks free
-            // with them. The deserializer rewraps each element again via
-            // op_structured_clone_new_sab (spec requires a fresh object
-            // per deserialization); these intermediates are short-lived
-            // holders, which is intentional.
+            // Agent-local wrappers preserve object ownership while retaining the shared backing memory.
             let sab_values: Vec<Value> = shared_blocks
                 .into_iter()
                 .map(|block| {
@@ -842,7 +835,6 @@ pub fn dispatch_self_event(
         shared_blocks,
     );
     if let Some(msg) = err_msg {
-        // We are inside the worker — forward to the parent as ErrorEvent.
         let storage = host_data.storage.borrow();
         if let Some(res) = storage.get::<WorkersResources>()
             && let Some(tx) = res.outbound_to_parent.lock().unwrap().as_ref()

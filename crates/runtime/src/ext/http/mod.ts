@@ -48,9 +48,9 @@ function parseHttpRequest(data: string): {
   }
 
   const body = lines.slice(i + 1).join("\r\n");
-  // TODO: Handle chunked transfer encoding
-  // TODO: Handle multipart form data
-  // TODO: Validate Content-Length header
+  // TODO Handle chunked transfer encoding
+  // TODO Handle multipart form data
+  // TODO Validate Content-Length header
 
   return { method, path, headers, body };
 }
@@ -187,7 +187,7 @@ async function serve(
       options.entry :
       new URL(String(options.entry));
     for (let i = 1; i < parallel; i++) {
-      // @ts-ignore - Worker is global
+      // @ts-ignore Worker is global
       new Worker(entryUrl, { type: "module", name: `serve-worker-${i}` });
     }
   }
@@ -235,7 +235,7 @@ async function serve(
   }
 }
 
-// TODO: Add support for server configuration options:
+// TODO Add support for server configuration options
 // - TLS/HTTPS support
 // - Connection timeout
 // - Request size limits

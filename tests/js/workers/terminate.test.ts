@@ -11,7 +11,6 @@ worker.onmessage = (event: MessageEvent) => {
   received += 1;
   if (event.data === "ack") {
     worker.terminate();
-    // Send another message *after* terminate — it should be silently dropped.
     worker.postMessage("after-terminate");
     setTimeout(() => {
       if (received !== 1) {

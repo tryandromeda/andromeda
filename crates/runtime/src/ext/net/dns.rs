@@ -330,7 +330,7 @@ impl DnsOps {
                 Err(e) => return Err(NetError::dns_failed(hostname, &e.to_string())),
             },
             DnsRecordType::CNAME => {
-                // TODO: Find a better way to get CNAME records
+                // TODO Find a better way to get CNAME records
                 match resolver.txt_lookup(hostname).await {
                     Ok(lookup) => {
                         for txt in lookup.iter() {

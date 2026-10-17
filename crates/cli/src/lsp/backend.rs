@@ -846,7 +846,6 @@ impl AndromedaBackend {
         if let Some(NumberOrString::String(code_str)) = &diagnostic.code {
             match code_str.as_str() {
                 "andromeda::lint::no-var" => {
-                    // Quick fix: Replace 'var' with 'let'
                     if let Some(edit) = self.create_var_to_let_fix(uri, diagnostic, content) {
                         actions.push(CodeActionOrCommand::CodeAction(CodeAction {
                             title: "Replace 'var' with 'let'".to_string(),
@@ -858,7 +857,6 @@ impl AndromedaBackend {
                     }
                 }
                 "andromeda::lint::prefer-const" => {
-                    // Quick fix: Replace 'let' with 'const'
                     if let Some(edit) = self.create_let_to_const_fix(uri, diagnostic, content) {
                         actions.push(CodeActionOrCommand::CodeAction(CodeAction {
                             title: "Replace 'let' with 'const'".to_string(),
@@ -870,7 +868,6 @@ impl AndromedaBackend {
                     }
                 }
                 "andromeda::lint::no-console" => {
-                    // Quick fix: Remove console statement
                     if let Some(edit) = self.create_remove_console_fix(uri, diagnostic, content) {
                         actions.push(CodeActionOrCommand::CodeAction(CodeAction {
                             title: "Remove console statement".to_string(),
@@ -882,7 +879,6 @@ impl AndromedaBackend {
                     }
                 }
                 "andromeda::lint::no-empty" => {
-                    // Quick fix: Remove empty statement
                     if let Some(edit) =
                         self.create_remove_empty_statement_fix(uri, diagnostic, content)
                     {
@@ -1495,7 +1491,7 @@ impl LanguageServer for AndromedaBackend {
     ) -> Result<Option<Vec<TextEdit>>> {
         debug!("Range formatting request for: {}", params.text_document.uri);
 
-        // TODO: Implement range formatting
+        // TODO Implement range formatting
         Ok(None)
     }
 
@@ -1508,7 +1504,7 @@ impl LanguageServer for AndromedaBackend {
             params.text_document_position.text_document.uri
         );
 
-        // TODO: Implement on-type formatting
+        // TODO Implement on-type formatting
         Ok(None)
     }
 

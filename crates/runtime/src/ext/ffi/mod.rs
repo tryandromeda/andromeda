@@ -99,11 +99,11 @@ impl FfiExt {
             NativeType::Pointer => ffi_parse_pointer_arg(value, gc.reborrow()),
             NativeType::Buffer => ffi_parse_buffer_arg(value),
             NativeType::Struct(_) => {
-                // TODO: Handle struct pointers properly
+                // TODO Handle struct pointers properly
                 ffi_parse_pointer_arg(value, gc.reborrow())
             }
             NativeType::Function(_) => {
-                // TODO: Handle function pointers properly
+                // TODO Handle function pointers properly
                 ffi_parse_pointer_arg(value, gc.reborrow())
             }
         }
@@ -223,7 +223,7 @@ impl FfiExt {
         result: f64,
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Implement proper result unmarshalling based on result type
+        // TODO Implement proper result unmarshalling based on result type
         Ok(Value::from_f64(agent, result, gc.nogc()).unbind())
     }
 
@@ -287,7 +287,7 @@ impl FfiExt {
         };
 
         if let Value::Object(_obj) = symbols_obj {
-            // TODO: Implement full symbol definition parsing
+            // TODO Implement full symbol definition parsing
             // This requires careful Nova VM GC scope management
         }
 
@@ -348,7 +348,7 @@ impl FfiExt {
         };
 
         let definition = args.get(2);
-        // TODO: Implement full symbol definition parsing
+        // TODO Implement full symbol definition parsing
         let types = (vec![NativeType::I32], NativeType::I32);
         let parsed_def = match parse_foreign_function(agent, definition, types, gc.reborrow()) {
             Ok(def) => def,
@@ -492,7 +492,7 @@ impl FfiExt {
                 symbol.definition.result.clone(),
             )
         };
-        // TODO: implement better arg marshalling
+        // TODO implement better arg marshalling
         let mut native_args = Vec::new();
 
         match params_array {
@@ -523,7 +523,7 @@ impl FfiExt {
                     native_args.push(default_arg);
                 }
 
-                // TODO: Implement full argument parsing in a future iteration
+                // TODO Implement full argument parsing in a future iteration
                 // The complex borrowing rules make it challenging to safely access
                 // object properties while maintaining all the required lifetime constraints
             }
@@ -605,7 +605,7 @@ impl FfiExt {
         args: ArgumentsList,
         _gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Parse callback definition and JS function
+        // TODO Parse callback definition and JS function
         let _definition = args.get(0);
         let _js_function = args.get(1);
 
@@ -649,7 +649,7 @@ impl FfiExt {
         };
 
         // Temporarily return a hardcoded pointer value (0x87654321)
-        // TODO: Implement proper callback pointer retrieval
+        // TODO Implement proper callback pointer retrieval
         let pointer_bigint = BigInt::from_i64(agent, 0x87654321).unbind();
         Ok(pointer_bigint.into())
     }
@@ -718,8 +718,7 @@ impl FfiExt {
         let ptr1 = args.get(0);
         let ptr2 = args.get(1);
 
-        // Compare pointer values - for now, use a simple implementation
-        // TODO: Implement proper pointer comparison
+        // TODO Implement proper pointer comparison.
         let equals = match (ptr1, ptr2) {
             (Value::BigInt(_), Value::BigInt(_)) => {
                 // For now, assume different BigInts are different pointers
@@ -749,7 +748,7 @@ impl FfiExt {
         match ptr {
             Value::BigInt(bi) => {
                 // For now, return the original pointer since we can't easily do BigInt arithmetic
-                // TODO: Implement proper pointer arithmetic
+                // TODO Implement proper pointer arithmetic
                 Ok(bi.unbind().into())
             }
             Value::Null => {
@@ -773,7 +772,6 @@ impl FfiExt {
         args: ArgumentsList,
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // Get the pointer from arguments - it should already be a BigInt
         let ptr = args.get(0);
 
         // If it's already a BigInt, return it directly
@@ -797,7 +795,7 @@ impl FfiExt {
         _args: ArgumentsList,
         _gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Get pointer of ArrayBuffer/TypedArray
+        // TODO Get pointer of ArrayBuffer/TypedArray
         let _buffer = _args.get(0);
 
         // For now, return null
@@ -819,19 +817,12 @@ impl FfiExt {
             Ok(num) => num.unbind().into_f64(agent) as usize,
             Err(_) => 0,
         };
-        // TODO: Implement safe memory reading with proper bounds checking
+        // TODO Implement safe memory reading with proper bounds checking
         let _buffer = vec![0u8; size];
 
-        // TODO:
-        // 1. Validate the pointer is non-null and valid
-        // 2. Check memory permissions
-        // 3. Copy from the actual memory location:
-        // unsafe {
-        //     let src_ptr = (ptr_value + offset) as *const u8;
-        //     std::ptr::copy_nonoverlapping(src_ptr, buffer.as_mut_ptr(), size);
-        // }
+        // TODO Validate pointers and permissions before reading native memory.
 
-        // TODO: create ArrayBuffer
+        // TODO create ArrayBuffer
         Ok(Value::from_f64(agent, size as f64, gc.nogc()).unbind())
     }
 
@@ -847,14 +838,7 @@ impl FfiExt {
             Err(_) => 0,
         };
         let _data = args.get(2);
-        // TODO: Implement actual memory writing with proper validation
-        // 1. Validating the pointer is non-null and writable
-        // 2. Converting JavaScript data to bytes
-        // 3. Writing to the memory location:
-        // unsafe {
-        //     let dst_ptr = (ptr_value + offset) as *mut u8;
-        //     std::ptr::copy_nonoverlapping(data.as_ptr(), dst_ptr, data.len());
-        // }
+        // TODO Validate pointers and permissions before writing native memory.
 
         Ok(Value::Undefined.unbind())
     }

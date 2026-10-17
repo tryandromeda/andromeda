@@ -497,7 +497,7 @@ pub fn internal_canvas_clear_rect<'gc>(
             },
         };
 
-        // TODO: Implement proper clear operation in renderer
+        // TODO Implement proper clear operation in renderer
         // For now, render a transparent rectangle
         renderer.render_rect(
             clear_rect,
@@ -1736,7 +1736,7 @@ pub fn process_all_commands<'gc>(
             }
             CanvasCommand::SetStrokeStyle(_style) => {
                 // Update stroke style
-                // Note: The actual style change is handled by the renderer
+                // The actual style change is handled by the renderer
             }
             CanvasCommand::Clip { path } => {
                 // Apply clipping to the renderer
@@ -1806,7 +1806,6 @@ fn tessellate_quadratic_curve_to_path(
         let t = i as f64 / SEGMENTS as f64;
         let one_minus_t = 1.0 - t;
 
-        // Quadratic Bezier formula: (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
         let x =
             one_minus_t * one_minus_t * start.x + 2.0 * one_minus_t * t * control.x + t * t * end.x;
         let y =
@@ -1888,17 +1887,7 @@ fn tessellate_rounded_rect_to_path(
     let r_br = sanitize(radii[2]);
     let r_bl = sanitize(radii[3]);
 
-    // HTML spec scaling: if adjacent corner radii along any side would
-    // overlap, scale ALL four radii by the smallest factor needed so the
-    // overlap just disappears. This is looser than per-corner clamping
-    // to min(w/2, h/2) — a tall-and-thin rectangle can still have a
-    // large corner radius on its long edges as long as the short edge's
-    // neighbor is small.
-    //
-    // top    = tl + tr     <= width
-    // bottom = br + bl     <= width
-    // left   = tl + bl     <= height
-    // right  = tr + br     <= height
+    // Uniform scaling preserves corner proportions when neighboring radii overlap.
     let top = r_tl + r_tr;
     let right = r_tr + r_br;
     let bottom = r_br + r_bl;
@@ -1919,7 +1908,6 @@ fn tessellate_rounded_rect_to_path(
     let bl = r_bl * scale;
 
     if tl <= 0.0 && tr <= 0.0 && br <= 0.0 && bl <= 0.0 {
-        // Fast path: plain rectangle.
         path.push(crate::ext::canvas::renderer::Point { x, y });
         path.push(crate::ext::canvas::renderer::Point { x: x + width, y });
         path.push(crate::ext::canvas::renderer::Point {
@@ -1953,7 +1941,6 @@ fn tessellate_rounded_rect_to_path(
         }
     };
 
-    // Top-left corner: arc from π → 3π/2, centered at (x+tl, y+tl).
     push_corner(path, x + tl, y + tl, tl, std::f64::consts::PI);
 
     // Top edge.
@@ -1962,7 +1949,6 @@ fn tessellate_rounded_rect_to_path(
         y,
     });
 
-    // Top-right corner: arc from 3π/2 → 2π, centered at (x+w-tr, y+tr).
     push_corner(
         path,
         x + width - tr,
@@ -1977,7 +1963,6 @@ fn tessellate_rounded_rect_to_path(
         y: y + height - br,
     });
 
-    // Bottom-right corner: arc from 0 → π/2, centered at (x+w-br, y+h-br).
     push_corner(path, x + width - br, y + height - br, br, 0.0);
 
     // Bottom edge.
@@ -1986,7 +1971,6 @@ fn tessellate_rounded_rect_to_path(
         y: y + height,
     });
 
-    // Bottom-left corner: arc from π/2 → π, centered at (x+bl, y+h-bl).
     push_corner(
         path,
         x + bl,
@@ -2039,7 +2023,6 @@ fn tessellate_bezier_curve_to_path(
         let t = i as f64 / SEGMENTS as f64;
         let one_minus_t = 1.0 - t;
 
-        // Cubic Bezier formula: (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
         let x = one_minus_t * one_minus_t * one_minus_t * start.x
             + 3.0 * one_minus_t * one_minus_t * t * cp1.x
             + 3.0 * one_minus_t * t * t * cp2.x
@@ -2092,7 +2075,6 @@ fn generate_stroke_path(
     let half_width = line_width / 2.0;
     let mut out: Vec<crate::ext::canvas::renderer::Point> = Vec::new();
 
-    // Corners of a single segment's rectangle: (outer_from, inner_from, outer_to, inner_to).
     type SegmentCorners = ((f64, f64), (f64, f64), (f64, f64), (f64, f64));
 
     let pt = |x: f64, y: f64| crate::ext::canvas::renderer::Point { x, y };
@@ -2151,13 +2133,7 @@ fn generate_stroke_path(
         }
     };
 
-    // Butt: no extra geometry. Round: half-disk around `center`
-    // on the `outward` side. Square: rectangle extending half_width in
-    // the `outward` direction.
-    //
-    // `outward_angle` points away from the segment (opposite of the
-    // segment direction for a start cap; along the segment direction
-    // for an end cap).
+    // The outward direction keeps start and end caps oriented away from the segment.
     let draw_cap = |out: &mut Vec<crate::ext::canvas::renderer::Point>,
                     cx: f64,
                     cy: f64,
@@ -2208,7 +2184,7 @@ fn generate_stroke_path(
         // Cross product tells us which side the corner sticks out on.
         let cross = ux1 * uy2 - uy1 * ux2;
         if cross.abs() < 1e-9 {
-            return; // collinear — no gap to fill
+            return;
         }
         // Outer-edge normals.
         let n1x = -uy1 * half_width;
@@ -2261,9 +2237,7 @@ fn generate_stroke_path(
                 if denom.abs() < 1e-9 {
                     return;
                 }
-                // Edge 1: start = outer_from, dir = (ux1, uy1)
-                // Edge 2: start = outer_to,   dir = (ux2, uy2)
-                // Solve outer_from + t1*(ux1, uy1) = outer_to + t2*(ux2, uy2)
+                // Intersect the outer edges to locate the miter tip.
                 let dx = outer_to.0 - outer_from.0;
                 let dy = outer_to.1 - outer_from.1;
                 let t1 = (dx * uy2 - dy * ux2) / denom;
@@ -2273,7 +2247,6 @@ fn generate_stroke_path(
                 let mdy = miter_y - cy;
                 let miter_len = (mdx * mdx + mdy * mdy).sqrt();
                 if miter_len > miter_limit * half_width {
-                    // Beyond the miter limit — fall back to bevel.
                     out.push(pt(cx, cy));
                     out.push(pt(outer_from.0, outer_from.1));
                     out.push(pt(outer_to.0, outer_to.1));
@@ -2301,7 +2274,6 @@ fn generate_stroke_path(
         dash.to_vec()
     };
 
-    // Helper: segment direction as a unit vector.
     let seg_dir = |a: &crate::ext::canvas::renderer::Point,
                    b: &crate::ext::canvas::renderer::Point|
      -> Option<(f64, f64)> {
@@ -2328,8 +2300,6 @@ fn generate_stroke_path(
                 if let Some((pux, puy)) = last_dir {
                     draw_join(&mut out, a.x, a.y, pux, puy, dir.0, dir.1);
                 } else {
-                    // First segment: start cap pointing opposite the
-                    // direction of travel.
                     draw_cap(&mut out, a.x, a.y, -dir.0, -dir.1);
                 }
                 last_dir = Some(dir);

@@ -3,7 +3,6 @@
 
 #![allow(clippy::result_large_err)]
 
-/// Andromeda Satellite - Lint
 ///
 /// A minimal executable focused solely on linting JavaScript/TypeScript files.
 /// Designed for container instances where only linting capability is needed.

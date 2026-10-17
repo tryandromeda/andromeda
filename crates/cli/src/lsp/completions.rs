@@ -20,11 +20,6 @@ pub struct AndromedaCompletionData {
 // /// Completion item kinds specific to Andromeda
 // pub struct AndromedaCompletionKind;
 
-// impl AndromedaCompletionKind {
-//     pub const ANDROMEDA_API: CompletionItemKind = CompletionItemKind::MODULE;
-//     pub const WEB_API: CompletionItemKind = CompletionItemKind::INTERFACE;
-//     pub const RUNTIME_EXTENSION: CompletionItemKind = CompletionItemKind::CLASS;
-// }
 
 /// Core completion provider for Andromeda APIs
 pub struct AndromedaCompletionProvider {

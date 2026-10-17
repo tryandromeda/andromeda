@@ -64,7 +64,7 @@ class DatabaseSync {
     );
   }
 
-  // TODO: Implement applyChangeset with proper session extension support
+  // TODO Implement applyChangeset with proper session extension support
   applyChangeset(
     _changeset: Uint8Array,
     _options?: ApplyChangesetOptions,
@@ -80,7 +80,7 @@ class DatabaseSync {
     __andromeda__.sqlite_database_sync_close(this.#dbId);
   }
 
-  // TODO: Implement createSession with proper session extension support
+  // TODO Implement createSession with proper session extension support
   createSession(_options?: CreateSessionOptions): Session {
     // For now, throw an error indicating this is not yet implemented
     // Full implementation would require SQLite session extension integration

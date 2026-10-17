@@ -287,7 +287,6 @@ impl CronExt {
             }
         });
 
-        // Return undefined - cron job is registered
         Ok(Value::Undefined)
     }
 }

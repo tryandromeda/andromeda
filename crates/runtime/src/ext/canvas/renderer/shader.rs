@@ -23,10 +23,6 @@ struct Uniforms {
     is_stroke: u32,
     has_texture: u32,
     composite_operation: u32,  // 0-25 for different blend modes
-    // Transformation matrix: [a, b, c, d, e, f]
-    // Represents: | a c e |
-    //             | b d f |
-    //             | 0 0 1 |
     transform: mat3x3f,
     // Shadow properties
     shadow_blur: f32,
@@ -385,7 +381,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
             var pos_vec = in.position.xy - uniforms.gradient_start;
             var grad_vec = uniforms.gradient_end - uniforms.gradient_start;
             let grad_len_sq = dot(grad_vec, grad_vec);
-            // Ensure numerical stability: avoid division by very small numbers
+            // Near-zero divisors amplify floating-point error.
             if (grad_len_sq > 1e-6) {
                 ratio = dot(pos_vec, grad_vec) / grad_len_sq;
             }
@@ -393,7 +389,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
             var pos_vec = in.position.xy - uniforms.gradient_start;
             var grad_vec = uniforms.gradient_end - uniforms.gradient_start;
             let pos_len = length(pos_vec);
-            // Numerical stability: check for degenerate cases
+            // Degenerate geometry needs a stable fallback.
             if (pos_len > 1e-6) {
                 var b = -2.0 * dot(pos_vec, grad_vec) / pos_len;
                 var c = dot(grad_vec, grad_vec) - uniforms.radius_end * uniforms.radius_end;
@@ -428,7 +424,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     }
 
     // Apply shadow effects
-    // Note: Full shadow blur would require a multi-pass Gaussian blur implementation
+    // Full shadow blur would require a multi-pass Gaussian blur implementation
     // For now, we apply shadow offset and color modulation
     // The shadow blur effect would be best implemented as a separate render pass
     var final_color = src_color;
@@ -440,14 +436,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         final_color = src_color;
     }
 
-    // Note: For proper compositing with existing canvas content, we would need
-    // to load the destination color from the render target. This requires
-    // framebuffer fetch or a separate texture read. For now, we assume a
-    // transparent destination (dst = vec4f(0.0, 0.0, 0.0, 0.0)).
-    // In a full implementation, you would:
-    // 1. Use a texture attachment to store the current canvas state
-    // 2. Sample from it here: let dst_color = textureLoad(canvas_texture, ...);
-    // 3. Apply compositing: return apply_composite(src_color, dst_color, uniforms.composite_operation);
+    // TODO Read the destination color for compositing against existing canvas content.
 
     let dst_color = vec4f(0.0, 0.0, 0.0, 0.0); // Placeholder for destination
     if (uniforms.composite_operation == 0u) {
@@ -570,47 +559,40 @@ impl EncodeGPU for Vec<ColorStop> {
 impl EncodeGPU for Uniforms {
     fn encode_gpu(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
-        bytes.extend(self.color.encode_gpu()); // 0-15: vec4f (16)
-        bytes.extend(self.gradient_start.encode_gpu()); // 16-23: vec2f (8)
-        bytes.extend(self.gradient_end.encode_gpu()); // 24-31: vec2f (8)
-        bytes.extend(self.fill_style.to_ne_bytes()); // 32-35: u32 (4)
-        bytes.extend(self.global_alpha.to_ne_bytes()); // 36-39: f32 (4)
-        bytes.extend(self.radius_start.to_ne_bytes()); // 40-43: f32 (4)
-        bytes.extend(self.radius_end.to_ne_bytes()); // 44-47: f32 (4)
-        bytes.extend(self.stroke_color.encode_gpu()); // 48-63: vec4f (16)
-        bytes.extend(self.stroke_width.to_ne_bytes()); // 64-67: f32 (4)
-        bytes.extend(self.is_stroke.to_ne_bytes()); // 68-71: u32 (4)
-        bytes.extend(self.has_texture.to_ne_bytes()); // 72-75: u32 (4)
-        bytes.extend(self.composite_operation.to_ne_bytes()); // 76-79: u32 (4)
-        // Add padding to align transform to 16 bytes (next multiple of 16 after 79 is 80)
+        bytes.extend(self.color.encode_gpu());
+        bytes.extend(self.gradient_start.encode_gpu());
+        bytes.extend(self.gradient_end.encode_gpu());
+        bytes.extend(self.fill_style.to_ne_bytes());
+        bytes.extend(self.global_alpha.to_ne_bytes());
+        bytes.extend(self.radius_start.to_ne_bytes());
+        bytes.extend(self.radius_end.to_ne_bytes());
+        bytes.extend(self.stroke_color.encode_gpu());
+        bytes.extend(self.stroke_width.to_ne_bytes());
+        bytes.extend(self.is_stroke.to_ne_bytes());
+        bytes.extend(self.has_texture.to_ne_bytes());
+        bytes.extend(self.composite_operation.to_ne_bytes());
+        // Matrix columns must satisfy WGSL uniform alignment.
         while bytes.len() % 16 != 0 {
             bytes.push(0);
         }
-        // Now at byte 80, encode transformation matrix (3x3 as 3 vec4s: 12 floats total)
         for &val in &self.transform {
             bytes.extend(val.to_ne_bytes());
         }
-        // After 12 floats (48 bytes), we're at byte 80+48=128
+        bytes.extend(self.shadow_blur.to_ne_bytes());
 
-        // Add shadow properties (starting at byte 128)
-        bytes.extend(self.shadow_blur.to_ne_bytes()); // 128-131: f32
-
-        // Pad to 16-byte boundary for shadow_color (vec4f needs 16-byte alignment)
+        // The vector color must satisfy WGSL uniform alignment.
         while bytes.len() % 16 != 0 {
             bytes.push(0);
         }
-        // Now at byte 144
-        bytes.extend(self.shadow_color.encode_gpu()); // 144-159: vec4f (16)
-        bytes.extend(self.shadow_offset.encode_gpu()); // 160-167: vec2f (8)
+        bytes.extend(self.shadow_color.encode_gpu());
+        bytes.extend(self.shadow_offset.encode_gpu());
 
-        // Add line style properties
-        bytes.extend(self.line_cap.to_ne_bytes()); // 168-171: u32
-        bytes.extend(self.line_join.to_ne_bytes()); // 172-175: u32
-        bytes.extend(self.miter_limit.to_ne_bytes()); // 176-179: f32
-        bytes.extend(self.pattern_repetition.to_ne_bytes()); // 180-183: u32
+        bytes.extend(self.line_cap.to_ne_bytes());
+        bytes.extend(self.line_join.to_ne_bytes());
+        bytes.extend(self.miter_limit.to_ne_bytes());
+        bytes.extend(self.pattern_repetition.to_ne_bytes());
 
-        // Add padding to reach proper alignment (multiple of 16)
-        // Next multiple of 16 after 183 is 192
+        // The struct size must satisfy WGSL uniform alignment.
         while bytes.len() % 16 != 0 {
             bytes.push(0);
         }

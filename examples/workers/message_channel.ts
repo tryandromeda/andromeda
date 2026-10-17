@@ -1,4 +1,4 @@
-// MessageChannel: two entangled ports in the same realm.
+// Demonstrates same-realm messaging through entangled ports.
 const channel = new MessageChannel();
 
 channel.port1.onmessage = (event: MessageEvent) => {

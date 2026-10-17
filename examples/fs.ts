@@ -5,10 +5,10 @@
 
 // Write the raven file
 const poem = `Once upon a midnight dreary, while I pondered, weak and weary,
-Over many a quaint and curious volume of forgotten lore—
+Over many a quaint and curious volume of forgotten lore-
     While I nodded, nearly napping, suddenly there came a tapping,
 As of some one gently rapping, rapping at my chamber door.
-"'Tis some visitor," I muttered, "tapping at my chamber door—
+"'Tis some visitor," I muttered, "tapping at my chamber door-
             Only this and nothing more."`;
 
 await Andromeda.writeTextFile("raven.txt", poem);
@@ -54,9 +54,6 @@ try {
 await Andromeda.writeTextFile("test_dir/hello.txt", "Hello from Andromeda!");
 console.log("Created file in test_dir/hello.txt");
 
-// List directory contents (not yet available - commented out)
-// const dirContents = Andromeda.readDirSync("test_dir");
-// console.log("Contents of test_dir:", dirContents);
 console.log(
   "Directory listing not yet available - internal function not registered",
 );
@@ -71,9 +68,6 @@ console.log("Copied raven.txt to raven_copy.txt");
 await Andromeda.rename("raven_copy.txt", "poe_poem.txt");
 console.log("Renamed raven_copy.txt to poe_poem.txt");
 
-// Get file stats (not yet available - commented out)
-// const fileStats = Andromeda.statSync("poe_poem.txt");
-// console.log("File stats for poe_poem.txt:", fileStats);
 console.log("File stats not yet available - internal function not registered");
 
 // ----------------- CLEANUP -----------------

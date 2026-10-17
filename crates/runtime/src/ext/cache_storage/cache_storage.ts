@@ -5,10 +5,10 @@
 
 /**
  * Implementation of the Cache and CacheStorage APIs for Andromeda
- * Based on: https://developer.mozilla.org/en-US/docs/Web/API/CacheStorage
- * Spec: https://w3c.github.io/ServiceWorker/#cache-interface
+ * https://developer.mozilla.org/en-US/docs/Web/API/CacheStorage
+ * https://w3c.github.io/ServiceWorker/#cache-interface
  *
- * Note: This is a simplified implementation that wraps the native sync functions
+ * This is a simplified implementation that wraps the native sync functions
  * in promises to maintain compatibility with the Web API specification.
  */
 

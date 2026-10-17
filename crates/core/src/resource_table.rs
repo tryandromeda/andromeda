@@ -23,7 +23,6 @@ impl Rid {
     }
 }
 
-// Allow retrieving resources; requires T: Clone
 impl<T: Clone> ResourceTable<T> {
     /// Get a clone of the resource by Rid.
     pub fn get(&self, rid: Rid) -> Option<T> {
@@ -95,7 +94,7 @@ impl<T> ResourceTable<T> {
     pub fn get_mut(&self, rid: Rid) -> Option<RefMut<'_, T>> {
         let borrow = self.table.borrow_mut();
         if borrow.contains_key(&rid) {
-            // SAFETY: key exists, unwrap is safe
+            // SAFETY key exists, unwrap is safe
             Some(RefMut::map(borrow, move |m| m.get_mut(&rid).unwrap()))
         } else {
             None

@@ -231,7 +231,6 @@ function drawTile(x: number, y: number, v: number) {
   const py = BOARD_OFFSET_Y + GAP + y * (CELL + GAP);
   const { bg, fg } = tileColors(v);
 
-  // Pop animation on newly-moved tiles (subtle — whole board uses the frame).
   let scale = 1;
   if (v !== 0 && state.animFrame > 0) {
     const t = state.animFrame / ANIM_FRAMES;
@@ -342,7 +341,7 @@ await Andromeda.Window.mainloop(() => {
   if (frameCount % 240 === 0) {
     const elapsed = (Date.now() - fpsStart) / 1000;
     console.log(
-      `2048: frame ${frameCount} — avg fps ${(frameCount / elapsed).toFixed(1)}`,
+      `2048: frame ${frameCount} - avg fps ${(frameCount / elapsed).toFixed(1)}`,
     );
   }
 });

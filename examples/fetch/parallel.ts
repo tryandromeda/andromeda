@@ -36,7 +36,7 @@ async function main() {
 
   for (const r of results) {
     if ("error" in r) {
-      console.log("  FAIL  [" + r.ms + "ms] " + r.url + " — " + r.error);
+      console.log("  FAIL  [" + r.ms + "ms] " + r.url + " - " + r.error);
     } else {
       console.log(
         "  " + (r.ok ? "OK  " : "FAIL") +

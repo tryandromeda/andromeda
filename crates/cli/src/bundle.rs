@@ -90,7 +90,7 @@ pub fn bundle(input: &str, output: &str) -> CliResult<()> {
         }
     }
 
-    // TODO: get minifier settings from config file
+    // TODO get minifier settings from config file
     let options = MinifierOptions {
         mangle: Some(MangleOptions::default()),
         compress: None,

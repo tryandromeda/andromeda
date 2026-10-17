@@ -28,7 +28,7 @@ type EventListenerOrEventListenerObject =
 /**
  * The BatteryManager interface provides information about the system's battery charge level.
  */
-// TODO: Implement battery event handling with EventTarget inheritance.
+// TODO Implement battery event handling with EventTarget inheritance.
 class BatteryManager {
   [_charging]: boolean = false;
   [_chargingTime]: number = Infinity;
@@ -184,7 +184,7 @@ class BatteryManager {
   }
 
   /**
-   * Add an event listener - implements EventTarget interface
+   * EventTarget integration for battery notifications.
    */
   addEventListener(
     type: string,
@@ -274,7 +274,7 @@ class BatteryManager {
    * Starts periodic battery info updates
    */
   #startPeriodicUpdates(): void {
-    // TODO: Implement periodic updates if needed
+    // TODO Implement periodic updates if needed
   }
 
   /**

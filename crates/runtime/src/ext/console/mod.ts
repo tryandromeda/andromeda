@@ -332,13 +332,13 @@ function createTable(data: ConsoleValue[], headers?: string[]): string {
  * This implementation provides a comprehensive console interface following
  * the JavaScript console mechanism provided by web browsers.
  *
- * This implementation follows the WHATWG Console specification:
+ * This implementation follows the WHATWG Console specification
  * https://console.spec.whatwg.org/
  */
 const andromedaConsole = {
   /**
    * Logs a message to the console.
-   * Supports format specifiers: %s (string), %d/%i (integer), %f (float), %% (literal %)
+   * Supports printf-style formatting.
    *
    * @example
    * ```ts
@@ -432,7 +432,6 @@ const andromedaConsole = {
     } else {
       const first = args[0];
       if (typeof first === "string") {
-        // Prepend "Assertion failed: " to the first argument if it's a string
         const modifiedArgs = [`Assertion failed: ${first}`, ...args.slice(1)];
         message = formatArgs(modifiedArgs);
       } else {
@@ -467,9 +466,9 @@ const andromedaConsole = {
    *
    * @example
    * ```ts
-   * console.count(); // default: 1
-   * console.count("myLabel"); // myLabel: 1
-   * console.count("myLabel"); // myLabel: 2
+   * console.count();
+   * console.count("myLabel");
+   * console.count("myLabel");
    * ```
    */
   count(label: string = "default") {
@@ -603,7 +602,7 @@ const andromedaConsole = {
    */
   dir(obj?: ConsoleValue, _options?: Record<string, ConsoleValue>) {
     obj = webidl.converters.any(obj) as ConsoleValue;
-    // TODO: display an expandable object representation
+    // TODO display an expandable object representation
     andromedaConsole.log(formatValue(obj));
   },
 
@@ -678,7 +677,7 @@ const andromedaConsole = {
    * ```ts
    * console.time("myTimer");
    * // ... some operation
-   * console.timeEnd("myTimer"); // myTimer: 42ms
+   * console.timeEnd("myTimer");
    * ```
    */
   timeEnd(label: string = "default") {
@@ -716,7 +715,7 @@ const andromedaConsole = {
    * Starts a JavaScript CPU profile with an optional label.
    * Following WHATWG Console specification.
    *
-   * Note: In browser DevTools, this would start CPU profiling.
+   * In browser DevTools, this would start CPU profiling.
    * In Andromeda, we log the profile start event.
    *
    * @example

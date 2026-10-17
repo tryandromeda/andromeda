@@ -12,7 +12,7 @@ pub struct Renderer {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub pipeline: wgpu::RenderPipeline,
-    /// MSAA-sampled color target — what every render pass writes to.
+    /// Multisampled color target.
     pub background: wgpu::Texture,
     pub resolve_target: wgpu::Texture,
     pub stencil_texture: wgpu::Texture,
@@ -423,20 +423,11 @@ impl Renderer {
 
         self.queue.submit([encoder.finish()]);
 
-        // Drain the command queue once submitted. Each `RenderCommand`
-        // owns a `wgpu::Buffer` + `wgpu::BindGroup`; retaining them across
-        // `render_all` calls made the canvas accumulate draw commands
-        // (and GPU buffers) indefinitely in per-frame rendering loops
-        // like `examples/breakout.ts` — linear slowdown + linear memory
-        // growth. Since the background attachment is cleared at the start
-        // of every pass, replaying prior-frame commands doesn't preserve
-        // any state that the next frame can't re-emit. All existing
-        // canvas examples call `render()`/`saveAsPng`/`toDataURL` once
-        // after drawing, so this change is behavior-preserving for them.
+        // Retaining submitted commands would replay old draws and accumulate GPU resources.
         self.commands.clear();
     }
 
-    pub async fn create_bitmap(&mut self) -> Vec<u8> {
+    pub fn create_bitmap(&mut self) -> Vec<u8> {
         // Calculate bytes per row with proper alignment
         let bytes_per_pixel = U32_SIZE; // 4 bytes per pixel for RGBA
         let unpadded_bytes_per_row = self.dimensions.width * bytes_per_pixel;
@@ -771,16 +762,16 @@ impl Renderer {
         }
     }
 
-    pub async fn save_as_png(&mut self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let img = self.snapshot_as_image().await?;
+    pub fn save_as_png(&mut self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let img = self.snapshot_as_image()?;
         img.save(path)?;
         Ok(())
     }
 
-    pub async fn snapshot_as_image(
+    pub fn snapshot_as_image(
         &mut self,
     ) -> Result<image::RgbaImage, Box<dyn std::error::Error>> {
-        let pixel_data = self.create_bitmap().await;
+        let pixel_data = self.create_bitmap();
         // wgpu typically produces BGRA on swapchain textures; convert to
         // RGBA and unpremultiply in the same pass.
         let mut rgba_data = Vec::with_capacity(pixel_data.len());
@@ -793,10 +784,8 @@ impl Renderer {
             let r = chunk[2] as u32;
             let a = chunk[3] as u32;
             if a == 0 {
-                // Spec: transparent pixels have no defined rgb — zero.
                 rgba_data.extend_from_slice(&[0, 0, 0, 0]);
             } else if a == 255 {
-                // Fast path for opaque: no division needed.
                 rgba_data.extend_from_slice(&[r as u8, g as u8, b as u8, 255]);
             } else {
                 // Unpremultiply with round-to-nearest. Clamp at 255 so
@@ -813,9 +802,9 @@ impl Renderer {
     }
 
     /// Encode the current framebuffer as a PNG into an in-memory buffer.
-    pub async fn encode_as_png(&mut self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub fn encode_as_png(&mut self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         use image::ImageEncoder;
-        let img = self.snapshot_as_image().await?;
+        let img = self.snapshot_as_image()?;
         let mut out = Vec::new();
         image::codecs::png::PngEncoder::new(&mut out).write_image(
             img.as_raw(),
@@ -828,11 +817,11 @@ impl Renderer {
 
     /// Encode the current framebuffer as a JPEG into an in-memory buffer.
     /// `quality` is in [1..=100]; caller clamps before passing.
-    pub async fn encode_as_jpeg(
+    pub fn encode_as_jpeg(
         &mut self,
         quality: u8,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        let img = self.snapshot_as_image().await?;
+        let img = self.snapshot_as_image()?;
         let mut rgb = Vec::with_capacity((img.width() * img.height() * 3) as usize);
         for pixel in img.pixels() {
             let a = pixel[3] as u16;
@@ -1114,10 +1103,7 @@ impl Renderer {
             vertices.push(c.clone());
         }
 
-        // Vertices are already laid out as a triangle list (two triangles
-        // per stroke segment). Dispatch directly — do NOT route through
-        // `render_polygon`, which would fan-triangulate from the first
-        // vertex and turn multi-segment strokes into a fan shape.
+        // Fan triangulation would connect unrelated stroke segments and distort the shape.
         self.render_triangles(vertices, render_state);
     }
 
@@ -1166,7 +1152,6 @@ impl Renderer {
             let t = i as f64 / segments as f64;
             let t_inv = 1.0 - t;
 
-            // Quadratic Bezier formula: B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
             let x = t_inv * t_inv * start.x + 2.0 * t_inv * t * control.x + t * t * end.x;
             let y = t_inv * t_inv * start.y + 2.0 * t_inv * t * control.y + t * t * end.y;
 
@@ -1191,7 +1176,6 @@ impl Renderer {
             let t = i as f64 / segments as f64;
             let t_inv = 1.0 - t;
 
-            // Cubic Bezier formula: B(t) = (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
             let t_inv_sq = t_inv * t_inv;
             let t_sq = t * t;
 
@@ -1911,8 +1895,7 @@ fn earcut_triangulate(poly: &[Point]) -> Path {
             break;
         }
         if !clipped {
-            // Fallback: degenerate input. Emit remaining fan so we draw
-            // something instead of nothing.
+            // Keep degenerate polygons visible when ear clipping cannot finish.
             break;
         }
     }

@@ -402,7 +402,7 @@ impl ConsoleExt {
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
         // I
-        // TODO: capture the actual JavaScript call stack
+        // TODO capture the actual JavaScript call stack
         // For now, this simulate a realistic stack trace that could be enhanced
         // with actual frame walking in the future
 

@@ -71,7 +71,7 @@ pub enum RuntimeMacroTask {
         payload: String,
         blocks: Vec<SharedDataBlock>,
     },
-    /// Worker-side close request: drives the runtime's event loop to exit.
+    /// A worker-side request to stop the event loop.
     WorkerSelfClose,
     /// Posted by the parent-side forwarder thread when the worker has
     /// fully exited. Wakes the parent runtime loop so it can re-check

@@ -1051,7 +1051,7 @@ fn is_constant_expression(expr: &Expression) -> bool {
         | Expression::ClassExpression(_) => true,
         Expression::ParenthesizedExpression(p) => is_constant_expression(&p.expression),
         Expression::UnaryExpression(u) => match u.operator {
-            // `typeof x` is not constant — it depends on the binding's existence.
+            // The binding may not exist at runtime, so its type is not constant.
             UnaryOperator::Typeof => false,
             _ => is_constant_expression(&u.argument),
         },
@@ -1158,10 +1158,7 @@ fn check_compare_neg_zero(
     }
 }
 
-/// Check for NaN comparisons.
-///
-/// Mirrors oxc_linter's `eslint/use-isnan` identifier detection: both the
-/// global `NaN` binding and the `Number.NaN` member access are recognized.
+/// Follows oxc_linter's use-isnan rule for consistency with existing tooling.
 fn check_nan_comparison(
     bin_expr: &oxc_ast::ast::BinaryExpression,
     named_source: &NamedSource<String>,
@@ -1184,7 +1181,6 @@ fn check_nan_comparison(
     }
 }
 
-/// Returns `true` if `expr` resolves to the `NaN` value at runtime — either the bare `NaN` global or `Number.NaN`.
 fn is_nan_identifier(expr: &Expression) -> bool {
     let expr = expr.get_inner_expression();
     expr.is_specific_id("NaN") || expr.is_specific_member_access("Number", "NaN")

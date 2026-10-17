@@ -4,18 +4,16 @@
 
 #![allow(clippy::result_large_err)]
 
-use super::backend::AndromedaBackend;
 use crate::error::{CliError, CliResult};
+use crate::lsp::backend::AndromedaBackend;
 use tower_lsp::{LspService, Server};
 
 /// Start the Language Server Protocol server
 pub fn run_server() -> CliResult<()> {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(|e| CliError::lsp_error("tokio_runtime", e.to_string(), Some(e)))?;
+    let runtime = tokio::runtime::Handle::try_current()
+        .map_err(|error| CliError::lsp_error("tokio_runtime", error.to_string(), Some(error)))?;
 
-    rt.block_on(async {
+    runtime.block_on(async {
         let stdin = tokio::io::stdin();
         let stdout = tokio::io::stdout();
 

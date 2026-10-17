@@ -388,9 +388,7 @@ function createNullableConverter<T>(
   };
 }
 
-// Utility function to create sequence converters
-// Used by other modules to create sequence type converters
-// Per WebIDL spec 3.2.17 - sequence<T> conversion algorithm
+// Shared sequence conversion for WebIDL consumers.
 function createSequenceConverter<T>(
   converter: (
     V: unknown,

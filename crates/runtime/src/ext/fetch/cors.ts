@@ -114,7 +114,6 @@ export function extractCORSExposedHeaderNames(
       const headers = value.split(",").map((h) => h.trim().toLowerCase());
       for (const header of headers) {
         if (header === "*") {
-          // Wildcard - but we still need to handle it per spec
           continue;
         }
         exposedHeaders.add(header);
@@ -135,40 +134,32 @@ export function corsCheck(
   request: any,
   response: any,
 ): boolean {
-  // 1. Let origin be the result of getting `Access-Control-Allow-Origin` from response's header list.
   const origin = getHeader(response.headersList, "access-control-allow-origin");
 
-  // 2. If origin is null, then return failure.
   if (origin === null) {
     return false;
   }
 
-  // 3. If request's credentials mode is not "include" and origin is `*`, then return success.
   if (request.credentialsMode !== "include" && origin === "*") {
     return true;
   }
 
-  // 4. If the result of byte-serializing a request origin with request is origin, then:
   const requestOrigin = serializeOrigin(request.origin);
   if (requestOrigin === origin) {
-    // 1. If request's credentials mode is not "include", then return success.
     if (request.credentialsMode !== "include") {
       return true;
     }
 
-    // 2. Let credentials be the result of getting `Access-Control-Allow-Credentials` from response's header list.
     const credentials = getHeader(
       response.headersList,
       "access-control-allow-credentials",
     );
 
-    // 3. If credentials is `true`, then return success.
     if (credentials === "true") {
       return true;
     }
   }
 
-  // 5. Return failure.
   return false;
 }
 
@@ -180,7 +171,6 @@ export function corsPreflightCheck(
   request: any,
   response: any,
 ): boolean {
-  // 1. Let methods be the result of getting, decoding, and splitting `Access-Control-Allow-Methods` from response's header list.
   const methodsHeader = getHeader(
     response.headersList,
     "access-control-allow-methods",
@@ -189,7 +179,6 @@ export function corsPreflightCheck(
     methodsHeader.split(",").map((m) => m.trim().toUpperCase()) :
     [];
 
-  // 2. Let headerNames be the result of getting, decoding, and splitting `Access-Control-Allow-Headers` from response's header list.
   const headersHeader = getHeader(
     response.headersList,
     "access-control-allow-headers",
@@ -198,7 +187,6 @@ export function corsPreflightCheck(
     headersHeader.split(",").map((h) => h.trim().toLowerCase()) :
     [];
 
-  // 3. If request's method is not in methods and is not a CORS-safelisted method, then return failure.
   if (
     !methods.includes(request.method.toUpperCase()) &&
     !isCORSSafelistedMethod(request.method)
@@ -206,11 +194,9 @@ export function corsPreflightCheck(
     return false;
   }
 
-  // 4. For each header of request's header list's headers:
   for (const [name, value] of request.headersList || []) {
     const lowerName = name.toLowerCase();
 
-    // 1. If header's name is a CORS non-wildcard request-header name and is not in headerNames, then return failure.
     if (
       CORS_NON_WILDCARD_REQUEST_HEADERS.has(lowerName) &&
       !headerNames.includes(lowerName)
@@ -218,7 +204,6 @@ export function corsPreflightCheck(
       return false;
     }
 
-    // 2. If header's name is not in headerNames and header is not a CORS-safelisted request-header, then return failure.
     if (
       !headerNames.includes(lowerName) &&
       !headerNames.includes("*") &&
@@ -228,7 +213,6 @@ export function corsPreflightCheck(
     }
   }
 
-  // 5. Return success.
   return true;
 }
 
@@ -237,10 +221,6 @@ export function corsPreflightCheck(
  * @see https://fetch.spec.whatwg.org/#cors-preflight-fetch
  */
 export function createCORSPreflightRequest(request: any): any {
-  // 1. Let preflightRequest be a new request whose method is `OPTIONS`,
-  //    url is request's url, initiator is request's initiator,
-  //    destination is request's destination, origin is request's origin,
-  //    referrer is request's referrer, and referrer policy is request's referrer policy.
   const preflightRequest = {
     method: "OPTIONS",
     url: request.url,
@@ -258,16 +238,13 @@ export function createCORSPreflightRequest(request: any): any {
     priority: request.priority,
   };
 
-  // 2. Append (`Accept`, `*/*`) to preflightRequest's header list.
   preflightRequest.headersList.push(["Accept", "*/*"]);
 
-  // 3. Append (`Access-Control-Request-Method`, request's method) to preflightRequest's header list.
   preflightRequest.headersList.push([
     "Access-Control-Request-Method",
     request.method,
   ]);
 
-  // 4. Let headers be the CORS-unsafe request-header names with request's header list.
   const unsafeHeaders: string[] = [];
   for (const [name, value] of request.headersList || []) {
     if (!isCORSSafelistedRequestHeader(name, value)) {
@@ -275,24 +252,20 @@ export function createCORSPreflightRequest(request: any): any {
     }
   }
 
-  // 5. If headers is not empty, then:
   if (unsafeHeaders.length > 0) {
-    // 1. Let value be the result of combining headers, separated by `,`.
     const value = unsafeHeaders.join(", ");
 
-    // 2. Append (`Access-Control-Request-Headers`, value) to preflightRequest's header list.
     preflightRequest.headersList.push([
       "Access-Control-Request-Headers",
       value,
     ]);
   }
 
-  // 6. Return preflightRequest.
   return preflightRequest;
 }
 
 /**
- * Helper: Get a header value from a header list
+ * Header lookup for CORS checks.
  */
 function getHeader(
   headersList: Array<[string, string]>,
@@ -308,7 +281,7 @@ function getHeader(
 }
 
 /**
- * Helper: Serialize an origin for CORS checks
+ * Origin serialization for CORS checks.
  */
 function serializeOrigin(origin: any): string {
   if (typeof origin === "string") {

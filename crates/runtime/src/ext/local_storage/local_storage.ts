@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// Web Storage API implementation following:
+// Web Storage API implementation following
 // https://html.spec.whatwg.org/multipage/webstorage.html
 // https://webidl.spec.whatwg.org/
 
@@ -31,13 +31,13 @@ class StorageImpl implements Storage {
   }
 
   get length(): number {
-    // TODO: re-enable branding checks
+    // TODO re-enable branding checks
     // webidl.assertBranded(this, StoragePrototype);
     return __andromeda__.storage_length(this.#persistent);
   }
 
   key(index: number): string | null {
-    // TODO: re-enable branding checks
+    // TODO re-enable branding checks
     // webidl.assertBranded(this, StoragePrototype);
     const prefix = "Failed to execute 'key' on 'Storage'";
     webidl.requiredArguments(arguments.length, 1, prefix);
@@ -46,7 +46,7 @@ class StorageImpl implements Storage {
   }
 
   getItem(key: string): string | null {
-    // TODO: re-enable branding checks
+    // TODO re-enable branding checks
     // webidl.assertBranded(this, StoragePrototype);
     const prefix = "Failed to execute 'getItem' on 'Storage'";
     webidl.requiredArguments(arguments.length, 1, prefix);
@@ -55,7 +55,7 @@ class StorageImpl implements Storage {
   }
 
   setItem(key: string, value: string): void {
-    // TODO: re-enable branding checks
+    // TODO re-enable branding checks
     // webidl.assertBranded(this, StoragePrototype);
     const prefix = "Failed to execute 'setItem' on 'Storage'";
     webidl.requiredArguments(arguments.length, 2, prefix);
@@ -65,7 +65,7 @@ class StorageImpl implements Storage {
   }
 
   removeItem(key: string): void {
-    // TODO: re-enable branding checks
+    // TODO re-enable branding checks
     // webidl.assertBranded(this, StoragePrototype);
     const prefix = "Failed to execute 'removeItem' on 'Storage'";
     webidl.requiredArguments(arguments.length, 1, prefix);
@@ -74,7 +74,7 @@ class StorageImpl implements Storage {
   }
 
   clear(): void {
-    // TODO: re-enable branding checks
+    // TODO re-enable branding checks
     // webidl.assertBranded(this, StoragePrototype);
     __andromeda__.storage_clear(this.#persistent);
   }

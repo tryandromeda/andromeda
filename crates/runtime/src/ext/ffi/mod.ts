@@ -453,7 +453,7 @@ class UnsafeFnPointer<
 
   get call(): StaticForeignSymbol<Definition> {
     return ((..._args: unknown[]) => {
-      // TODO: Implement function pointer calling
+      // TODO Implement function pointer calling
       return null;
     }) as StaticForeignSymbol<Definition>;
   }
@@ -564,7 +564,7 @@ class UnsafePointerView {
   }
 
   getCString(byteOffset = 0): string {
-    // TODO: Implement proper C string reading
+    // TODO Implement proper C string reading
     const buffer = this.getArrayBuffer(256, byteOffset); // Read up to 256 bytes
     const bytes = new Uint8Array(buffer);
     const nullIndex = bytes.indexOf(0);

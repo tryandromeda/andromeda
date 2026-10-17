@@ -45,7 +45,6 @@ class MessagePort {
     this.#onmessage = value;
     if (value) {
       this.#eventTarget.addEventListener("message", value);
-      // Spec: assigning a value handler implicitly starts the port.
       this.start();
     }
   }

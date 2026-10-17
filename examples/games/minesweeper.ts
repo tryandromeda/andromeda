@@ -53,14 +53,14 @@ const COLORS = {
 // Tailwind-ish number colors, tuned for a dark background.
 const NUM_COLORS = [
   "",
-  "#60a5fa", // 1 — sky
-  "#4ade80", // 2 — green
-  "#f87171", // 3 — rose
-  "#c084fc", // 4 — violet
-  "#fbbf24", // 5 — amber
-  "#2dd4bf", // 6 — teal
-  "#f9a8d4", // 7 — pink
-  "#cbd5e1", // 8 — slate
+  "#60a5fa",
+  "#4ade80",
+  "#f87171",
+  "#c084fc",
+  "#fbbf24",
+  "#2dd4bf",
+  "#f9a8d4",
+  "#cbd5e1",
 ];
 
 function loadBest(): number {
@@ -105,8 +105,7 @@ function forEachNeighbor(
   }
 }
 
-// First click is always safe: the clicked cell and its 8 neighbors never
-// contain mines. Matches classic Windows-style minesweeper.
+// A safe opening prevents losses before the player can make an informed choice.
 function placeMines(grid: Cell[], safeX: number, safeY: number) {
   const forbidden = new Set<number>();
   forbidden.add(idxOf(safeX, safeY));
@@ -377,9 +376,9 @@ function drawHeader() {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const label = state.phase === "won"
-    ? "YOU WIN — PLAY AGAIN"
+    ? "YOU WIN - PLAY AGAIN"
     : state.phase === "lost"
-    ? "BOOM — TRY AGAIN"
+    ? "BOOM - TRY AGAIN"
     : "NEW GAME";
   ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2);
 
@@ -607,18 +606,7 @@ function render() {
   drawHint();
 }
 
-// let frameCount = 0;
-// const fpsStart = Date.now();
 await Andromeda.Window.mainloop(() => {
-  // frameCount++;
   render();
   win.presentCanvas(canvas);
-  // if (frameCount % 300 === 0) {
-  //   const elapsed = (Date.now() - fpsStart) / 1000;
-  //   console.log(
-  //     `minesweeper: frame ${frameCount} — avg fps ${
-  //       (frameCount / elapsed).toFixed(1)
-  //     }`,
-  //   );
-  // }
 });

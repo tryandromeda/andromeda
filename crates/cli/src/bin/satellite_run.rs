@@ -3,7 +3,6 @@
 
 #![allow(clippy::result_large_err)]
 
-/// Andromeda Satellite - Run
 ///
 /// A minimal executable focused solely on running JavaScript/TypeScript files.
 /// Designed for container instances where only execution capability is needed.

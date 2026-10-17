@@ -215,7 +215,6 @@ impl WptTestExecutor {
                 self.parse_test_output(output)
             }
             None => {
-                // Timeout occurred - kill the process
                 if self.config.verbose {
                     eprintln!(
                         "Test timed out after {:?}, killing process",
@@ -313,7 +312,7 @@ impl WptTestExecutor {
 
         // Fallback logic based on exit status and output
         if output.status.success() {
-            // Success but no WPT_RESULTS - might be a simple test
+            // Some scripts succeed without emitting the WPT result marker.
             Ok((WptTestResult::Pass, None))
         } else if stderr.contains("error:") || stderr.contains("Error:") {
             // Looks like a crash/error
@@ -403,7 +402,6 @@ fn extract_script_from_html(html_content: &str) -> Result<String, Box<dyn std::e
 
         // Start of script tag
         if trimmed.starts_with("<script") {
-            // Check if it has a src attribute (external script - skip it)
             if trimmed.contains("src=") || trimmed.contains("src =") {
                 script_has_src = true;
                 // Check if it's a self-closing or single-line script tag

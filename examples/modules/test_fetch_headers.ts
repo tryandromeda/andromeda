@@ -11,7 +11,7 @@ console.log("Authorization:", headers.get("Authorization"));
 
 // Test that fetch uses Headers internally
 console.log("\nTesting fetch with Headers:");
-// Note: This will create a network error since we're not actually fetching
+// This will create a network error since we're not actually fetching
 // But it tests that the modules are connected
 try {
   // This should work without errors if modules are properly connected

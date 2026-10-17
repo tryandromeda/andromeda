@@ -4,8 +4,8 @@
 
 /**
  * Implementation of the File API Blob interface
- * Based on: https://w3c.github.io/FileAPI/#blob-section
- * WinterTC Compliance: https://min-common-api.proposal.wintertc.org/
+ * https://w3c.github.io/FileAPI/#blob-section
+ * https://min-common-api.proposal.wintertc.org/
  */
 
 type BlobPart = BufferSource | string | Blob;
@@ -81,7 +81,6 @@ class Blob {
       // Validate and normalize type
       let normalizedType = "";
       if (type) {
-        // Basic MIME type validation - should be lowercase and ASCII printable
         if (
           /^[a-zA-Z0-9][a-zA-Z0-9!#$&\-\^_]*\/[a-zA-Z0-9][a-zA-Z0-9!#$&\-\^_.]*$/
             .test(type)
@@ -139,7 +138,7 @@ class Blob {
    * Returns a ReadableStream of the blob data
    */
   stream(): ReadableStream<Uint8Array> {
-    // TODO: return a proper ReadableStream
+    // TODO return a proper ReadableStream
     const data = __andromeda__.internal_blob_stream(this.#blobId);
     const bytes = data ?
       data.split(",").map((b) => parseInt(b, 10)).filter((b) => !isNaN(b)) :

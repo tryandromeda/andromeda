@@ -3,7 +3,6 @@
 
 #![allow(clippy::result_large_err)]
 
-/// Andromeda Satellite - Compile
 ///
 /// A minimal executable focused solely on compiling JavaScript/TypeScript files into executables.
 /// Designed for container instances where only compilation capability is needed.

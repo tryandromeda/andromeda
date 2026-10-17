@@ -62,8 +62,7 @@ fn current_subpath_ranges(points: &[renderer::Point], starts: &[usize]) -> Vec<(
     out
 }
 
-/// Ray-cast winding test: does the point (px, py) fall inside any
-/// subpath of `points` under the given fill rule?
+/// Fill-rule-aware hit testing for compound paths.
 fn point_in_current_path(
     points: &[renderer::Point],
     starts: &[usize],
@@ -103,10 +102,7 @@ fn point_in_current_path(
     }
 }
 
-/// Approximate "point inside the stroked outline" test: return true
-/// iff the point lies within `line_width / 2` of any edge of any
-/// subpath. Matches the expected behavior of `isPointInStroke(x, y)`
-/// for typical hit-testing use cases.
+/// Approximate hit testing for stroked paths.
 fn point_in_current_stroke(
     points: &[renderer::Point],
     starts: &[usize],
@@ -165,18 +161,7 @@ fn encode_bytes_csv(bytes: &[u8]) -> String {
     s
 }
 
-// Helper functions for text rendering.
-//
-// Given a canvas `y` argument and the font's real em-ascent (A) and
-// em-descent (D), returns the Y position in canvas coordinates where the
-// alphabetic baseline of the text should land. Follows the WHATWG canvas
-// spec:
-//   top         -> baseline at y + A  (y is the top of the em box)
-//   hanging     -> baseline at y + 0.8*A
-//   middle      -> baseline at y + (A - D) / 2
-//   alphabetic  -> baseline at y  (default)
-//   ideographic -> baseline at y - D
-//   bottom      -> baseline at y - D
+// Translate font metrics into canvas text alignment.
 fn baseline_target_y(baseline: &state::TextBaseline, y: f64, ascent: f32, descent: f32) -> f64 {
     let a = ascent as f64;
     let d = descent as f64;
@@ -227,10 +212,7 @@ struct CanvasData<'gc> {
     // Path state for renderer
     current_path: Vec<renderer::Point>,
     path_started: bool,
-    // Indices into `current_path` where each subpath starts. Updated by
-    // `moveTo` to preserve earlier subpaths in the same `beginPath/fill`
-    // block — Canvas 2D paths can contain multiple disconnected subpaths
-    // that must each render as their own closed shape.
+    // Disconnected subpaths must remain separate when the combined path is filled.
     subpath_starts: Vec<usize>,
     // State stack for save/restore functionality
     state_stack: Vec<state::CanvasState>,
@@ -1020,7 +1002,6 @@ impl CanvasExt {
             line_cap: renderer::LineCap::default(),
             line_join: renderer::LineJoin::default(),
             miter_limit: 10.0,
-            // Shadow properties (defaults: no shadow)
             shadow_blur: 0.0,
             shadow_color: FillStyle::Color {
                 r: 0.0,
@@ -1038,7 +1019,6 @@ impl CanvasExt {
             transform: [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
             // Default composite operation is source-over
             composite_operation: renderer::CompositeOperation::default(),
-            // Text properties - Canvas2D defaults
             font: "10px sans-serif".to_string(),
             text_align: state::TextAlign::default(),
             text_baseline: state::TextBaseline::default(),
@@ -1290,7 +1270,7 @@ impl CanvasExt {
             data: data.clone(),
         });
 
-        // Note: Texture loading is now done lazily when drawImage is called
+        // Texture loading is now done lazily when drawImage is called
         // This avoids the problem of not knowing which renderer to use
 
         Ok(Value::Integer(SmallInteger::from(rid.index() as i32)))
@@ -1513,11 +1493,10 @@ impl CanvasExt {
             // Finalize all pending render operations
             renderer.render_all();
 
-            // TODO: Add method to extract pixel data from GPU texture
+            // TODO Add method to extract pixel data from GPU texture
             // For now, just indicate successful render
             Ok(Value::Boolean(true))
         } else {
-            // No renderer available - can't render to pixels
             Ok(Value::Boolean(false))
         }
     }
@@ -1533,11 +1512,8 @@ impl CanvasExt {
         let rid_val = args.get(0).to_int32(agent, gc.reborrow()).unbind()? as u32;
         let rid = Rid::from_index(rid_val);
         let result = Self::with_renderer(agent, rid, |renderer| {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .map_err(|e| format!("tokio runtime init failed: {e}"))?;
-            rt.block_on(renderer.encode_as_png())
+            renderer
+                .encode_as_png()
                 .map_err(|e| format!("PNG encode failed: {e}"))
         });
         match result {
@@ -1579,11 +1555,8 @@ impl CanvasExt {
         };
         let quality = (quality_f * 100.0).round() as u8;
         let result = Self::with_renderer(agent, rid, |renderer| {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .map_err(|e| format!("tokio runtime init failed: {e}"))?;
-            rt.block_on(renderer.encode_as_jpeg(quality))
+            renderer
+                .encode_as_jpeg(quality)
                 .map_err(|e| format!("JPEG encode failed: {e}"))
         });
         match result {
@@ -1603,9 +1576,7 @@ impl CanvasExt {
         }
     }
 
-    /// Encode the canvas as a `data:<mime>;base64,<payload>` string. `mime`
-    /// must be `"image/png"` or `"image/jpeg"`; any other value is treated
-    /// as `"image/png"`.
+    /// Image encoding for the canvas data URL API.
     fn internal_canvas_encode_data_url<'gc>(
         agent: &mut Agent,
         _this: Value<'_>,
@@ -1625,20 +1596,16 @@ impl CanvasExt {
         let quality = (quality_val.clamp(0.0, 1.0) * 100.0).round() as u8;
 
         let result = Self::with_renderer(agent, rid, |renderer| {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .map_err(|e| format!("tokio runtime init failed: {e}"))?;
             if mime == "image/jpeg" || mime == "image/jpg" {
-                let b = rt
-                    .block_on(renderer.encode_as_jpeg(quality))
-                    .map_err(|e| format!("JPEG encode failed: {e}"))?;
-                Ok::<(String, Vec<u8>), String>(("image/jpeg".to_string(), b))
+                let bytes = renderer
+                    .encode_as_jpeg(quality)
+                    .map_err(|error| format!("JPEG encode failed: {error}"))?;
+                Ok::<(String, Vec<u8>), String>(("image/jpeg".to_string(), bytes))
             } else {
-                let b = rt
-                    .block_on(renderer.encode_as_png())
-                    .map_err(|e| format!("PNG encode failed: {e}"))?;
-                Ok(("image/png".to_string(), b))
+                let bytes = renderer
+                    .encode_as_png()
+                    .map_err(|error| format!("PNG encode failed: {error}"))?;
+                Ok(("image/png".to_string(), bytes))
             }
         });
         let (mime_out, bytes) = match result {
@@ -1711,21 +1678,11 @@ impl CanvasExt {
             // frame we just rendered. So we read straight from the
             // resolve target.
 
-            // Use tokio to handle the async save operation
-            let rt = match tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-            {
-                Ok(rt) => rt,
-                Err(_) => return Ok(Value::Boolean(false)),
-            };
-
-            match rt.block_on(renderer.save_as_png(&path_owned)) {
+            match renderer.save_as_png(&path_owned) {
                 Ok(_) => Ok(Value::Boolean(true)),
                 Err(_) => Ok(Value::Boolean(false)),
             }
         } else {
-            // No renderer available - can't save to PNG
             Ok(Value::Boolean(false))
         }
     }
@@ -2004,7 +1961,6 @@ impl CanvasExt {
 
         drop(storage);
 
-        // Return a JSON string describing dash array and offset, e.g. {"dash":[4,2],"offset":1}
         let mut s = String::from("{");
         s.push_str("\"dash\":[");
         for (i, v) in dash_clone.iter().enumerate() {
@@ -3423,7 +3379,6 @@ impl CanvasExt {
     }
 
     /// Internal op to draw an image onto the canvas
-    /// Arguments: canvas_rid, image_rid, sx, sy, s_width, s_height, dx, dy, d_width, d_height
     fn internal_canvas_draw_image<'gc>(
         agent: &mut Agent,
         _this: Value<'_>,
@@ -3609,7 +3564,7 @@ impl CanvasExt {
         let pixel_data = if res.canvases.get(canvas_rid).is_some() {
             if let Some(mut renderer) = res.renderers.get_mut(canvas_rid) {
                 renderer.render_all();
-                match futures::executor::block_on(renderer.snapshot_as_image()) {
+                match renderer.snapshot_as_image() {
                     Ok(img) => {
                         let full_w = img.width();
                         let full_h = img.height();
@@ -3674,9 +3629,7 @@ impl CanvasExt {
             return Ok(Value::Undefined);
         };
 
-        // Render directly — do NOT queue on canvas.commands, since
-        // `process_all_commands` is never wired into render_all.
-        // putImageData also bypasses the current transform and globalAlpha.
+        // Bypass the command queue so pixel writes are not transformed or alpha-blended.
         if let Some(mut renderer) = res.renderers.get_mut(canvas_rid) {
             let temp_image_rid = u32::MAX;
             renderer.load_image_texture(temp_image_rid, &data, width, height);
@@ -3779,7 +3732,7 @@ impl CanvasExt {
         let res: &CanvasResources = storage.get().unwrap();
 
         // For now, return empty array
-        // TODO:  return Uint8ClampedArray
+        // TODO return Uint8ClampedArray
         if let Some(image_data) = res.images.get(rid)
             && let Some(data) = &image_data.data
         {
@@ -5098,7 +5051,7 @@ impl CanvasExt {
                 ) as f32,
             };
 
-            // TODO: Stroke text path tessellation; for now
+            // TODO Stroke text path tessellation; for now
             // the stroke colour is filled at the path outline.
             let mut text_renderer = text::TextRenderer::new();
 
@@ -5261,7 +5214,7 @@ fn extract_image_region(
 }
 
 /// Flush pending canvas commands for the given canvas rid and return a
-/// clone of its `resolve_target` texture. Clones are cheap — `wgpu::Texture`
+/// clone of its `resolve_target` texture. Clones are cheap - `wgpu::Texture`
 /// is internally `Arc`-ed. Used by the `window` extension's canvas bridge
 /// to sample the latest canvas frame in a blit render pass. Takes the raw
 /// `OpsStorage` borrow to sidestep the `'gc` lifetime on `CanvasResources`.
@@ -5276,16 +5229,7 @@ pub(crate) fn render_canvas_to_texture(
     Some(renderer.resolve_target.clone())
 }
 
-/// Acquire a wgpu device+queue for a new canvas. When the `window` feature
-/// is enabled the shared `WindowingGpu` is used so canvas textures live on
-/// the same device as window surfaces — that's what lets `presentCanvas`
-/// blit a canvas frame into a window without cross-device copies. If the
-/// WindowingState slot is present but `ensure_gpu()` fails, we surface
-/// that error as a panic rather than silently creating a divergent
-/// standalone device — a mismatch would otherwise manifest as an opaque
-/// wgpu validation error at the next `presentCanvas` call. When the
-/// `window` feature is compiled out we fall back to stand-alone device
-/// creation, which has always been the canvas default.
+/// Sharing the window's GPU device avoids incompatible textures during presentation.
 fn acquire_device_and_queue(
     host_data: &HostData<crate::RuntimeMacroTask>,
 ) -> (wgpu::Device, wgpu::Queue) {

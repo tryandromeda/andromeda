@@ -282,7 +282,6 @@ function drawField() {
     COLORS.field,
     COLORS.panelBorder,
   );
-  // Center line — dashed
   ctx.fillStyle = COLORS.center;
   for (let y = FIELD_Y + 10; y < FIELD_Y + FIELD_H; y += 22) {
     ctx.fillRect(WIDTH / 2 - 1.5, y, 3, 12);
@@ -340,7 +339,7 @@ function drawOverlay() {
   ctx.fillStyle = COLORS.textMuted;
   ctx.font = "14px sans-serif";
   ctx.fillText(
-    `${state.playerScore} — ${state.aiScore}`,
+    `${state.playerScore} - ${state.aiScore}`,
     cardX + cardW / 2,
     cardY + 96,
   );

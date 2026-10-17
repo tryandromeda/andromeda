@@ -43,7 +43,7 @@ interface ResponseInit {
 
 class Response extends BodyMixin {
   /**
-   * The new Response(body, init) constructor steps are:
+   * The new Response(body, init) constructor steps are
    * @see https://fetch.spec.whatwg.org/#dom-response
    */
   constructor(body: BodyInit | null = null, init: ResponseInit = {}) {
@@ -146,30 +146,25 @@ class Response extends BodyMixin {
    * @see https://fetch.spec.whatwg.org/#dom-response-clone
    */
   clone(): Response {
-    // 1. If this is unusable, then throw a TypeError.
     if (this.bodyUsed) {
       throw new TypeError("Response body is already used");
     }
 
-    // 2. Let clonedResponse be the result of cloning this's response.
     const clonedInternalResponse = cloneResponse(
       (this as any)[RESPONSE_INTERNAL],
     );
 
-    // 3. Clone the body if present
     let clonedBody: any = null;
     if ((this as any)[BODY_SYMBOL]) {
       clonedBody = (this as any)[BODY_SYMBOL].clone();
     }
 
-    // 4. Create a new Response with null body first (to initialize private fields)
     const cloned = new Response(null, {
       status: clonedInternalResponse.status,
       statusText: clonedInternalResponse.statusText,
       headersList: [...clonedInternalResponse.headersList],
     });
 
-    // 5. Manually set the cloned body
     (cloned as any)[BODY_SYMBOL] = clonedBody;
     (cloned as any)[CONTENT_TYPE_SYMBOL] = (this as any)[CONTENT_TYPE_SYMBOL];
 
@@ -195,29 +190,23 @@ class Response extends BodyMixin {
    * @see https://fetch.spec.whatwg.org/#dom-response-redirect
    */
   static redirect(url: string | URL, status: number = 302): Response {
-    // 1. Let parsedURL be the result of parsing url with current settings object's API base URL.
     const parsedURL = new URL(url, globalThis.location?.href);
 
-    // 2. If parsedURL is failure, then throw a TypeError.
     if (!parsedURL) {
       throw new TypeError("Invalid URL");
     }
 
-    // 3. If status is not a redirect status, then throw a RangeError.
     if (![301, 302, 303, 307, 308].includes(status)) {
       throw new RangeError("Invalid redirect status");
     }
 
-    // 4. Let response be a new response.
     const response = new Response(null, {
       status,
       statusText: "",
     });
 
-    // 5. Set response's Location header to parsedURL, serialized and isomorphic encoded.
     response.headers.set("Location", parsedURL.toString());
 
-    // 6. Return response.
     return response;
   }
 
@@ -226,16 +215,12 @@ class Response extends BodyMixin {
    * @see https://fetch.spec.whatwg.org/#dom-response-json
    */
   static json(data: unknown, init: ResponseInit = {}): Response {
-    // 1. Let bytes be the result of running serialize a JavaScript value to JSON bytes on data.
     const bytes = new TextEncoder().encode(JSON.stringify(data));
 
-    // 2. Let response be the result of creating a Response object, given a new response, "response", and this's relevant Realm.
     const response = new Response(bytes, init);
 
-    // 3. Perform initialize a response given response, init, and (a new body whose stream is a new ReadableStream object, "application/json").
     response.headers.set("Content-Type", "application/json");
 
-    // 4. Return response.
     return response;
   }
 }
@@ -281,29 +266,24 @@ function initializeAResponse(
   body: any,
   contentType: string | null,
 ): void {
-  // 1. If init["status"] is not in the range 200 to 599, inclusive, then throw a RangeError.
   if (init.status != null && (init.status < 200 || init.status > 599)) {
     throw new RangeError(
       `The status provided (${init.status}) is outside the range [200, 599]`,
     );
   }
 
-  // 2. If init["statusText"] is not a valid reason phrase, then throw a TypeError.
   if (init.statusText && !isValidReasonPhrase(init.statusText)) {
     throw new TypeError(`Invalid status text: "${init.statusText}"`);
   }
 
-  // 3. Set response's response's status to init["status"].
   if (init.status != null) {
     getResponse(response).status = init.status;
   }
 
-  // 4. Set response's response's status message to init["statusText"].
   if (init.statusText != null) {
     getResponse(response).statusText = init.statusText;
   }
 
-  // 5. If init["headers"] exists, then fill response's headers with init["headers"].
   if (init.headers != null) {
     fillHeaders(response.headers, init.headers);
   }
@@ -314,17 +294,13 @@ function initializeAResponse(
     setHeadersList(response.headers, init.headersList);
   }
 
-  // 6. If body is non-null, then:
   if (body != null) {
-    // 1. If response's status is a null body status, then throw a TypeError.
     if (nullBodyStatus(response.status)) {
       throw new TypeError(
         `Response with status ${response.status} cannot have a body.`,
       );
     }
 
-    // 2. If contentType is non-null and response's header list does not contain `Content-Type`,
-    //    then append (`Content-Type`, contentType) to response's header list.
     if (contentType && !response.headers.has("Content-Type")) {
       response.headers.set("Content-Type", contentType);
     }

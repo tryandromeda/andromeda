@@ -260,8 +260,7 @@ impl CacheStorageExt {
 
         match result {
             Ok(_) => {
-                // For now, return undefined directly - in a full implementation,
-                // you would return a proper Cache object
+                // TODO Return a Cache object once native object wrapping is supported.
                 Ok(Value::Undefined)
             }
             Err(_) => Err(agent
@@ -626,8 +625,7 @@ impl CacheStorageExt {
         // Extract URLs from array argument
         let urls = match args.get(1) {
             Value::Object(_array_obj) => {
-                // Simplified array handling - in a full implementation you'd properly iterate
-                // For now, we'll just process one URL as a demo
+                // TODO Support the full URL array rather than only its first entry.
                 vec!["https://example.com/multiple".to_string()]
             }
             _ => return Ok(Value::Undefined),

@@ -29,15 +29,15 @@ enum InstallerCommand {
     ///
     /// Satellites are lightweight, single-purpose binaries optimized for specific tasks.
     ///
-    /// Available satellites:
-    ///   - run:     Execute JavaScript/TypeScript files
-    ///   - compile: Compile JS/TS into standalone executables
-    ///   - fmt:     Format JavaScript/TypeScript files
-    ///   - lint:    Lint JavaScript/TypeScript files
-    ///   - bundle:  Bundle and minify JS/TS files
-    ///   - all:     Install all satellites
+    /// Available satellites
+    ///   - run executes JavaScript/TypeScript files.
+    ///   - compile creates standalone executables.
+    ///   - fmt formats source files.
+    ///   - lint checks source files.
+    ///   - bundle bundles and minifies source files.
+    ///   - all installs every satellite.
     ///
-    /// Examples:
+    /// Examples
     ///   andromeda-installer satellite run
     ///   andromeda-installer satellite fmt lint
     ///   andromeda-installer satellite all --force
@@ -53,11 +53,11 @@ enum InstallerCommand {
 
 #[derive(Debug, Args, Clone)]
 struct InstallArgs {
-    /// Installation directory (default: %USERPROFILE%\.local\bin)
+    /// Installation directory
     #[arg(short = 'd', long)]
     install_dir: Option<PathBuf>,
 
-    /// Specific version to install (default: latest)
+    /// Specific version to install
     #[arg(short = 'v', long)]
     version: Option<String>,
 

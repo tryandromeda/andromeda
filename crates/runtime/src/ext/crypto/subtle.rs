@@ -28,7 +28,6 @@ enum CryptoAlgorithm {
     Sha384,
     Sha512,
 
-    // Symmetric algorithms - AES
     AesGcm {
         length: u32,
         iv: Vec<u8>,
@@ -49,7 +48,6 @@ enum CryptoAlgorithm {
         length: u32,
     },
 
-    // Asymmetric algorithms - RSA
     RsaOaep {
         modulus_length: u32,
         public_exponent: Vec<u8>,
@@ -193,7 +191,7 @@ impl SubtleCrypto {
             Ok(string_data.as_bytes().to_vec())
         } else {
             // For now, return a test message when we can't extract properly
-            // TODO: Implement proper TypedArray extraction when Nova VM supports it
+            // TODO Implement proper TypedArray extraction when Nova VM supports it
             Ok("Secret message!".as_bytes().to_vec())
         }
     }
@@ -237,7 +235,7 @@ impl SubtleCrypto {
                 _ => Err(format!("Unsupported algorithm: {algorithm_name}")),
             }
         } else {
-            // TODO: Handle algorithm objects (e.g., { name: "SHA-256" })
+            // TODO Handle algorithm objects with a name property.
             Err("Algorithm must be a string or object with name property".to_string())
         }
     }
@@ -321,7 +319,6 @@ impl SubtleCrypto {
             _ => true, // Default to true for other values
         };
 
-        // Parse algorithm - handle both string and object forms
         let (algorithm_name, key_length) =
             if let Ok(algorithm_str) = algorithm_value.to_string(agent, gc.reborrow()) {
                 // Simple string form
@@ -330,7 +327,7 @@ impl SubtleCrypto {
                     .expect("String is not valid UTF-8");
                 (name.to_string(), 256) // Default to 256-bit keys
             } else {
-                // TODO: Parse algorithm object with name and parameters
+                // TODO Parse algorithm object with name and parameters
                 ("".to_string(), 256)
             };
 
@@ -627,7 +624,7 @@ impl SubtleCrypto {
                 )
             }
             _ => {
-                // TODO: Implement other formats (spki, pkcs8, jwk)
+                // TODO Implement other formats (spki, pkcs8, jwk)
                 Err(agent
                     .throw_exception_with_static_message(
                         nova_vm::ecmascript::ExceptionType::Error,
@@ -901,7 +898,7 @@ impl SubtleCrypto {
     }
 
     fn encrypt_aes_cbc(_key_data: &[u8], _plaintext: &[u8], _iv: &[u8]) -> Result<Vec<u8>, String> {
-        // TODO: Implement AES-CBC encryption using ring or another crate
+        // TODO Implement AES-CBC encryption using ring or another crate
         // Ring doesn't provide AES-CBC, so we'd need another dependency
         Err("AES-CBC encryption not yet implemented".to_string())
     }
@@ -911,7 +908,7 @@ impl SubtleCrypto {
         _plaintext: &[u8],
         _counter: &[u8],
     ) -> Result<Vec<u8>, String> {
-        // TODO: Implement AES-CTR encryption using ring or another crate
+        // TODO Implement AES-CTR encryption using ring or another crate
         // Ring doesn't provide AES-CTR, so we'd need another dependency
         Err("AES-CTR encryption not yet implemented".to_string())
     }
@@ -1025,7 +1022,6 @@ impl SubtleCrypto {
     /// Perform AES-GCM decryption
     fn decrypt_aes_gcm(key_data: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, String> {
         if ciphertext.len() < 28 {
-            // Minimum: 12 bytes nonce + 0 bytes plaintext + 16 bytes tag
             return Err("Ciphertext too short for AES-GCM".to_string());
         }
 
@@ -1035,7 +1031,7 @@ impl SubtleCrypto {
 
         // Extract components
         let nonce_bytes = &ciphertext[0..12];
-        let ciphertext_len = ciphertext.len() - 28; // Total - nonce - tag
+        let ciphertext_len = ciphertext.len() - 28;
         let encrypted_data = &ciphertext[12..12 + ciphertext_len];
         let tag_bytes = &ciphertext[12 + ciphertext_len..];
 
@@ -1055,13 +1051,13 @@ impl SubtleCrypto {
     }
 
     fn decrypt_aes_cbc(_key_data: &[u8], _ciphertext: &[u8]) -> Result<Vec<u8>, String> {
-        // TODO: Implement AES-CBC decryption using ring or another crate
+        // TODO Implement AES-CBC decryption using ring or another crate
         // Ring doesn't provide AES-CBC, so we'd need another dependency
         Err("AES-CBC decryption not yet implemented".to_string())
     }
 
     fn decrypt_aes_ctr(_key_data: &[u8], _ciphertext: &[u8]) -> Result<Vec<u8>, String> {
-        // TODO: Implement AES-CTR decryption using ring or another crate
+        // TODO Implement AES-CTR decryption using ring or another crate
         // Ring doesn't provide AES-CTR, so we'd need another dependency
         Err("AES-CTR decryption not yet implemented".to_string())
     }
@@ -1106,7 +1102,7 @@ impl SubtleCrypto {
         // For HMAC operations
         match algorithm {
             CryptoAlgorithm::Hmac { ref hash, .. } => {
-                // Try to extract key ID from key_value - for now use test key as fallback
+                // TODO Retrieve the actual key instead of using the test-key fallback.
                 let key_data = if let Ok(key_str) = _key_value.to_string(agent, gc.reborrow()) {
                     let key_string = key_str.as_str(agent).unwrap_or("");
                     // Try to parse as JSON to get key ID
@@ -1165,7 +1161,7 @@ impl SubtleCrypto {
                 )
             }
             _ => {
-                // TODO: Implement RSA signatures and ECDSA
+                // TODO Implement RSA signatures and ECDSA
                 Ok(nova_vm::ecmascript::String::from_string(
                     agent,
                     "error_algorithm_not_implemented".to_string(),
@@ -1208,7 +1204,7 @@ impl SubtleCrypto {
 
         match algorithm {
             CryptoAlgorithm::Hmac { ref hash, .. } => {
-                // TODO: Extract key ID from _key_value and retrieve actual key
+                // TODO Extract key ID from _key_value and retrieve actual key
                 let test_key = b"test_hmac_key";
 
                 let verification_result = match hash.as_str() {
@@ -1234,7 +1230,7 @@ impl SubtleCrypto {
                 Ok(Value::Boolean(verification_result.is_ok()))
             }
             _ => {
-                // TODO: Implement RSA and ECDSA verification
+                // TODO Implement RSA and ECDSA verification
                 Ok(Value::Boolean(false))
             }
         }
@@ -1245,7 +1241,7 @@ impl SubtleCrypto {
         _args: ArgumentsList,
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Implement key derivation functionality
+        // TODO Implement key derivation functionality
         let gc = gc.into_nogc();
         Err(agent
             .throw_exception_with_static_message(
@@ -1261,7 +1257,7 @@ impl SubtleCrypto {
         _args: ArgumentsList,
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Implement bit derivation functionality
+        // TODO Implement bit derivation functionality
         let gc = gc.into_nogc();
         Err(agent
             .throw_exception_with_static_message(
@@ -1277,7 +1273,7 @@ impl SubtleCrypto {
         _args: ArgumentsList,
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Implement key wrapping functionality
+        // TODO Implement key wrapping functionality
         let gc = gc.into_nogc();
         Err(agent
             .throw_exception_with_static_message(
@@ -1293,7 +1289,7 @@ impl SubtleCrypto {
         _args: ArgumentsList,
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Implement key unwrapping functionality
+        // TODO Implement key unwrapping functionality
         let gc = gc.into_nogc();
         Err(agent
             .throw_exception_with_static_message(
@@ -1304,20 +1300,3 @@ impl SubtleCrypto {
             .unbind())
     }
 }
-
-// Web Crypto API implementation for Nova VM
-//
-// Current Status:
-// - ✅ Basic digest operations (SHA-1, SHA-256, SHA-384, SHA-512)
-// - ✅ Basic key generation for AES-GCM
-// - ❌ digest() returns hex string instead of ArrayBuffer (W3C non-compliant)
-// - ❌ extract_bytes_from_value() is stubbed
-// - ❌ Missing full algorithm object support
-// - ❌ Missing encrypt/decrypt implementations
-// - ❌ Missing sign/verify implementations
-//
-// TODO for W3C compliance:
-// 1. Implement proper ArrayBuffer return type for digest()
-// 2. Implement typed array extraction for input data
-// 3. Add support for algorithm objects (not just strings)
-// 4. Implement remaining crypto operations

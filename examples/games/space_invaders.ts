@@ -317,7 +317,6 @@ function update() {
     }
   }
 
-  // Aliens reach the player line — game over.
   const lowest = alive().reduce(
     (m, a) => Math.max(m, alienXY(a).y + ALIEN_H),
     0,
@@ -432,8 +431,7 @@ function drawHeader() {
   ctx.fillText(String(state.best).padStart(5, "0"), WIDTH - PADDING - 80, 44);
 }
 
-// Lives sit in the footer row below the play floor — classic arcade
-// layout, and out of the way of the BEST score column.
+// The footer keeps lives clear of the score column.
 function drawLives() {
   const y = PLAY_BOTTOM + 8;
   ctx.fillStyle = COLORS.textMuted;

@@ -413,12 +413,12 @@ function drawFooter() {
   ctx.textBaseline = "middle";
   ctx.fillText(
     state.phase === "playing"
-      ? "click an empty cell — you play X, AI is unbeatable"
+      ? "click an empty cell - you play X, AI is unbeatable"
       : state.phase === "draw"
       ? "Draw · click NEW GAME or press R"
       : state.winner === "X"
       ? "You win! (the AI must have let you)"
-      : "AI wins — try again",
+      : "AI wins - try again",
     WIDTH / 2,
     HEIGHT - PADDING - 12,
   );

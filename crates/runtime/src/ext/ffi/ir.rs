@@ -256,7 +256,7 @@ pub fn ffi_parse_pointer_arg(arg: Value, _gc: GcScope) -> Result<NativeValue, Ff
             let pointer_value = match bigint_as_bigint {
                 BigInt::SmallBigInt(small) => small.into_i64() as usize,
                 BigInt::BigInt(_heap_big) => {
-                    // TODO: Implement proper large BigInt to pointer conversion
+                    // TODO Implement proper large BigInt to pointer conversion
                     0usize
                 }
             };
@@ -288,7 +288,7 @@ pub fn parse_foreign_function<'gc>(
         ));
     };
 
-    // TODO: Implement full JavaScript object property parsing
+    // TODO Implement full JavaScript object property parsing
     let foreign_func = ForeignFunction {
         name: None,
         parameters: types.0,
@@ -308,14 +308,14 @@ pub fn value_to_boolean(value: Value) -> bool {
         Value::Undefined | Value::Null => false,
         Value::Integer(i) => i.into_i64() != 0,
         Value::SmallF64(f) => !f.into_f64().is_nan() && f.into_f64() != 0.0,
-        Value::Number(_) => true, // Simplified: assume non-zero numbers are true
-        Value::String(_) | Value::SmallString(_) => true, // Simplified: assume non-empty strings are true
+        Value::Number(_) => true, // TODO Handle numeric falsy values.
+        Value::String(_) | Value::SmallString(_) => true, // TODO Handle empty strings.
         _ => true,
     }
 }
 
 pub fn ffi_parse_buffer_arg(arg: Value) -> Result<NativeValue, FfiError> {
-    // TODO: Handle ArrayBuffer/TypedArray
+    // TODO Handle ArrayBuffer/TypedArray
     match arg {
         Value::Null => Ok(NativeValue {
             pointer: ptr::null_mut(),
