@@ -2206,17 +2206,17 @@ pub fn lint_file_content_with_config(
                     });
                 }
             }
-            Statement::DebuggerStatement(debugger_stmt) => {
-                if is_rule_enabled("no-debugger", lint_config) {
-                    let span = SourceSpan::new(
-                        (debugger_stmt.span.start as usize).into(),
-                        debugger_stmt.span.size() as usize,
-                    );
-                    lint_errors.push(LintError::NoDebugger {
-                        span,
-                        source_code: named_source.clone(),
-                    });
-                }
+            Statement::DebuggerStatement(debugger_stmt)
+                if is_rule_enabled("no-debugger", lint_config) =>
+            {
+                let span = SourceSpan::new(
+                    (debugger_stmt.span.start as usize).into(),
+                    debugger_stmt.span.size() as usize,
+                );
+                lint_errors.push(LintError::NoDebugger {
+                    span,
+                    source_code: named_source.clone(),
+                });
             }
             _ => {}
         }

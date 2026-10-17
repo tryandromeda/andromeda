@@ -393,7 +393,7 @@ impl WebLocksManager {
         let mut held = Vec::new();
         let mut pending = Vec::new();
 
-        for (_name, state) in locks.iter() {
+        for state in locks.values() {
             // Add active locks to held
             for active_lock in &state.active_locks {
                 held.push(format!(

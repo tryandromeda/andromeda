@@ -78,7 +78,7 @@ impl BroadcastChannelExt {
 
         // Remove this RID from all channels
         let mut channels = BROADCAST_CHANNELS.write().unwrap();
-        for (_name, handles) in channels.iter_mut() {
+        for handles in channels.values_mut() {
             handles.retain(|handle| handle.rid != rid);
         }
 
