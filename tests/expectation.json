@@ -220,7 +220,6 @@
     },
     "dom": {
       "expectations": {
-        "AbortSignal.any.js": "FAIL",
         "AddEventListenerOptions-passive.any.js": "FAIL",
         "AddEventListenerOptions-signal.any.js": "FAIL",
         "Body-FrameSet-Event-Handlers.html": "CRASH",
@@ -514,7 +513,6 @@
         "TreeWalker-walking-outside-a-tree.html": "FAIL",
         "TreeWalker.html": "CRASH",
         "abort-signal-any-crash.html": "CRASH",
-        "abort-signal-any.any.js": "CRASH",
         "abort-signal-timeout.html": "FAIL",
         "adoption.window.js": "FAIL",
         "any-on-abort.html": "CRASH",
@@ -565,7 +563,6 @@
         "event-global-set-before-handleEvent-lookup.window.js": "FAIL",
         "event-global.html": "CRASH",
         "event-global.worker.js": "CRASH",
-        "event.any.js": "CRASH",
         "eventPathRemoved.html": "CRASH",
         "externalScript.js": "CRASH",
         "fire-focusin-focusout.html": "FAIL",
@@ -734,7 +731,6 @@
         "throws-exception.html": "FAIL",
         "timeout-close.html": "CRASH",
         "timeout-shadowrealm.any.js": "FAIL",
-        "timeout.any.js": "FAIL",
         "transformToFragment-on-node-from-inactive-document-crash.html": "CRASH",
         "transformToFragment.tentative.window.js": "CRASH",
         "webkit-animation-end-event.html": "CRASH",

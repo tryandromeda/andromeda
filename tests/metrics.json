@@ -4,12 +4,12 @@
   "wpt": {
     "overall": {
       "total_tests": 2023,
-      "pass": 491,
-      "fail": 483,
-      "crash": 1037,
+      "pass": 495,
+      "fail": 481,
+      "crash": 1035,
       "timeout": 8,
       "skip": 4,
-      "pass_rate": 24.270884824518042
+      "pass_rate": 24.468610973801287
     },
     "suites": {
       "FileAPI": {
@@ -59,12 +59,12 @@
       },
       "dom": {
         "total_tests": 640,
-        "pass": 116,
-        "fail": 187,
-        "crash": 336,
+        "pass": 120,
+        "fail": 185,
+        "crash": 334,
         "timeout": 1,
         "skip": 0,
-        "pass_rate": 18.125
+        "pass_rate": 18.75
       },
       "encoding": {
         "total_tests": 224,

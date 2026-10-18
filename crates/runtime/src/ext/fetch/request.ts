@@ -429,7 +429,7 @@ class Request extends BodyMixin {
   get signal(): AbortSignal {
     // If no signal, create a never-aborted signal
     if (!(this as any)[REQUEST_SIGNAL]) {
-      (this as any)[REQUEST_SIGNAL] = new AbortSignal();
+      (this as any)[REQUEST_SIGNAL] = new AbortController().signal;
     }
     return (this as any)[REQUEST_SIGNAL];
   }

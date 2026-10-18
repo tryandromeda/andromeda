@@ -36,7 +36,6 @@ function setCurrentTarget(event: Event, value: any) {
   (event as any)[_attributes].currentTarget = value;
 }
 
-// deno-lint-ignore no-unused-vars
 function setIsTrusted(event: Event, value: boolean) {
   (event as any)[_isTrusted] = value;
 }
@@ -591,22 +590,20 @@ function innerInvokeEventListeners(
     if (passive) {
       setInPassiveListener(eventImpl, true);
     }
-    if (typeof listener.callback === "object" && listener.callback !== null) {
-      if (
-        typeof (listener.callback as EventListenerObject).handleEvent ===
-          "function"
-      ) {
-        (listener.callback as EventListenerObject).handleEvent(eventImpl);
-      }
-    } else if (typeof listener.callback === "function") {
-      try {
+    try {
+      if (typeof listener.callback === "object" && listener.callback !== null) {
+        const callback = listener.callback as EventListenerObject;
+        if (typeof callback.handleEvent === "function") {
+          callback.handleEvent(eventImpl);
+        }
+      } else if (typeof listener.callback === "function") {
         (listener.callback as EventListener).call(
           eventImpl.currentTarget,
           eventImpl,
         );
-      } catch (_) {
-        (listener.callback as EventListener)(eventImpl);
       }
+    } catch (error) {
+      reportException(error);
     }
 
     setInPassiveListener(eventImpl, false);
@@ -1204,20 +1201,124 @@ function listenerCount(target: any, type: string): number {
 }
 
 // Private symbols for AbortSignal internal state
-const _aborted = Symbol("[[aborted]]");
 const _abortReason = Symbol("[[abortReason]]");
 const _abortAlgorithms = Symbol("[[abortAlgorithms]]");
+const _dependent = Symbol("[[dependent]]");
+const _sourceSignals = Symbol("[[sourceSignals]]");
+const _dependentSignals = Symbol("[[dependentSignals]]");
+const _activeDependents = Symbol("[[activeDependents]]");
+const _timeoutPending = Symbol("[[timeoutPending]]");
+
+const timeoutKeepAlive = new Set<AbortSignal>();
+
+class WeakAbortSignalSet {
+  #refs = new Set<WeakRef<AbortSignal>>();
+  #registry = new FinalizationRegistry<WeakRef<AbortSignal>>((held) => {
+    this.#refs.delete(held);
+  });
+
+  add(signal: AbortSignal): void {
+    for (const ref of this.#refs) {
+      if (ref.deref() === signal) {
+        return;
+      }
+    }
+    const ref = new WeakRef(signal);
+    this.#refs.add(ref);
+    this.#registry.register(signal, ref, ref);
+  }
+
+  live(): AbortSignal[] {
+    const signals: AbortSignal[] = [];
+    for (const ref of this.#refs) {
+      const signal = ref.deref();
+      if (signal === undefined) {
+        this.#refs.delete(ref);
+      } else {
+        signals.push(signal);
+      }
+    }
+    return signals;
+  }
+}
+
+function sourceSignals(signal: AbortSignal): WeakAbortSignalSet {
+  return (signal as any)[_sourceSignals];
+}
+
+function dependentSignals(signal: AbortSignal): WeakAbortSignalSet {
+  return (signal as any)[_dependentSignals];
+}
+
+function activeDependents(signal: AbortSignal): Set<AbortSignal> {
+  return (signal as any)[_activeDependents];
+}
+
+function hasAbortEventListeners(signal: AbortSignal): boolean {
+  const listeners = getListeners(signal).abort;
+  return Array.isArray(listeners) && listeners.length > 0;
+}
+
+function mustNotBeGarbageCollected(signal: AbortSignal): boolean {
+  if (
+    (signal as any)[_abortReason] !== undefined ||
+    !(signal as any)[_dependent]
+  ) {
+    return false;
+  }
+  if (sourceSignals(signal).live().length === 0) {
+    return false;
+  }
+  const algorithms = (signal as any)[_abortAlgorithms] as Set<unknown>;
+  return hasAbortEventListeners(signal) || algorithms.size > 0;
+}
+
+function abortEventListenersChanged(signal: AbortSignal): void {
+  if ((signal as any)[_timeoutPending]) {
+    if (
+      (signal as any)[_abortReason] === undefined &&
+      hasAbortEventListeners(signal)
+    ) {
+      timeoutKeepAlive.add(signal);
+    } else {
+      timeoutKeepAlive.delete(signal);
+    }
+  }
+
+  if (!(signal as any)[_dependent]) {
+    return;
+  }
+
+  const retain = mustNotBeGarbageCollected(signal);
+  for (const source of sourceSignals(signal).live()) {
+    const dependents = activeDependents(source);
+    if (retain) {
+      dependents.add(signal);
+    } else {
+      dependents.delete(signal);
+    }
+  }
+}
+
+const illegalConstructorKey: unique symbol = Symbol("illegalConstructor");
 
 class AbortSignal extends EventTarget {
-  constructor() {
+  constructor(key?: typeof illegalConstructorKey) {
+    if (key !== illegalConstructorKey) {
+      throw new TypeError("Illegal constructor");
+    }
     super();
 
-    (this as any)[_aborted] = false;
     (this as any)[_abortReason] = undefined;
     (this as any)[_abortAlgorithms] = new Set();
+    (this as any)[_dependent] = false;
+    (this as any)[_sourceSignals] = new WeakAbortSignalSet();
+    (this as any)[_dependentSignals] = new WeakAbortSignalSet();
+    (this as any)[_activeDependents] = new Set();
+    (this as any)[_timeoutPending] = false;
   }
   get aborted(): boolean {
-    return (this as any)[_aborted];
+    return (this as any)[_abortReason] !== undefined;
   }
 
   get reason(): any {
@@ -1225,76 +1326,144 @@ class AbortSignal extends EventTarget {
   }
 
   throwIfAborted(): void {
-    if ((this as any)[_aborted]) {
+    if ((this as any)[_abortReason] !== undefined) {
       throw (this as any)[_abortReason];
     }
   }
+
+  addEventListener(
+    type: string,
+    callback: EventListenerOrEventListenerObject | null,
+    options?: boolean | AddEventListenerOptions,
+  ): void {
+    super.addEventListener(type, callback, options);
+    if (String(type) === "abort") {
+      abortEventListenersChanged(this as any);
+    }
+  }
+
+  removeEventListener(
+    type: string,
+    callback: EventListenerOrEventListenerObject | null,
+    options?: boolean | EventListenerOptions,
+  ): void {
+    super.removeEventListener(type, callback, options);
+    if (String(type) === "abort") {
+      abortEventListenersChanged(this as any);
+    }
+  }
+
   // Static factory methods
   static abort(reason?: any): AbortSignal {
-    const signal = new AbortSignal();
-    (signal as any)[_aborted] = true;
+    // @ts-ignore illegal constructor
+    const signal = new AbortSignal(illegalConstructorKey);
     (signal as any)[_abortReason] = reason !== undefined ?
       reason :
       new DOMException("signal is aborted without reason", "AbortError");
     return signal;
   }
   static timeout(milliseconds: number): AbortSignal {
-    if (milliseconds < 0) {
-      throw new RangeError("milliseconds must be non-negative");
+    if (arguments.length < 1) {
+      throw new TypeError(
+        "Failed to execute 'timeout' on 'AbortSignal': 1 argument required, but only 0 present.",
+      );
+    }
+    let converted = Number(milliseconds);
+    if (!Number.isFinite(converted)) {
+      throw new TypeError(
+        "Failed to execute 'timeout' on 'AbortSignal': The provided value cannot be converted to 'unsigned long long'.",
+      );
+    }
+    converted = Math.trunc(converted);
+    if (converted < 0 || converted > Number.MAX_SAFE_INTEGER) {
+      throw new TypeError(
+        "Failed to execute 'timeout' on 'AbortSignal': Value is outside the 'unsigned long long' value range.",
+      );
     }
 
-    const signal = new AbortSignal();
-    if (milliseconds === 0) {
-      (signal as any)[_aborted] = true;
-      (signal as any)[_abortReason] = new DOMException(
-        "signal timed out",
-        "TimeoutError",
-      );
-    } else {
-      const timeoutCallback = function() {
-        if (!(signal as any)[_aborted]) {
-          signalAbort(
-            signal,
-            new DOMException("signal timed out", "TimeoutError"),
-          );
-        }
-      };
-      setTimeout(timeoutCallback, milliseconds);
-    }
+    // @ts-ignore illegal constructor
+    const signal = new AbortSignal(illegalConstructorKey);
+    (signal as any)[_timeoutPending] = true;
+    const ref = new WeakRef(signal);
+    setTimeout(() => {
+      const current = ref.deref();
+      if (!current) {
+        return;
+      }
+      (current as any)[_timeoutPending] = false;
+      timeoutKeepAlive.delete(current);
+      if ((current as any)[_abortReason] === undefined) {
+        signalAbort(
+          current,
+          new DOMException("signal timed out", "TimeoutError"),
+        );
+      }
+    }, converted);
 
     return signal;
   }
   static any(signals: AbortSignal[]): AbortSignal {
-    const resultSignal = new AbortSignal();
+    if (
+      signals === null || signals === undefined ||
+      typeof (signals as any)[Symbol.iterator] !== "function"
+    ) {
+      throw new TypeError(
+        "Failed to execute 'any' on 'AbortSignal': The provided value cannot be converted to a sequence.",
+      );
+    }
+
+    const list = [...signals];
+    for (const signal of list) {
+      if (!(signal instanceof AbortSignal)) {
+        throw new TypeError(
+          "Failed to execute 'any' on 'AbortSignal': The provided value is not of type 'AbortSignal'.",
+        );
+      }
+    }
 
     // If any signal is already aborted, return an aborted signal
-    for (const signal of signals) {
-      if (signal.aborted) {
-        (resultSignal as any)[_aborted] = true;
-        (resultSignal as any)[_abortReason] = signal.reason;
+    // @ts-ignore illegal constructor
+    const resultSignal = new AbortSignal(illegalConstructorKey);
+    for (const signal of list) {
+      if ((signal as any)[_abortReason] !== undefined) {
+        (resultSignal as any)[_abortReason] = (signal as any)[_abortReason];
         return resultSignal;
       }
     }
 
-    // Listen for abort on any of the signals
-    for (const signal of signals) {
-      signal.addEventListener("abort", () => {
-        if (!resultSignal.aborted) {
-          signalAbort(resultSignal, signal.reason);
-        }
-      });
-    }
+    (resultSignal as any)[_dependent] = true;
 
+    // Listen for abort on any of the signals
+    const appendSourceSignal = (sourceSignal: AbortSignal): void => {
+      sourceSignals(resultSignal).add(sourceSignal);
+      dependentSignals(sourceSignal).add(resultSignal);
+      if (mustNotBeGarbageCollected(resultSignal)) {
+        activeDependents(sourceSignal).add(resultSignal);
+      }
+    };
+
+    for (const signal of list) {
+      if (!(signal as any)[_dependent]) {
+        appendSourceSignal(signal);
+      } else {
+        for (const sourceSignal of sourceSignals(signal).live()) {
+          appendSourceSignal(sourceSignal);
+        }
+      }
+    }
     return resultSignal;
   }
 }
+
+defineEventHandler(AbortSignal.prototype, "abort");
 
 // AbortController implementation
 class AbortController {
   #signal: AbortSignal;
 
   constructor() {
-    this.#signal = new AbortSignal();
+    // @ts-ignore illegal constructor
+    this.#signal = new AbortSignal(illegalConstructorKey);
   }
 
   get signal(): AbortSignal {
@@ -1312,16 +1481,9 @@ class AbortController {
 }
 
 // Internal function to signal abort
-function signalAbort(signal: AbortSignal, reason: any): void {
-  if ((signal as any)[_aborted]) {
-    return;
-  }
-
-  (signal as any)[_aborted] = true;
-  (signal as any)[_abortReason] = reason;
-
+function runAbortSteps(signal: AbortSignal): void {
   // Execute abort algorithms
-  const algorithms = (signal as any)[_abortAlgorithms];
+  const algorithms = (signal as any)[_abortAlgorithms] as Set<() => void>;
   for (const algorithm of algorithms) {
     try {
       algorithm();
@@ -1332,9 +1494,40 @@ function signalAbort(signal: AbortSignal, reason: any): void {
   }
   algorithms.clear();
 
+  timeoutKeepAlive.delete(signal);
+  if ((signal as any)[_dependent]) {
+    for (const source of sourceSignals(signal).live()) {
+      activeDependents(source).delete(signal);
+    }
+  }
+
   // Fire abort event
   const event = new Event("abort");
+  setIsTrusted(event, true);
   signal.dispatchEvent(event);
+}
+
+function signalAbort(signal: AbortSignal, reason?: any): void {
+  if ((signal as any)[_abortReason] !== undefined) {
+    return;
+  }
+
+  (signal as any)[_abortReason] = reason !== undefined ?
+    reason :
+    new DOMException("signal is aborted without reason", "AbortError");
+
+  const dependentSignalsToAbort: AbortSignal[] = [];
+  for (const dependentSignal of dependentSignals(signal).live()) {
+    if ((dependentSignal as any)[_abortReason] === undefined) {
+      (dependentSignal as any)[_abortReason] = (signal as any)[_abortReason];
+      dependentSignalsToAbort.push(dependentSignal);
+    }
+  }
+
+  runAbortSteps(signal);
+  for (const dependentSignal of dependentSignalsToAbort) {
+    runAbortSteps(dependentSignal);
+  }
 }
 
 // @ts-ignore globalThis is not readonly
