@@ -10,7 +10,6 @@ Andromeda.serve((req) => {
 
   console.log(`${method} ${path}`);
 
-  // Route: GET /
   if (path === "/" && method === "GET") {
     return new Response(
       JSON.stringify({
@@ -32,7 +31,6 @@ Andromeda.serve((req) => {
     );
   }
 
-  // Route: GET /about
   if (path === "/about" && method === "GET") {
     return new Response(
       JSON.stringify({
@@ -49,7 +47,6 @@ Andromeda.serve((req) => {
     );
   }
 
-  // Route: GET /api/status
   if (path === "/api/status" && method === "GET") {
     return new Response(
       JSON.stringify({
@@ -65,7 +62,6 @@ Andromeda.serve((req) => {
     );
   }
 
-  // Route: POST /api/data
   if (path === "/api/data" && method === "POST") {
     return new Response(
       JSON.stringify({
@@ -81,7 +77,6 @@ Andromeda.serve((req) => {
     );
   }
 
-  // Route: GET /users/:id (pattern matching)
   if (path.startsWith("/users/") && method === "GET") {
     const id = path.split("/")[2];
 

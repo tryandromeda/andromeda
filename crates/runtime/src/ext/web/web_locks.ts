@@ -5,8 +5,7 @@
 interface LockOptions {
   /**
    * The mode of the lock. Default is "exclusive".
-   * - "exclusive": Only one holder allowed at a time
-   * - "shared": Multiple holders allowed simultaneously
+   * Exclusive or shared access to a named resource.
    */
   mode?: "exclusive" | "shared";
 
@@ -129,7 +128,7 @@ class LockManager {
 
       // Handle error responses
       if (lockIdResult.startsWith("error:")) {
-        const errorMessage = lockIdResult.substring(6); // Remove 'error:' prefix
+        const errorMessage = lockIdResult.substring(6);
 
         if (errorMessage === "Invalid lock name") {
           throw new DOMException(
@@ -202,10 +201,10 @@ class LockManager {
 
 const lockManager = new LockManager();
 
-// @ts-ignore - Adding locks property to navigator
+// @ts-ignore Adding locks property to navigator
 navigator.locks = lockManager;
 
-// @ts-ignore - Adding LockManager to global scope
+// @ts-ignore Adding LockManager to global scope
 globalThis.LockManager = LockManager;
-// @ts-ignore - Adding Lock to global scope
+// @ts-ignore Adding Lock to global scope
 globalThis.Lock = Lock;

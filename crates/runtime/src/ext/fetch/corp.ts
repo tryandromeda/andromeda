@@ -16,14 +16,14 @@ interface CorpResponse {
 /**
  * Performs a cross-origin resource policy check
  *
- * Spec: https://fetch.spec.whatwg.org/#cross-origin-resource-policy-header
+ * https://fetch.spec.whatwg.org/#cross-origin-resource-policy-header
  *
  * This check ensures that responses respect the Cross-Origin-Resource-Policy header,
  * which allows servers to opt into protecting their resources from being loaded
  * cross-origin.
  *
- * @param request - The request being made
- * @param response - The response to check
+ * @param request The request being made
+ * @param response The response to check
  * @returns true if the response can be used, false if it should be blocked
  */
 function corpCheck(request: CorpRequest, response: CorpResponse): boolean {
@@ -45,12 +45,12 @@ function corpCheck(request: CorpRequest, response: CorpResponse): boolean {
 /**
  * Performs the cross-origin resource policy internal check
  *
- * Spec: https://fetch.spec.whatwg.org/#cross-origin-resource-policy-internal-check
+ * https://fetch.spec.whatwg.org/#cross-origin-resource-policy-internal-check
  *
- * @param origin - The origin making the request
- * @param embedderPolicyValue - The embedder policy value ("unsafe-none", "credentialless", or "require-corp")
- * @param response - The response to check
- * @param forNavigation - Whether this is for a navigation request
+ * @param origin The origin making the request
+ * @param embedderPolicyValue The embedder policy value ("unsafe-none", "credentialless", or "require-corp")
+ * @param response The response to check
+ * @param forNavigation Whether this is for a navigation request
  * @returns true if allowed, false if blocked
  */
 function corpInternalCheck(
@@ -59,22 +59,17 @@ function corpInternalCheck(
   response: CorpResponse,
   forNavigation: boolean,
 ): boolean {
-  // Step 1: If forNavigation is true and embedderPolicyValue is "unsafe-none", return allowed
   if (forNavigation && embedderPolicyValue === "unsafe-none") {
     return true;
   }
 
-  // Step 2: Let policy be the result of getting `Cross-Origin-Resource-Policy` from response's header list
   let policy = getHeader(
     response.headersList || [],
     "Cross-Origin-Resource-Policy",
   );
 
-  // Note: If multiple CORP headers exist, or the value is invalid, this will be treated as null
-  // The spec says: "This means that Cross-Origin-Resource-Policy: same-site, same-origin
-  // ends up as allowed below as it will never match anything"
+  // Combined CORP values cannot be interpreted as a single policy.
 
-  // Step 3: If policy is neither "same-origin", "same-site", nor "cross-origin", then set policy to null
   if (
     policy !== "same-origin" && policy !== "same-site" &&
     policy !== "cross-origin"
@@ -82,48 +77,34 @@ function corpInternalCheck(
     policy = null;
   }
 
-  // Step 4: If policy is null, then switch on embedderPolicyValue
   if (policy === null) {
     switch (embedderPolicyValue) {
       case "unsafe-none":
-        // Do nothing, policy stays null
         break;
 
       case "credentialless":
-        // Set policy to "same-origin" if:
-        // - response's request-includes-credentials is true, or
-        // - forNavigation is true
         if (response.requestIncludesCredentials || forNavigation) {
           policy = "same-origin";
         }
         break;
 
       case "require-corp":
-        // Always set policy to "same-origin"
         policy = "same-origin";
         break;
     }
   }
 
-  // Step 5: Switch on policy
   switch (policy) {
     case null:
     case "cross-origin":
-      // Return allowed
       return true;
 
     case "same-origin": {
-      // If origin is same origin with response's URL's origin, return allowed
-      // Otherwise, return blocked
       const responseOrigin = getOriginFromURL(response.url || "");
       return isSameOrigin(origin, responseOrigin);
     }
 
     case "same-site": {
-      // If all of the following are true:
-      // - origin is schemelessly same site with response's URL's origin
-      // - origin's scheme is "https" or response's URL's scheme is not "https"
-      // then return allowed. Otherwise, return blocked.
       const responseOrigin = getOriginFromURL(response.url || "");
 
       const isSchemelesslySameSite = isSchemelesslySameSiteOrigin(
@@ -135,20 +116,7 @@ function corpInternalCheck(
         return false;
       }
 
-      // Check the HTTPS requirement per spec:
-      // The spec comment says: "Securely-transported responses will only match a
-      // securely-transported initiator"
-      //
-      // This means:
-      // - HTTPS response requires HTTPS origin (blocks HTTP → HTTPS)
-      // - HTTP response allows any origin (allows HTTPS → HTTP)
-      //
-      // Spec condition: "origin's scheme is 'https' OR response's URL's scheme is not 'https'"
-      // Analysis:
-      // - HTTP origin (http) + HTTP response (http): FALSE OR TRUE = TRUE ✓ (allow)
-      // - HTTP origin (http) + HTTPS response (https): FALSE OR FALSE = FALSE ✗ (block)
-      // - HTTPS origin (https) + HTTP response (http): TRUE OR TRUE = TRUE ✓ (allow)
-      // - HTTPS origin (https) + HTTPS response (https): TRUE OR FALSE = TRUE ✓ (allow)
+      // Do not expose securely transported responses to insecure initiators.
       const originScheme = getSchemeFromOrigin(origin);
       const responseScheme = getSchemeFromURL(response.url || "");
 
@@ -184,8 +152,7 @@ function getHeader(
     if (headerName.toLowerCase() === lowerName) {
       foundValue = headerValue;
       foundCount++;
-      // If we find multiple headers with the same name, return null
-      // per spec: "multiple CORP headers will have the same effect"
+      // Duplicate CORP headers must not be treated as a single valid policy.
       if (foundCount > 1) {
         return null;
       }
@@ -257,9 +224,9 @@ function isSameOrigin(originA: string, originB: string): boolean {
 /**
  * Checks if two origins are schemelessly same site
  *
- * Spec: https://html.spec.whatwg.org/multipage/browsers.html#schemelessly-same-site
+ * https://html.spec.whatwg.org/multipage/browsers.html#schemelessly-same-site
  *
- * Two origins are schemelessly same site if:
+ * Two origins are schemelessly same site if
  * - They are same origin, OR
  * - They have the same registrable domain (e.g., example.com for both sub.example.com and www.example.com)
  */
@@ -280,8 +247,7 @@ function isSchemelesslySameSiteOrigin(
       return true;
     }
 
-    // Check if they have the same registrable domain
-    // This is a simplified implementation - a full implementation would use the Public Suffix List
+    // TODO Use the Public Suffix List for registrable-domain checks.
     const domainA = getRegistrableDomain(urlA.hostname);
     const domainB = getRegistrableDomain(urlB.hostname);
 
@@ -298,14 +264,14 @@ function isSchemelesslySameSiteOrigin(
  * This is a simplified implementation that extracts the domain and TLD.
  * A full implementation would use the Public Suffix List.
  *
- * Examples:
+ * Examples
  * - "www.example.com" -> "example.com"
  * - "sub.domain.example.co.uk" -> "example.co.uk" (simplified, should use PSL)
  * - "localhost" -> "localhost"
  * - "127.0.0.1" -> "127.0.0.1" (IP addresses are their own registrable domain)
  */
 function getRegistrableDomain(hostname: string): string {
-  // Handle IP addresses - each IP is its own registrable domain (not same-site with others)
+  // IP addresses cannot share a registrable domain with other hosts.
   if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname) || /^\[.*\]$/.test(hostname)) {
     // Return the IP address itself, which means different IPs are NOT same-site
     return hostname;

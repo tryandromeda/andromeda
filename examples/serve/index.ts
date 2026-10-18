@@ -25,7 +25,6 @@ Andromeda.serve(async (req) => {
 
   // ===== Basic Examples =====
 
-  // Basic: Hello World
   if (path === "/" && method === "GET") {
     return new Response(
       JSON.stringify({

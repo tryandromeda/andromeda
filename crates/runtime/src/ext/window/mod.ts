@@ -41,7 +41,7 @@ class AndromedaWindow {
       resizable: options.resizable ?? true,
       visible: options.visible ?? true,
     });
-    // @ts-ignore - internal op surface
+    // @ts-ignore internal op surface
     const ridStr = (globalThis as any).__andromeda__.internal_window_create(
       payload,
     );
@@ -51,7 +51,7 @@ class AndromedaWindow {
     this.#height = height;
     __andromeda_window_registry.set(this.#rid, this);
     try {
-      // @ts-ignore - internal op surface
+      // @ts-ignore internal op surface
       const rawSize = (
         globalThis as any
       ).__andromeda__.internal_window_get_size(this.#rid);
@@ -115,7 +115,7 @@ class AndromedaWindow {
     if (this.#closed) return;
     this.#closed = true;
     __andromeda_window_registry.delete(this.#rid);
-    // @ts-ignore - internal op surface
+    // @ts-ignore internal op surface
     (globalThis as any).__andromeda__.internal_window_close(this.#rid);
   }
 
@@ -132,7 +132,7 @@ class AndromedaWindow {
     width: number;
     height: number;
   } {
-    // @ts-ignore - internal op surface
+    // @ts-ignore internal op surface
     const raw = (globalThis as any).__andromeda__.internal_window_raw_handle(
       this.#rid,
     );
@@ -140,7 +140,7 @@ class AndromedaWindow {
   }
 
   setTitle(title: string): void {
-    // @ts-ignore - internal op surface
+    // @ts-ignore internal op surface
     (globalThis as any).__andromeda__.internal_window_set_title(
       this.#rid,
       String(title),
@@ -149,7 +149,7 @@ class AndromedaWindow {
   }
 
   getSize(): { width: number; height: number; scaleFactor: number } {
-    // @ts-ignore - internal op surface
+    // @ts-ignore internal op surface
     const raw = (globalThis as any).__andromeda__.internal_window_get_size(
       this.#rid,
     );
@@ -160,7 +160,7 @@ class AndromedaWindow {
   }
 
   setSize(width: number, height: number): void {
-    // @ts-ignore - internal op surface
+    // @ts-ignore internal op surface
     (globalThis as any).__andromeda__.internal_window_set_size(
       this.#rid,
       width | 0,
@@ -171,7 +171,7 @@ class AndromedaWindow {
   }
 
   setVisible(visible: boolean): void {
-    // @ts-ignore - internal op surface
+    // @ts-ignore internal op surface
     (globalThis as any).__andromeda__.internal_window_set_visible(
       this.#rid,
       !!visible,
@@ -184,7 +184,7 @@ class AndromedaWindow {
    * window's surface on first call.
    */
   present(r: number, g: number, b: number, a: number = 1): void {
-    // @ts-ignore - internal op surface
+    // @ts-ignore internal op surface
     (globalThis as any).__andromeda__.internal_window_present_color(
       this.#rid,
       Number(r),
@@ -201,7 +201,7 @@ class AndromedaWindow {
    * op is absent otherwise and this method throws a clear error).
    */
   presentCanvas(canvas: { rid: number }): void {
-    // @ts-ignore - internal op surface
+    // @ts-ignore internal op surface
     const op = (globalThis as any).__andromeda__.internal_window_present_canvas;
     if (typeof op !== "function") {
       throw new Error(
@@ -221,7 +221,6 @@ class AndromedaWindow {
     op(this.#rid, canvas.rid);
   }
 
-  // Internal — used by mainloop to patch cached dimensions after a resize.
   _updateSize(width: number, height: number): void {
     this.#width = width;
     this.#height = height;
@@ -233,7 +232,7 @@ function __andromeda_window_poll(): Array<{
   type: string;
   detail: any;
 }> {
-  // @ts-ignore - internal op surface
+  // @ts-ignore internal op surface
   const raw = (globalThis as any).__andromeda__.internal_window_poll_events();
   if (!raw) return [];
   try {
@@ -275,7 +274,7 @@ async function __andromeda_window_mainloop(
     }
   }
 }
-// @ts-ignore - cross-file handoff
+// @ts-ignore cross-file handoff
 (globalThis as any).__andromeda_window_class = AndromedaWindow;
-// @ts-ignore - cross-file handoff
+// @ts-ignore cross-file handoff
 (globalThis as any).__andromeda_window_mainloop = __andromeda_window_mainloop;

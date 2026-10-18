@@ -539,9 +539,7 @@ declare namespace __andromeda__ {
   ): void;
 
   /**
-   * The `internal_canvas_get_line_dash` function returns the current line dash pattern and offset
-   * for the specified canvas resource. For compatibility the runtime returns a JSON string describing
-   * the dash pattern and offset (e.g. '{"dash":[5,3],"offset":2}').
+   * Serialized dash state for the canvas wrapper.
    */
   export function internal_canvas_get_line_dash(rid: number): string;
 
@@ -621,8 +619,8 @@ declare namespace __andromeda__ {
 
   /**
    * The `internal_canvas_create_pattern` function creates a pattern from an image with repetition mode.
-   * @param imageRid - The resource ID of the image to use for the pattern.
-   * @param repetition - The repetition mode: "repeat", "repeat-x", "repeat-y", or "no-repeat".
+   * @param imageRid The resource ID of the image to use for the pattern.
+   * @param repetition Pattern repetition mode.
    * @returns The resource ID of the created pattern.
    */
   export function internal_canvas_create_pattern(
@@ -973,7 +971,6 @@ declare namespace __andromeda__ {
 
   /**
    * The `internal_canvas_draw_image` function draws an image onto the canvas.
-   * Parameters: canvas_rid, image_rid, sx, sy, s_width, s_height, dx, dy, d_width, d_height
    */
   export function internal_canvas_draw_image(
     canvas_rid: number,
@@ -1039,7 +1036,6 @@ declare namespace __andromeda__ {
 
   /**
    * The `internal_canvas_set_text_align` function sets the text alignment.
-   * Possible values: "start", "end", "left", "right", "center".
    */
   export function internal_canvas_set_text_align(
     rid: number,
@@ -1054,7 +1050,6 @@ declare namespace __andromeda__ {
 
   /**
    * The `internal_canvas_set_text_baseline` function sets the text baseline.
-   * Possible values: "alphabetic", "top", "hanging", "middle", "ideographic", "bottom".
    */
   export function internal_canvas_set_text_baseline(
     rid: number,
@@ -1069,7 +1064,6 @@ declare namespace __andromeda__ {
 
   /**
    * The `internal_canvas_set_direction` function sets the text direction.
-   * Possible values: "ltr", "rtl", "inherit".
    */
   export function internal_canvas_set_direction(
     rid: number,
@@ -2025,11 +2019,11 @@ declare namespace __andromeda__ {
 
   /**
    * Request a Web Lock with the specified parameters.
-   * @param name - The name of the lock to request.
-   * @param mode - The lock mode: "exclusive" or "shared".
-   * @param ifAvailable - Whether to fail if not immediately available.
-   * @param steal - Whether to steal existing locks with the same name.
-   * @returns - A promise that resolves to the lock ID.
+   * @param name The name of the lock to request.
+   * @param mode Resource access mode.
+   * @param ifAvailable Whether to fail if not immediately available.
+   * @param steal Whether to steal existing locks with the same name.
+   * @returns A promise that resolves to the lock ID.
    */
   export function internal_locks_request(
     name: string,
@@ -2040,9 +2034,9 @@ declare namespace __andromeda__ {
 
   /**
    * Release a previously acquired Web Lock.
-   * @param name - The name of the lock to release.
-   * @param lockId - The ID of the lock to release.
-   * @returns - A promise that resolves when the lock is released.
+   * @param name The name of the lock to release.
+   * @param lockId The ID of the lock to release.
+   * @returns A promise that resolves when the lock is released.
    */
   export function internal_locks_release(
     name: string,
@@ -2051,15 +2045,15 @@ declare namespace __andromeda__ {
 
   /**
    * Query the current state of Web Locks.
-   * @returns - A promise that resolves to a JSON string containing lock state.
+   * @returns A promise that resolves to a JSON string containing lock state.
    */
   export function internal_locks_query(): Promise<string>;
 
   /**
    * Abort a pending Web Lock request.
-   * @param name - The name of the lock request to abort.
-   * @param lockId - The ID of the lock request to abort.
-   * @returns - A promise that resolves when the request is aborted.
+   * @param name The name of the lock request to abort.
+   * @param lockId The ID of the lock request to abort.
+   * @returns A promise that resolves when the request is aborted.
    */
   export function internal_locks_abort(
     name: string,
@@ -2070,8 +2064,8 @@ declare namespace __andromeda__ {
 
   /**
    * Synchronously runs a command and returns its output as a JSON string.
-   * @param program - The program to execute.
-   * @param optsJson - JSON string with command options.
+   * @param program The program to execute.
+   * @param optsJson JSON string with command options.
    * @returns JSON string with {success, code, signal, stdout, stderr} or error string.
    */
   export function internal_command_output_sync(
@@ -2081,8 +2075,8 @@ declare namespace __andromeda__ {
 
   /**
    * Asynchronously runs a command and returns a promise resolving to its output.
-   * @param program - The program to execute.
-   * @param optsJson - JSON string with command options.
+   * @param program The program to execute.
+   * @param optsJson JSON string with command options.
    * @returns Promise resolving to JSON string with {success, code, signal, stdout, stderr}.
    */
   export function internal_command_output(
@@ -2092,8 +2086,8 @@ declare namespace __andromeda__ {
 
   /**
    * Spawns a child process without waiting for it to complete.
-   * @param program - The program to execute.
-   * @param optsJson - JSON string with command options.
+   * @param program The program to execute.
+   * @param optsJson JSON string with command options.
    * @returns JSON string with {rid, pid} or error string.
    */
   export function internal_command_spawn(
@@ -2103,22 +2097,22 @@ declare namespace __andromeda__ {
 
   /**
    * Kills a spawned child process.
-   * @param rid - The resource ID returned by internal_command_spawn.
-   * @param signal - Signal name (e.g. "SIGTERM").
+   * @param rid The resource ID returned by internal_command_spawn.
+   * @param signal Signal name (e.g. "SIGTERM").
    * @returns undefined on success, or error string.
    */
   export function internal_command_kill(rid: string, signal: string): void;
 
   /**
    * Waits for a spawned child process to complete.
-   * @param rid - The resource ID returned by internal_command_spawn.
+   * @param rid The resource ID returned by internal_command_spawn.
    * @returns Promise resolving to JSON string with {success, code, signal}.
    */
   export function internal_command_wait(rid: string): Promise<string>;
 
   /**
    * Waits for a spawned child process and collects all output.
-   * @param rid - The resource ID returned by internal_command_spawn.
+   * @param rid The resource ID returned by internal_command_spawn.
    * @returns Promise resolving to JSON string with {success, code, signal, stdout, stderr}.
    */
   export function internal_command_child_output(rid: string): Promise<string>;
@@ -2151,7 +2145,7 @@ declare namespace __andromeda__ {
 
   export function internal_window_set_title(rid: number, title: string): void;
 
-  /** Returns a JSON string `{"width":N,"height":N,"scaleFactor":N}`. */
+  /** Serialized window dimensions for the JS wrapper. */
   export function internal_window_get_size(rid: number): string;
 
   export function internal_window_set_size(rid: number, width: number, height: number): void;

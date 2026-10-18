@@ -342,7 +342,6 @@ impl StreamsExt {
             }
 
             if stream_data.readable_state == StreamState::Closed && stream_data.chunks.is_empty() {
-                // Return done: true, value: undefined
                 return Ok(Value::from_string(agent, "done".to_string(), gc.nogc()).unbind());
             }
 
@@ -645,7 +644,6 @@ impl StreamsExt {
         let storage_lock = storage.lock().unwrap();
 
         if let Some(stream_data) = storage_lock.get(stream_id) {
-            // Return state as a formatted string: "readable_state:writable_state:locked:chunk_count"
             let state = format!(
                 "{}:{}:{}:{}",
                 match stream_data.readable_state {
@@ -1097,7 +1095,6 @@ impl StreamsExt {
             .as_str(agent)
             .expect("String is not valid UTF-8");
 
-        // Parse buffer info: "byteOffset,byteLength,elementSize"
         let parts: Vec<&str> = buffer_info_string.split(',').collect();
         if parts.len() != 3 {
             return Err(agent
@@ -1318,7 +1315,6 @@ impl StreamsExt {
         storage_lock.insert(readable_stream_id.clone(), readable_data);
         storage_lock.insert(writable_stream_id.clone(), writable_data);
 
-        // Return transform info: "transform_id:readable_id:writable_id"
         let result = format!("{transform_id}:{readable_stream_id}:{writable_stream_id}");
         Ok(Value::from_string(agent, result, gc.nogc()).unbind())
     }

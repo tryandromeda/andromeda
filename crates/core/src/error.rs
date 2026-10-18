@@ -354,75 +354,6 @@ pub enum RuntimeError {
         source_code: Option<NamedSource<String>>,
     },
 
-    /// LLM provider not initialized
-    #[diagnostic(
-        code(andromeda::llm::not_initialized),
-        help("Call init_llm_provider() or init_copilot_provider() before requesting suggestions.")
-    )]
-    LlmNotInitialized,
-
-    /// LLM provider error
-    #[diagnostic(
-        code(andromeda::llm::provider_error),
-        help("Verify the LLM provider configuration, API keys, and network connectivity.")
-    )]
-    LlmProviderError {
-        message: String,
-        provider_name: Option<String>,
-        #[label("LLM provider error")]
-        error_location: Option<SourceSpan>,
-        #[source_code]
-        source_code: Option<NamedSource<String>>,
-    },
-
-    /// LLM request timeout
-    #[diagnostic(
-        code(andromeda::llm::timeout),
-        help("Increase the timeout duration or check network latency to the LLM service.")
-    )]
-    LlmTimeout {
-        timeout_ms: u64,
-        #[label("request timed out")]
-        error_location: Option<SourceSpan>,
-        #[source_code]
-        source_code: Option<NamedSource<String>>,
-    },
-
-    /// LLM suggestions disabled
-    #[diagnostic(
-        code(andromeda::llm::disabled),
-        help("Set enabled: true in LlmSuggestionConfig to turn on LLM suggestions.")
-    )]
-    LlmDisabled,
-
-    /// LLM authentication error
-    #[diagnostic(
-        code(andromeda::llm::auth_error),
-        help(
-            "Verify API keys or tokens are valid; ensure GITHUB_TOKEN is set for Copilot integration."
-        )
-    )]
-    LlmAuthenticationError {
-        message: String,
-        #[label("authentication failed")]
-        error_location: Option<SourceSpan>,
-        #[source_code]
-        source_code: Option<NamedSource<String>>,
-    },
-
-    /// LLM network error
-    #[diagnostic(
-        code(andromeda::llm::network_error),
-        help("Check network connectivity, firewall and proxy settings, and the LLM endpoint URL.")
-    )]
-    LlmNetworkError {
-        message: String,
-        #[label("network error")]
-        error_location: Option<SourceSpan>,
-        #[source_code]
-        source_code: Option<NamedSource<String>>,
-    },
-
     /// Windowing / native window subsystem errors (winit-backed extension)
     #[diagnostic(
         code(andromeda::window::error),
@@ -1312,68 +1243,6 @@ impl RuntimeError {
         }
     }
 
-    // -------------------- LLM Errors --------------------
-
-    /// Create an LLM not initialized error
-    pub fn llm_not_initialized() -> Self {
-        Self::LlmNotInitialized
-    }
-
-    /// Create an LLM provider error
-    pub fn llm_provider_error(message: impl Into<String>) -> Self {
-        Self::LlmProviderError {
-            message: message.into(),
-            provider_name: None,
-            error_location: None,
-            source_code: None,
-        }
-    }
-
-    /// Create an LLM provider error with provider name
-    pub fn llm_provider_error_with_name(
-        message: impl Into<String>,
-        provider_name: impl Into<String>,
-    ) -> Self {
-        Self::LlmProviderError {
-            message: message.into(),
-            provider_name: Some(provider_name.into()),
-            error_location: None,
-            source_code: None,
-        }
-    }
-
-    /// Create an LLM timeout error
-    pub fn llm_timeout(timeout_ms: u64) -> Self {
-        Self::LlmTimeout {
-            timeout_ms,
-            error_location: None,
-            source_code: None,
-        }
-    }
-
-    /// Create an LLM disabled error
-    pub fn llm_disabled() -> Self {
-        Self::LlmDisabled
-    }
-
-    /// Create an LLM authentication error
-    pub fn llm_authentication_error(message: impl Into<String>) -> Self {
-        Self::LlmAuthenticationError {
-            message: message.into(),
-            error_location: None,
-            source_code: None,
-        }
-    }
-
-    /// Create an LLM network error
-    pub fn llm_network_error(message: impl Into<String>) -> Self {
-        Self::LlmNetworkError {
-            message: message.into(),
-            error_location: None,
-            source_code: None,
-        }
-    }
-
     /// Create a new window error
     pub fn window_error(operation: impl Into<String>, message: impl Into<String>) -> Self {
         Self::WindowError {
@@ -1831,24 +1700,6 @@ impl fmt::Display for RuntimeError {
             }
             RuntimeError::ModuleIoError { message, .. } => {
                 write!(f, "IO error: {message}")
-            }
-            RuntimeError::LlmNotInitialized => {
-                write!(f, "LLM provider not initialized")
-            }
-            RuntimeError::LlmProviderError { message, .. } => {
-                write!(f, "LLM provider error: {message}")
-            }
-            RuntimeError::LlmTimeout { timeout_ms, .. } => {
-                write!(f, "LLM suggestion request timed out after {timeout_ms}ms")
-            }
-            RuntimeError::LlmDisabled => {
-                write!(f, "LLM suggestions are disabled")
-            }
-            RuntimeError::LlmAuthenticationError { message, .. } => {
-                write!(f, "LLM authentication error: {message}")
-            }
-            RuntimeError::LlmNetworkError { message, .. } => {
-                write!(f, "LLM network error: {message}")
             }
             RuntimeError::WindowError {
                 operation, message, ..
@@ -2404,29 +2255,6 @@ macro_rules! runtime_error {
         $crate::RuntimeError::module_io_error_with_path($msg, $path)
     };
 
-    // LLM errors
-    (llm_not_initialized) => {
-        $crate::RuntimeError::llm_not_initialized()
-    };
-    (llm_provider: $msg:expr) => {
-        $crate::RuntimeError::llm_provider_error($msg)
-    };
-    (llm_provider: $msg:expr, name $name:expr) => {
-        $crate::RuntimeError::llm_provider_error_with_name($msg, $name)
-    };
-    (llm_timeout: $ms:expr) => {
-        $crate::RuntimeError::llm_timeout($ms)
-    };
-    (llm_disabled) => {
-        $crate::RuntimeError::llm_disabled()
-    };
-    (llm_auth: $msg:expr) => {
-        $crate::RuntimeError::llm_authentication_error($msg)
-    };
-    (llm_network: $msg:expr) => {
-        $crate::RuntimeError::llm_network_error($msg)
-    };
-
     // Window errors
     (window: $op:expr, $msg:expr) => {
         $crate::RuntimeError::window_error($op, $msg)
@@ -2680,8 +2508,7 @@ mod new_variant_tests {
 
     #[test]
     fn cli_conversion_covers_all_new_variants() {
-        // Exhaustive-match safety net: building each variant should not panic
-        // when consumed by code that does match analysis.
+        // Catch missing error variants in downstream exhaustive matches.
         let _ = RuntimeError::command_error("a", "b", "c");
         let _ = RuntimeError::process_error("a", "b");
         let _ = RuntimeError::tls_error("a", "b");

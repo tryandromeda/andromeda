@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 /**
- * Andromeda Window API — inspired by `deno-windowing/dwm`, backed by winit.
+ * Native window integration inspired by `deno-windowing/dwm`.
  */
 export interface CreateWindowOptions {
   /** OS window title. Defaults to `"Andromeda"`. */
@@ -27,9 +27,8 @@ export interface ResizeEventDetail {
 /**
  * Detail payload for `keydown` / `keyup` events on an `Andromeda.Window`.
  *
- * Values match the web platform's `KeyboardEvent` contract so code written
- * against the browser's event object carries over 1:1 (modulo the plain-
- * object wrapper — see {@link WindowEvent}).
+ * Web-compatible fields allow browser event handlers to be reused.
+ * See {@link WindowEvent} for the plain-object wrapper.
  */
 export interface KeyEventDetail {
   /**
@@ -39,7 +38,7 @@ export interface KeyEventDetail {
   key: string;
 
   /**
-   * The `code` attribute — physical key identifier independent of layout.
+   * Physical key identity independent of the keyboard layout.
    * https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/code
    */
   code: string;
@@ -51,8 +50,7 @@ export interface KeyEventDetail {
   keyCode: number;
 
   /**
-   * Alias of {@link keyCode} — always equal. Present only because legacy
-   * code sometimes reads `event.which` instead.
+   * Retained for legacy handlers that read `event.which`.
    */
   which: number;
 
@@ -84,7 +82,7 @@ export interface KeyEventDetail {
 export interface MouseEventDetail {
   x: number;
   y: number;
-  /** DOM-aligned button index: 0=left, 1=middle, 2=right, 3/4=back/forward, -1 on mousemove. */
+  /** Mouse button identity compatible with DOM events. */
   button: number;
   /** Bitmask of currently pressed buttons. */
   buttons: number;

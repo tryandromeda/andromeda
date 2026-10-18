@@ -188,11 +188,7 @@ impl Default for RenderState {
     }
 }
 
-/// Helper function to multiply two 2D transformation matrices
-/// Matrix format: [a, b, c, d, e, f] represents:
-/// | a c e |
-/// | b d f |
-/// | 0 0 1 |
+/// Compose affine transforms for canvas operations.
 pub fn multiply_transform(m1: &[f64; 6], m2: &[f64; 6]) -> [f64; 6] {
     [
         m1[0] * m2[0] + m1[2] * m2[1],
@@ -222,11 +218,7 @@ pub fn transform_to_mat3(transform: &[f64; 6]) -> [f32; 12] {
     ]
 }
 
-/// Apply a 2D transformation matrix to a point
-/// Matrix format: [a, b, c, d, e, f] represents:
-/// | a c e |
-/// | b d f |
-/// | 0 0 1 |
+/// Map a point into the transformed canvas coordinate space.
 pub fn transform_point(point: &Point, transform: &[f64; 6]) -> Point {
     Point {
         x: transform[0] * point.x + transform[2] * point.y + transform[4],

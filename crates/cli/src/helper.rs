@@ -184,7 +184,7 @@ fn should_include_file(
 
             if pattern.matches(&path_str) {
                 is_excluded = true;
-                // Don't break here - keep checking for negated patterns
+                // Later negated patterns can override this match.
             }
         }
     }

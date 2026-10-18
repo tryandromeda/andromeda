@@ -9,7 +9,7 @@ const worker = new Worker(
 worker.onmessage = (event: MessageEvent) => {
   const msg = event.data as { state: string };
   if (msg.state === "waiting") {
-    console.log("worker is parked in Atomics.wait — waking it up…");
+    console.log("worker is parked in Atomics.wait - waking it up…");
     Atomics.store(flag, 0, 1);
     Atomics.notify(flag, 0);
   } else if (msg.state === "woken") {

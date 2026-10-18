@@ -925,7 +925,7 @@ impl WptRunner {
         &self,
         run_result: &WptRunResult,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // Don't update expectations in CI mode - CI mode should only validate
+        // CI must validate expectations without changing the baseline.
         if self.config.ci_mode {
             return Ok(());
         }
@@ -1010,7 +1010,7 @@ impl WptRunner {
     }
 
     fn update_metrics(&self, run_result: &WptRunResult) -> Result<(), Box<dyn std::error::Error>> {
-        // Don't update metrics in CI mode - CI mode should only validate
+        // CI must validate metrics without changing the baseline.
         if self.config.ci_mode {
             return Ok(());
         }

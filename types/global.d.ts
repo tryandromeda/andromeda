@@ -491,7 +491,7 @@ declare namespace Andromeda {
    * );
    * ```
    *
-   * Note: On Windows only "SIGINT" (Ctrl+C) and "SIGBREAK" (Ctrl+Break) are supported.
+   * On Windows only "SIGINT" (Ctrl+C) and "SIGBREAK" (Ctrl+Break) are supported.
    */
   function addSignalListener(signal: Signal, handler: () => void): void;
 
@@ -804,8 +804,8 @@ interface StructuredSerializeOptions {
  * data types and can handle circular references. However, it cannot clone functions, symbols,
  * or certain platform objects.
  *
- * @param value - The object to be cloned
- * @param options - Options for the cloning operation, including transferable objects
+ * @param value The object to be cloned
+ * @param options Options for the cloning operation, including transferable objects
  * @returns A deep clone of the original value
  * @throws DataCloneError if the value cannot be cloned
  *
@@ -903,7 +903,7 @@ declare class OffscreenCanvas {
   saveAsPng(path: string): boolean;
   /** Encode the canvas to image bytes. Supports "image/png" (default) and "image/jpeg". */
   toBuffer(type?: "image/png" | "image/jpeg", quality?: number): Uint8Array;
-  /** Encode the canvas as a `data:` URL. Supports "image/png" (default) and "image/jpeg". */
+  /** Image encoding for embedding canvas output in a data URL. */
   toDataURL(type?: string, quality?: number): string;
   /** Encode the canvas as a Blob. */
   convertToBlob(
@@ -947,13 +947,7 @@ declare class CanvasRenderingContext2D {
    */
   globalAlpha: number;
   /**
-   * Gets or sets the type of compositing operation to apply when drawing
-   * new shapes. Valid values: `source-over`, `source-in`, `source-out`,
-   * `source-atop`, `destination-over`, `destination-in`, `destination-out`,
-   * `destination-atop`, `lighter`, `copy`, `xor`, `multiply`, `screen`,
-   * `overlay`, `darken`, `lighten`, `color-dodge`, `color-burn`,
-   * `hard-light`, `soft-light`, `difference`, `exclusion`, `hue`,
-   * `saturation`, `color`, `luminosity`. Default `source-over`.
+   * Compositing mode for subsequent drawing operations.
    */
   globalCompositeOperation: string;
 
@@ -993,7 +987,7 @@ declare class CanvasRenderingContext2D {
 
   /** Resets the context to its default state per HTML spec. */
   reset(): void;
-  /** Returns false — Andromeda never loses the canvas context. */
+  /** Web-compatible context-loss query. */
   isContextLost(): boolean;
   /** Sets the line dash pattern. */
   setLineDash(segments: number[]): void;
@@ -1392,8 +1386,7 @@ declare function createImageBitmap(path: string): ImageBitmap;
 interface LockOptions {
   /**
    * The mode of the lock. Default is "exclusive".
-   * - "exclusive": Only one holder allowed at a time
-   * - "shared": Multiple holders allowed simultaneously
+   * Exclusive or shared access to a named resource.
    */
   mode?: "exclusive" | "shared";
 

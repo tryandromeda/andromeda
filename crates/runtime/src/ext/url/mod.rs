@@ -160,7 +160,6 @@ impl URLExt {
         let url = args.get(0).to_string(agent, gc.reborrow()).unbind()?;
         match Url::parse(url.as_str(agent).expect("String is not valid UTF-8")) {
             Ok(url) => {
-                // origin is scheme + '://' + host (including port if present)
                 let scheme = url.scheme();
                 if let Some(host) = url.host_str() {
                     let origin = if let Some(port) = url.port() {

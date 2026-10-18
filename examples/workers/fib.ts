@@ -10,7 +10,7 @@ worker.onmessage = (event: MessageEvent) => {
 
 worker.postMessage(20);
 
-// Parent loop continues while worker computes — proves we're really off-thread.
+// Concurrent parent output demonstrates that worker computation runs off-thread.
 let ticks = 0;
 const heartbeat = setInterval(() => {
   ticks += 1;

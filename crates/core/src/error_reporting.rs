@@ -3,8 +3,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use miette::{MietteHandlerOpts, Report};
-#[cfg(feature = "llm")]
-use owo_colors::OwoColorize;
 use std::sync::Once;
 
 use miette as oxc_miette;
@@ -28,9 +26,6 @@ pub struct ErrorReportingConfig {
     pub force_graphical: bool,
     /// Maximum width for error output (None for terminal width)
     pub width: Option<usize>,
-    /// Enable LLM-powered suggestions (requires `llm` feature)
-    #[cfg(feature = "llm")]
-    pub llm_suggestions: bool,
 }
 
 impl Default for ErrorReportingConfig {
@@ -43,16 +38,13 @@ impl Default for ErrorReportingConfig {
             tab_width: 4,
             force_graphical: true,
             width: Some(120),
-            #[cfg(feature = "llm")]
-            llm_suggestions: false,
         }
     }
 }
 
 /// Initialize miette error reporting with the given configuration.
 ///
-/// This is safe to call multiple times - only the first call has effect.
-/// Subsequent calls are no-ops.
+/// Shared initialization lets independent callers use the same reporter.
 ///
 /// # Example
 ///
@@ -86,7 +78,7 @@ pub fn init_error_reporting(config: ErrorReportingConfig) {
 
 /// Initialize error reporting with default configuration.
 ///
-/// This is a convenience function equivalent to:
+/// This is a convenience function equivalent to
 /// ```
 /// use andromeda_core::{init_error_reporting, ErrorReportingConfig};
 ///
@@ -126,87 +118,6 @@ where
     print_error(error.clone());
 }
 
-/// Print a miette-compatible error with an optional LLM suggestion.
-///
-/// When the `llm` feature is enabled and an LLM provider is configured,
-/// this will attempt to fetch a suggestion from the LLM and display it
-/// along with the error.
-///
-/// # Example
-///
-/// ```ignore
-/// use andromeda_core::{print_error_with_suggestion, RuntimeError};
-///
-/// let error = RuntimeError::runtime_error("fetchData is not defined");
-/// print_error_with_suggestion(error, Some("const result = fetchData('url');"), Some("file.ts"));
-/// ```
-#[cfg(feature = "llm")]
-pub fn print_error_with_suggestion<E>(error: E, source_code: Option<&str>, file_path: Option<&str>)
-where
-    E: std::error::Error + miette::Diagnostic + Send + Sync + 'static,
-{
-    use crate::llm_suggestions::{ErrorContext, get_error_suggestion, is_llm_initialized};
-
-    eprintln!("{:?}", Report::new(error));
-
-    if is_llm_initialized() {
-        let error_message = format!("{}", std::io::Error::other("placeholder"));
-        let mut context = ErrorContext::new(&error_message);
-
-        if let Some(source) = source_code {
-            context = context.with_source_code(source);
-        }
-
-        if let Some(path) = file_path {
-            context = context.with_file_path(path);
-        }
-
-        if let Some(suggestion) = get_error_suggestion(&context) {
-            eprintln!();
-            eprintln!(
-                "{} {}",
-                "AI suggestion".yellow().bold(),
-                format!("(via {})", suggestion.provider_name).dimmed()
-            );
-            eprintln!("{}", suggestion.suggestion);
-        }
-    }
-}
-
-/// Print a miette-compatible error with an optional LLM suggestion (non-LLM fallback).
-#[cfg(not(feature = "llm"))]
-pub fn print_error_with_suggestion<E>(
-    error: E,
-    _source_code: Option<&str>,
-    _file_path: Option<&str>,
-) where
-    E: std::error::Error + miette::Diagnostic + Send + Sync + 'static,
-{
-    // Without LLM feature, just print the error normally
-    print_error(error);
-}
-
-/// Print an error with LLM suggestion using error context directly
-#[cfg(feature = "llm")]
-pub fn print_error_with_context<E>(error: E, context: &crate::llm_suggestions::ErrorContext)
-where
-    E: std::error::Error + miette::Diagnostic + Send + Sync + 'static,
-{
-    eprintln!("{:?}", Report::new(error));
-
-    if crate::llm_suggestions::is_llm_initialized()
-        && let Some(suggestion) = crate::llm_suggestions::get_error_suggestion(context)
-    {
-        eprintln!();
-        eprintln!(
-            "{} {}",
-            "AI suggestion".yellow().bold(),
-            format!("(via {})", suggestion.provider_name).dimmed()
-        );
-        eprintln!("{}", suggestion.suggestion);
-    }
-}
-
 /// Format a miette-compatible error to a string.
 ///
 /// This is useful when you need to capture the error output for logging
@@ -234,56 +145,6 @@ where
     E: std::error::Error + miette::Diagnostic + Send + Sync + Clone + 'static,
 {
     format_error(error.clone())
-}
-
-/// Format an error with an optional LLM suggestion
-#[cfg(feature = "llm")]
-pub fn format_error_with_suggestion<E>(
-    error: E,
-    source_code: Option<&str>,
-    file_path: Option<&str>,
-) -> String
-where
-    E: std::error::Error + miette::Diagnostic + Send + Sync + 'static,
-{
-    use crate::llm_suggestions::{ErrorContext, get_error_suggestion, is_llm_initialized};
-
-    let mut output = format!("{:?}", Report::new(error));
-
-    // Try to get LLM suggestion if available
-    if is_llm_initialized() {
-        let error_message = "Error occurred"; // Generic since we can't easily extract from miette
-        let mut context = ErrorContext::new(error_message);
-
-        if let Some(source) = source_code {
-            context = context.with_source_code(source);
-        }
-
-        if let Some(path) = file_path {
-            context = context.with_file_path(path);
-        }
-
-        if let Some(suggestion) = get_error_suggestion(&context) {
-            output.push_str("\n\nAI suggestion ");
-            output.push_str(&format!("(via {}):\n", suggestion.provider_name));
-            output.push_str(&suggestion.suggestion);
-        }
-    }
-
-    output
-}
-
-/// Format an error with an optional LLM suggestion (non-LLM fallback)
-#[cfg(not(feature = "llm"))]
-pub fn format_error_with_suggestion<E>(
-    error: E,
-    _source_code: Option<&str>,
-    _file_path: Option<&str>,
-) -> String
-where
-    E: std::error::Error + miette::Diagnostic + Send + Sync + 'static,
-{
-    format_error(error)
 }
 
 /// Print multiple errors with enhanced formatting.

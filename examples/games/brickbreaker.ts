@@ -1,9 +1,4 @@
-// Brick Breaker — paddle + ball + multi-hit bricks across procedurally
-// generated levels. Header tracks score, lives, level, best. Ball sticks
-// to the paddle on launch and after each death; space launches it. Mouse
-// also drives the paddle. Particles fly on brick break, a subtle trail
-// follows the ball, and physics is dt-based so it doesn't drift on
-// slower frames.
+// Brick Breaker demonstrates a frame-driven canvas game with procedural levels.
 
 const WIDTH = 720;
 const HEIGHT = 540;
@@ -126,7 +121,6 @@ function buildBricks(level: number): Brick[] {
   const rows = rowsForLevel(level);
   const out: Brick[] = [];
   for (let row = 0; row < rows; row++) {
-    // Top rows are tougher: row 0/1 always 1hp; deeper rows scale up with level.
     let hp = 1;
     if (row >= rows - 2) hp = 1;
     else if (row >= rows - 4) hp = level >= 2 ? 2 : 1;
@@ -260,7 +254,7 @@ win.addEventListener("mousedown", (e: any) => {
 
 // Fixed-timestep physics. Accumulator collects real elapsed time and
 // pays it down in `STEP` chunks; cosmetic things (particles, flashTimer)
-// move on the raw frame dt. This is the single biggest smoothness fix:
+// move on the raw frame dt. This is the single biggest smoothness fix
 // motion no longer hiccups when a frame happens to be 24ms instead of
 // 16ms because every chunk simulates exactly the same amount of time.
 const STEP = 1 / 120;
@@ -312,7 +306,6 @@ function update() {
 }
 
 function physicsStep(dt: number) {
-  // Paddle: keyboard takes precedence; mouse smoothly trails the pointer.
   const dir = (state.rightDown ? 1 : 0) - (state.leftDown ? 1 : 0);
   if (dir !== 0) {
     state.paddle.x += dir * PADDLE_SPEED * dt;

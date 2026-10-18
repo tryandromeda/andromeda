@@ -33,7 +33,7 @@ interface ExtractedBody {
  * This implements the "extract a body" algorithm from the Fetch specification.
  * @see https://fetch.spec.whatwg.org/#concept-bodyinit-extract
  *
- * @param object - The BodyInit value to extract from
+ * @param object The BodyInit value to extract from
  * @returns An ExtractedBody with the body and content type
  */
 function extractBody(object: BodyInit): ExtractedBody {
@@ -161,7 +161,7 @@ function encodeFormData(formData: FormData, boundary: string): Uint8Array {
       );
       parts.push(encoder.encode(`Content-Type: ${contentType}\r\n\r\n`));
 
-      // Note: This is synchronous for simplicity
+      // This is synchronous for simplicity
       // In a real implementation, we might want to handle this asynchronously
       // For now, we'll need to add a sync way to read the blob
       // This is a limitation that will need to be addressed

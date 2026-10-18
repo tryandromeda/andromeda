@@ -20,18 +20,16 @@ interface StoredCookie {
 }
 
 /**
- * Cookie jar - stores all cookies
- * Key: `${domain}:${path}:${name}`
+ * Shared cookie storage for fetch requests.
  */
 const cookieJar = new Map<string, StoredCookie>();
 
 /**
  * Parse a Set-Cookie header value into a cookie object
  *
- * Format: name=value; attribute1; attribute2=value2; ...
  *
- * @param setCookieValue - The Set-Cookie header value
- * @param requestUrl - The URL that sent the Set-Cookie header
+ * @param setCookieValue The Set-Cookie header value
+ * @param requestUrl The URL that sent the Set-Cookie header
  * @returns Parsed cookie or null if invalid
  */
 export function parseSetCookie(
@@ -144,8 +142,8 @@ export function parseSetCookie(
 /**
  * Check if a domain matches for cookie purposes
  *
- * @param requestDomain - The domain of the request
- * @param cookieDomain - The domain attribute of the cookie
+ * @param requestDomain The domain of the request
+ * @param cookieDomain The domain attribute of the cookie
  * @returns True if match
  */
 function isDomainMatch(requestDomain: string, cookieDomain: string): boolean {
@@ -164,8 +162,8 @@ function isDomainMatch(requestDomain: string, cookieDomain: string): boolean {
 /**
  * Check if a path matches for cookie purposes
  *
- * @param requestPath - The path of the request
- * @param cookiePath - The path attribute of the cookie
+ * @param requestPath The path of the request
+ * @param cookiePath The path attribute of the cookie
  * @returns True if match
  */
 function isPathMatch(requestPath: string, cookiePath: string): boolean {
@@ -192,9 +190,9 @@ function isPathMatch(requestPath: string, cookiePath: string): boolean {
 /**
  * Validate cookie prefixes (__Secure-, __Host-)
  *
- * @param cookie - The cookie to validate
- * @param requestUrl - The URL that set the cookie
- * @param domainWasSet - Whether Domain attribute was explicitly set
+ * @param cookie The cookie to validate
+ * @param requestUrl The URL that set the cookie
+ * @param domainWasSet Whether Domain attribute was explicitly set
  * @returns True if valid
  */
 function validateCookiePrefix(
@@ -234,7 +232,7 @@ function validateCookiePrefix(
 /**
  * Store a cookie in the cookie jar
  *
- * @param cookie - The cookie to store
+ * @param cookie The cookie to store
  */
 export function storeCookie(cookie: StoredCookie): void {
   const key = `${cookie.domain}:${cookie.path}:${cookie.name}`;
@@ -247,7 +245,7 @@ export function storeCookie(cookie: StoredCookie): void {
  * Returns all cookies that match the URL's domain and path,
  * are not expired, and pass security checks.
  *
- * @param requestUrl - The URL of the request
+ * @param requestUrl The URL of the request
  * @returns Array of matching cookies
  */
 export function getCookiesForRequest(requestUrl: string): StoredCookie[] {
@@ -294,8 +292,8 @@ export function getCookiesForRequest(requestUrl: string): StoredCookie[] {
 /**
  * Check if a cookie is expired
  *
- * @param cookie - The cookie to check
- * @param now - Current timestamp
+ * @param cookie The cookie to check
+ * @param now Current timestamp
  * @returns True if expired
  */
 function isExpired(cookie: StoredCookie, now: number): boolean {
@@ -317,7 +315,7 @@ function isExpired(cookie: StoredCookie, now: number): boolean {
 /**
  * Generate Cookie header value for a request
  *
- * @param requestUrl - The URL of the request
+ * @param requestUrl The URL of the request
  * @returns Cookie header value or null if no cookies
  */
 export function generateCookieHeader(requestUrl: string): string | null {
@@ -327,15 +325,14 @@ export function generateCookieHeader(requestUrl: string): string | null {
     return null;
   }
 
-  // Format: name1=value1; name2=value2; ...
   return cookies.map(c => `${c.name}=${c.value}`).join("; ");
 }
 
 /**
  * Handle Set-Cookie header from a response
  *
- * @param setCookieValue - The Set-Cookie header value
- * @param requestUrl - The URL that sent the response
+ * @param setCookieValue The Set-Cookie header value
+ * @param requestUrl The URL that sent the response
  * @returns True if cookie was stored, false otherwise
  */
 export function handleSetCookie(
@@ -362,7 +359,7 @@ export function clearAllCookies(): void {
 /**
  * Clear cookies for a specific domain
  *
- * @param domain - Domain to clear cookies for
+ * @param domain Domain to clear cookies for
  */
 export function clearCookiesForDomain(domain: string): void {
   for (const [key, cookie] of cookieJar.entries()) {

@@ -259,7 +259,7 @@ impl ProcessExt {
                 if let Ok(mut signals) = Signals::new([signal_num]) {
                     for _signal in signals.forever() {
                         eprintln!("Signal {signal_num} received");
-                        // TODO: Dispatch to JavaScript event loop
+                        // TODO Dispatch to JavaScript event loop
                     }
                 }
             }

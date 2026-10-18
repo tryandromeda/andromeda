@@ -13,7 +13,7 @@ use andromeda_runtime::{
 
 /// Run a single Andromeda file
 ///
-/// Note: While this function accepts a Vec<RuntimeFile> for internal flexibility,
+/// While this function accepts a Vec<RuntimeFile> for internal flexibility,
 /// the CLI interface only passes a single file.
 #[allow(clippy::result_large_err)]
 #[hotpath::measure]
@@ -29,10 +29,6 @@ pub fn run_with_config(
     files: Vec<RuntimeFile>,
     config_override: Option<AndromedaConfig>,
 ) -> CliResult<()> {
-    // Initialize LLM provider automatically when the llm feature is enabled
-    #[cfg(feature = "llm")]
-    init_llm_provider();
-
     // Load configuration
     let config = config_override.unwrap_or_else(|| {
         // Try to load config from the directory of the first file, or current directory
@@ -176,111 +172,10 @@ pub fn run_with_config(
                 RuntimeError::runtime_error(error_message.clone())
             };
 
-            // Print the enhanced error and AI suggestion if available
-            #[cfg(feature = "llm")]
-            {
-                print_error_with_llm_suggestion(
-                    &enhanced_error,
-                    &error_message,
-                    source_content.as_deref(),
-                    file_path.as_deref(),
-                );
-            }
-
-            #[cfg(not(feature = "llm"))]
-            {
-                ErrorReporter::print_error(&enhanced_error);
-            }
+            ErrorReporter::print_error(&enhanced_error);
 
             // Exit directly instead of returning another error to avoid double printing
             std::process::exit(1);
-        }
-    }
-}
-
-/// Initialize the LLM provider (called automatically when llm feature is enabled)
-#[cfg(feature = "llm")]
-fn init_llm_provider() {
-    use andromeda_core::enable_ai_suggestions;
-    use andromeda_core::llm_suggestions::{
-        LlmSuggestionConfig, copilot::init_copilot_provider, is_llm_initialized,
-    };
-
-    if !is_llm_initialized() {
-        // Try to initialize the Copilot provider
-        let config = LlmSuggestionConfig::default();
-        match init_copilot_provider(config) {
-            Ok(()) => {
-                // Enable AI suggestions globally so parse errors also get suggestions
-                enable_ai_suggestions();
-            }
-            Err(_) => {
-                // Silently fail - AI suggestions just won't be available
-                // User likely doesn't have GITHUB_TOKEN set
-            }
-        }
-    }
-}
-
-/// Print error with LLM suggestion
-#[cfg(feature = "llm")]
-fn print_error_with_llm_suggestion(
-    error: &RuntimeError,
-    error_message: &str,
-    source_code: Option<&str>,
-    file_path: Option<&str>,
-) {
-    use andromeda_core::llm_suggestions::{ErrorContext, get_error_suggestion, is_llm_initialized};
-    use owo_colors::OwoColorize;
-
-    // First, print the error using the standard reporter
-    ErrorReporter::print_error(error);
-
-    // Then try to get and print an LLM suggestion if initialized
-    if is_llm_initialized() {
-        eprintln!();
-        eprintln!("{}", "Fetching AI suggestion...".dimmed());
-
-        let mut context = ErrorContext::new(error_message);
-
-        if let Some(source) = source_code {
-            context = context.with_source_code(source);
-        }
-
-        if let Some(path) = file_path {
-            context = context.with_file_path(path);
-        }
-
-        // Try to extract error type from the message
-        if error_message.contains("ReferenceError") {
-            context = context.with_error_type("ReferenceError");
-        } else if error_message.contains("TypeError") {
-            context = context.with_error_type("TypeError");
-        } else if error_message.contains("SyntaxError") {
-            context = context.with_error_type("SyntaxError");
-        } else if error_message.contains("RangeError") {
-            context = context.with_error_type("RangeError");
-        }
-
-        match get_error_suggestion(&context) {
-            Some(suggestion) => {
-                // Clear the "Fetching" message by moving cursor up
-                eprint!("\x1b[1A\x1b[2K"); // Move up one line and clear it
-
-                eprintln!();
-                eprintln!(
-                    "{} {}",
-                    "AI Suggestion".bright_yellow().bold(),
-                    format!("(via {})", suggestion.provider_name).dimmed()
-                );
-                eprintln!("{}", "─".repeat(50).yellow());
-                eprintln!("{}", suggestion.suggestion);
-                eprintln!();
-            }
-            None => {
-                // Clear the "Fetching" message
-                eprint!("\x1b[1A\x1b[2K");
-            }
         }
     }
 }

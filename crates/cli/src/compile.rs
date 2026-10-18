@@ -94,7 +94,6 @@ pub fn compile(
 
     match os {
         "macos" => {
-            // First pass: write JS code section
             Macho::from(exe)
                 .map_err(|e| {
                     CliError::compile_error(
@@ -123,7 +122,6 @@ pub fn compile(
                     )
                 })?;
 
-            // Second pass: re-read and add config section
             let exe_with_js = std::fs::read(result_name)
                 .map_err(|e| CliError::file_read_error(result_name.to_path_buf(), e))?;
             let mut out = File::create(result_name).map_err(|e| {
@@ -172,7 +170,7 @@ pub fn compile(
                         Some(Box::new(e)),
                     )
                 })?;
-            // Note: libsui's Elf doesn't support multiple appends in sequence
+            // libsui's Elf doesn't support multiple appends in sequence
             // We need to re-read the file and append the config section
             let exe_with_js = std::fs::read(result_name)
                 .map_err(|e| CliError::file_read_error(result_name.to_path_buf(), e))?;

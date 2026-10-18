@@ -202,7 +202,7 @@ impl WindowExt {
 }
 
 impl WindowExt {
-    /// `internal_window_raw_handle(rid)` -> JSON string:
+    /// `internal_window_raw_handle(rid)` -> JSON string
     fn internal_window_raw_handle<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -464,8 +464,7 @@ fn raw_handle_json(window: &winit::window::Window) -> Result<String, String> {
         RawDisplayHandle::Xlib(h) => h.display.map_or(0, |p| p.as_ptr() as u64),
         RawDisplayHandle::Xcb(h) => h.connection.map_or(0, |p| p.as_ptr() as u64),
         RawDisplayHandle::Wayland(h) => h.display.as_ptr() as u64,
-        // Win32 / UiKit / Orbital / Ohos etc. don't expose a separate
-        // display pointer — 0 is the accepted sentinel.
+        // Some platforms have no separate display pointer to expose.
         _ => 0,
     };
 

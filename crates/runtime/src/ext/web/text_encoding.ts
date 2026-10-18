@@ -157,7 +157,6 @@ class TextDecoder {
 
     // Handle BOM (Byte Order Mark) if not ignoring
     if (!this.#ignoreBOM && bytes.length >= 3) {
-      // UTF-8 BOM: EF BB BF
       if (
         this.#encoding === "utf-8" &&
         bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF

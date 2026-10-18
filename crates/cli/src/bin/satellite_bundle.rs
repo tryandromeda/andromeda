@@ -3,7 +3,6 @@
 
 #![allow(clippy::result_large_err)]
 
-/// Andromeda Satellite - Bundle
 ///
 /// A minimal executable focused solely on bundling and minifying JavaScript/TypeScript files.
 /// Designed for container instances where only bundling capability is needed.

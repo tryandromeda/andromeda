@@ -22,8 +22,8 @@ interface MixedContentSettings {
  * Check if a URL is a priori authenticated (potentially trustworthy)
  * A priori authenticated URLs are those that use secure protocols
  *
- * @param url - URL to check
- * @returns true if URL is authenticated (https://, wss://, file://, etc.)
+ * @param url URL to check
+ * @returns Whether the URL is authenticated.
  */
 function isAPrioriAuthenticated(url: string): boolean {
   try {
@@ -35,9 +35,9 @@ function isAPrioriAuthenticated(url: string): boolean {
       "https",
       "wss",
       "file",
-      "data", // data: URLs are considered potentially trustworthy
-      "blob", // blob: URLs inherit security context
-      "about", // about: URLs are browser-internal
+      "data",
+      "blob",
+      "about",
     ];
 
     return authenticatedSchemes.includes(scheme);
@@ -50,7 +50,7 @@ function isAPrioriAuthenticated(url: string): boolean {
 /**
  * Check if an origin is a priori authenticated
  *
- * @param origin - Origin string (e.g., "https://example.com")
+ * @param origin Origin string (e.g., "https://example.com")
  * @returns true if origin uses secure scheme
  */
 function isOriginAPrioriAuthenticated(origin: string): boolean {
@@ -64,15 +64,7 @@ function isOriginAPrioriAuthenticated(origin: string): boolean {
 /**
  * Does settings prohibit mixed security contexts?
  *
- * This algorithm checks if an environment settings object restricts mixed content.
- * Per spec § 4.3, if the settings object's origin is a priori authenticated,
- * then it prohibits mixed security contexts.
- *
- * Special cases:
- * - file: URLs are considered authenticated but don't prohibit mixed content
- * - about: URLs are treated specially and don't prohibit mixed content
- *
- * @param settings - Environment settings object
+ * @param settings Environment settings object
  * @returns "Prohibits Mixed Security Contexts" or "Does Not Restrict Mixed Security Contexts"
  */
 function doesSettingsProhibitMixedSecurityContexts(
@@ -86,8 +78,7 @@ function doesSettingsProhibitMixedSecurityContexts(
     return "Does Not Restrict Mixed Security Contexts";
   }
 
-  // Special case: file: and about: origins don't prohibit mixed content
-  // even though they are considered "secure"
+  // Locally authenticated origins do not imply mixed-content restrictions.
   if (
     settings.origin.startsWith("file://") ||
     settings.origin.startsWith("about:")
@@ -100,7 +91,7 @@ function doesSettingsProhibitMixedSecurityContexts(
     return "Prohibits Mixed Security Contexts";
   }
 
-  // Note: The spec also checks for embedding documents (frames), but since
+  // The spec also checks for embedding documents (frames), but since
   // we don't have full document/browsing context support yet, we simplify
   // to just checking the immediate origin
 
@@ -131,13 +122,13 @@ function shouldFetchingRequestBeBlockedAsMixedContent(
 
   // Return "allowed" for top-level document navigations
   if (request.destination === "document") {
-    // TODO: implement target browsing context check
+    // TODO implement target browsing context check
     // For now, we allow top-level document navigations
     return "allowed";
   }
 
-  // Note: The spec also mentions user controls to allow mixed content,
-  // TODO: Implement mixed content
+  // The spec also mentions user controls to allow mixed content,
+  // TODO Implement mixed content
 
   // If none of the above conditions are met, block the request
   return "blocked";

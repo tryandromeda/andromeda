@@ -4,8 +4,8 @@
 
 /**
  * Implementation of the Performance API for Andromeda
- * Based on: https://developer.mozilla.org/en-US/docs/Web/API/Performance
- * Spec: https://w3c.github.io/hr-time/
+ * https://developer.mozilla.org/en-US/docs/Web/API/Performance
+ * https://w3c.github.io/hr-time/
  */
 
 interface PerformanceMark {
@@ -57,8 +57,8 @@ class AndromedaPerformance {
 
   /**
    * Creates a named timestamp in the performance timeline
-   * @param {string} markName - The name of the mark
-   * @param {object} markOptions - Optional mark options
+   * @param {string} markName The name of the mark
+   * @param {object} markOptions Optional mark options
    * @returns {PerformanceMark} The created performance mark
    */
   mark(
@@ -122,9 +122,9 @@ class AndromedaPerformance {
 
   /**
    * Creates a named timestamp between two marks or times
-   * @param {string} measureName - The name of the measure
-   * @param {string | object} startOrMeasureOptions - Start mark name or measure options
-   * @param {string} endMark - End mark name (if using string parameters)
+   * @param {string} measureName The name of the measure
+   * @param {string | object} startOrMeasureOptions Start mark name or measure options
+   * @param {string} endMark End mark name (if using string parameters)
    * @returns {PerformanceMeasure} The created performance measure
    */
   measure(

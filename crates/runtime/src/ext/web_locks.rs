@@ -78,7 +78,6 @@ pub struct ActiveLock {
 // State for a specific lock name
 #[derive(Debug)]
 struct LockState {
-    // Currently held locks (exclusive: max 1, shared: multiple allowed)
     active_locks: Vec<ActiveLock>,
     // Queue of pending requests
     pending_requests: VecDeque<LockRequest>,
@@ -201,7 +200,6 @@ impl WebLocksManager {
             .entry(params.name.clone())
             .or_insert_with(LockState::new);
 
-        // Handle "steal" option - preempt existing locks
         if params.steal {
             // Clear all existing locks and pending requests
             lock_state.active_locks.clear();
@@ -234,7 +232,6 @@ impl WebLocksManager {
             return Ok(lock_id);
         }
 
-        // Check "ifAvailable" option - fail if not immediately available
         if params.if_available {
             return Err("Lock not available and ifAvailable was specified".to_string());
         }
@@ -297,7 +294,7 @@ impl WebLocksManager {
 
                     lock_state.add_active_lock(active_lock);
 
-                    // TODO: Wake the task associated with this lock request
+                    // TODO Wake the task associated with this lock request
                     // This would involve resolving the promise that was created when the lock was requested
                     // For now, we just grant the lock synchronously
 
@@ -466,7 +463,6 @@ impl WebLocksExt {
         }
     }
 
-    // Request a lock: internal_locks_request(name, mode, ifAvailable, steal)
     fn internal_locks_request<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -538,7 +534,6 @@ impl WebLocksExt {
         }
     }
 
-    // Release a lock: internal_locks_release(name, lockId)
     fn internal_locks_release<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -577,7 +572,6 @@ impl WebLocksExt {
         }
     }
 
-    // Query lock state: internal_locks_query()
     fn internal_locks_query<'gc>(
         agent: &mut Agent,
         _this: Value,
@@ -598,7 +592,6 @@ impl WebLocksExt {
         Ok(Value::from_str(agent, &result_json, gc.nogc()).unbind())
     }
 
-    // Abort a lock request: internal_locks_abort(name, lockId)
     fn internal_locks_abort<'gc>(
         agent: &mut Agent,
         _this: Value,

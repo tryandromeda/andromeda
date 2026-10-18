@@ -9,8 +9,8 @@ ground up in [Rust 🦀](https://www.rust-lang.org/) and powered by
 [Nova Engine](https://trynova.dev/) and [Oxc](https://oxc.rs).
 
 [Andromeda](https://github.com/tryandromeda/andromeda) provides **zero-config
-TypeScript support**, **rich Web APIs**, and **native performance** - making it
-perfect for scripts, utilities, and applications that need to run fast without
+TypeScript support**, **rich Web APIs**, and **native performance** for
+scripts, utilities, and applications that need to run fast without
 the complexity of traditional Node.js setups.
 
 Join our [Discord community](https://discord.gg/tgjAnX2Ny3) to discuss ideas and
@@ -18,29 +18,21 @@ get involved!
 
 ## Key Features
 
-- **Zero-configuration TypeScript** - Run `.ts` files directly, no
-  transpilation needed
-- **Import Maps** - Modern module resolution with bare specifiers and CDN
-  integration
-**Built-in HTTP Server** - Create web servers and APIs with minimal configuration
-- **GPU-Accelerated Canvas** - Hardware-accelerated 2D Canvas API with WGPU
-  backend and PNG export
-- **Web Crypto API** - Industry-standard cryptographic primitives
-- **SQLite Support** - Built-in support for SQLite databases
-- **File System Access** - Simple APIs for reading/writing files
-- **Web Storage** - localStorage and sessionStorage APIs for data persistence
-- **Native Performance** - Rust-powered execution with Nova's optimized JS
-  engine
-- **Developer Tools** - Interactive REPL, code formatter, single-file
-  compilation, and performance profiling with hotpath
-- **Performance Profiling** - Integrated hotpath profiler for identifying
-  bottlenecks and optimizing runtime performance for andromeda development
-- **Web Standards** - TextEncoder/Decoder, Performance API, and more
-- **Extensible** - Modular architecture with optional features
-- **Self-Updating** - Built-in upgrade system to stay current with latest
-  releases
-- **Shell Integration** - Auto-completion support for bash, zsh, fish, and
-  PowerShell
+- Run TypeScript files directly with **zero configuration** or transpilation.
+- Resolve bare specifiers and CDN imports with **Import Maps**.
+- Create web servers and APIs with the **built-in HTTP server**.
+- Draw with the **GPU-accelerated Canvas API**, backed by WGPU with PNG export.
+- Use industry-standard cryptographic primitives through the **Web Crypto API**.
+- Work with databases through **built-in SQLite support**.
+- Read and write files through the **file system APIs**.
+- Persist data with **localStorage and sessionStorage**.
+- Run JavaScript with **Nova's Rust-powered engine**.
+- Use the **developer tools** for interactive evaluation, formatting, and compilation.
+- Identify performance bottlenecks with the **hotpath profiler**.
+- Access **web APIs** including TextEncoder, TextDecoder, and Performance.
+- Customize the runtime through **optional extensions**.
+- Stay current with the **built-in upgrade system**.
+- Enable **shell completion** for bash, zsh, fish, and PowerShell.
 
 ## Standards & Compatibility
 
@@ -275,14 +267,12 @@ andromeda repl
 
 **REPL Features:**
 
-- **Advanced Syntax Highlighting** - TypeScript-aware coloring with keyword
-  recognition
-- **Smart Multiline Input** - Automatic detection of incomplete syntax
-  (functions, objects, etc.)
-- **Performance Metrics** - Execution timing for every evaluation
-- **Command History** - Navigate through previous commands with arrow keys
-- **Built-in Commands** - `help`, `history`, `clear`, `gc`, `exit`
-- **Auto-completion** - Context-aware suggestions for JavaScript/TypeScript
+- Read TypeScript with syntax highlighting and keyword recognition.
+- Enter multiline functions and objects with automatic incomplete-syntax detection.
+- View execution timing for each evaluation.
+- Navigate command history with the arrow keys.
+- Use `help`, `history`, `clear`, `gc`, and `exit` to manage the session.
+- Complete JavaScript and TypeScript expressions with context-aware suggestions.
 
 ### Code Formatting
 
@@ -324,17 +314,16 @@ andromeda lsp
 
 **LSP Features:**
 
-- **Real-time Diagnostics** - Live error reporting as you type
-- **Comprehensive Linting** - 5 built-in rules for code quality:
+- See diagnostics as you type.
+- Find common code quality issues with built-in lint rules:
   - Empty function detection
   - Empty statement detection
   - Variable usage validation
   - Unreachable code detection
   - Invalid syntax highlighting
-- **Multi-file Support** - Workspace-wide analysis
-- **Rich Error Messages** - Detailed explanations with code context
-- **Editor Integration** - Works with VS Code, Neovim, and other LSP-compatible
-  editors
+- Analyze files across the workspace.
+- Read error explanations alongside their source context.
+- Integrate with VS Code, Neovim, and other LSP-compatible editors.
 
 Configure your editor to use `andromeda lsp` as the language server for
 JavaScript and TypeScript files to get instant feedback on code quality.
@@ -427,7 +416,7 @@ or disabled as needed:
 
 ### Window extension (optional, behind `window` feature)
 
-The `window` feature adds `Andromeda.Window` — a native OS window backed by
+The `window` feature adds `Andromeda.Window`, a native OS window backed by
 [`winit`](https://crates.io/crates/winit) on macOS, Windows, and Linux
 (X11/Wayland). Inspired by [`deno-windowing/dwm`](https://github.com/deno-windowing/dwm),
 the class extends `EventTarget` and dispatches DOM-style events (`resize`,
@@ -451,8 +440,8 @@ cargo run --features window -- run examples/window.ts
 object compatible with `Deno.UnsafeWindowSurface` for future WebGPU-surface bridges.
 
 When the `canvas` feature is also enabled, `window.presentCanvas(canvas)` blits an
-`OffscreenCanvas`'s latest frame into the window via a shared wgpu device — no CPU
-readback, any size allowed. `examples/window.ts` demonstrates a live 2D scene streamed
+`OffscreenCanvas`'s latest frame into the window via a shared wgpu device without CPU
+readback or size restrictions. `examples/window.ts` demonstrates a live 2D scene streamed
 from an `OffscreenCanvas` into a winit-backed window. `examples/breakout.ts` is a
 keyboard-driven Breakout clone exercising the full window + canvas input/render pipeline.
 
@@ -462,11 +451,11 @@ keyboard-driven Breakout clone exercising the full window + canvas input/render 
 
 ### Available Satellites
 
-- **andromeda-run** - Execute JavaScript/TypeScript in production containers
-- **andromeda-compile** - Compile JS/TS to executables
-- **andromeda-fmt** - Format code
-- **andromeda-lint** - Lint code for quality issues
-- **andromeda-bundle** - Bundle and minify code
+- **andromeda-run** executes JavaScript/TypeScript in production containers.
+- **andromeda-compile** compiles JS/TS to executables.
+- **andromeda-fmt** formats code.
+- **andromeda-lint** checks code for quality issues.
+- **andromeda-bundle** bundles and minifies code.
 
 ## Crates
 
@@ -481,10 +470,10 @@ keyboard-driven Breakout clone exercising the full window + canvas input/render 
 Andromeda is an open-source project and welcomes contributions! Whether you're
 interested in:
 
-- **Bug fixes** - Help improve stability
-- **New features** - Add runtime capabilities
-- **Documentation** - Improve guides and examples
-- **Testing** - Expand test coverage
+- Fixing bugs to improve stability
+- Adding runtime capabilities
+- Improving guides and examples
+- Expanding test coverage
 
 Join our [Discord community](https://discord.gg/tgjAnX2Ny3) to discuss ideas and
 get involved!

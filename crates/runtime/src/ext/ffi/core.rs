@@ -137,9 +137,9 @@ pub struct FfiSymbol {
 }
 
 #[allow(clippy::non_send_fields_in_send_ty)]
-// SAFETY: unsafe trait must have unsafe implementation
+// SAFETY unsafe trait must have unsafe implementation
 unsafe impl Send for FfiSymbol {}
-// SAFETY: unsafe trait must have unsafe implementation
+// SAFETY unsafe trait must have unsafe implementation
 unsafe impl Sync for FfiSymbol {}
 
 #[derive(Debug, Clone)]
@@ -178,7 +178,7 @@ impl Library {
     ///
     /// # Safety
     ///
-    /// The caller must ensure that:
+    /// The caller must ensure that
     /// - The symbol name is valid and null-terminated
     /// - The symbol exists in the library and has the expected type T
     /// - The returned symbol will only be used in a way that's compatible with its actual type

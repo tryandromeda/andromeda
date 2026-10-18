@@ -306,7 +306,6 @@ impl CanvasState {
             },
             shadow_offset_x: 0.0,
             shadow_offset_y: 0.0,
-            // Text properties - Canvas2D defaults
             font: "10px sans-serif".to_string(),
             text_align: TextAlign::default(),
             text_baseline: TextBaseline::default(),

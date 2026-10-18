@@ -323,7 +323,7 @@ fn run_main() -> CliResult<()> {
                     };
                     // Surface to JS via env. `Andromeda.serve(...)` reads
                     // this as a default for the `parallel` option.
-                    // SAFETY: only set before the runtime starts; no
+                    // SAFETY only set before the runtime starts; no
                     // other thread reads env at this point.
                     unsafe {
                         std::env::set_var("ANDROMEDA_JOBS", resolved.to_string());

@@ -210,7 +210,7 @@ class Command {
   }
 }
 
-// TODO: This is a workaround to convert Uint8Array to a binary string for the Rust backend.
+// TODO This is a workaround to convert Uint8Array to a binary string for the Rust backend.
 function bytesToBinaryString(data: Uint8Array): string {
   let out = "";
   const CHUNK = 0x8000;
@@ -986,7 +986,7 @@ const Andromeda = {
    * );
    * ```
    *
-   * Note: On Windows only "SIGINT" (Ctrl+C) and "SIGBREAK" (Ctrl+Break) are supported.
+   * On Windows only "SIGINT" (Ctrl+C) and "SIGBREAK" (Ctrl+Break) are supported.
    */
   addSignalListener(signal: Signal, handler: () => void): void {
     if (typeof handler !== "function") {
@@ -1095,7 +1095,7 @@ const Andromeda = {
    * ```
    */
   get serve() {
-    // @ts-ignore - internal use
+    // @ts-ignore internal use
     const httpServe = globalThis.__andromeda_http_serve;
     if (typeof httpServe !== "function") {
       throw new Error(
@@ -1121,14 +1121,14 @@ const Andromeda = {
    * ```
    */
   get Window(): any {
-    // @ts-ignore - cross-file handoff from ext/window/mod.ts
+    // @ts-ignore cross-file handoff from ext/window/mod.ts
     const Klass = globalThis.__andromeda_window_class;
     if (typeof Klass !== "function") {
       throw new Error(
         "Window extension is not available. Make sure the 'window' feature is enabled.",
       );
     }
-    // @ts-ignore - cross-file handoff from ext/window/mod.ts
+    // @ts-ignore cross-file handoff from ext/window/mod.ts
     const mainloop = globalThis.__andromeda_window_mainloop;
     if (mainloop && !Klass.mainloop) {
       Object.defineProperty(Klass, "mainloop", {
@@ -1154,7 +1154,7 @@ const Andromeda = {
     resizable?: boolean;
     visible?: boolean;
   } = {}): any {
-    // @ts-ignore - cross-file handoff from ext/window/mod.ts
+    // @ts-ignore cross-file handoff from ext/window/mod.ts
     const Klass = globalThis.__andromeda_window_class;
     if (typeof Klass !== "function") {
       throw new Error(
@@ -1231,7 +1231,6 @@ function encodeURIComponent(input: string): string {
   const bytes = encoder.encode(String(input));
   let out = "";
   for (const b of bytes) {
-    // unreserved characters A-Z a-z 0-9 - _ . ~
     if (
       (b >= 0x30 && b <= 0x39) ||
       (b >= 0x41 && b <= 0x5a) ||
@@ -1270,7 +1269,7 @@ function decodeURIComponent(input: string): string {
 }
 
 function encodeURI(input: string): string {
-  // encodeURIComponent then revert reserved characters: ; , / ? : @ & = + $
+  // Preserve reserved URI delimiters rather than encoding them as component data.
   return encodeURIComponent(input)
     .replace(/%3B/g, ";")
     .replace(/%2C/g, ",")

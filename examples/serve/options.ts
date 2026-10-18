@@ -3,7 +3,6 @@
 
 console.log("🚀 Starting server with custom options...\n");
 
-// Example 1: Custom port and hostname
 console.log("Example 1: Using custom port and hostname");
 Andromeda.serve({
   port: 3000,

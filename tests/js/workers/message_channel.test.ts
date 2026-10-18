@@ -1,4 +1,3 @@
-// MessageChannel: entangled ports deliver messages to each other.
 const channel = new MessageChannel();
 
 let port1Received = 0;

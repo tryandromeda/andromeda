@@ -49,8 +49,6 @@ interface AuthResponse {
 
 /**
  * Simple in-memory credential store
- * Key: `${origin}:${realm}`
- * Value: StoredCredential
  */
 const credentialStore = new Map<string, StoredCredential>();
 
@@ -60,14 +58,12 @@ const credentialStore = new Map<string, StoredCredential>();
  * Handles both simple format (Basic realm="...") and complex format (Digest with multiple params)
  * Multiple challenges are separated by commas AFTER the parameters of the previous challenge.
  *
- * @param headerValue - The WWW-Authenticate header value
+ * @param headerValue The WWW-Authenticate header value
  * @returns Array of parsed challenges
  */
 export function parseAuthChallenges(headerValue: string): AuthChallenge[] {
   const challenges: AuthChallenge[] = [];
 
-  // Strategy: Look for scheme names (words followed by space or comma)
-  // Schemes: Basic, Digest, Bearer, etc. (start with capital letter)
 
   let currentChallenge = "";
   let inQuotes = false;
@@ -117,9 +113,8 @@ export function parseAuthChallenges(headerValue: string): AuthChallenge[] {
 /**
  * Parse a single authentication challenge
  *
- * Format: "scheme param1=value1, param2=value2, ..."
  *
- * @param challengeStr - Single challenge string
+ * @param challengeStr Single challenge string
  * @returns Parsed challenge or null if invalid
  */
 function parseSingleChallenge(challengeStr: string): AuthChallenge | null {
@@ -160,7 +155,7 @@ function parseSingleChallenge(challengeStr: string): AuthChallenge | null {
  *
  * Handles quoted and unquoted values
  *
- * @param paramsStr - Parameter string (e.g., 'realm="example", charset="UTF-8"')
+ * @param paramsStr Parameter string (e.g., 'realm="example", charset="UTF-8"')
  * @returns Object with parameter key-value pairs
  */
 function parseAuthParams(paramsStr: string): Record<string, string> {
@@ -208,10 +203,9 @@ function processParam(param: string, params: Record<string, string>): void {
 /**
  * Generate Basic authentication Authorization header value
  *
- * Format: "Basic <base64(username:password)>"
  *
- * @param username - Username
- * @param password - Password
+ * @param username Username
+ * @param password Password
  * @returns Authorization header value
  */
 export function generateBasicAuth(username: string, password: string): string {
@@ -225,11 +219,11 @@ export function generateBasicAuth(username: string, password: string): string {
  *
  * Implements RFC 7616 Digest Access Authentication
  *
- * @param username - Username
- * @param password - Password
- * @param challenge - The digest challenge from server
- * @param request - The request being authenticated
- * @param nc - Nonce count (hex string, e.g., "00000001")
+ * @param username Username
+ * @param password Password
+ * @param challenge The digest challenge from server
+ * @param request The request being authenticated
+ * @param nc Nonce count (hex string, e.g., "00000001")
  * @returns Authorization header value or null if generation fails
  */
 export async function generateDigestAuth(
@@ -302,12 +296,6 @@ export async function generateDigestAuth(
 /**
  * Compute the digest response hash
  *
- * response = H(H(A1) ":" nonce ":" H(A2))
- * - With qop=auth: response = H(H(A1) ":" nonce ":" nc ":" cnonce ":" qop ":" H(A2))
- *
- * A1 = username ":" realm ":" password
- * A2 = method ":" uri
- *
  * @returns The response hash string
  */
 async function computeDigestResponse(
@@ -323,13 +311,11 @@ async function computeDigestResponse(
   cnonce?: string,
 ): Promise<string | null> {
   try {
-    // A1 = username:realm:password
     const a1 = `${username}:${realm}:${password}`;
     const ha1 = await hashString(a1, algorithm);
 
     if (!ha1) return null;
 
-    // A2 = method:uri
     const a2 = `${method}:${uri}`;
     const ha2 = await hashString(a2, algorithm);
 
@@ -353,8 +339,8 @@ async function computeDigestResponse(
 /**
  * Hash a string using the specified algorithm
  *
- * @param data - String to hash
- * @param algorithm - Hash algorithm (MD5, SHA-256, SHA-512)
+ * @param data String to hash
+ * @param algorithm Hash algorithm (MD5, SHA-256, SHA-512)
  * @returns Lowercase hex string of the hash
  */
 async function hashString(
@@ -409,10 +395,10 @@ function generateCnonce(): string {
 /**
  * Store credentials for an origin and realm
  *
- * @param origin - Origin (e.g., "https://example.com")
- * @param realm - Authentication realm
- * @param username - Username
- * @param password - Password
+ * @param origin Origin (e.g., "https://example.com")
+ * @param realm Authentication realm
+ * @param username Username
+ * @param password Password
  */
 export function storeCredentials(
   origin: string,
@@ -427,8 +413,8 @@ export function storeCredentials(
 /**
  * Retrieve stored credentials for an origin and realm
  *
- * @param origin - Origin (e.g., "https://example.com")
- * @param realm - Authentication realm
+ * @param origin Origin (e.g., "https://example.com")
+ * @param realm Authentication realm
  * @returns Stored credentials or null if not found
  */
 export function getStoredCredentials(
@@ -449,7 +435,7 @@ export function clearAllCredentials(): void {
 /**
  * Clear credentials for a specific origin
  *
- * @param origin - Origin to clear credentials for
+ * @param origin Origin to clear credentials for
  */
 export function clearCredentialsForOrigin(origin: string): void {
   for (const [key, cred] of credentialStore.entries()) {
@@ -464,15 +450,15 @@ export function clearCredentialsForOrigin(origin: string): void {
  *
  * This is the main entry point for authentication handling.
  *
- * Flow:
+ * Flow
  * 1. Parse WWW-Authenticate challenges from response
  * 2. Select most secure challenge (prefer Digest SHA-512 > SHA-256 > Basic)
  * 3. Check for stored credentials for origin+realm
  * 4. Generate Authorization header
  * 5. Return header value or null if auth cannot be handled
  *
- * @param request - The request that received a 401
- * @param response - The 401 response with challenges
+ * @param request The request that received a 401
+ * @param response The 401 response with challenges
  * @returns Authorization header value or null
  */
 export async function handleAuthentication(
@@ -529,13 +515,13 @@ export async function handleAuthentication(
 /**
  * Select the best (most secure) challenge from available challenges
  *
- * Priority:
+ * Priority
  * 1. Digest with SHA-512
  * 2. Digest with SHA-256
  * 3. Digest with MD5
  * 4. Basic
  *
- * @param challenges - Array of challenges
+ * @param challenges Array of challenges
  * @returns Best challenge or null
  */
 function selectBestChallenge(

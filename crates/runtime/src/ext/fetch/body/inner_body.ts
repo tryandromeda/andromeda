@@ -21,7 +21,7 @@ const LENGTH = Symbol("length");
 class InnerBody {
   /**
    * Creates an InnerBody from a stream or static data.
-   * @param streamOrStatic - Either a ReadableStream or an object with {body, consumed}
+   * @param streamOrStatic Either a ReadableStream or an object with {body, consumed}
    */
   constructor(
     streamOrStatic: ReadableStream<Uint8Array> | {
@@ -34,11 +34,9 @@ class InnerBody {
       (this as any)[SOURCE] = null;
       (this as any)[LENGTH] = null;
     } else {
-      // Static body - create a ReadableStream from it
       const { body, consumed } = streamOrStatic;
 
       if (consumed) {
-        // Already consumed - create an empty stream
         (this as any)[STREAM] = new ReadableStream({
           start(controller) {
             controller.close();
@@ -111,7 +109,7 @@ class InnerBody {
       if ((this as any)[STREAM].locked) {
         return true;
       }
-      // Note: There's no standard way to check if a stream is disturbed without reading
+      // There's no standard way to check if a stream is disturbed without reading
       // In practice, we rely on the locked state and user tracking
       return false;
     } catch {
@@ -148,7 +146,6 @@ class InnerBody {
         } else if (value instanceof Uint8Array) {
           chunk = value;
         } else {
-          // Fallback: try to convert to string then to bytes
           chunk = new TextEncoder().encode(String(value));
         }
 

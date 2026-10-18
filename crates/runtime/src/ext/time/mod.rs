@@ -115,7 +115,7 @@ impl TimeExt {
         let host_data = agent.get_host_data();
         let host_data: &HostData<RuntimeMacroTask> = host_data.downcast_ref().unwrap();
 
-        // Tolerate a dropped receiver: when the worker runtime has already torn down, this send is best effort.
+        // The worker runtime may already be gone when this best-effort notification is sent.
         let _ = host_data
             .macro_task_tx
             .send(MacroTask::User(RuntimeMacroTask::ClearInterval(

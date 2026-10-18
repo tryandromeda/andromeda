@@ -386,7 +386,6 @@ function drawBird() {
   ctx.arc(0, 0, BIRD_R, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Wing — animated
   const wingY = Math.sin(state.bird.wingPhase) * 5;
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();

@@ -33,7 +33,7 @@ impl ExtensionOp {
     }
 }
 
-/// Group of global functions. Usually every extension has it's own topic, e.g: fs, network, ffi, etc.
+/// Groups global functions by extension.
 pub struct Extension {
     /// Name of the extension.
     pub name: &'static str,

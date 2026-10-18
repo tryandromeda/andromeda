@@ -3,7 +3,6 @@
 
 #![allow(clippy::result_large_err)]
 
-/// Andromeda Satellite - Format
 ///
 /// A minimal executable focused solely on formatting JavaScript/TypeScript files.
 /// Designed for container instances where only formatting capability is needed.

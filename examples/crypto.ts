@@ -21,7 +21,7 @@ console.log("\nTesting crypto.subtle.digest...");
 const encoder = new TextEncoder();
 const testData = encoder.encode("Hello, World!");
 crypto.subtle.digest("SHA-256", testData).then((hash) => {
-  // NOTE: Current implementation returns hex string instead of ArrayBuffer
+  // Current implementation returns hex string instead of ArrayBuffer
   // This is temporary non-W3C compliant behavior that will be fixed
   if (typeof hash === "string") {
     console.log("SHA-256 hash:", hash);
@@ -84,7 +84,7 @@ console.log("\nTesting digest with various messages...");
 for (const message of messages) {
   const messageBytes = encoder.encode(message);
   crypto.subtle.digest("SHA-256", messageBytes).then((hash) => {
-    // NOTE: Current implementation returns hex string instead of ArrayBuffer
+    // Current implementation returns hex string instead of ArrayBuffer
     let hexHash;
     if (typeof hash === "string") {
       hexHash = hash;

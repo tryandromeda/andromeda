@@ -236,7 +236,7 @@ impl NetExt {
             }
         };
 
-        // TODO: proper blocking I/O handling
+        // TODO proper blocking I/O handling
         Ok(Value::from_string(
             agent,
             "Error: Use async version for TCP operations".to_string(),
@@ -294,7 +294,7 @@ impl NetExt {
                         remote_addr,
                     };
 
-                    // TODO: get actual resource ID
+                    // TODO get actual resource ID
                     let resource_id = 1;
                     let result = format!(
                         "{{\"success\":true,\"localAddr\":\"{}\",\"remoteAddr\":\"{}\",\"resourceId\":{}}}",
@@ -1224,7 +1224,7 @@ impl NetExt {
             let resources = Self::get_net_resources(agent).unwrap();
             match resources.tcp_streams.get(rid) {
                 Some(_stream_resource) => {
-                    // TODO: call stream.set_nodelay()
+                    // TODO call stream.set_nodelay()
                     format!(
                         "{{\"success\":true,\"resourceId\":{},\"nodelay\":{}}}",
                         resource_id, nodelay
@@ -1285,7 +1285,7 @@ impl NetExt {
             Ok(resources) => {
                 match resources.tcp_streams.get(rid) {
                     Some(_stream_resource) => {
-                        // TODO: call stream.set_keepalive()
+                        // TODO call stream.set_keepalive()
                         format!(
                             "{{\"success\":true,\"resourceId\":{},\"keepalive\":{}}}",
                             resource_id, keepalive
@@ -1350,7 +1350,7 @@ impl NetExt {
             Ok(resources) => {
                 match resources.udp_sockets.get(rid) {
                     Some(_socket_resource) => {
-                        // TODO: call socket.set_broadcast()
+                        // TODO call socket.set_broadcast()
                         format!(
                             "{{\"success\":true,\"resourceId\":{},\"broadcast\":{}}}",
                             resource_id, broadcast
@@ -1414,7 +1414,7 @@ impl NetExt {
             Ok(resources) => {
                 match resources.udp_sockets.get(rid) {
                     Some(_socket_resource) => {
-                        // TODO: call socket.set_multicast_ttl_v4()
+                        // TODO call socket.set_multicast_ttl_v4()
                         format!(
                             "{{\"success\":true,\"resourceId\":{},\"multicastTtl\":{}}}",
                             resource_id, ttl
@@ -1479,7 +1479,7 @@ impl NetExt {
             Ok(resources) => {
                 match resources.udp_sockets.get(rid) {
                     Some(_socket_resource) => {
-                        // TODO: call socket.set_multicast_loop_v4()
+                        // TODO call socket.set_multicast_loop_v4()
                         format!(
                             "{{\"success\":true,\"resourceId\":{},\"multicastLoop\":{}}}",
                             resource_id, multicast_loop
@@ -1544,7 +1544,7 @@ impl NetExt {
             Ok(resources) => {
                 match resources.udp_sockets.get(rid) {
                     Some(_socket_resource) => {
-                        // TODO: call socket.join_multicast_v4()
+                        // TODO call socket.join_multicast_v4()
                         format!(
                             "{{\"success\":true,\"resourceId\":{},\"multicastAddr\":\"{}\",\"interface\":\"{}\"}}",
                             resource_id, multicast_addr, interface_addr
@@ -1639,7 +1639,7 @@ impl NetExt {
             Ok(resources) => {
                 match resources.udp_sockets.get(rid) {
                     Some(_socket_resource) => {
-                        // TODO: call socket.join_multicast_v6()
+                        // TODO call socket.join_multicast_v6()
                         format!(
                             "{{\"success\":true,\"resourceId\":{},\"multicastAddr\":\"{}\",\"interface\":{}}}",
                             resource_id, multicast_addr, interface_idx
@@ -1703,7 +1703,7 @@ impl NetExt {
             Ok(resources) => {
                 match resources.udp_sockets.get(rid) {
                     Some(_socket_resource) => {
-                        // TODO: call socket.leave_multicast_v4()
+                        // TODO call socket.leave_multicast_v4()
                         format!(
                             "{{\"success\":true,\"resourceId\":{},\"multicastAddr\":\"{}\",\"interface\":\"{}\"}}",
                             resource_id, multicast_addr, interface_addr
@@ -1798,7 +1798,7 @@ impl NetExt {
             Ok(resources) => {
                 match resources.udp_sockets.get(rid) {
                     Some(_socket_resource) => {
-                        // TODO: call socket.leave_multicast_v6()
+                        // TODO call socket.leave_multicast_v6()
                         format!(
                             "{{\"success\":true,\"resourceId\":{},\"multicastAddr\":\"{}\",\"interface\":{}}}",
                             resource_id, multicast_addr, interface_idx

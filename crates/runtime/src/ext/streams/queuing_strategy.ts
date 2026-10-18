@@ -85,7 +85,6 @@ class ByteLengthQueuingStrategy {
       return encoder.encode(chunk).length;
     }
 
-    // Default: treat as having no measurable size
     return 0;
   }
 }

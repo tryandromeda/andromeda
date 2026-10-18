@@ -167,7 +167,7 @@ impl CryptoExt {
         args: ArgumentsList,
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: implement proper typed array handling for getRandomValues
+        // TODO implement proper typed array handling for getRandomValues
         let _array_arg = args[0];
 
         let mut rng = rand::rng();
@@ -336,7 +336,7 @@ impl CryptoExt {
         _args: ArgumentsList,
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Implement CryptoKey creation
+        // TODO Implement CryptoKey creation
         let gc = gc.into_nogc();
         Err(agent
             .throw_exception_with_static_message(
@@ -353,7 +353,7 @@ impl CryptoExt {
         _args: ArgumentsList,
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Implement CryptoKey type getter
+        // TODO Implement CryptoKey type getter
         Ok(
             nova_vm::ecmascript::String::from_string(agent, "secret".to_string(), gc.nogc())
                 .unbind()
@@ -367,7 +367,7 @@ impl CryptoExt {
         _args: ArgumentsList,
         _gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Implement CryptoKey extractable getter
+        // TODO Implement CryptoKey extractable getter
         Ok(Value::Boolean(true))
     }
 
@@ -377,7 +377,7 @@ impl CryptoExt {
         _args: ArgumentsList,
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Implement CryptoKey algorithm getter
+        // TODO Implement CryptoKey algorithm getter
         Ok(
             nova_vm::ecmascript::String::from_string(agent, "AES-GCM".to_string(), gc.nogc())
                 .unbind()
@@ -391,7 +391,7 @@ impl CryptoExt {
         _args: ArgumentsList,
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Implement CryptoKey usages getter
+        // TODO Implement CryptoKey usages getter
         Ok(nova_vm::ecmascript::String::from_string(
             agent,
             "encrypt,decrypt".to_string(),
@@ -407,7 +407,7 @@ impl CryptoExt {
         args: ArgumentsList,
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Implement proper ArrayBuffer creation from bytes
+        // TODO Implement proper ArrayBuffer creation from bytes
         let _bytes_arg = args[0];
         Ok(nova_vm::ecmascript::String::from_string(
             agent,
@@ -424,7 +424,7 @@ impl CryptoExt {
         _args: ArgumentsList,
         gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // TODO: Implement proper bytes extraction from ArrayBuffer/TypedArray
+        // TODO Implement proper bytes extraction from ArrayBuffer/TypedArray
         Ok(nova_vm::ecmascript::String::from_string(
             agent,
             "buffer_bytes_placeholder".to_string(),

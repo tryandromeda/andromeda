@@ -28,7 +28,6 @@ for (const value of testValues) {
 }
 console.log();
 
-// Test 3: globalAlpha affects fill operations
 console.log("3. Testing globalAlpha with fill operations:");
 ctx.fillStyle = "red";
 
@@ -42,7 +41,6 @@ console.log(
   `   Drew overlapping red rectangle with globalAlpha: ${ctx.globalAlpha}`,
 );
 
-// Test 4: globalAlpha affects stroke operations
 console.log("\n4. Testing globalAlpha with stroke operations:");
 ctx.strokeStyle = "blue";
 ctx.lineWidth = 5;
@@ -62,7 +60,6 @@ console.log(
   `   Drew overlapping blue stroke rectangle with globalAlpha: ${ctx.globalAlpha}`,
 );
 
-// Test 5: globalAlpha affects path operations
 console.log("\n5. Testing globalAlpha with path operations:");
 ctx.fillStyle = "green";
 ctx.globalAlpha = 0.7;
@@ -72,7 +69,6 @@ ctx.arc(250, 50, 30, 0, 2 * Math.PI);
 ctx.fill();
 console.log(`   Drew green circle with globalAlpha: ${ctx.globalAlpha}`);
 
-// Test 6: Save the result
 console.log("\n6. Saving test output:");
 canvas.render();
 const saved = canvas.saveAsPng("comprehensive_globalAlpha.demo.png");

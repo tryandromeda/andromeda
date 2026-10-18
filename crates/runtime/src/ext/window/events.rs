@@ -12,7 +12,6 @@ pub struct SerializedWindowEvent {
     /// Event type name, intentionally DOM-aligned.
     #[serde(rename = "type")]
     pub kind: &'static str,
-    /// Event-specific payload — shape depends on `kind`.
     pub detail: EventDetail,
 }
 
@@ -33,8 +32,7 @@ pub enum EventDetail {
         /// https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/keyCode
         #[serde(rename = "keyCode")]
         key_code: u32,
-        /// Alias of `keyCode` — kept for compat with old code that reads
-        /// `event.which`.
+        /// Retained for legacy handlers that read `event.which`.
         which: u32,
         /// 0 = standard, 1 = left modifier, 2 = right modifier, 3 = numpad.
         location: u8,

@@ -12,7 +12,7 @@ use nova_vm::{
 use std::fs;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
-// TODO: Get the time origin from when the runtime starts
+// TODO Get the time origin from when the runtime starts
 static TIME_ORIGIN: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
 
 #[derive(Default)]
@@ -120,8 +120,7 @@ impl WebExt {
         for c in rust_string.chars() {
             let cp = c as u32;
             if cp > 0xFF {
-                // TODO: Returning an InvalidCharacterError is the correct behavior.
-                // ref: https://html.spec.whatwg.org/multipage/webappapis.html#atob
+                // TODO Use InvalidCharacterError for compatibility with the HTML atob algorithm.
                 return Err(agent.throw_exception(ExceptionType::Error, format!(
                     "InvalidCharacterError: The string to be encoded contains characters outside of the Latin1 range. Found: '{c}'"
                 ), gc).unbind());
@@ -145,8 +144,7 @@ impl WebExt {
         let gc = gc.into_nogc();
         for c in rust_string.chars() {
             if c as u32 > 0xFF {
-                // TODO: Returning an InvalidCharacterError is the correct behavior.
-                // ref: https://html.spec.whatwg.org/multipage/webappapis.html#atob
+                // TODO Use InvalidCharacterError for compatibility with the HTML atob algorithm.
                 return Err(agent.throw_exception(ExceptionType::Error, format!(
                     "InvalidCharacterError: The string to be encoded contains characters outside of the Latin1 range. Found: '{c}'"
                 ), gc).unbind());
@@ -204,8 +202,6 @@ impl WebExt {
         // TextEncoder always uses UTF-8 encoding
         let bytes = rust_string.as_bytes();
 
-        // For now, return a serialized representation that can be parsed on the JS side
-        // Format: comma-separated byte values
         let bytes_str = bytes
             .iter()
             .map(|b| b.to_string())
@@ -220,7 +216,6 @@ impl WebExt {
         args: ArgumentsList,
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // args: [bytes_string, encoding, fatal]
         let bytes_arg = args.get(0);
         let encoding_arg = args.get(1);
         let fatal_arg = args.get(2);
@@ -248,7 +243,6 @@ impl WebExt {
         // Normalize encoding name
         let encoding = encoding.to_lowercase().replace('_', "-");
 
-        // Get fatal flag (default to false) - check if value is truthy
         let fatal = !fatal_arg.is_undefined() && !fatal_arg.is_null();
 
         let bytes: Vec<u8> = if bytes_string.is_empty() {
@@ -358,12 +352,8 @@ impl WebExt {
                     }
                 }
             }
-            "iso-8859-1" | "latin1" | "windows-1252" => {
-                // ISO-8859-1/Latin-1: direct byte-to-char mapping for 0-255
-                bytes.iter().map(|&b| b as char).collect()
-            }
+            "iso-8859-1" | "latin1" | "windows-1252" => bytes.iter().map(|&b| b as char).collect(),
             _ => {
-                // Unsupported encoding - default to UTF-8 replacement behavior
                 if fatal {
                     return Err(agent
                         .throw_exception(
@@ -387,7 +377,6 @@ impl WebExt {
         args: ArgumentsList,
         mut gc: GcScope<'gc, '_>,
     ) -> JsResult<'gc, Value<'gc>> {
-        // args: [source_string, destination_bytes_string, destination_length]
         let source_arg = args.get(0);
         let dest_arg = args.get(1);
         let dest_len_arg = args.get(2);
@@ -441,7 +430,6 @@ impl WebExt {
             }
         }
 
-        // Return result as "bytes_string:read:written"
         let result_bytes_str = dest_bytes
             .iter()
             .map(|b| b.to_string())
@@ -535,10 +523,9 @@ impl WebExt {
 
         #[cfg(target_os = "windows")]
         {
-            // TODO: Implement Windows battery info retrieval using WMI or Win32_Battery
+            // TODO Implement Windows battery info retrieval using WMI or Win32_Battery
         }
 
-        // Default fallback - simulate a full battery
         r#"{"charging":false,"level":1.0,"chargingTime":null,"dischargingTime":null}"#.to_string()
     }
 
