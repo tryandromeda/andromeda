@@ -15,7 +15,9 @@ hotpath = [
     "andromeda-core/hotpath",
     "andromeda-runtime/hotpath",
 ]
-hotpath-alloc = ["hotpath/hotpath-alloc"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
+hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
+hotpath-callgrind = ["hotpath", "hotpath/hotpath-callgrind"]
 window = ["andromeda-runtime/window"]
 
 [lib]
