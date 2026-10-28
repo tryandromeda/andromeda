@@ -2,7 +2,7 @@
 
 <a href="https://github.com/tryandromeda/andromeda"><img align="right" src="./assets/andromeda.svg" alt="Andromeda" width="150"/></a>
 
-[![Discord Server](https://img.shields.io/discord/1264947585882259599.svg?logo=discord&style=flat-square)](https://discord.gg/tgjAnX2Ny3)
+[![Discord Server](https://img.shields.io/discord/1264947585882259599.svg?logo=discord&style=flat-square)](https://discord.gg/tgjAnX2Ny3) [![hotpath-cloud](https://img.shields.io/endpoint?url=https://hotpath.rs/badge-cloud.json)](https://hotpath.rs/app/repos/tryandromeda/andromeda)
 
 **A modern, fast(eventually), and secure JavaScript & TypeScript runtime** built from the
 ground up in [Rust 🦀](https://www.rust-lang.org/) and powered by
